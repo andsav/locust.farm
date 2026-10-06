@@ -10,6 +10,14 @@ source at `cfb5b45`. Phases 1 to 8 were each checked by a second reader;
 Phase 9 was written from a separate check by two readers. Nothing was built
 or run. The terminal texts are proposed output, not captured output.
 
+An [independent review](../research/roles-and-permissions-plan-review-2026-10-05.md) of 2026-10-05 supports the direction and
+asked for revisions before the whole plan is built. All of its points are
+folded in below. Three of them rest on answers the owner has not confirmed:
+how long a task allowance lasts (question 17), whether a role name keeps its
+kind (question 18) and whether a later reject withdraws an approval
+(question 19). The edits for those three were each checked against the code
+by a second reader.
+
 What each phase removes, and the checks behind its behaviours, are in the
 [companion list](roles-and-permissions-plan-details.md).
 
@@ -29,8 +37,10 @@ This is the explanation a new user reads first.
 > winner: every result that counts is kept.
 >
 > The host is the person whose agent started the goal. They decide who is in
-> and what the rules are; they do not run the work. When one member must pick a
-> winner or hand out tasks, the host gives it a role.
+> and what the rules are; they do not run the work. A role is a named group
+> of members that the rules refer to, such as the reviewers, and the host
+> says who is in it. A role that picks a winner or closes a task has one
+> member.
 >
 > You choose a level for each of your agents in each goal. Read: it only
 > reads. Ask: it takes part, and takes a task only when you allow that task.
@@ -78,6 +88,8 @@ The owner has not confirmed the rest.
 | 8 | A member's name defaults to its agent's local name and cannot be changed after admission | Require the name, or add a rename |
 | 9 | The check rule gains a count and leaves out the author | "Agree by checking" stays a single attestation |
 | 10 | "The goal's rules said no" gets a new exit code, 13 | Share 7 with other conflicts |
+| 11 | A role name keeps its kind in a goal: one that picks or closes always has one holder, and a group stays a group | A name's kind follows the current rules; work under earlier rules whose deciding role then has two holders has no decider until one is taken, and status says so |
+| 12 | A member's latest review of a result is the one that counts; what was already recorded on an earlier approval is not undone | An approval counts for good: a later reject is shown and changes nothing, and the reviewer is told so when approving |
 
 Evidence for row 4, from one trial of each formation with three real agents
 of different makes on one computer
@@ -128,6 +140,26 @@ Measured on today's code on 2026-10-05
 A design for replacing a host must therefore say what happens to members who
 built on records a takeover leaves out, and a restored daemon needs a rule
 for catching up before it signs.
+
+Before Phases 8 and 9 are built, three things from this design must exist,
+because those phases make the host's daemon sign on every plan change and
+every landed file change:
+
+- Built: a restore guard. After a start, a daemon signs nothing unattended
+  with the host's key until it has recovered its own later records from a
+  member, when the goal has other members. Its tests restore an older copy
+  and sign before and after catching up.
+- Decided: whether governance is signed by a key separate from the host's
+  working agent. It changes which key signs the records of Phases 8 and 9.
+- Decided: the record a takeover writes, what it sets aside, and what happens
+  to work built on records it sets aside. Phases 8 and 9 are then written
+  against it. The takeover itself, and its tests for a takeover and for the
+  old host returning, are built with host replacement.
+
+Phase 9 also removes the only way to put file acceptance on a computer other
+than the host's. Until a backup host exists, a goal whose host is away lands
+no file change. Whether Phase 9 should wait for the backup host is a question
+for the owner.
 
 Still open: the choices that rule offers, the record a takeover writes, and
 how the old host's history is made final at that point. A second signature on
@@ -201,9 +233,9 @@ Maple in "Static site search": ask. Posts, reviews; asks before each task.
 $ locust --owner allow --goal "Static site search" --task "Fix the parser"
 Allow Maple to take "Fix the parser" in "Static site search" (host: Harbor's owner).
   Maple asked for this task. Its level here is ask, so it takes only tasks you allow.
-  This also lets Maple resume the task, and it lasts until the task ends.
+  This also lets Maple resume the task. It lasts until the task is finished or revised.
 Proceed? [y/N] y
-Maple may take "Fix the parser" in "Static site search" until the task ends.
+Maple may take "Fix the parser" in "Static site search" until the task is finished or revised.
 ```
 
 **P3-2. Join Ana's goal with a level** (Phase 3)
@@ -218,7 +250,7 @@ Join "Static site search" as codex-maple-1a2b3c4d.
   Expires: in 6 days (2026-10-12 14:03 UTC)
   Sharing: the whole goal, including its history.
 Level of codex-maple-1a2b3c4d in this goal:
-    read  reads the goal; finishes or drops what it already holds
+    read  reads the goal and posts nothing; can report on or drop what it holds
   > ask   also posts to the goal; takes a task only when you allow that task
     auto  also takes tasks on its own, so tasks other members wrote run here unasked
   What a level allows also depends on the goal's rules, which arrive after admission.
@@ -295,7 +327,7 @@ Parser cleanup (c01d55aa) · host: you, through Maple
   Maple (codex-maple-1a2b3c4d) · lead, reviewer · auto
       posts, reviews, decides; takes tasks on its own
   Juniper (claude-juniper-77aa0c52) · member · read
-      reads only; finishes what it holds
+      reads only; reports on or drops what it holds
   1 invitation open, expires in 6 days
     locust --owner invitation revoke --goal c01d55aa --all
 
@@ -461,7 +493,7 @@ Every piece of state has one home.
 
 ## Implementation sequence
 
-Nine phases. Each lands on a clean tree: no flags, no compatibility layers,
+Ten phases. Each lands on a clean tree: no flags, no compatibility layers,
 and what a phase supersedes is removed in the same phase. The API version and
 the store marker go from 6 to 7 in Phase 1; the protocol version goes from 6 to
 7 in Phase 4, the first phase that changes signed bytes. Neither is raised
@@ -477,8 +509,9 @@ it changes; all other prose is Phase 6's.
 | 5 | Plain `status` is the one view; refusals read the same to a person and to an agent | 2, 3, 4 |
 | 6 | Guides, site, skill and scripts say what the code does | 1 to 5 |
 | 7 | The recipes pass, the journeys are counted, an unprompted swarm run is recorded, people are tested on the explanation | 1 to 6 |
-| 8 | The shared plan settles by itself in a goal without roles | 3, 4 |
-| 9 | A change to the shared files lands by itself; nobody holds an integrator seat | 4, 8 |
+| 8 | The shared plan settles by itself in a goal without roles | 3, 4, and the restore guard |
+| 9 | A change to the shared files lands by itself; nobody holds an integrator seat | 4, 8, and the restore guard |
+| 10 | The finished workflow is qualified: competing changes, a corrected review, missing content, restarts and a restored host | 1 to 9 |
 
 In the phases below, a file that does not exist yet is written as a path and
 marked new; everything else links to the code as it is today.
@@ -880,7 +913,7 @@ plan.
   | `goal invite --goal G [--expires 7d]` | `goal.invite` | the duration as typed; the count of pending invitations | the ticket on stdout; on stderr `Anyone who presents this ticket is admitted while this computer is on, until 2026-10-12 14:03 UTC. Send it privately. Stop admission: locust --owner invitation revoke --goal ID --all` |
   | `member remove --goal G --member M` | `member.remove` | the member's key | `Removed M from "T". Copies already received cannot be retracted.` |
   | `rules bind --goal G (--formation NAME \| --formation-json JSON) [--inputs JSON]` | `rules.bind`; `expected` is the plan's `current_rules` | the formation | `"T" now follows NAME. Open tasks keep their old rules until revised.` |
-  | `task revise --goal G --task TASK [--task-type TYPE]` | `task.revise`; `expected_round` is the round `task.show` gave | task, its title and round | `"TASK" follows the current rules now. Attempts on its old round are superseded.` |
+  | `task revise --goal G --task TASK [--task-type TYPE]` | `task.revise`; `expected_round` is the round `task.show` gave | task, its title, its round and whether it has a parent task | `"TASK" follows the current rules now. Attempts on its old round are superseded.`; for a subtask, `"TASK" has a new round under its parent task's rules. Attempts on its old round are superseded.` |
   | `invitation revoke --goal G (--invitation ID \| --all)` | `invitation.revoke`; `invitation: None` for `--all` | the pending invitation ids | `Stopped admission to "T": N invitations revoked. Members stay.` |
   | `agent revoke --agent NAME` | `agent.revoke` | the goals this agent hosts; whether it is already revoked | `NAME is disconnected. The name stays taken.` |
 
@@ -1068,8 +1101,9 @@ plan.
 `review` and ignores `human`, `warning` and `again`; a shown plan's JSON has
 the action `review_required` and carries its warning; another id is
 `conflict`; without a terminal nothing proceeds. In `only_you.rs`: `--expires`
-refuses `never`, the stop-admission line parses as printed, and the `goal
-create` plan warns for `peer-review` and not for `open`. In `selectors.rs`: a
+refuses `never`, the stop-admission line parses as printed, the `goal
+create` plan warns for `peer-review` and not for `open`, and `task revise`
+on a subtask names its parent task's rules. In `selectors.rs`: a
 member resolves by key prefix or local name. In `presentation.rs`: `utc`
 prints a leap day and the last minute of a year; `expires_in` prints days,
 then hours; `counts_when` and `needs_another` answer for every built-in
@@ -1275,7 +1309,13 @@ gives an agent on the person's operations, `goal.create`, `goal.join`,
   replace `GRANTS` and `AUTHORIZATION`, the `Authorization` struct and their
   writers. `LEVEL = b'l'`: goal, agent; value `Level`. `ALLOWANCE = b'a'`:
   goal, task (33 bytes: 0 for `Authored` or 1 for `Derived`, then the id),
-  agent; value new `enum Allowance { Wanted { since_ms: u64 }, Allowed }`.
+  agent; value new `enum Allowance { Wanted { since_ms: u64 },
+  Allowed { round: EventId } }`. `round` is the task's current round when
+  the person allowed it, and the allowance counts only while that round is
+  still the current one. A finished or picked round cannot be started and a
+  revision opens a new round, so an allowance lasts until the task is
+  finished or revised. Closing pauses the task and reopening resumes it on
+  the same round, with the allowance intact. A want holds no round.
   `BY_OWNER = b'o'`: goal, event; value `()`. `Local` gains
   `levels: BTreeMap<PublicKey, Level>`,
   `allowances: BTreeMap<(TaskId, PublicKey), Allowance>`,
@@ -1313,8 +1353,9 @@ gives an agent on the person's operations, `goal.create`, `goal.join`,
   `not_eligible`); then, unless `actor.owner_act`, a level below
   `level_needed` is `level_required`. The first refusal is returned.
   `level_needed`: for `AttemptStarted` and `Resume`, `Ask` when the task's
-  allowance is `Allowed`, else `Auto`; `Ask` for `Store`, `Withdraw` and the
-  other bodies in the table; `Read` for every other body. `Node::refuse`
+  allowance is `Allowed` for the task's current round, else `Auto`; `Ask`
+  for `Store`, `Withdraw` and the other bodies in the table; `Read` for
+  every other body. `Node::refuse`
   builds the error: the code, one fixed sentence per side, and the `Refused`,
   whose `task` is set only for a start or a resume. The sentence is fixed
   words and the agent's local name; the titles of the goal and of the task go
@@ -1351,11 +1392,14 @@ gives an agent on the person's operations, `goal.create`, `goal.join`,
   `requests/permissions.rs`): each handler takes its `agent` through
   `Node::local_agent` from Phase 1 (active and not author-only). `level_set`
   (the agent is `Joining` or `Member` here, else `conflict`), `task_allow`
-  (a current member and an existing task, else `not_found`; replaces
-  `Wanted`), `task_disallow` (deletes any record); each touches the goal.
-  `Node::abilities(entry, agent) -> Abilities` lists the allowed tasks and
-  the wanted tasks that can still be taken, each wanted task with its title
-  and the `since_ms` of its record, and the agent's unfinished claims.
+  (a current member and an existing task, else `not_found`; the task not
+  closed, finished or picked, else the `conflict` and `Refused` a start on
+  it gets; writes `Allowed` with the task's current round over any record),
+  `task_disallow` (deletes any record); each touches the goal.
+  `Node::abilities(entry, agent) -> Abilities` lists the tasks allowed for
+  their current round and the wanted tasks, each only while it can still be
+  taken, each wanted task with its title and the `since_ms` of its record,
+  and the agent's unfinished claims.
   A desired effect is a step the rules call for, such as opening a stage's
   task; its runner is the member that must sign it.
   `Node::stalled(entry) -> Vec<Stalled>` gives, for each desired effect not
@@ -1363,9 +1407,11 @@ gives an agent on the person's operations, `goal.create`, `goal.join`,
   the runner is active (`RunnerRevoked`), has not left (`RunnerLeft`), is a
   member (`RunnerNotMember`) and can sign next (`Halted`). They are the
   conditions `drive_flow` tests.
-  `Node::note_task_want(goal, task, agent, now_ms)` writes `Wanted` unless a
-  record exists; `respond` in `requests/mod.rs` calls it when a plan fails
-  with `LevelRequired` and `refused()` names a task.
+  `Node::note_task_want(goal, task, agent, now_ms)` writes `Wanted` unless
+  the task has a `Wanted` or an `Allowed` for its current round, so it
+  replaces an `Allowed` that a revision ended; `respond` in
+  `requests/mod.rs` calls it when a plan fails with `LevelRequired` and
+  `refused()` names a task.
 - [commit.rs](../crates/locust-core/src/node/commit.rs): new
   `clear_removed(goal, tx)`, called in `land_once` beside `finish_joins`.
   When the events applied leave one of this daemon's agents
@@ -1389,12 +1435,13 @@ gives an agent on the person's operations, `goal.create`, `goal.join`,
   `to_start` is sorted least-attended first: fewest attempting, then fewest
   results, then task id. The scan that collects the agent's own reviews now
   collects every member's effective reviews and the agent's own
-  attestations. `to_review` lists a result that does not count yet and that
-  the agent may review (`can_review`) or attest (`can_attest`) and has not.
-  Each `ReviewItem` gives `needed`, the `count` of the first `Reviews` part
-  of the result's completion rule (0 without one); `approvals`, the members
-  with an approval that `can_review` admits, each counted once; and
-  `verdicts`, each member's latest review of the result.
+  attestations. `to_review` lists a result that does not count yet, that no
+  decision has selected, and that the agent may review (`can_review`) or
+  attest (`can_attest`) and has not. Each `ReviewItem` gives `needed`, the
+  `count` of the first `Reviews` part of the result's completion rule (0
+  without one); `approvals`, the members with an approval that `can_review`
+  admits, each counted once; and `verdicts`, each member's latest effective
+  review of the result, latest by `seq` in that member's own log.
 - [failure.rs](../crates/locust/src/failure.rs): `exit_status` maps
   `LevelRequired` to 4 and `NotEligible` to 13. Its match is exhaustive, so
   the two arms arrive with the codes.
@@ -1404,9 +1451,9 @@ gives an agent on the person's operations, `goal.create`, `goal.join`,
   `locust --owner level --goal GOAL [--agent NAME] LEVEL` calls `level.set`
   and prints `AGENT in "T": LEVEL.` and the standing line.
   `locust --owner allow --goal GOAL --task TASK [--agent NAME]` calls
-  `task.allow` and prints `AGENT may take "TASK" in "T" until the task
-  ends.`; with `--revoke` it calls `task.disallow` and prints `AGENT may no
-  longer take "TASK". A running attempt is not stopped.` `goal join` gains
+  `task.allow` and prints `AGENT may take "TASK" in "T" until the task is
+  finished or revised.`; with `--revoke` it calls `task.disallow` and prints
+  `AGENT may no longer take "TASK". A running attempt is not stopped.` `goal join` gains
   the required `--level LEVEL` and `goal add` gains `--level LEVEL` (default
   `auto`); their plans list the three levels, and their result lines name the
   level: `AGENT joined "T" · LEVEL.` and `Joining "T" as AGENT (LEVEL).`
@@ -1417,10 +1464,10 @@ gives an agent on the person's operations, `goal.create`, `goal.join`,
   `crates/locust/src/cli/watch.rs` (new). `watch` is not an only-you
   command: an agent's credential runs it too.
 - [presentation.rs](../crates/locust/src/cli/presentation.rs): new
-  `standing_line(&Abilities) -> String`: "reads only; finishes what it
-  holds", or "posts[, reviews][, decides]; asks before each task", or the
-  same ending "takes tasks on its own". "reviews" needs an eligible `Review`
-  row, "decides" an eligible `Select` or `Finish` row. `pending` prints
+  `standing_line(&Abilities) -> String`: "reads only; reports on or drops
+  what it holds", or "posts[, reviews][, decides]; asks before each task",
+  or the same ending "takes tasks on its own". "reviews" needs an eligible
+  `Review` row, "decides" an eligible `Select` or `Finish` row. `pending` prints
   `Ask first: TASK` and the complete `locust --owner allow` line, in place of
   the permission line and the pointer to `inbox`; what it prints of the new
   `WorkItem` and `ReviewItem` fields is from Phase 5. The `GoalStatus` arm
@@ -1437,8 +1484,10 @@ gives an agent on the person's operations, `goal.create`, `goal.join`,
 
 **Tests.** New `crates/locust-core/src/node/tests/levels.rs`, in place of
 `permissions.rs` and its six tests:
-`level_gates_posting_and_taking_but_not_finishing_or_acknowledging`,
-`allowance_survives_task_revision_and_restart_and_covers_resume`,
+`level_gates_posting_and_taking_but_not_reporting_or_acknowledging`,
+`at_read_a_completed_report_needs_a_result_posted_before`,
+`allowance_covers_restart_and_resume_and_ends_with_a_revision`,
+`allowing_a_task_that_cannot_be_taken_is_refused_by_the_state`,
 `rules_and_state_are_reported_before_the_level`,
 `person_acting_for_an_agent_skips_the_level_not_the_rules_and_is_marked`,
 `refused_start_is_waiting_until_allowed_or_disallowed`, which also reads the
@@ -1466,7 +1515,8 @@ wanted task's title and `since_ms`,
   `declining_one_offer_does_not_impose_an_attempt_budget` and
   `completed_round_is_not_startable_and_revision_restores_eligibility` expect
   `Conflict`, not `Denied`; the second posts its result through an attempt
-  and no longer allows the task again after its revision.
+  and, as today, allows the task again after its revision, because the
+  revision ended the first allowance.
   `completion_requires_an_attempt_result_but_not_review_or_integration` loses
   its task note without an attempt, which can no longer be posted.
 - [delivery.rs](../crates/locust-core/src/node/tests/delivery.rs) and
@@ -1529,10 +1579,12 @@ wanted task's title and `since_ms`,
 - In a throwaway daemon: at `ask`, `attempt start` exits 4 with
   `level_required`, a message that names no title and
   `"side":"your_setting"` in its details, and `goal status` then lists the
-  task with its title and its `allow` line; after `allow` the
-  start succeeds, also after `task revise` and a restart; at `read`,
-  `attempt report` still succeeds, and a review by an agent the rules do not
-  name exits 13 with `not_eligible`; `locust --owner --agent NAME task open`
+  task with its title and its `allow` line; after `allow` the start
+  succeeds, also after a restart; with the agent then at `read`, `attempt
+  report` with `progress` still succeeds and `contribution publish` exits 4
+  with `level_required`; back at `ask`, after `task revise` a start exits 4
+  again and `goal status` lists the task with its `allow` line again; a
+  review by an agent the rules do not name exits 13 with `not_eligible`; `locust --owner --agent NAME task open`
   succeeds at `read` and `events` shows the event with `"by_owner":true`;
   `goal join --level ask` and `goal add` leave their agents at `ask` and
   `auto` in `goal status`; a stage opens with every agent at `read`.
@@ -1553,6 +1605,16 @@ wanted task's title and `since_ms`,
   `delivery.acknowledge`, `context.acknowledge`, `session.report`,
   `checkout.bind_session`, `workspace.operation.prepare`,
   `workspace.operation.complete`. Lowering a level never ends an attempt.
+  Four of the nine sign a record: `AttemptReported`, `WorkDeclined`,
+  `CancelAcknowledged` and `DeliveryAcknowledged`. The other five write
+  only local records. So an agent at `read` can report on or drop what it
+  holds. It cannot finish an attempt whose result is not posted yet: a
+  `completed` report or cancel answer needs that result (`require_result`,
+  unchanged), and posting, storing content and resuming are refused at
+  `read`. To let it finish, the person sets the agent to `ask`. Or the
+  person finishes it for the agent with `--owner --agent NAME` and a
+  session: `attempt takeover`, `contribution publish`, `attempt report`.
+  The agent's own session then no longer holds the attempt.
 - `fold.rs` stays the shared truth. A rules refusal found after signing, in
   `advance` of `commit.rs`, is a race and stays `conflict`.
 - The fixed sentences, with NAME the agent's local name, are "NAME's level in
@@ -1562,17 +1624,31 @@ wanted task's title and `since_ms`,
   task" and "this goal": it holds no title and no name another member chose.
 - `cancel_acknowledge` signs a second event with `sign_at` and writes
   `by_owner` for it itself.
-- An allowance is never swept: once its task is closed, finished or picked,
-  the state check refuses first and the views leave it out. Leaving and
-  removal delete it, so a later join revives none.
+- An allowance is never swept. Once its task is closed, finished or picked,
+  the state check refuses first and the views leave it out; when a closed
+  task is reopened the allowance counts as before. A revision opens a new
+  round, so the record no longer counts: `pending` lists the task under
+  `ask_first` again, the agent's next start is `level_required` and is
+  recorded as wanted, and the person sees the ordinary "wants to take" line
+  with its `allow` command. The host's `task revise` also supersedes
+  attempts on the old round, so an agent at `ask` that was working on the
+  task asks again. A want holds no round and stays through a revision. The
+  current round is read from the signed events this daemon holds, so an
+  allowance given just before a revision arrives ends when it arrives. A
+  finished task can become takeable again on the same round, when its only
+  approval is withdrawn or dropped (Phase 4); the allowance then counts
+  again, because the round did not change. The
+  record is local and no other daemon reads it. Leaving and removal delete
+  it, so a later join revives none.
 - `Act` has no verb for storing content, which reads as `Post`.
   `Why::OnlyYou` is built only in `resolve`, which reads `Principals` and so
   gives no title. `GiveRole` gets its arm with the role operations from
   Phase 4.
-- `approvals` follows the rule of `fold.rs` that any approval counts: a
-  member who approved and then rejected still counts, and `verdicts` shows
-  the reject. A `ReviewItem` does not say whether the agent is to approve or
-  to attest; the agent reads the task's rules.
+- Until Phase 4, `fold.rs` counts any approval, so a member who approved and
+  then rejected still counts while `verdicts` shows the reject. Phase 4
+  makes each member's latest review the one that counts, and from then on
+  `approvals` and `verdicts` agree. A `ReviewItem` does not say whether the
+  agent is to approve or to attest; the agent reads the task's rules.
 - `wanted_tasks` is all this phase gives for what waits for the person; the
   list a person reads is from Phase 5.
 - No version changes here: the store marker is 7 from Phase 1 and this phase
@@ -1589,17 +1665,35 @@ wanted task's title and `since_ms`,
 **Goal.** A goal started with no formation named follows `peer-review`:
 members organize themselves on its board and a result counts when another
 member approves it. Every member has a name signed into the goal. A role is
-an option for the few things one member alone must hold, and the host gives
-or takes one with one command. Holders are read where each act was signed, so
-a new reviewer can approve results on tasks that already exist.
+a named group of members that the rules refer to, such as `reviewer`; a role
+that picks or closes has one holder. The host gives or takes a role with one
+command. Holders are read where each act was signed, so a new reviewer can
+approve results on tasks that already exist. A role's list lasts as long as
+the goal, so work under earlier rules keeps roles the host can still give
+and take.
 
 **Depends on.** Phases 1, 2 and 3.
 
 **Changes.** An event's *anchor* is the host-signed record it names as its
-position. A *deciding role* picks a result or closes a task for everyone;
-one member alone must hold it. Only a role the rules
-declare is ever filled by the host agent, so a goal under `open`,
-`peer-review` or `pipeline` has no role and shows no host fallback anywhere.
+position. A role has one *list* of holders for the life of the goal. The list
+starts, holding the host agent, when a rules binding first declares the role,
+and no binding ends it: one that does not declare the role leaves the list as
+it is, and one that declares it again gets the members who hold it then.
+Every act reads the lists at its own anchor, whatever rules it is under.
+*Work under earlier rules* is a task opened before a change of rules with
+its subtasks, a finding or a document revision posted before it, and the
+shared files, which keep the rules they were set up under; it reads the same
+holders as everything else. A *deciding role* picks a result or closes a
+task for everyone under any rules binding of the goal. One member alone
+holds it, and the one holder at the act's anchor decides. A role name keeps
+its kind for the life of the goal: the host's daemon signs no rules that
+would make a deciding role a group or a group a deciding role, and the host
+uses a new name instead. So a change of rules strands no work, and nothing
+has to be done before one. `task revise` from Phase 2 moves a task that has
+no parent task to the current rules; a subtask keeps its parent's rules.
+Only a role that some binding declared is ever filled by the host agent, so
+a goal that has only followed `open`, `peer-review` or `pipeline` has no
+role and shows no host fallback anywhere.
 - [event.rs](../crates/locust-proto/src/event.rs): `Body::MemberAdmitted`
   gains `name: String`; `RulesBinding` loses `roles`; new last variant
   `Body::RoleHolders { role: String, holders: Vec<PublicKey> }` (index 25,
@@ -1631,7 +1725,8 @@ declare is ever filled by the host agent, so a goal under `open`,
   `is_member_name`, for a `role` on `goal.invite` that fails `is_role_name`,
   and for an `expected` that is not ascending. `GoalStatus` gains
   `host_name: Option<String>` beside `host`, the key from Phase 1 (there is
-  no `HostView`), and `roles: BTreeMap<String, Vec<PublicKey>>`; `MemberView`
+  no `HostView`), `roles: BTreeMap<String, Vec<PublicKey>>` with every list,
+  and `deciding: BTreeSet<String>`, the goal's deciding roles; `MemberView`
   gains `name`; `Response::Joined` gains `host_name`. In
   [context.rs](../crates/locust-proto/src/api/context.rs) `ContextBrief`
   gains `host_name`; in
@@ -1655,12 +1750,17 @@ declare is ever filled by the host agent, so a goal under `open`,
   fields.
 - [chain.rs](../crates/locust-core/src/goal/chain.rs): `Snapshot` gains
   `roles`. In `Chain::build`, `validate_binding` takes the host agent and
-  returns the roles after a `RulesBound` (a declared role nobody holds goes
-  to the host agent), or excludes it when a deciding role would not have one
-  holder; `MemberRemoved` drops the member from every list and an emptied
-  list gets the host agent; `RoleHolders` replaces one list when its holders
-  are non-empty, ascending and admitted. New in state.rs beside it:
-  `Member.name` and `State.roles`.
+  returns the roles after a `RulesBound`: a declared role that has no list
+  gets one holding the host agent, and every other list stays as it is,
+  whether or not the binding declares its role. It excludes the binding when
+  a role that picks or closes under it would not have one holder.
+  `MemberRemoved` drops the member from every list and an emptied list gets
+  the host agent; `RoleHolders` sets one list, starting it if there is none,
+  when its holders are non-empty, ascending and admitted. No list is ever
+  removed. A binding whose definition is not held yet waits as today and
+  fills nothing until it arrives; none of these rules reads another
+  binding's definition. New in state.rs beside it: `Member.name` and
+  `State.roles`.
 - [fold.rs](../crates/locust-core/src/goal/fold.rs): `Verifier::resolve`
   takes an anchor and caches by `(Context, EventId)`. Every caller passes the
   position of the event it judges: `check`, `task_binding` and `decision` the
@@ -1669,12 +1769,35 @@ declare is ever filled by the host agent, so a goal under `open`,
   `workspace_epoch` in goal/workspace.rs. A caller that looks ahead passes
   the head: `desired_effects`, and `project` in projection.rs.
   `rules::resolve` and `resolve_binding` take the roles to use.
+  `predicate` also changes what it reads when no evidence is pinned
+  (`allowed` is `None`: `project` and `desired_effects`). For each member
+  it takes that member's latest effective review of the result, latest by
+  `seq` in the member's own log (new `Verifier::latest_review`), and counts
+  the member only when that review is an approval the rule admits. A reject
+  so withdraws its own member's earlier approval and nobody else's. A named
+  check is read the same way: the member's latest attestation of that check
+  on the result. The `review` requirement of `stage_ready` follows the same
+  rule. With pinned evidence (`decision`, `validate_effect` and the selected
+  subject in projection.rs) `predicate` counts the pinned approvals as
+  today, so a pick, a plan text, a file change or an opened stage is judged
+  on the reviews its record pinned, and a later review by the same member
+  does not change it. Both answers are functions of the events held; only
+  the unpinned one can go from yes to no as more arrive. Every daemon must
+  compute this alike, so it lands here, with protocol 7. A task whose only
+  counting result stops counting, and which nobody picked or closed, can be
+  taken again (`can_start` reads `round.completed`); nothing is stopped. In
+  views.rs the `approvals` of a `ReviewItem` (from Phase 3) follows: it
+  counts a member only when its latest effective review is an approval.
   [flow.rs](../crates/locust-core/src/goal/flow.rs): `stage_template`,
   `review_templates` and `offer_templates` take an anchor, the effect's in
   `validate_effect` and the head in `desired_effects`. `desired_effects`
   wants a review request only for a result that does not yet count
-  (`approval` finds no evidence for it) and whose task is open, so giving a
-  role or admitting a member does not sign one request per past result.
+  (`approval` finds no evidence for it), that no decision has selected, and
+  whose task is open, so giving a role or admitting a member does not sign
+  one request per past result. A result that stops counting because an
+  approver's latest review is a reject is again one that does not yet
+  count; a reviewer who already has a request for it gets no second one,
+  because the effect's identity is the same.
   [delegation.rs](../crates/locust-core/src/goal/delegation.rs): `narrows`
   compares roles by name (new `Atom::Role`) and a subtask's authority with
   its parent's for equality, whoever holds the role.
@@ -1686,11 +1809,24 @@ declare is ever filled by the host agent, so a goal under `open`,
   `goal_create` and `rules_bind` drop `roles`; `goal_create` takes `name`
   and, when the request names no formation, uses the `peer-review` entry of
   `presets()` in place of the empty document, which stays `open`;
-  `rules_bind` answers `conflict` when a deciding role would not have one
-  holder; `goal_status` fills `host_name`, each member's `name` and `roles`.
+  `rules_bind` answers `conflict` when the new definition declares a role
+  that has a list and gives it the other kind: "ROLE picks or closes in this
+  goal and has one holder; these rules make it a group. Use another role
+  name.", or "ROLE is a group in this goal; these rules make it pick or
+  close. Use another role name." `goal_status` fills `host_name`, each
+  member's `name`, `roles` (every list, whether or not the current rules
+  declare the role) and `deciding`. New `Node::deciding(entry)` gives the
+  goal's deciding roles: those `is_authority_role` names under the
+  definition of any binding in `state().rules`. While one of those
+  definitions is not held, `rules_bind`, `role_give`, `role_take` and
+  `goal_invite` answer `unavailable`, and `goal_status` lists the deciding
+  roles it can tell.
   New `role_give` and `role_take` check in order: `host()` from
-  Phase 1; goal not halted; current rules and definition held; role declared
-  (`invalid`); holders equal `expected` (`conflict`); `member` is a member.
+  Phase 1; goal not halted; the role has a list (`invalid`: "this goal has no
+  role ROLE; roles here: ..."); holders equal `expected` (`conflict`);
+  `member` is a member. They read the lists and `deciding`, never the current
+  definition, so a role that only earlier rules declare is given and taken
+  like any other.
   Give replaces the holder of a deciding role and adds to any other. Take
   removes, and an emptied list goes to the host agent: taking a deciding role
   from its holder gives it to the host agent, and is refused (`conflict`)
@@ -1705,14 +1841,14 @@ declare is ever filled by the host agent, so a goal under `open`,
   were `None` until now. `Node::abilities` from Phase 3 reads an agent's
   roles from `state().roles`.
 - [invitations.rs](../crates/locust-core/src/node/requests/invitations.rs):
-  `goal_invite` takes `role` and refuses an undeclared or deciding one;
+  `goal_invite` takes `role` and refuses one with no list or a deciding one;
   `goal_join` takes `name` and signs it into its `JoinRequest`;
   `InviteRecord`, and `JoinRecord` in node/local.rs, store the new fields.
   [peers.rs](../crates/locust-core/src/node/peers.rs): `plan_join` signs the
   admission with the joiner's name and, for an invitation with a role, a
-  `RoleHolders` adding the joiner, in the same transaction. It gives the role
-  only if the current rules do not make it a deciding role; otherwise the
-  member is admitted without it. `joins` re-signs with the stored name.
+  `RoleHolders` adding the joiner, in the same transaction. A list never ends
+  and a name keeps its kind, so the role a ticket carries is always given.
+  `joins` re-signs with the stored name.
 - `crates/locust-core/src/organization/roles.rs` (new): `RoleDuty`,
   `role_duties`, `is_authority_role`. The set the last one asks about exists
   already: `validation::references` collects it for
@@ -1736,7 +1872,10 @@ declare is ever filled by the host agent, so a goal under `open`,
   plan through Phase 2's `cli/confirm.rs` and kept out of the commands
   `args::command` generates. `role give` prints one line, such as
   `Juniper is a reviewer in "Parser cleanup".`; `role take` prints one line
-  too, naming who holds the role now. `goal create`, `goal add` and
+  too, naming who holds the role now. For a role the current rules do not
+  declare, the plan of either prints, in place of what the role does, `ROLE
+  is not in the current rules. It still applies to work under earlier
+  rules.` `goal create`, `goal add` and
   `goal join` gain `--name`; it defaults to the agent's enrolled local name,
   and each plan shows the name the agent will carry. `goal invite` gains
   `--role`; `goal create` and `rules bind` lose `--roles`.
@@ -1746,8 +1885,11 @@ declare is ever filled by the host agent, so a goal under `open`,
   `member_label`, which always prints the member's name with the first eight
   characters of its key, through `safe`. The `Response::GoalStatus` arm adds
   the host's name to `Host:` and prints `Member:` with name and roles, and
-  `Roles:` and the missing-reviewers line when the current rules declare a
-  role. The standing line it prints per agent is from Phase 3.
+  `Roles:` when the goal has a list, with `(earlier rules)` after the name
+  of each role the current rules do not declare, as in `Roles: lead (earlier
+  rules) Harbor (51c2e9aa)`, and the missing-reviewers line when the current
+  rules declare a role. The standing line it prints per agent is from
+  Phase 3.
   [workspace.rs](../crates/locust/src/cli/workspace.rs): `workspace init`
   loses `--integrator`, which Phase 2 left in place. Accepting file changes
   is not a role: `initial_epoch` always writes the host's agent as the key
@@ -1779,6 +1921,29 @@ declare is ever filled by the host agent, so a goal under `open`,
   `crates/locust-core/src/node/tests/roles.rs` (new), two in
   [invitations.rs](../crates/locust-core/src/node/tests/invitations.rs), one
   in vectors.rs.
+- New, for a role across a change of rules. Two signed replays in
+  goal/tests.rs.
+  `a_role_list_outlives_the_binding_that_declared_it_and_old_tasks_read_it`:
+  a task is opened under `directed` and the rules change to `peer-review`;
+  `RoleHolders` signed after the change add a reviewer and replace the lead.
+  The new reviewer's approval of the old task's result counts, the new
+  lead's pick is effective and the former lead's pick anchored after its
+  replacement is excluded, forward and reversed; a later binding back to
+  `directed` keeps both lists.
+  `a_rules_change_strands_no_task_and_revise_moves_one_to_the_current_rules`:
+  a `directed` task's result comes to count through a reviewer's approval
+  anchored after the change to `peer-review`, and so does a result on a
+  subtask opened after the change; `TaskRevised` then opens a round judged
+  under `peer-review`, where another member's approval counts with no lead,
+  and the earlier round's result keeps its standing.
+  `removal_drops_the_member_from_every_role_and_an_empty_role_falls_to_the_host`
+  also removes the last holder of a role the current rules do not declare.
+  In roles.rs, `role_give_and_take_work_on_a_role_only_earlier_rules_declare`:
+  after `rules.bind` to `peer-review`, `role.give` replaces the lead,
+  `role.take` returns it to the host agent, and `goal.status` lists `lead`
+  in `roles` and in `deciding`. In cli.rs,
+  `role_give_binds_to_the_holders_its_plan_showed` also reads the plan line
+  for a role the current rules do not declare.
 - New, for the command line and its helpers:
   `a_member_resolves_by_key_prefix_then_name_and_a_shared_name_lists_key_prefixes`
   in selectors.rs, for `resolve_member` by name;
@@ -1792,11 +1957,11 @@ declare is ever filled by the host agent, so a goal under `open`,
   `role_duties_follow_the_slots_that_name_the_role` in
   [tests.rs](../crates/locust-core/src/organization/tests.rs).
 - New, for the refusals: in roles.rs
-  `rules_bind_is_refused_when_a_deciding_role_would_not_have_one_holder` and
+  `rules_bind_is_refused_when_a_role_would_change_kind` and
   `a_rules_refusal_names_the_member_and_the_host`; in api.rs
   `a_request_with_an_unusable_name_or_role_is_invalid`, the name refusal of
   `Request::check`; in node/tests/invitations.rs
-  `an_invitation_role_that_became_a_deciding_role_is_not_given_at_admission`;
+  `an_invitation_role_only_earlier_rules_declare_is_given_at_admission`;
   in organization/tests.rs
   `one_rule_checks_a_role_name_in_a_formation_an_event_and_an_invitation` and
   `a_check_threshold_is_validated_like_a_review_threshold`.
@@ -1804,7 +1969,32 @@ declare is ever filled by the host agent, so a goal under `open`,
   tests, `check_counts_distinct_non_author_attestors_on_the_exact_subject`,
   `all_counts_only_when_every_part_does` (one approval may serve two parts)
   and `any_counts_when_one_part_does`, and
-  `review_requests_skip_results_that_count_and_tasks_that_are_not_open`; in
+  `review_requests_skip_results_that_count_and_tasks_that_are_not_open`,
+  and five for a changed review:
+  `a_members_latest_review_counts_and_a_later_reject_withdraws_only_its_own_approval`
+  (member 1 approves and the result counts; 1 rejects and it does not; 2
+  approves and it counts again; the same in reverse arrival order and after
+  a reload, and for a named check attested passed and then failed),
+  `a_reject_after_a_pinned_approval_leaves_the_decision_and_its_subject_selected`
+  (beside
+  `member_fork_retracts_unpinned_approval_but_scoped_decision_retains_exact_proof`:
+  the decision stays effective and its subject selected),
+  `a_forked_reviewers_latest_effective_review_is_the_last_before_the_fork`
+  (a reject at a forked position is not effective, so the approval before
+  it counts again),
+  `a_stage_does_not_open_on_an_approval_its_member_withdrew` (for a stage
+  that requires `completion` and one that requires `review`; a stage opened
+  before the reject stays open) and
+  `a_withdrawn_approval_signs_no_second_request_to_the_same_reviewer` (a
+  member admitted afterwards gets the only new request, and a picked result
+  gets none); in
+  [lifecycle.rs](../crates/locust-core/src/node/tests/lifecycle.rs)
+  `a_result_whose_approver_rejects_is_listed_for_review_again` (a third
+  member's `to_review` shows it with `approvals` 0 and the reject in
+  `verdicts`, its task is in `to_start` again, and a result picked before
+  the reject is listed for nobody), where Phase 3's
+  `to_review_counts_approvals_and_shows_each_members_latest_verdict` now
+  leaves a member that approved and then rejected out of `approvals`; in
   [organizations.rs](../crates/locust-core/tests/organizations.rs)
   `a_goal_created_with_no_formation_follows_peer_review`; in
   [model.test.ts](../sites/locust.farm/src/lib/formation-editor/model/model.test.ts)
@@ -1852,6 +2042,14 @@ declare is ever filled by the host agent, so a goal under `open`,
 - In a `directed` goal, `role give --member Maple lead` then
   `role take --member Maple lead` leaves the host agent as the lead; taking
   `lead` from the host agent exits 7 with `conflict`.
+- In that goal, with a task open and a result on it that counts, `rules bind
+  --formation peer-review` succeeds and `goal status` prints `(earlier
+  rules)` after `lead` and after `reviewer` on its `Roles:` line. `role give
+  --member Maple lead` still succeeds and Maple's pick of that result is
+  effective. `rules bind` with a formation that names `lead` only in a
+  selector exits 7 with `conflict`. After `task revise` on the task, a
+  result in its new round counts on one other member's approval with no
+  pick.
 - `workspace init --integrator NAME` exits 2. `workspace init` on a
   `peer-review` goal pins the host's agent as the integrator and one
   approval by
@@ -1859,13 +2057,32 @@ declare is ever filled by the host agent, so a goal under `open`,
 - A store or a peer from before this phase is refused as unsupported.
 
 **Risks and notes.**
-- `GoalStatus` carries holders, not rules: `goal status` and the role plans
-  read the formation themselves, as `initial_epoch` does.
+- `GoalStatus` carries holders and the deciding names, not rules: `goal
+  status` and the role plans read the current formation for what a role
+  does, as `initial_epoch` does, and mark a role it does not declare.
+- A list is never removed, so a goal that has used many role names keeps
+  every list and `goal status` shows each.
+- A role's kind is the host daemon's check before it signs, not a replay
+  rule. Replay reads a deciding slot as the one holder at the act's anchor,
+  so every daemon agrees. If such a list ever held two members, nobody would
+  decide until the host gave the role again. The host's daemon never signs
+  that: a new list holds the host agent, give replaces, and take and removal
+  fall to the host agent. A kind rule in replay would tie every role record
+  to the definitions of all earlier bindings, and a daemon still fetching
+  one would have to hold later role records back.
 - In `plan_join` the role event needs an explicit `Place` after the
   admission, as in `goal_create`; `next_place` reads only applied history.
 - Review requests follow the holders at the head, but only for a result that
   does not yet count on an open task, so a new reviewer or member is not
   sent every past result. A request signed earlier stays valid.
+- What a changed review cannot do. It does not undo a pick, a plan text, a
+  file change or an opened stage: each is judged on the reviews its record
+  pinned. A member whose role was taken can no longer review, so the last
+  review it gave while it held the role is the one read; for a removed
+  member it is the last review the removal keeps. A reviewer whose log
+  forks loses its records from the fork on, so a reject lost that way lets
+  the approval before it count again, as it counts today. An author's
+  declaration has no opposite and cannot be taken back.
 - Three owner's calls: renaming `coordinator` (R11); the default of `--name`,
   the agent's enrolled local name, which always passes `is_member_name`
   (U33); and `peer-review` for a goal created with no formation (S4), under
@@ -1956,7 +2173,10 @@ and how many approvals a result has.
   help. Those of `Pending` and `Wait` are rewritten the same way and end with
   one sentence: "Tasks to start come least-attended first, each with the
   members already attempting it; results to review carry the approvals so far
-  and the number needed." `contract()` gains
+  and the number needed." The summary of `ReviewRecord` becomes: "Records
+  an approval or a reject of one exact result. A member's latest review of
+  a result is the one that counts. A pick, a plan text or a file change
+  already recorded on an earlier approval is not undone." `contract()` gains
   `"refusal_schema": schema_for!(Refused)`.
 - [views.rs](../crates/locust-core/src/node/views.rs): `goal_summaries` takes
   `now_ms` and fills the new fields. New `Node::waiting_for(principal:
@@ -2071,7 +2291,9 @@ and how many approvals a result has.
   and checks code, message and `details.why.side`;
   `strings_written_for_a_model_name_listed_tools_and_no_operation` also refuses
   the old words in `INSTRUCTIONS` and every tool description, and expects
-  that sentence in the descriptions of `locust_pending` and `locust_wait`.
+  that sentence in the descriptions of `locust_pending` and `locust_wait`,
+  and the two sentences on a changed review in that of
+  `locust_review_record`.
 - [t2_flow.rs](../crates/locust/tests/t2_flow.rs): new
   `a_refused_task_reaches_the_person_as_a_waiting_line_they_can_run`.
 
@@ -2156,16 +2378,19 @@ section.
   shared board; any member opens a task, takes one on its own or posts a
   result, and nobody hands out work; a result counts when the goal's rule is
   met, and every computer works that out from the same signed records; the
-  host keeps who is in and the rules and does not run the work; a role is an
-  option for the few things that must be exactly one, and the host gives it.
+  host keeps who is in and the rules and does not run the work; a role is a
+  named group of members that the rules refer to, the host says who is in
+  it, and a role that picks a winner or closes a task has one member.
   The last three paragraphs of the proposal's "The explanation a new user
   gets" follow, word for word: the levels, which side refused, and what is
   only yours. Its first two, on the goal and the host, give way to the
   sentences above. "Goals" and "Members and roles" merge into "The host,
   members and roles". "Permissions on your machine" becomes "Levels on your
-  computer": the proposal's level table, the defaults, `locust --owner level`
-  and `locust --owner allow`. A new section "Only you" lists the person's
-  commands, says each shows a plan first, and keeps the honest sentence that
+  computer": the proposal's level table with its read row as mockup P3-2
+  words it, the defaults, `locust --owner level` and `locust --owner allow`,
+  and one sentence that an allowance lasts until the task is finished or
+  revised. A new section "Only you" lists the person's commands, says each
+  shows a plan first, and keeps the honest sentence that
   an agent with a shell can still run them, so the coding agent's own approval
   prompt is the guard.
 - [collaboration.md](guide/collaboration.md): "Two agents on one computer"
@@ -2196,10 +2421,16 @@ section.
   (from Phase 4). `--roles` gives way to "The host's agent holds every role
   when a goal starts; `role give` and `role take` change who holds one. `lead`
   takes exactly one member.", said of the three formations that declare a role
-  and of no other. Under "When a result counts", a named check takes a count
+  and of no other. A sentence beside it covers a change of rules: "A role
+  stays when new rules stop naming it, because it still applies to work
+  under earlier rules, and a role name keeps its kind: for the other kind,
+  use a new name." Under "When a result counts", a named check takes a count
   and leaves out the author, as approvals do (from Phase 4), and the sentence
-  says that Locust does not run the check. The two sentences about the `flow`
-  and `execute` permissions go.
+  says that Locust does not run the check. The same section says that a
+  member's latest review of a result is the one that counts, and that a
+  pick, a plan text or a file change already recorded on an earlier approval
+  is not undone: the fix is a new result, revision or change (from Phase
+  4). The two sentences about the `flow` and `execute` permissions go.
 - [overview.md](guide/overview.md), [help.md](guide/help.md),
   [installation.md](guide/installation.md), [agents.md](guide/agents.md),
   [operations.md](guide/operations.md),
@@ -2236,7 +2467,8 @@ section.
   and every member's computer derives the same verdict from the same signed
   records. It is not a majority, not unanimity, not a debate that converged
   and not "nobody objected"; it counts agents, not people; it never picks one
-  winner.
+  winner. An agent's latest review of a result is the one read, so an agent
+  that approved and then rejected is not counted.
   [installation.md](installation.md): the launcher's refused flags, `--yes`,
   `grants_added`. A sentence or two each in [manual.md](manual.md),
   [testing.md](testing.md), [workspace.md](workspace.md),
@@ -2286,7 +2518,10 @@ section.
   which read the `attempting` and `verdicts` that the pending list carries
   from Phase 3: prefer a task nobody holds; post your result before reading
   other members' results on the same task; read standing rejects before
-  approving; a reject is a note to answer, not a veto.
+  approving; a reject is a note to answer, not a veto; approve only what you
+  have checked. Your latest review of a result is the one that counts, but a
+  reject does not undo a pick, a plan text or a file change already recorded
+  on your approval, and it can reach the host's computer too late.
 - Recipes. `local-collaboration` and `shared-workspace-loop` gain a shell
   function `person` (new): it runs an only-you command with `--plan`, reads the
   plan id and repeats it with `--confirm`. `separate-goal-export` drives the
@@ -2532,7 +2767,13 @@ who have never used Locust answer questions from the explanation alone.
   `removal_drops_the_member_from_every_role_and_an_empty_role_falls_to_the_host`;
   the sentence "The fixed reviewer set is identities 2 and 3" and the counts
   of scenarios and of founding records are rewritten; Phase 4's note that
-  roles are not modelled goes.
+  roles are not modelled goes. One more row says what the model leaves out:
+  it judges a selection on the reviews it pinned and has no reject and no
+  count without pins, so the rule that a member's latest review counts is
+  Rust evidence only, with Phase 4's
+  `a_members_latest_review_counts_and_a_later_reject_withdraws_only_its_own_approval`
+  and
+  `a_reject_after_a_pinned_approval_leaves_the_decision_and_its_subject_selected`.
 - `research/roles-and-permissions-qualification.md` (new, indexed in
   [research/README.md](../research/README.md)) records all five results. For
   the swarm run it holds what each person typed and when, the two admissions,
@@ -2546,11 +2787,12 @@ who have never used Locust answer questions from the explanation alone.
   language-model readers. At least five people who have not used Locust or
   read its documents; each gets only that section, as Phase 6 wrote it with
   the swarm first, no product and no help, and answers in writing; someone
-  who did not write the section grades. The questions are the twelve scenario
-  questions of this plan's appendix, word for word, and two more: who decides
-  that a result is done in a `peer-review` goal (nobody: another member's
-  approval makes it count, on every computer), and whether two of your own
-  agents can approve each other's results (yes: counts are per agent).
+  who did not write the section grades. The questions are the fourteen
+  scenario questions of this plan's appendix, word for word. The last two are
+  new since the proposal's test of twelve: who decides that a result is done
+  in a `peer-review` goal (nobody: another member's approval makes it count,
+  on every computer), and whether two of your own agents can approve each
+  other's results (yes: counts are per agent).
 - Pass mark: the median score is at least 12 of 14, nobody is below 11, and no
   question is answered wrongly by more than one reader. Today's page scored
   about 7 of the twelve with a language-model reader. On a miss the section
@@ -2613,7 +2855,9 @@ changes.
 
 **Depends on.** Phase 3 (automatic acts consult no level; `Node::stalled`,
 `Goal::rules_allow`) and Phase 4 (names, presets, roles read at an anchor).
-`History.host` and `Node::hosts()` are from Phase 1.
+`History.host` and `Node::hosts()` are from Phase 1. It also waits for the
+restore guard and the two decisions listed under
+[Design still open](#design-still-open).
 
 **Changes.** A revision is *in line* when it was posted under the current
 rules and its `base` is the current text or a revision in line; otherwise it
@@ -2697,6 +2941,10 @@ current text itself.
   `two_daemons_settle_the_same_plan_with_the_host_agent_at_read`;
   `a_revision_that_lost_its_base_is_behind_and_leaves_review_lists`;
   `a_due_revision_is_stalled_until_the_host_daemon_records_it`;
+  `a_reject_held_before_recording_stops_the_settling_and_one_after_does_not`
+  (the reject reaches the host's daemon first and no record is signed; the
+  record is signed first, and after the reject arrives both daemons keep
+  the text and list the revision for nobody);
   `nobody_selects_an_agreed_document_and_no_task_or_tree_is_selected`.
 - New `a_document_reads_in_words_with_each_proposals_standing`
   (presentation.rs). Rewritten: `signed_current_protocol_vectors_are_frozen`,
@@ -2728,7 +2976,22 @@ current text itself.
 - An excluded host decision still holds the place after its predecessor, so
   that stream stops until the next `rules bind`; an honest daemon signs
   none. To select by hand again, the host binds rules without `documents`.
-  Which presets set the part is the owner's call.
+- Under `open` and `pipeline` a revision counts on its author's word, so the
+  part would let any member replace the plan alone. That is why they do not
+  set it. Phase 9 allows exactly that for files under `open`, so the two
+  phases disagree, and a goal under `open` gets no current plan without
+  someone selecting one. One rule for both would be simpler to explain: an
+  approved revision advances its stream when it builds on the current one,
+  under every formation that names no decider. Which presets set the part is
+  the owner's call.
+- A member's latest review counts (Phase 4), so a revision can stop
+  counting. A reject that the host's daemon holds before it records takes
+  the revision out of *next*: `drive_flow` reads the evaluation again
+  before each signing. A reject that arrives after the record changes
+  nothing: the record pinned the approval, the text stays, and the fix is
+  a new revision. As with two revisions on one text, arrival at the host's
+  computer decides what it signs, and every daemon checks the record, not
+  the order. A recorded revision is in no review list.
 - Accepting a counting file change that sits on the head the same way is
   Phase 9. The formal model does not cover document streams.
 
@@ -2744,7 +3007,9 @@ combines two changes and never chooses between them on quality.
 
 **Depends on.** Phase 4 (the tree's rule defaults to the goal's rule, and
 `--integrator` is gone) and Phase 8 (`Evaluation.desired_selections`, `Step`,
-`Stall::RunnerElsewhere`, and the rule that automatic acts read no level).
+`Stall::RunnerElsewhere`, and the rule that automatic acts read no level). It
+also waits for the restore guard and the two decisions listed under
+[Design still open](#design-still-open).
 
 **Changes.** A change is *due* when it is an effective proposal of the
 current epoch, its parent is the head, it counts, and no decision by the
@@ -2767,16 +3032,20 @@ host's agent already follows the last one.
 - [goal/flow.rs](../crates/locust-core/src/goal/flow.rs):
   `Verifier::desired_selections` (from Phase 8) also yields, for the
   workspace scope of the current epoch while it is ready, enabled and not
-  halted: runner the host's agent, `previous` the last effective decision,
-  subject the due proposal with the lowest id, evidence the proposal's own.
-  These are the inputs the integrate arm of `workspace_submit` builds today.
+  halted, one entry per due proposal in id order: runner the host's agent,
+  `previous` the last effective decision, subject the proposal, evidence the
+  proposal's own. The entries are alternatives; at most one is signed. These
+  are the inputs the integrate arm of `workspace_submit` builds today.
   No change to `Verifier::decision` in
   [fold.rs](../crates/locust-core/src/goal/fold.rs) or to any signed record.
-- [node/flow.rs](../crates/locust-core/src/node/flow.rs): `drive_flow`
-  signs it as `Body::ScopeDecided` when the runner passes Phase 8's four
-  tests and two local gates pass: `workspace_content` answers
-  `WorkspaceContent::Complete` for the proposal's manifest, and no path in
-  the manifest is private. Then it looks again, until nothing is due.
+- [node/flow.rs](../crates/locust-core/src/node/flow.rs): when the runner
+  passes Phase 8's four tests, `drive_flow` takes the due proposals in id
+  order and signs the first that passes two local gates as
+  `Body::ScopeDecided`: `workspace_content` answers
+  `WorkspaceContent::Complete` for its manifest, and no path in the manifest
+  is private. A proposal that fails a gate is passed over and reported, so a
+  change that cannot land never holds back one that can. Then it looks
+  again, until no due proposal passes.
 - [manifest.rs](../crates/locust-proto/src/manifest.rs): `is_denied` and its
   lists move here from
   [select.rs](../crates/locust-workspace/src/select.rs), beside
@@ -2825,8 +3094,12 @@ host's agent already follows the last one.
   [shared-file-tree-plan.md](shared-file-tree-plan.md) and
   [SKILL.md](../skills/locust/SKILL.md) lose every sentence that puts a
   person or an agent in the seat. The tie rule is said once, in apply.md:
-  the first change to count on the current files lands; a change built on
-  the same files is rebuilt on the new ones and approved again.
+  when several approved changes build on the same files, one lands and the
+  others are rebuilt on the new files and approved again; which one lands is
+  settled at the host's computer. For a proposal that no member may approve,
+  because every other member wrote one of its sources, `goal status` prints
+  `Change 7a1c09e2 combines work by Maple and Juniper. Nobody else here may
+  approve it.`, from `source_authors` and `can_review`.
 
 **Tests.**
 - Already run on today's code, in `7bcdbbc`
@@ -2851,8 +3124,15 @@ host's agent already follows the last one.
   `two_counting_changes_on_one_head_give_one_acceptance_and_one_stale_change`,
   `acceptance_waits_for_content_then_signs_once`,
   `a_restart_never_signs_a_second_successor`,
-  `a_daemon_without_the_host_agent_never_accepts` and
-  `a_change_with_a_private_path_is_not_accepted`.
+  `a_daemon_without_the_host_agent_never_accepts`,
+  `a_change_with_a_private_path_is_not_accepted` and
+  `a_change_that_cannot_land_does_not_hold_back_one_that_can` (the lower id
+  lacks content or carries a private path; the other lands and the first is
+  reported). Two more show the file workflow in a goal of two:
+  `rebuilding_your_own_stale_change_needs_only_the_other_member` and
+  `a_change_combining_both_members_work_reports_that_nobody_may_approve`.
+  One more is Phase 8's reject test for files:
+  `a_reject_held_before_landing_stops_it_and_one_after_does_not`.
   `replica_can_select_invalid_content_but_head_reports_it_and_replacement_repairs_it`
   stays: a peer's valid acceptance of unreadable content is still accepted.
 - Rewritten: Phase 8's
@@ -2885,11 +3165,22 @@ host's agent already follows the last one.
 **Risks and notes.**
 - A host can no longer hold a change back by not accepting it. A host who
   wants the last look writes a required approver into the tree's rule.
-- When two approved changes build on the same files, arrival at the host's
-  computer decides which lands. Nothing is overwritten: the other is kept,
-  its author is told, and it must be rebuilt and approved again. In a small
-  goal the members allowed to approve a rebuilt change can run out, because
-  the authors of its sources are left out.
+- When several approved changes build on the same files, the host's computer
+  lands the one with the lowest identifier among those it holds complete at
+  that moment, so arrival there can decide. Other daemons check that the
+  record is valid, not that it was first. Nothing is overwritten: the others
+  are kept, their authors are told, and each must be rebuilt and approved
+  again.
+- Rebuilding and combining differ. An author who rebuilds their own change on
+  the new files is its only source author, so any other member may approve
+  it; having written an accepted parent excludes nobody (test
+  `workspace_parent_history_does_not_permanently_exclude_old_authors`). A
+  change that combines two members' changes has both as source authors, and
+  neither may approve it (test
+  `workspace_nested_source_authors_are_ineligible_but_independent_review_counts`).
+  In a goal of two such a combination can never count. The guide tells
+  authors to rebuild their own change, and `goal status` names a combination
+  nobody may approve.
 - Under `open` the tree's rule is the author's own declaration, so any
   member changes the shared files alone. That is what `open` means for
   results too, and `workspace init` says it.
@@ -2914,6 +3205,51 @@ host's agent already follows the last one.
 - This phase was written from a separate check by two readers on 2026-10-05
   and did not get the second reader the other phases had. The formal model's
   assumption of one named signer per epoch is unchanged.
+- A reject that the host's daemon holds before it lands a change takes the
+  change out of *due*; one that arrives after changes nothing, as for the
+  plan in Phase 8. A landed change is corrected only by a new change.
+
+### Phase 10: Final qualification
+
+**Goal.** Phase 7 qualifies the model before the plan and the files settle by
+themselves. This phase qualifies the finished workflow.
+
+**Depends on.** Phases 1 to 9 and the restore guard.
+
+**Changes.** No product code. The recipes and the unprompted run of Phase 7
+are repeated on the finished system. Five cases are added, each a recipe on
+two daemons with its expected output kept beside it under `research/`:
+- Two approved file changes on the same files, and two approved revisions of
+  the plan on the same text. One lands; the other author is told and
+  rebuilds; in a goal of two the rebuilt change needs only the other member.
+- A reviewer approves and then rejects, twice. On a task result: after the
+  reject, `contributions` on both computers reports the result as not
+  approved and `pending` lists its task to start again. On a plan revision
+  that the host's daemon has recorded: both computers keep it as the plan's
+  text, and `events` shows the reject after the approval. A reject that
+  reaches the host's daemon before it records is Phase 8's test, where
+  delivery order is controlled. This is
+  [the review's fourth point](../research/roles-and-permissions-plan-review-2026-10-05.md),
+  under row 12 of the assumed decisions.
+- An approved file change whose content has not reached the host's computer,
+  beside one that has. The second lands and the first is reported.
+- The host's daemon stopped between a change counting and its recording, and
+  a member's daemon stopped while it waits. Each records or shows the change
+  once after it starts.
+- The host's computer restored from an older copy of its data. It signs
+  nothing until it has caught up, and the goal is not halted.
+
+**Tests.** None beyond those of the earlier phases; this phase runs them
+together.
+
+**Exit criteria.**
+- Every recipe passes on a fresh home, and the unprompted run finishes its
+  board with every landed change recorded once.
+- The comprehension test of Phase 7 is repeated only if a sentence of the
+  explanation changed after it.
+
+**Risks and notes.**
+- Replacing a host is qualified with its own design, not here.
 
 ## Not built, and why
 
@@ -2931,7 +3267,11 @@ host's agent already follows the last one.
   observed without a clock.
 - **Counting by computer.** Deferred as an option. Two agents on one daemon
   share an endpoint, so it cannot be the default.
-- **Counting each member's latest verdict.** Deferred.
+- **Undoing what was recorded when its approver later rejects.** A pick, a
+  plan text or a landed change is judged on the reviews its record pinned.
+  Each record names the one before it, so undoing one would undo all that
+  followed, and any member who once approved could do that at any time.
+  The fix is a new result, revision or change.
 - **Exclusive claims on a task.** Two trials with three real agents produced
   one duplicated task, taken from a board read seven seconds earlier
   ([note](../research/role-free-board-2026-10-05.md)). That is a cost, but not
@@ -2940,6 +3280,11 @@ host's agent already follows the last one.
 - **Membership or rule changes proposed by members, and commit then reveal.**
   The first cannot be enforced while one key signs the governance record; the
   second cannot prove what an author did not read.
+- **Ending a role's list, or changing a role's kind.** The governance record
+  is built without work records, so no daemon can tell from it that no work
+  under earlier rules still reads a list. Changing the kind would leave such
+  work a deciding slot with two holders, or a group cut to one. A new role
+  name costs nothing.
 
 ## Questions for the owner
 
@@ -2962,7 +3307,7 @@ host's agent already follows the last one.
    text. Acceptable for a document, given that the same was refused for task
    results?
 10. Who recruits and grades the comprehension test in Phase 7, and whether its
-    pass mark (a median of 10 of 12, nobody below 9) is right.
+    pass mark (a median of 12 of 14, nobody below 11) is right.
 11. Phase 9: the first files of a goal need the tree's rule like any other
     change. A host alone in a `peer-review` goal cannot start the files until
     a second member approves them, or must pass `--completion`. Should the
@@ -2975,7 +3320,27 @@ host's agent already follows the last one.
 14. Under `open` an agent that wants to review a result is refused, because a
     review is recorded only where the rule asks for one. In the trial an agent
     tried four times. Should a review the rule does not need be recordable
-    anyway, as an opinion that does not change whether the result counts?
+    anyway, as an opinion that does not change whether the result counts? The
+    independent review recommends yes.
+15. Phase 8 lets the plan settle by itself only under formations that ask for
+    another member's approval; Phase 9 lets files land under every formation,
+    `open` included. Should the plan follow the same rule as the files?
+16. Phase 9 leaves file acceptance on the host's computer with no way to move
+    it. Should Phase 9 wait until a backup host can take over, or ship first
+    with the restore guard alone?
+17. Phase 3: when the host revises a task you allowed, should your agent ask
+    you again before taking it? The plan says yes, as today: `task revise`
+    opens a new round and supersedes the attempts on the old one. The
+    proposal kept the allowance through a revision; then it would last
+    until you revoke it.
+18. Phase 4: a role name keeps its kind in a goal. Once `lead` has picked or
+    closed there it always has one holder, and a group such as `reviewer`
+    never becomes a role that picks or closes; rules that would switch a
+    name are refused and the host uses a new name. Acceptable?
+19. Is a member's latest review of a result the one that counts, so a reject
+    withdraws that member's own earlier approval until something is recorded
+    on it, or does an approval count for good, with a later reject shown but
+    changing nothing? This plan assumes the first (row 12).
 
 ## Appendix: the scenario questions
 
