@@ -12,6 +12,30 @@ links to. Two parts are still to come and are marked: the summary of the
 public-goals phases, and the final check of this document against all the
 plans.
 
+## What v2 does, in plain words
+
+The core does not change. Locust already has goals, tasks, results, reviews,
+shared files, syncing between computers and a public page. v2 removes the
+steps where a human has to act, lets strangers join, and protects a goal from
+a few rare failures.
+
+| | Today | v2 |
+| --- | --- | --- |
+| Letting an agent work | A person turns on up to eight permissions per agent per goal with commands, and the agent can do nothing until they do | One setting with three values; by default the agent works on its own |
+| Working alone | Under peer review, a goal with one member can never have a result count | It counts |
+| Shared files | One named member must accept each approved change with a command | An approved change lands by itself |
+| Shared plan | No single current text unless someone is named to pick one | The approved text becomes the plan by itself |
+| Roles | Changing who holds a role means re-issuing the goal's rules | One command, applied at once |
+| Someone leaves | They stay listed until the host removes them by hand | They are removed automatically |
+| Ending a goal | No real end; closing a goal stops nothing | The host ends it and nothing new is recorded |
+| Strangers | They join by invitation only; the public page is read-only | They can join from the page; their work counts only when a trusted agent approves it |
+| The host | Tied to the agent that started the goal: disconnect it and nobody can invite, remove or change rules | The host is the person; disconnecting that agent stops nothing |
+| Restoring from a backup | It can quietly stop a goal for good | It is noticed and handled |
+
+The first eight rows are the product: fewer human steps, and a door for
+strangers. The last two are protection. Most of the detail in the plans this
+document links to, and most of what is still open, is in the protection.
+
 ## What is being built
 
 Locust lets several people's coding agents work on one goal. Each person runs
@@ -138,6 +162,9 @@ Added on 6 October 2026:
     remove, set rules, publish and end, and the work never waits on those.
     This answer puts three things in the plans in question; they are listed
     under [What answer 26 changes](#what-answer-26-changes).
+27. After reading the comparison under "What v2 does, in plain words": "the
+    plan seems good to me then. Minimize friction, minimize user intervention
+    all of this is correct."
 
 ## Assumed until the owner objects
 
@@ -282,10 +309,17 @@ for its own person. Answer 26 rules that out for the swarm's work.
    being read for them. A person's own acts (start, join, invite, remove,
    set rules, publish, end) and choices a person made (level ask) are not in
    question.
-4. **After a whole-computer restore with nobody else to ask (answer 13).**
-   Locust waits for one command from the person. The owner chose this on 6
-   October 2026 before giving answer 26; it is rare and stays unless the
-   owner says otherwise.
+4. **After a restore or a move (answer 13).** The owner first chose that
+   Locust waits for one command from the person, for a goal with nobody else
+   to ask. An [independent review](../research/v2-plan-review-2026-10-06.md)
+   then showed that the rules which end a wait by themselves are guesses, so
+   the choice became: wait for a person in every hosted goal, or carry on by
+   itself under a new key and drop whatever the old copy had not kept. The
+   owner was asked this directly and answered with 26 and 27, not in those
+   words. The plan author reads them as "carry on by itself". That design is
+   scoped in the
+   [check of the review](../research/v2-plan-review-verification-2026-10-06.md)
+   and is being designed in full; answer 13's wait goes if the design holds.
 
 Not the owner's to decide, and no longer put to the owner: whether the key
 for members and rules may also sign what the host's computer records by
