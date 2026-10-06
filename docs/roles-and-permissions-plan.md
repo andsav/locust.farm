@@ -87,10 +87,25 @@ current shared files, and the current text of a shared document. In this plan
 one key records all three, the host's agent, and that seat cannot move. If the
 creator's computer is lost, nobody can join or be removed, the rules never
 change, and the files and the plan stop advancing; tasks, results and
-approvals continue. Whether that key should be replaceable, who may replace
-it, and which consensus protocol makes the replacement safe, is under study
-with the owner. No phase here covers it. Phases 8 and 9 each leave one place
-to change when it is decided.
+approvals continue. No phase here covers replacing that key. Phases 8 and 9
+each leave one place to change when it is designed.
+
+Decided in direction with the owner on 2026-10-05:
+
+- The failure to design for is a host that disappears. A hostile host is not
+  assumed, and hostile members are the host's to remove.
+- Agreement among several people is used only when a host is replaced.
+  Ordinary governance stays one signature by the host, with no waiting. The
+  price is that a takeover fixes the last host record its signers hold, and
+  whatever the old host signed after it is void, even if it appears later. A
+  host that was only asleep can return to find its last admissions undone.
+- Who may replace a host is a rule the host writes in advance, because the
+  host cannot remove a hostile member while it is away.
+
+Still open: the choices that rule offers, the record a takeover writes, and
+how the old host's history is made final at that point. A second signature on
+every governance record, which would lose nothing at a takeover, was set aside
+because every admission and rule change would wait for a second computer.
 
 ## Terminal texts
 
