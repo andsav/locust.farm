@@ -220,7 +220,7 @@ The contract is being revised against that review and the answers above.
 | Piece | Document | State |
 | --- | --- | --- |
 | Roles and permissions | [roles-and-permissions-plan.md](roles-and-permissions-plan.md), with its [companion](roles-and-permissions-plan-details.md) | Ten phases written. An [independent review](../research/roles-and-permissions-plan-review-2026-10-05.md) is folded in. Each phase was checked against the code by a second reader. |
-| Host safety and ending a goal | [host-safety-and-ending-plan.md](host-safety-and-ending-plan.md), with its [companion](host-safety-and-ending-plan-details.md) | Six phases written and checked: the signing key (K1), the restore guard (G1, G2) and ending a goal (E1, E2, E3). A reader found 28 seams between them; the fixes are applied, and their consequences are written into the roles plan. E2 is being revised for answer 14. Four known gaps are listed at its top. |
+| Host safety and ending a goal | [host-safety-and-ending-plan.md](host-safety-and-ending-plan.md), with its [companion](host-safety-and-ending-plan-details.md) | Six phases written and checked: the signing key (K1), the restore guard (G1, G2) and ending a goal (E1, E2, E3). A reader found 28 seams between them; the fixes are applied, and their consequences are written into the roles plan. E2 is rewritten for answer 14: the host's computer removes a member that leaves, by a record that carries no new key. One section lists what the host's computer signs by itself, with one rule. Two known gaps are listed at its top. |
 | Public goals | [joinable-farms-plan.md](joinable-farms-plan.md) | The old plan. About half its text survives. It is rewritten as nine phases, J0 to J8, once the contract is revised. |
 | Replacing a host | [first round](../research/replacing-a-host-2026-10-05.md), [design and its check](../research/replacing-a-host-design-2026-10-06.md) | After v2. The first version is decided (answers 11, 12 and 19). One design is written, attacked and revised. A last check found no fatal break and eight serious ones, each with a named fix that is not yet applied. Not yet phases. |
 
@@ -248,7 +248,7 @@ the restore guard, E ending a goal.
 | 8 | G1 | A computer knows what it signed; started from an older copy, it signs nothing in the affected goals until it has caught up | R1, K1 |
 | 9 | G2 | Status and refusals say "catching up"; the person has one command to continue | G1, R2 to R6 |
 | 10 | E1 | The host ends a goal with one command; nothing new is recorded on any computer that has learned of it | R1 to R6, K1, G1, G2 |
-| 11 | E2 | The host sees who asked to leave; disconnecting the host's agent is explained, not refused | E1 |
+| 11 | E2 | A member that leaves is removed by the host's computer with nobody asked; disconnecting the host's agent is explained, not refused | E1 |
 | 12 | E3 | A goal with no new records dials and checks in less often | G1 |
 | 13 | R7 | The recipes pass, the journeys are counted, an unprompted swarm run is recorded, people are tested on the explanation | all above |
 | 14 | R8 | The shared plan settles by itself | R3, R4, K1, G1, G2, E1, and the takeover record's shape decided |
@@ -284,7 +284,8 @@ built. The full count is in
   the door, and a change recorded for the goal as opposed to the files in
   their own folder.
 - The growth is in the states one computer can be in for one goal, in what
-  the host's computer signs by itself (seven situations across the plans),
+  the host's computer signs by itself (six situations across the plans, now
+  listed with one rule in the host safety plan),
   and in the rules every computer must apply the same way.
 - The count names seven cuts and deferrals at the edges, worth about a
   tenth of the added code. They are proposed, not applied. An independent
@@ -323,8 +324,10 @@ for its own person. Answer 26 rules that out for the swarm's work.
 
 Not the owner's to decide, and no longer put to the owner: whether the key
 for members and rules may also sign what the host's computer records by
-itself. A person sees no difference. It is settled with the contract for
-unattended signing, and the wording of answer 9 follows what that settles.
+itself. A person sees no difference. It is settled in the host safety plan,
+under "What the host's computer signs by itself": v2 keeps one key and one
+log, and the choice is taken again with replacing a host. The wording of
+answer 9 follows that.
 
 ## Not designed yet
 
@@ -342,7 +345,7 @@ unattended signing, and the wording of answer 9 follows what that settles.
   phase before the safety check.
 - **Found by the count, with no phase that owns them.** The restore guard's
   release rule does not work for a public goal, because a door member who
-  never returns blocks it. Answer 14 has no design and E2 says the opposite.
+  never returns blocks it.
   Answer 18 covers tasks only: under the public preset the host's agent at
   auto reviews a stranger's result and the change is then recorded with no
   person asked. The check behind answer 18 is in no phase. The default rule
@@ -359,8 +362,8 @@ unattended signing, and the wording of answer 9 follows what that settles.
 ## How to review
 
 Two of the four pieces are written as phases and can be reviewed now: roles
-and permissions, and host safety and ending a goal. In the second, phase E2
-is being rewritten for answer 14. Public goals exists only as a contract
+and permissions, and host safety and ending a goal. Public goals exists only
+as a contract
 that is marked for revision, so it can be reviewed for scope and not for
 detail. Replacing a host follows v2 and is a research note.
 

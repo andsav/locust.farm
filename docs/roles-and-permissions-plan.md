@@ -1100,7 +1100,7 @@ The others apply at once and print the command that undoes them.
   | `goal create --title T [--formation NAME \| --formation-json JSON] [--inputs JSON]` | `goal.create` | agent; this person's goals already titled T | `Started "T" (ID). Host: you. This computer keeps who is in and the rules.` |
   | `goal add --goal G --agent NAME` | `goal.invite`, then `goal.join` | agent; whether it is already a member | `AGENT joined "T".` |
   | `goal join (--ticket-file F \| --ticket -)` | `goal.join` | the offline preview with its `review` digest; agent and its standing in that goal | `Joining "T" as AGENT. Admission comes from the host's computer; locust --owner status shows it.` or `AGENT joined "T".` |
-  | `goal leave --goal G` | `goal.leave` | agent and its standing | `AGENT left "T". Copies already received stay with the goal.` From E2 one more sentence says that the host's computer removes AGENT once it holds the leave, and that AGENT is still listed as a member until then |
+  | `goal leave --goal G` | `goal.leave` | agent and its standing | `AGENT left "T". Copies already received stay with the goal.` From E2 the result adds that the host's computer removes AGENT by itself once it has the leave, to keep this computer on until `status` says the host's computer has it, and how to come back |
   | `goal invite --goal G [--expires 7d]` | `goal.invite` | the duration as typed; the count of pending invitations | the ticket on stdout; on stderr `Anyone who presents this ticket is admitted while this computer is on, until 2026-10-12 14:03 UTC. Send it privately. Stop admission: locust --owner invitation revoke --goal ID --all` |
   | `member remove --goal G --member M` | `member.remove` | the member's key | `Removed M from "T". Copies already received cannot be retracted.` |
   | `rules bind --goal G (--formation NAME \| --formation-json JSON) [--inputs JSON]` | `rules.bind`; `expected` is the plan's `current_rules` | the formation | `"T" now follows NAME. Open tasks keep their old rules until revised.` |
@@ -2044,11 +2044,11 @@ gives it to another member.
 The goal's *only member* is the one member in the goal's record at an
 event's anchor, when that record holds exactly one. The record is the
 host's chain of admissions and removals: an agent that left is in it until
-the host removes it, and a second agent of the host's person is a second
-member. The host's daemon admits the host's agent in the same commit as
-the goal's first record and refuses to let it leave (Phase 1), and from K1
-replay excludes a removal of it, so only a host's agent is ever a goal's
-only member.
+it is removed, which from E2 the host's computer does by itself, and a second
+agent of the host's person is a second member. The host's daemon admits the
+host's agent in the same commit as the goal's first record and refuses to let
+it leave (Phase 1), and from K1 replay excludes a removal of it, so only a
+host's agent is ever a goal's only member.
 The shared files have an *epoch*: the host-signed record that turns them on
 or starts them again, and that fixes the tree's rule. Every file change
 names its epoch and its *parent*, the accepted change it builds on. The
@@ -2062,13 +2062,15 @@ rule asks and however many members the goal has. Every change that lands
 after them builds on the files already there and follows the tree's rule,
 the host agent's own changes included.
 - [event.rs](../crates/locust-proto/src/event.rs): `Body::MemberAdmitted`
-  gains `name: String`; `RulesBinding` loses `roles`; new last variant
+  gains `name: String` and `role: Option<String>`, the role the ticket
+  carried; `RulesBinding` loses `roles`; new last variant
   `Body::RoleHolders { role: String, holders: Vec<PublicKey> }` (index 25,
   kind `role_holders`, governance), the whole holder list of one role. New
   `is_member_name` (1 to 64 bytes, new `MAX_MEMBER_NAME_BYTES` in limits.rs;
   no outer spaces or control characters); `Header::check` returns the new
-  `EventError::BadName` for an admission that fails it, and for a
-  `RoleHolders` whose `role` fails `is_role_name`.
+  `EventError::BadName` for an admission whose name fails it or whose `role`
+  fails `is_role_name`, and for a `RoleHolders` whose `role` fails
+  `is_role_name`.
 - [organization.rs](../crates/locust-proto/src/organization.rs): new
   `is_role_name`, the one check of a role name: visible text and no control
   character, the rule formation validation applies today. `Validator::run` in
@@ -2147,8 +2149,11 @@ the host agent's own changes included.
   whether or not the binding declares its role. It excludes the binding when
   a role that picks or closes under it would not have one holder.
   `MemberRemoved` drops the member from every list and an emptied list gets
-  the host agent; `RoleHolders` sets one list, starting it if there is none,
-  when its holders are non-empty, ascending and admitted. No list is ever
+  the host agent; an effective `MemberAdmitted` that names a role adds the new
+  member to that role's list, starting it if there is none, with no test of
+  the role's kind, as for a role record; `RoleHolders` sets one list, starting
+  it if there is none, when its holders are non-empty, ascending and
+  admitted. No list is ever
   removed. A binding whose definition is not held yet waits as today and
   fills nothing until it arrives; none of these rules reads another
   binding's definition. New in state.rs beside it: `Member.name` and
@@ -2288,9 +2293,10 @@ the host agent's own changes included.
   `goal_join` takes `name` and signs it into its `JoinRequest`;
   `InviteRecord`, and `JoinRecord` in node/local.rs, store the new fields.
   [peers.rs](../crates/locust-core/src/node/peers.rs): `plan_join` signs the
-  admission with the joiner's name and, for an invitation with a role, a
-  `RoleHolders` adding the joiner, in the same transaction. A list never ends
-  and a name keeps its kind, so the role a ticket carries is always given.
+  admission with the joiner's name and the role the invitation carries, in
+  one record. It signs no `RoleHolders`: the host's daemon signs a role record
+  only inside `role give` and `role take`. A list never ends and a name keeps
+  its kind, so the role a ticket carries is always given.
   `joins` re-signs with the stored name.
 - `crates/locust-core/src/organization/roles.rs` (new): `RoleDuty`,
   `role_duties`, `is_authority_role`. The set the last one asks about exists
@@ -2503,7 +2509,8 @@ the host agent's own changes included.
   first result is in nobody's `to_review`; after `goal.join` of a second
   local agent neither agent's new result counts without the other's
   approval; and an agent that sent `goal.leave` is a member until
-  `member.remove`. In delegation.rs
+  `member.remove` (E2 changes this last assertion: from then the host's
+  daemon signs the removal by itself). In delegation.rs
   `a_subtask_keeps_the_only_member_part_and_cannot_widen_it`. In
   organization/tests.rs
   `only_member_is_one_identity_and_two_presets_carry_the_part`: a count of
@@ -2621,8 +2628,10 @@ the host agent's own changes included.
   fall to the host agent. A kind rule in replay would tie every role record
   to the definitions of all earlier bindings, and a daemon still fetching
   one would have to hold later role records back.
-- In `plan_join` the role event needs an explicit `Place` after the
-  admission, as in `goal_create`; `next_place` reads only applied history.
+- The role a ticket carries is a field of the admission and not a record of
+  its own. So `plan_join` signs one record through `next_place` and nothing
+  at a place worked out beside it, which the host safety plan's rule for what
+  the host's computer signs by itself asks.
 - Review requests follow the holders at the head, but only for a result that
   does not yet count on an open task, so a new reviewer or member is not
   sent every past result. A request signed earlier stays valid.
@@ -3580,7 +3589,8 @@ current text itself.
   follows `previous`, or once the copy holds an end record. E1 lands before
   this phase, which writes that last test with the function.
   [node/flow.rs](../crates/locust-core/src/node/flow.rs): `drive_flow` signs
-  each as `Body::ScopeDecided` through `author` by the one rule of Phase 3.
+  each as `Body::ScopeDecided` through K1's `author_alone`, so with no clock
+  reading, by the one rule of Phase 3.
   A step whose runner is the governance key is signed when this daemon
   hosts the goal, the guard does not hold the key and the key can sign
   next. Its stalls are `RunnerElsewhere`, `CatchingUp` and `Halted`. A step
@@ -3590,8 +3600,9 @@ current text itself.
   by the governance key for anything else is refused by the rule, because
   the key holds no role. A selection held by the guard is listed as
   `Stall::CatchingUp`. Like stages, review requests and admission, this
-  fourth automatic act reads no level: it never calls `allowed` or
-  `sign_for`.
+  automatic act reads no level: it never calls `allowed` or `sign_for`. The
+  host safety plan lists every such act under "What the host's computer signs
+  by itself".
 - `crates/locust-proto/src/api/level.rs` (new in Phase 3) and Phase 3's
   `Node::stalled`: `Stalled.effect` becomes `step: Step` (new: `Effect { id }`
   or `Document { doc, revision }`), and `Stall` gains `RunnerElsewhere`. A
@@ -3645,6 +3656,9 @@ current text itself.
   agent signs none of this from K1, so it may as well be disconnected);
   `a_revision_that_lost_its_base_is_behind_and_leaves_review_lists`;
   `a_due_revision_is_stalled_until_the_host_daemon_records_it`;
+  `a_restored_host_records_no_plan_text_until_caught_up` and
+  `a_plan_recording_signed_twice_from_one_input_is_one_record`, in the form
+  of G1's tests for a stage's step;
   `a_reject_held_before_recording_stops_the_settling_and_one_after_does_not`
   (the reject reaches the host's daemon first and no record is signed; the
   record is signed first, and after the reject arrives both daemons keep
@@ -3766,8 +3780,8 @@ path of their own.
   member's agent passes Phase 3's four tests and is not held by the guard.
   Its stalls are Phase 3's four and `CatchingUp`. When the runner may sign,
   `drive_flow` takes the due proposals in id order and signs the first that
-  passes two local gates as
-  `Body::ScopeDecided`: `workspace_content` answers
+  passes two local gates as `Body::ScopeDecided`, through `author_alone` and
+  so with no clock reading: `workspace_content` answers
   `WorkspaceContent::Complete` for its manifest, and no path in the manifest
   is private. A proposal that fails a gate is passed over and reported, so a
   change that cannot land never holds back one that can. Then it looks
@@ -3903,6 +3917,7 @@ path of their own.
   `two_counting_changes_on_one_head_give_one_acceptance_and_one_stale_change`,
   `acceptance_waits_for_content_then_signs_once`,
   `a_restart_never_signs_a_second_successor`,
+  `a_restored_host_lands_no_change_until_caught_up`,
   `a_daemon_that_does_not_host_never_accepts`,
   `a_change_with_a_private_path_is_not_accepted` and
   `a_change_that_cannot_land_does_not_hold_back_one_that_can` (the lower id
