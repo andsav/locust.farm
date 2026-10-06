@@ -1,16 +1,16 @@
 # Locust v2: master plan
 
-Status: being assembled, 6 October 2026. Proposed; nothing here is built.
+Status: 6 October 2026. Phases 1 and 2 of the build order are built and
+phase 3 is being built; the rest is proposed.
 This is the one document the owner approves. The owner calls this work v2.
 Here v2 means everything in this plan up to and including the first public
-door: the sixteen phases of the build order and the public-goals phases.
+door: the fifteen phases of the build order and the public-goals phases.
 Replacing a host comes after v2. The name is the product's; the API, store
 and protocol numbers below are separate. It holds every decision the
 owner has made, what is assumed until the owner objects, the pieces of work
 and their state, and the build order. File-level detail stays in the plans it
-links to. Two parts are still to come and are marked: the summary of the
-public-goals phases, and the final check of this document against all the
-plans.
+links to. One part is still to come and is marked: the public-goals plan
+is being rewritten.
 
 ## What v2 does, in plain words
 
@@ -168,36 +168,55 @@ Added on 6 October 2026:
 
 ## Assumed until the owner objects
 
-Each of these is the plan author's recommendation and is written into a plan.
-The first group is listed in full in the
-[roles plan](roles-and-permissions-plan.md) under "Decisions this plan
-assumes" and "Questions for the owner".
+Each of these is the plan author's choice and is written into a plan. The
+roles plan lists its own in full under "Decisions this plan assumes" and
+"Questions for the owner"; the host safety plan under "Questions for the
+owner".
 
-- Levels are named read, ask and auto. The built-in formations use two role
-  names, `reviewer` and `lead`, and the preset `coordinator` is renamed
-  `directed`.
+From the [roles plan](roles-and-permissions-plan.md):
+
+- Levels are named read, ask and auto. An agent is at auto unless its person
+  chooses another. The built-in formations use two role names, `reviewer`
+  and `lead`, and the preset `coordinator` is renamed `directed`.
 - A role needs no yes from the member's person. A role name keeps its kind
   for the life of a goal.
-- A task allowance ends when the task is finished or the host revises it.
-- A review can be recorded under `open` as an opinion that does not affect
-  counting.
-- The shared plan settles by the same rule as the shared files, under every
-  formation that names no decider.
-- `review-panel` does not count a lone member's results; it asks for two
-  named reviewers.
+- A task allowance, which only matters at level ask, lasts until the host
+  revises the task or the person revokes it.
+- Where a goal's rule asks for no review, a review can be recorded as an
+  opinion that does not affect counting.
+- The shared plan settles by the goal's own rule under every formation that
+  names no decider. There is no setting for it. Under `open` and `pipeline`,
+  where a member's own word makes work count, any member can replace the
+  plan alone.
+- When the host changes a goal's rules, later changes to the shared files
+  follow the new rules too.
+- `review-panel` does not count a lone member's results. Members who are
+  added or invited there become reviewers unless the host says otherwise,
+  so nothing waits for the host to give roles.
 - Raising an agent to auto and giving a role apply at once, although a task
   already started keeps running and what a member signed while holding a role
   stays valid.
-- `farm off`, `goal leave`, `task revise`, `agent revoke` and `workspace
-  connect` ask first, because no single command undoes them. `invitation
-  revoke` applies at once.
+- `farm off`, `goal leave`, `task revise` and `workspace connect` ask the
+  person who typed them to confirm, because no single command undoes them.
+  `invitation revoke` applies at once. An agent does not wait for `workspace
+  connect`: it asks the daemon for a folder of its own.
 - `workspace init` shares the first files in the same run, after one yes.
+  "First files" means the first files of an empty tree.
+- Each phase rewrites the recipes and script code it breaks and runs them
+  before it is done.
 
 From the [host safety and ending plan](host-safety-and-ending-plan.md):
 
 - No text a person reads names the signing key. Status says "Host: you".
-- The host cannot yet remove the agent they started a goal with. It can be
-  disconnected and the goal keeps running.
+- The key for members and rules also signs what the host's computer records
+  by itself. v2 keeps one key and one log.
+- The host cannot remove the agent they started a goal with. It can be
+  disconnected and connected again with one command, and the goal keeps
+  running meanwhile. One limit: a host who works alone and changes agents
+  has a goal of two members from then on.
+- A member that leaves is removed by the host's computer with a record that
+  makes no new content key. The one who left keeps the key it has and is
+  sent nothing more.
 - The restore guard also holds the host's own agents while the host's records
   are missing, and refuses the person's own commands in that goal until it
   has caught up.
@@ -205,111 +224,105 @@ From the [host safety and ending plan](host-safety-and-ending-plan.md):
   invitations of the goals it hosts.
 - The words are "catching up" for the state, `goal continue` for the command
   and "ended by the host" for an ended goal.
-- A goal with no new records dials and checks in less often, down to once an
-  hour, by the computer's own clock.
-- Each piece is modelled under `research/tla` before it is built.
-
-For public goals, the remaining recommendations are in the
-[rewrite contract](../research/joinable-farms-rewrite-contract-2026-10-05.md)
-and its
-[review](../research/joinable-farms-rewrite-contract-review-2026-10-05.md).
-The contract is being revised against that review and the answers above.
+- Rules that name "the task's creator" for a stage's task, where only a
+  member can act, are refused when the host sets them.
+- These are modelled under `research/tla` before they are built: the signing
+  key, who holds a role, the restore guard, the end of a goal and a leave.
+  The other shared rules rest on tests.
 
 ## The pieces and their state
 
 | Piece | Document | State |
 | --- | --- | --- |
-| Roles and permissions | [roles-and-permissions-plan.md](roles-and-permissions-plan.md), with its [companion](roles-and-permissions-plan-details.md) | Ten phases written. An [independent review](../research/roles-and-permissions-plan-review-2026-10-05.md) is folded in. Each phase was checked against the code by a second reader. |
-| Host safety and ending a goal | [host-safety-and-ending-plan.md](host-safety-and-ending-plan.md), with its [companion](host-safety-and-ending-plan-details.md) | Six phases written and checked: the signing key (K1), the restore guard (G1, G2) and ending a goal (E1, E2, E3). A reader found 28 seams between them; the fixes are applied, and their consequences are written into the roles plan. E2 is rewritten for answer 14: the host's computer removes a member that leaves, by a record that carries no new key. One section lists what the host's computer signs by itself, with one rule. Two known gaps are listed at its top. |
-| Public goals | [joinable-farms-plan.md](joinable-farms-plan.md) | The old plan. About half its text survives. It is rewritten as nine phases, J0 to J8, once the contract is revised. |
-| Replacing a host | [first round](../research/replacing-a-host-2026-10-05.md), [design and its check](../research/replacing-a-host-design-2026-10-06.md) | After v2. The first version is decided (answers 11, 12 and 19). One design is written, attacked and revised. A last check found no fatal break and eight serious ones, each with a named fix that is not yet applied. Not yet phases. |
+| Roles and permissions | [roles-and-permissions-plan.md](roles-and-permissions-plan.md), with its [companion](roles-and-permissions-plan-details.md) | Ten phases. Phases 1 and 2 are built and phase 3 is being built. Two independent reviews are folded in, the second with every finding [checked](../research/v2-plan-review-verification-2026-10-06.md) first. |
+| Host safety and ending a goal | [host-safety-and-ending-plan.md](host-safety-and-ending-plan.md), with its [companion](host-safety-and-ending-plan-details.md) | Five phases: the signing key (K1), the restore guard (G1, G2), ending a goal (E1) and leaving (E2). Corrected against the same review. One section lists what the host's computer signs by itself, with one rule. Three limits are stated at its top. |
+| Public goals | [joinable-farms-plan.md](joinable-farms-plan.md) | The old plan, about half of which survives. It is being rewritten. |
+| Replacing a host | [first round](../research/replacing-a-host-2026-10-05.md), [design and its check](../research/replacing-a-host-design-2026-10-06.md) | After v2. One design is written, attacked and revised. A last check found no fatal break and eight serious ones, each with a named fix that is not applied. Not phases. |
 
 Evidence the plans rest on:
 [host-key failures](../research/host-key-failure-characterization-2026-10-05.md),
 [goal lifecycle](../research/goal-lifecycle-characterization-2026-10-05.md),
-[three real agents on a board with no roles](../research/role-free-board-2026-10-05.md)
-and [ending a goal](../research/ending-a-goal-2026-10-05.md).
+[three real agents on a board with no roles](../research/role-free-board-2026-10-05.md),
+[ending a goal](../research/ending-a-goal-2026-10-05.md),
+[how much v2 adds](../research/v2-complexity-count-2026-10-06.md) and the
+[independent review](../research/v2-plan-review-2026-10-06.md).
 
 ## Build order
 
-Proposed by the reader who compared the pieces. Nothing is released before
-the last of these sixteen phases. R is the roles plan, K the signing key, G
-the restore guard, E ending a goal.
+Fifteen phases. R is the roles plan, K the signing key, G the restore guard,
+E ending a goal. Each phase rewrites the recipes and script code it breaks
+and runs them before it is done.
 
 | | Phase | What works afterwards | Needs |
 | --- | --- | --- | --- |
-| 1 | R1 | Starting, joining, leaving, inviting and every change to members or rules are the person's requests and need no grant | nothing |
-| 2 | R2 | One grammar for the person's commands; a command asks first only when it shares something or cannot be undone with one command | R1 |
-| 3 | R3 | One level per agent per goal, one task allowance, one check that says which side refused | R1, R2 |
-| 4 | K1 | A goal's members and rules are signed by a key of their own; the agent that started the goal is an ordinary member | R1 to R3 |
-| 5 | R4 | Members have names; roles are read when an act happens; peer approval is the default, a lone member needs none, a member's latest review counts, first files need no approval | R1 to R3, K1 |
+| 1 | R1 | Starting, joining, leaving, inviting and every change to members or rules are the person's own commands; the old permissions for them are gone. Built | nothing |
+| 2 | R2 | One way to type the person's commands; a command asks the person who typed it to confirm only when it shares something or cannot be undone with one command. Built | R1 |
+| 3 | R3 | One level per agent per goal, auto unless the person chooses another; one check that says which side refused. Being built | R1, R2 |
+| 4 | K1 | A goal's members and rules are signed by a key of their own; the agent that started the goal is an ordinary member and can be disconnected and connected again | R1 to R3 |
+| 5 | R4 | Members have names; roles are given with one command; peer approval is the default, a lone member needs none, a member's latest review counts, first files need no approval; changing the rules moves the shared files to them | R1 to R3, K1 |
 | 6 | R5 | Plain `status` is the one view; refusals read the same to a person and to an agent | R2 to R4 |
-| 7 | R6 | Guides, site, skill and scripts say what the code does | R1 to R5 |
-| 8 | G1 | A computer knows what it signed; started from an older copy, it signs nothing in the affected goals until it has caught up | R1, K1 |
-| 9 | G2 | Status and refusals say "catching up"; the person has one command to continue | G1, R2 to R6 |
+| 7 | R6 | Guides, site and skill say what the code does | R1 to R5 |
+| 8 | G1 | A computer knows what it signed; started from an older copy, it signs nothing in the affected goals until it has caught up; after a whole-computer restore or a move, the goals a person hosts wait for one command | R1, K1 |
+| 9 | G2 | Status and refusals say "catching up" and what each wait is on | G1, R2 to R6 |
 | 10 | E1 | The host ends a goal with one command; nothing new is recorded on any computer that has learned of it | R1 to R6, K1, G1, G2 |
-| 11 | E2 | A member that leaves is removed by the host's computer with nobody asked; disconnecting the host's agent is explained, not refused | E1 |
-| 12 | E3 | A goal with no new records dials and checks in less often | G1 |
-| 13 | R7 | The recipes pass, the journeys are counted, an unprompted swarm run is recorded, people are tested on the explanation | all above |
-| 14 | R8 | The shared plan settles by itself | R3, R4, K1, G1, G2, E1, and the takeover record's shape decided |
-| 15 | R9 | A change to the shared files lands by itself | R4, R8, G1, G2 |
-| 16 | R10 | The finished workflow is qualified | all above |
+| 11 | E2 | A member that leaves is removed by the host's computer with nobody asked | E1 |
+| 12 | R7 | The recipes pass, the journeys are counted, and a first run with several real agents is made | all above |
+| 13 | R8 | The shared plan settles by itself | R3, R4, K1, G1, G2, E1 |
+| 14 | R9 | A change to the shared files lands by itself | R4, R8, G1, G2 |
+| 15 | R10 | The finished workflow is qualified, with a recorded run of several agents and a reading test with people | all above |
 
 Afterwards:
 
-- **Public goals.** J0 can land at any time. The first working admission
-  needs R5, K1, G1 and G2. The first door is released after R10 and E1.
+- **Public goals.** The first door comes after R10 and E2.
 - **Replacing a host.** It follows v2. Under answer 2 it ends the goals made
-  under v2.
+  under v2, so it is never a way back for one of them.
 
 Versions. The API version and the store marker go from 6 to 7 in R1. The
 protocol version goes from 6 to 7 in K1. R4 and E1 change signed bytes inside
-7, and E1's end record is the last change of the event format. Nothing is
-released before R10, so no number is raised twice. Replacing a host takes
-protocol 8.
+7, and E1's end record is the last change of the event format in the fifteen
+phases. The first public door changes signed bytes once more. If nothing is
+released before the door, that change stays inside 7. If the private part is
+released first, the door takes 8, replacing a host takes 9, and goals made
+on the private release stop when the door release arrives. Which of the two
+happens is the owner's to decide and is open.
 
 ## Size
 
-Counted on 6 October 2026 by reading the plans against the code; nothing was
-built. The full count is in
+Counted on 6 October 2026 by reading the plans against the code, before the
+corrections above. The full count is in
 [how much v2 adds](../research/v2-complexity-count-2026-10-06.md).
 
 - v2 adds 33,200 to 57,500 lines of Rust and removes 7,400 to 12,600, on
   about 103,000 today. More than half of the added lines are tests. These
   are estimates from reading; no script reproduces them.
-- The number of commands stays about the same: 97 API requests before and
-  after, 137 commands before and 140 after. One agent's setting in one goal
-  goes from 128 combinations to 3 levels. A person has more to understand,
-  though: catching up, ended as opposed to halted, a member who came through
-  the door, and a change recorded for the goal as opposed to the files in
-  their own folder.
+- The number of commands stays about the same. One agent's setting in one
+  goal goes from 128 combinations to 3 levels. A person has more to
+  understand, though: catching up, ended as opposed to halted, a member who
+  came through the door, and a change recorded for the goal as opposed to
+  the files in their own folder.
 - The growth is in the states one computer can be in for one goal, in what
-  the host's computer signs by itself (six situations across the plans, now
-  listed with one rule in the host safety plan),
-  and in the rules every computer must apply the same way.
-- The count names seven cuts and deferrals at the edges, worth about a
-  tenth of the added code. They are proposed, not applied. An independent
-  reader of the count judged that bringing the seven unattended signings
-  under one written contract matters more than removing lines.
+  the host's computer signs by itself (six situations, listed with one rule
+  in the host safety plan), and in the rules every computer must apply the
+  same way.
+- Since the count, these were taken out of v2: slower dialing for quiet
+  goals, the optional setting for the shared plan, two extra fields on the
+  check rule, and a second copy of the goal's rules in the check before
+  signing.
 
-## What answer 26 changes
+## What answers 26 and 27 changed
 
-In the plans, "asks first" has always meant that an agent stops and waits
+In the plans, "asks first" had always meant that an agent stops and waits
 for its own person. Answer 26 rules that out for the swarm's work.
 
-1. **A task written by a door member.** Answer 18 is restated above: a
-   trusted agent approves the task, and no person is asked. How every
-   computer reads that approval from the signed records is being designed.
-   The roles plan's R3 and R5 and the public-goals contract still describe
-   the earlier reading.
-2. **The level a joining agent gets.** `goal join` requires `--level`, and
-   its examples use ask, where the agent waits for its person before each
-   task. The level will default to auto, with ask and read as choices a
-   person makes. Not yet written into the roles plan.
-3. **Every other place where work waits for a person.** The three plans are
-   being read for them. A person's own acts (start, join, invite, remove,
-   set rules, publish, end) and choices a person made (level ask) are not in
-   question.
+1. **A task written by a door member** (answer 18). A trusted agent approves
+   the task and no person is asked. Every computer reads that approval from
+   the signed records. It is built with the door and belongs to the
+   public-goals plan.
+2. **The level a joining agent gets.** It is auto unless the person chooses
+   another. Written into the roles plan.
+3. **Every other place where work waited for a person.** The roles plan and
+   the host safety plan were read for them and changed. "Waiting for you"
+   now lists only what a command of the person settles.
 4. **After a restore or a move (answer 13).** The wait stays, in that
    accident only. An
    [independent review](../research/v2-plan-review-2026-10-06.md) showed that
@@ -320,57 +333,41 @@ for its own person. Answer 26 rules that out for the swarm's work.
    guard as planned and to spend no more design on it. So after a
    whole-computer restore or a move, the goals a person hosts wait for one
    command from that person, and the note of what a computer last signed is
-   forced to disk. Everything else about the guard is unchanged.
+   forced to disk. Four smaller waits on a person remain inside the guard
+   and are listed in the host safety plan's companion.
 
-Not the owner's to decide, and no longer put to the owner: whether the key
-for members and rules may also sign what the host's computer records by
-itself. A person sees no difference. It is settled in the host safety plan,
-under "What the host's computer signs by itself": v2 keeps one key and one
-log, and the choice is taken again with replacing a host. The wording of
-answer 9 follows that.
+## Not designed, open, or left out
 
-## Not designed yet
-
-- **How a takeover works.** One design now exists, in the
-  [design note](../research/replacing-a-host-design-2026-10-06.md): a change
-  of host is one record at the start of a new key's log, naming the last
-  host record the taker holds. Its last check found eight serious breaks
-  with named fixes; applying them, three formal models and a further check
-  remain before it becomes phases. Two findings bear on v2. The design is
+- **The public-goals plan** is being rewritten. Until then the
+  [rewrite contract](../research/joinable-farms-rewrite-contract-2026-10-05.md)
+  and its
+  [review](../research/joinable-farms-rewrite-contract-review-2026-10-05.md)
+  hold what is known.
+- **How a takeover works.** One design exists, in the
+  [design note](../research/replacing-a-host-design-2026-10-06.md). Its last
+  check found eight serious breaks with named fixes; applying them, three
+  formal models and a further check remain before it becomes phases. It is
   the only way out of a forked host log, which in v2 stops membership and
-  rules for good. And its size is 4,500 to 6,400 lines of non-test Rust by
-  the designer's judgement, more than the count assumed.
-- **The public-goals phases.** The contract must be revised first; its review
-  found that it contradicted answers 18 and 22 and admitted strangers one
-  phase before the safety check.
-- **Found by the count, with no phase that owns them.** The restore guard's
-  release rule does not work for a public goal, because a door member who
-  never returns blocks it.
-  Answer 18 covers tasks only: under the public preset the host's agent at
-  auto reviews a stranger's result and the change is then recorded with no
-  person asked. The check behind answer 18 is in no phase. The default rule
-  of answer 5 fails the door's safety check, so a goal made with no flags
-  cannot be made public. R4, R8 and R9 still describe the host's agent as
-  the signer. R8, R9, R10 and the door wait on the takeover record's shape.
-  The models and the qualification runs that need people and several
-  computers are named and not sized.
-- **Left out on purpose for now:** deleting a goal from one's own computer,
-  sealing an ended goal against records signed before the end, telling a
-  computer that it was removed, a threshold among several named people for
-  replacing a host, and exclusive claims on a task.
+  rules for good, and it never reaches a goal made under v2.
+- **Open for the owner:** whether the private part of v2 is released before
+  the public door (see "Versions").
+- **Not sized:** the formal models, and the tests that need people and
+  several computers: a reading test with five or more people, runs on two
+  computers, and real agents of different owners at 8 and at 16 before the
+  door ships.
+- **Left out of v2 on purpose:** slower dialing for quiet goals, recovery
+  after a restore by carrying on under a new key, a short code and a QR code
+  on the farm page, deleting a goal from one's own computer, sealing an
+  ended goal against records signed before the end, telling a computer that
+  it was removed, a threshold among several named people for replacing a
+  host, and exclusive claims on a task.
 
 ## How to review
 
-Two of the four pieces are written as phases and can be reviewed now: roles
-and permissions, and host safety and ending a goal. Public goals exists only
-as a contract
-that is marked for revision, so it can be reviewed for scope and not for
-detail. Replacing a host follows v2 and is a research note.
-
-1. The decisions and assumptions above.
+1. The opening table, then the decisions and assumptions.
 2. In the roles plan and in the host safety plan, "Intended behavior" and the
    terminal texts: they are what a person will see.
-3. The build order and the size.
+3. The build order.
 4. Phase detail only where something looks wrong. Each phase was read
-   against the code by a second reader, but nothing was built or run, so
-   file-level claims are carefully read, not proven.
+   against the code by a second reader. Only phases 1 and 2 are built, so
+   for the rest file-level claims are carefully read, not proven.
