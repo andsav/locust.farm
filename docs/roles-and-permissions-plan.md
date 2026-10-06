@@ -12,11 +12,18 @@ or run. The terminal texts are proposed output, not captured output.
 
 An [independent review](../research/roles-and-permissions-plan-review-2026-10-05.md) of 2026-10-05 supports the direction and
 asked for revisions before the whole plan is built. All of its points are
-folded in below. Three of them rest on answers the owner has not confirmed:
-how long a task allowance lasts (question 17), whether a role name keeps its
-kind (question 18) and whether a later reject withdraws an approval
-(question 19). The edits for those three were each checked against the code
-by a second reader.
+folded in below. Two of them rest on answers the owner has not confirmed:
+how long a task allowance lasts (question 17) and whether a role name keeps
+its kind (question 18). A third, whether a later reject withdraws an
+approval, the owner has since answered. The edits for those three were each
+checked against the code by a second reader.
+
+The owner answered eight questions on 2026-10-05; the answers are listed
+under [Decisions this plan assumes](#decisions-this-plan-assumes). Three of
+them change phases and are not yet written into the phase texts: the rule for
+a goal with one member (Phases 2, 4 and 5), the first files of a goal
+(Phase 9) and which commands ask for confirmation (Phase 2 and the terminal
+texts).
 
 What each phase removes, and the checks behind its behaviours, are in the
 [companion list](roles-and-permissions-plan-details.md).
@@ -70,9 +77,32 @@ said no and who can change it.
 
 ## Decisions this plan assumes
 
-Decided with the owner on 2026-10-05: there is no integrator role. Accepting a
-change into the shared files is not something a person or an agent holds.
-Phase 4 stops offering the setting and Phase 9 makes acceptance automatic.
+Decided by the owner on 2026-10-05:
+
+- Where two sound designs differ in what they ask of the person, the one
+  that asks less wins. In the owner's words: "user ergonomics with no
+  friction are the most important".
+- There is no integrator role. Accepting a change into the shared files is
+  not something a person or an agent holds. Phase 4 stops offering the
+  setting and Phase 9 makes acceptance automatic.
+- A new goal follows peer approval, and while a goal has only one member that
+  member's own word counts: "peer approval unless there is only one member in
+  the swarm. Then trivially the one member approves himself". This replaces
+  row 4 and removes the warning that nothing counts until a second member
+  joins.
+- A member's latest review of a result is the one that counts (row 12).
+- The first files a host shares need no approval. Every later change follows
+  the goal's rule.
+- A person-only command asks for confirmation only when it shares something
+  or is hard to undo: starting or joining a goal, inviting, removing a
+  member, changing rules, publishing, ending. Setting a level, allowing a
+  task and giving or taking a role apply at once.
+- Governance is signed by a key that does nothing else, separate from the
+  host's working agent.
+- A host may name one backup host, who can take over alone. Naming one is
+  optional, and nothing asks for it.
+- The phases keep their order: file acceptance rests on the host's computer
+  before a backup host exists.
 
 The owner has not confirmed the rest.
 
@@ -81,7 +111,7 @@ The owner has not confirmed the rest.
 | 1 | Levels are named read, ask and auto | A rename only; the mechanics are the same |
 | 2 | A role needs no yes from the member's person | Add a one-time acceptance when a host gives a role |
 | 3 | The built-in formations use two role names, `reviewer` and `lead` | Keep `coordinator`, `judge` and `reviewer` |
-| 4 | A new goal with no formation named uses `peer-review`; the empty formation document stays `open` | Keep `open` as the default, so one agent's work counts at once |
+| 4 | Decided, see above: peer approval, and a goal's only member counts on its own word. The empty formation document stays `open` | |
 | 5 | The preset `coordinator` is renamed `directed` | Keep the name; its role is still `lead` |
 | 6 | `--owner` stays, and `up` and `agent add` require it too | Plain `locust` would be the person, and the approval prompt loses its marker |
 | 7 | An invitation may carry a role, but not one that a single member must hold | The host gives the role after the member joins |
@@ -89,7 +119,7 @@ The owner has not confirmed the rest.
 | 9 | The check rule gains a count and leaves out the author | "Agree by checking" stays a single attestation |
 | 10 | "The goal's rules said no" gets a new exit code, 13 | Share 7 with other conflicts |
 | 11 | A role name keeps its kind in a goal: one that picks or closes always has one holder, and a group stays a group | A name's kind follows the current rules; work under earlier rules whose deciding role then has two holders has no decider until one is taken, and status says so |
-| 12 | A member's latest review of a result is the one that counts; what was already recorded on an earlier approval is not undone | An approval counts for good: a later reject is shown and changes nothing, and the reviewer is told so when approving |
+| 12 | Decided, see above: a member's latest review of a result is the one that counts; what was already recorded on an earlier approval is not undone | |
 
 Evidence for row 4, from one trial of each formation with three real agents
 of different makes on one computer
@@ -149,8 +179,11 @@ every landed file change:
   with the host's key until it has recovered its own later records from a
   member, when the goal has other members. Its tests restore an older copy
   and sign before and after catching up.
-- Decided: whether governance is signed by a key separate from the host's
-  working agent. It changes which key signs the records of Phases 8 and 9.
+- Decided by the owner on 2026-10-05: governance is signed by a key that
+  does nothing else, separate from the host's working agent. It changes a
+  goal's first record, what the word host names in Phase 1, and which key
+  signs the records of Phases 8 and 9. Those phase texts still say the
+  host's agent and are revised when host replacement is planned.
 - Decided: the record a takeover writes, what it sets aside, and what happens
   to work built on records it sets aside. Phases 8 and 9 are then written
   against it. The takeover itself, and its tests for a takeover and for the
@@ -158,10 +191,15 @@ every landed file change:
 
 Phase 9 also removes the only way to put file acceptance on a computer other
 than the host's. Until a backup host exists, a goal whose host is away lands
-no file change. Whether Phase 9 should wait for the backup host is a question
-for the owner.
+no file change. The owner chose to keep this order.
 
-Still open: the choices that rule offers, the record a takeover writes, and
+The first version of host replacement is also decided: a host may name one
+backup host, who can take over alone, and naming one is optional. A threshold
+among several named people is a later step on the same record. The groundwork
+and the four designs that were compared are in the
+[research note](../research/replacing-a-host-2026-10-05.md).
+
+Still open: the record a takeover writes, and
 how the old host's history is made final at that point. A second signature on
 every governance record, which would lose nothing at a takeover, was set aside
 because every admission and rule change would wait for a second computer.
@@ -3289,7 +3327,7 @@ together.
 ## Questions for the owner
 
 1. The names read, ask and auto.
-2. The default for a new goal: peer approval, or `open`.
+2. Answered: peer approval, and a goal's only member counts on its own word.
 3. The preset name `directed`.
 4. A member's name defaults to the agent's local name, such as
    `codex-maple-1a2b3c4d`, unless `--name` is given. Require the name instead?
@@ -3308,10 +3346,8 @@ together.
    results?
 10. Who recruits and grades the comprehension test in Phase 7, and whether its
     pass mark (a median of 12 of 14, nobody below 11) is right.
-11. Phase 9: the first files of a goal need the tree's rule like any other
-    change. A host alone in a `peer-review` goal cannot start the files until
-    a second member approves them, or must pass `--completion`. Should the
-    host's own agent always be able to land its own change instead?
+11. Answered: the first files a host shares need no approval; every later
+    change follows the goal's rule.
 12. Phase 9: a host can no longer hold a change back by not accepting it. Is a
     required approver in the tree's rule enough, or is a pause wanted?
 13. Phase 9: when two approved changes build on the same files, arrival at
@@ -3325,9 +3361,7 @@ together.
 15. Phase 8 lets the plan settle by itself only under formations that ask for
     another member's approval; Phase 9 lets files land under every formation,
     `open` included. Should the plan follow the same rule as the files?
-16. Phase 9 leaves file acceptance on the host's computer with no way to move
-    it. Should Phase 9 wait until a backup host can take over, or ship first
-    with the restore guard alone?
+16. Answered: the phases keep their order, with the restore guard first.
 17. Phase 3: when the host revises a task you allowed, should your agent ask
     you again before taking it? The plan says yes, as today: `task revise`
     opens a new round and supersedes the attempts on the old one. The
@@ -3337,10 +3371,8 @@ together.
     closed there it always has one holder, and a group such as `reviewer`
     never becomes a role that picks or closes; rules that would switch a
     name are refused and the host uses a new name. Acceptable?
-19. Is a member's latest review of a result the one that counts, so a reject
-    withdraws that member's own earlier approval until something is recorded
-    on it, or does an approval count for good, with a later reject shown but
-    changing nothing? This plan assumes the first (row 12).
+19. Answered: a member's latest review of a result is the one that counts
+    (row 12).
 
 ## Appendix: the scenario questions
 
