@@ -33,7 +33,7 @@ writeFileSync('build/SHA256SUMS', files.map((file) =>
     `${createHash('sha256').update(readFileSync(`build/${file}`)).digest('hex')}  ${file}\n`
 ).join(''));
 JS
-ssh "${SSH_ARGS[@]}" "$SERVER" "set -e; test -r /etc/nginx/locust.farm.htpasswd; test -r /etc/letsencrypt/live/locust.farm/fullchain.pem; test -L /etc/nginx/sites-enabled/locust.farm; mkdir -p '$REMOTE/releases/$COMMIT.part'"
+ssh "${SSH_ARGS[@]}" "$SERVER" "set -e; test -r /etc/letsencrypt/live/locust.farm/fullchain.pem; test -L /etc/nginx/sites-enabled/locust.farm; mkdir -p '$REMOTE/releases/$COMMIT.part'"
 rsync -az --delete -e "ssh ${SSH_ARGS[*]}" build/ "$SERVER:$REMOTE/releases/$COMMIT.part/"
 ssh "${SSH_ARGS[@]}" "$SERVER" bash -s -- "$COMMIT" <<'REMOTE'
 set -euo pipefail
@@ -54,6 +54,6 @@ REMOTE
 
 for path in / /start /docs /docs/next/index.json /llms.txt; do
     code="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "https://locust.farm$path")"
-    [[ "$code" == 401 ]] || { echo "Expected authentication at $path, got $code" >&2; exit 1; }
+    [[ "$code" == 200 ]] || { echo "Expected public access at $path, got $code" >&2; exit 1; }
 done
-echo "Deployed $COMMIT to https://locust.farm (Basic Auth required)."
+echo "Deployed $COMMIT to https://locust.farm (public HTTPS)."
