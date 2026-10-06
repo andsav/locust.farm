@@ -5,7 +5,7 @@ use crate::{
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 
 pub const FARM_VERSION: u16 = 1;
 const SIGN_DOMAIN: &str = "locust v1 farm request signature";
@@ -267,20 +267,35 @@ impl FarmSnapshot {
                 return Err("invalid stage edge".into());
             }
         }
-        let mut done = BTreeSet::new();
-        loop {
-            let before = done.len();
-            for x in &self.stages {
-                if x.prerequisites.iter().all(|id| done.contains(id)) {
-                    done.insert(x.id);
+        // Traverse each stage and edge once, regardless of dependency order.
+        let mut pending = HashMap::with_capacity(stages.len());
+        let mut dependents: HashMap<u32, Vec<u32>> = HashMap::new();
+        let mut ready: Vec<u32> = Vec::new();
+        for x in &self.stages {
+            let n = x.prerequisites.len();
+            pending.insert(x.id, n);
+            if n == 0 {
+                ready.push(x.id);
+            }
+            for prerequisite in &x.prerequisites {
+                dependents.entry(*prerequisite).or_default().push(x.id);
+            }
+        }
+        let mut resolved = 0usize;
+        while let Some(id) = ready.pop() {
+            resolved += 1;
+            if let Some(downstream) = dependents.get(&id) {
+                for dependent in downstream {
+                    let remaining = pending.get_mut(dependent).unwrap();
+                    *remaining -= 1;
+                    if *remaining == 0 {
+                        ready.push(*dependent);
+                    }
                 }
             }
-            if done.len() == stages.len() {
-                break;
-            }
-            if done.len() == before {
-                return Err("cyclic stage graph".into());
-            }
+        }
+        if resolved != stages.len() {
+            return Err("cyclic stage graph".into());
         }
         let mut refs = BTreeSet::new();
         for x in &self.tasks {
@@ -613,6 +628,48 @@ mod tests {
             )
             .is_err()
         );
+    }
+    /// Reverse-ordered dependencies stress the graph traversal while keeping
+    /// other snapshot references valid.
+    fn reverse_chain_snapshot(stages: u32, cycle: bool) -> FarmSnapshot {
+        let mut snapshot: FarmSnapshot =
+            serde_json::from_str(include_str!("../fixtures/farm-snapshot.json")).unwrap();
+        snapshot.stages = (1..=stages)
+            .rev()
+            .map(|id| FarmStage {
+                id,
+                label: "S".into(),
+                prerequisites: if id == 1 { vec![] } else { vec![id - 1] },
+            })
+            .collect();
+        if cycle {
+            // Close the chain into a cycle: the root (id=1, last in the reversed
+            // list) gains a prerequisite on the final stage.
+            snapshot
+                .stages
+                .last_mut()
+                .unwrap()
+                .prerequisites
+                .push(stages);
+        }
+        snapshot.tasks = vec![];
+        snapshot.attempts = vec![];
+        snapshot.candidates = vec![];
+        snapshot.changes = vec![];
+        snapshot
+    }
+    #[test]
+    fn reverse_dependency_chain_validates_in_linear_time() {
+        // A large chain makes repeated full-graph scans costly in the test suite.
+        reverse_chain_snapshot(100_000, false).validate().unwrap();
+    }
+    #[test]
+    fn reverse_dependency_cycle_is_rejected() {
+        let mut snapshot = reverse_chain_snapshot(100_000, true);
+        assert!(snapshot.validate().is_err());
+        // The cycle is the only defect; removing it restores validity.
+        snapshot.stages.last_mut().unwrap().prerequisites.pop();
+        snapshot.validate().unwrap();
     }
 }
 

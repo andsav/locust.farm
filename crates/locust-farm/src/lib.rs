@@ -64,7 +64,9 @@ pub struct Service {
     /// One permit: at most one async HTTP DB operation runs at a time, offloaded
     /// to a blocking thread. Sync public APIs bypass this and lock `db` directly.
     db_permit: Arc<Semaphore>,
-    /// Earliest retention deadline (closed_at + retention_ms) among available
+    /// Bound validation work separately so it cannot monopolize database access.
+    validation_permit: Arc<Semaphore>,
+    /// Earliest retention deadline (closed_at + retention_ms) among retained
     /// closed farms, or u64::MAX when none remain. Atomic so the async maintain
     /// check is lock-free and never blocks behind a DB operation.
     next_expire: Arc<AtomicU64>,
@@ -103,11 +105,11 @@ impl Service {
             CREATE INDEX IF NOT EXISTS gallery ON farms (listed,state,semantic_at,farm_id);
             CREATE TABLE IF NOT EXISTS gallery_history (position INTEGER PRIMARY KEY AUTOINCREMENT,farm_id TEXT NOT NULL,semantic_at INTEGER NOT NULL,listed INTEGER NOT NULL);
             CREATE INDEX IF NOT EXISTS gallery_history_farm ON gallery_history (farm_id,position);
-            CREATE INDEX IF NOT EXISTS expire ON farms (closed_at,farm_id) WHERE state='available' AND closed_at IS NOT NULL;
+            CREATE INDEX IF NOT EXISTS expire ON farms (closed_at,farm_id) WHERE closed_at IS NOT NULL;
             PRAGMA user_version=1;",
         )?;
         let earliest_closed: Option<i64> = db.query_row(
-            "SELECT min(closed_at) FROM farms WHERE state='available' AND closed_at IS NOT NULL",
+            "SELECT min(closed_at) FROM farms WHERE closed_at IS NOT NULL",
             [],
             |r| r.get::<_, Option<i64>>(0),
         )?;
@@ -128,6 +130,7 @@ impl Service {
                 last_mutation: HashMap::new(),
             })),
             db_permit: Arc::new(Semaphore::new(1)),
+            validation_permit: Arc::new(Semaphore::new(1)),
             next_expire: Arc::new(AtomicU64::new(next_expire)),
         })
     }
@@ -293,8 +296,14 @@ impl Service {
             .with_state(self.clone())
     }
     pub fn read(&self, id: &str) -> Result<PublicState, ServiceError> {
-        self.expire_if_needed()?;
-        current(&self.db.lock().expect("farm db poisoned"), id, now_ms())
+        let mut db = self.db.lock().expect("farm db poisoned");
+        expire_due(
+            &mut db,
+            &self.meta,
+            &self.next_expire,
+            self.config.retention_ms,
+        )?;
+        current(&db, id, now_ms())
     }
     pub fn take_down(&self, id: &str) -> Result<(), ServiceError> {
         FarmId(id.into())
@@ -325,7 +334,7 @@ impl Service {
             return Ok(());
         }
         let mut store = self.db.lock().expect("farm db poisoned");
-        run_expire(
+        expire_due(
             &mut store,
             &self.meta,
             &self.next_expire,
@@ -342,7 +351,7 @@ impl Service {
         }
         let retention = self.config.retention_ms;
         let next_expire = self.next_expire.clone();
-        self.with_db(move |db, meta| run_expire(db, meta, &next_expire, retention))
+        self.with_db(move |db, meta| expire_due(db, meta, &next_expire, retention))
             .await
     }
     /// Serialized async DB access for HTTP handlers: acquires the single DB
@@ -370,9 +379,13 @@ impl Service {
     /// Async read for HTTP and SSE: maintains expiration then reads the current
     /// state through the serialized blocking DB helper.
     async fn read_state_async(&self, id: String) -> Result<PublicState, ServiceError> {
-        self.maintain().await?;
-        self.with_db(move |db, _meta| current(db, &id, now_ms()))
-            .await
+        let next_expire = self.next_expire.clone();
+        let retention = self.config.retention_ms;
+        self.with_db(move |db, meta| {
+            expire_due(db, meta, &next_expire, retention)?;
+            current(db, &id, now_ms())
+        })
+        .await
     }
     /// Async mutation for HTTP: maintains expiration then applies the signed
     /// request through the serialized blocking DB helper.
@@ -383,6 +396,30 @@ impl Service {
         request: SignedFarmRequest,
     ) -> Result<Receipt, ServiceError> {
         self.maintain().await?;
+        // Reject unenrolled publishers before validating, without holding the
+        // database permit during signature and snapshot checks.
+        check_route(&id, operation, &request)?;
+        check_body_size(&self.config, &request)?;
+        let config = self.config.clone();
+        let id_for_admit = id.clone();
+        self.with_db(move |db, _meta| pre_admit(&config, db, &id_for_admit))
+            .await?;
+        let permit = self
+            .validation_permit
+            .clone()
+            .acquire_owned()
+            .await
+            .map_err(|_| {
+                ServiceError::new(StatusCode::SERVICE_UNAVAILABLE, "service unavailable")
+            })?;
+        let request = tokio::task::spawn_blocking(move || {
+            // Cancellation must not release capacity while validation still runs.
+            let _permit = permit;
+            request.verify().map(|()| request)
+        })
+        .await
+        .map_err(|_| ServiceError::new(StatusCode::SERVICE_UNAVAILABLE, "service unavailable"))?
+        .map_err(|_| ServiceError::new(StatusCode::UNAUTHORIZED, "invalid signed request"))?;
         let config = self.config.clone();
         let next_expire = self.next_expire.clone();
         self.with_db(move |db, meta| {
@@ -392,9 +429,23 @@ impl Service {
     }
 }
 
+/// Check while holding the DB lock, after any wait for capacity or validation.
+fn expire_due(
+    db: &mut Db,
+    meta: &Arc<Mutex<Meta>>,
+    next_expire: &AtomicU64,
+    retention_ms: u64,
+) -> Result<(), ServiceError> {
+    if now_ms() >= next_expire.load(Ordering::Acquire) {
+        run_expire(db, meta, next_expire, retention_ms)?;
+    }
+    Ok(())
+}
+
 /// Transitions closed farms past their retention window to deleted, publishes
 /// the change to any open viewers, and recomputes the next deadline. The
 /// `expire` partial index makes the scan touch only due farms, not every farm.
+/// Suspension preserves the deadline; deletion clears it.
 fn run_expire(
     db: &mut Db,
     meta: &Arc<Mutex<Meta>>,
@@ -406,7 +457,7 @@ fn run_expire(
     let ids = {
         let mut query = db
             .db
-            .prepare("SELECT farm_id FROM farms WHERE state='available' AND closed_at IS NOT NULL AND closed_at<=?")
+            .prepare("SELECT farm_id FROM farms WHERE closed_at IS NOT NULL AND closed_at<=?")
             .map_err(ServiceError::db)?;
         query
             .query_map([cutoff as i64], |r| r.get::<_, String>(0))
@@ -415,7 +466,7 @@ fn run_expire(
             .map_err(ServiceError::db)?
     };
     for id in &ids {
-        let changed = db.db.execute("UPDATE farms SET version=version+1,state='deleted',listed=0,snapshot=NULL,closed_at=NULL WHERE farm_id=? AND state='available' AND closed_at IS NOT NULL AND closed_at<=?",params![id,cutoff as i64]).map_err(ServiceError::db)?;
+        let changed = db.db.execute("UPDATE farms SET version=version+1,state='deleted',listed=0,snapshot=NULL,closed_at=NULL WHERE farm_id=? AND closed_at IS NOT NULL AND closed_at<=?",params![id,cutoff as i64]).map_err(ServiceError::db)?;
         if changed > 0 {
             publish(db, meta, id, time)?;
         }
@@ -423,7 +474,7 @@ fn run_expire(
     let earliest: Option<i64> = db
         .db
         .query_row(
-            "SELECT min(closed_at) FROM farms WHERE state='available' AND closed_at IS NOT NULL",
+            "SELECT min(closed_at) FROM farms WHERE closed_at IS NOT NULL",
             [],
             |r| r.get::<_, Option<i64>>(0),
         )
@@ -635,8 +686,11 @@ async fn gallery(
     if !["all", "receiving", "quiet", "ended"].contains(&filter.as_str()) {
         return Err(ServiceError::new(StatusCode::BAD_REQUEST, "invalid filter"));
     }
+    let next_expire = service.next_expire.clone();
+    let retention = service.config.retention_ms;
     let gallery = service
-        .with_db(move |db, _meta| {
+        .with_db(move |db, meta| {
+            expire_due(db, meta, &next_expire, retention)?;
             let time = now_ms();
             let mut cursor = match query.cursor {
                 Some(text) => decode_cursor(&text)?,
@@ -709,6 +763,15 @@ impl Service {
         request: &SignedFarmRequest,
     ) -> Result<Receipt, ServiceError> {
         self.expire_if_needed()?;
+        check_route(id, operation, request)?;
+        check_body_size(&self.config, request)?;
+        {
+            let db = self.db.lock().expect("farm db poisoned");
+            pre_admit(&self.config, &db, id)?;
+        }
+        request
+            .verify()
+            .map_err(|_| ServiceError::new(StatusCode::UNAUTHORIZED, "invalid signed request"))?;
         mutate_inner(
             &mut self.db.lock().expect("farm db poisoned"),
             &self.meta,
@@ -721,19 +784,11 @@ impl Service {
     }
 }
 
-/// Applies a signed request and persists its receipt atomically. Replays return
-/// the original receipt even after a later mutation or an operator takedown.
-/// Caller holds the DB lock; takes the meta lock only to publish, in DB -> meta
-/// order, so it never contends with request-rate or stream teardown.
-fn mutate_inner(
-    db: &mut Db,
-    meta: &Arc<Mutex<Meta>>,
-    next_expire: &AtomicU64,
-    config: &Config,
+fn check_route(
     id: &str,
     operation: FarmOperation,
     request: &SignedFarmRequest,
-) -> Result<Receipt, ServiceError> {
+) -> Result<(), ServiceError> {
     if request.farm_id.0 != id
         || request.operation != operation
         || request.sequence > i64::MAX as u64
@@ -743,15 +798,72 @@ fn mutate_inner(
             "request route mismatch",
         ));
     }
-    request
-        .verify()
-        .map_err(|_| ServiceError::new(StatusCode::UNAUTHORIZED, "invalid signed request"))?;
+    Ok(())
+}
+
+fn check_body_size(config: &Config, request: &SignedFarmRequest) -> Result<(), ServiceError> {
     if request.body.len() > config.max_body_bytes {
         return Err(ServiceError::new(
             StatusCode::PAYLOAD_TOO_LARGE,
             "request too large",
         ));
     }
+    Ok(())
+}
+
+/// Existing records, including tombstones, must still admit signed replays and
+/// deletion receipts. The transaction rechecks ownership and enrollment.
+fn pre_admit(config: &Config, db: &Db, id: &str) -> Result<(), ServiceError> {
+    if config.public_enrollment {
+        return Ok(());
+    }
+    let exists = db
+        .db
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM farms WHERE farm_id=?)",
+            [id],
+            |r| r.get::<_, bool>(0),
+        )
+        .map_err(ServiceError::db)?;
+    if exists {
+        return Ok(());
+    }
+    let enrolled = db
+        .db
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM enrollment WHERE farm_id=?)",
+            [id],
+            |r| r.get::<_, bool>(0),
+        )
+        .map_err(ServiceError::db)?;
+    if !enrolled {
+        return Err(ServiceError::new(
+            StatusCode::FORBIDDEN,
+            "publisher not enrolled",
+        ));
+    }
+    Ok(())
+}
+
+/// Applies a signed request and persists its receipt atomically. Replays return
+/// the original receipt even after a later mutation or an operator takedown.
+/// Caller holds the DB lock; takes the meta lock only to publish, in DB -> meta
+/// order, so it never contends with request-rate or stream teardown. Route,
+/// signature, snapshot and body-size checks already ran in the admission phase
+/// before the DB lock; the transaction rechecks enrollment and authority for
+/// races and applies the durable write.
+fn mutate_inner(
+    db: &mut Db,
+    meta: &Arc<Mutex<Meta>>,
+    next_expire: &AtomicU64,
+    config: &Config,
+    id: &str,
+    operation: FarmOperation,
+    request: &SignedFarmRequest,
+) -> Result<Receipt, ServiceError> {
+    // Validation may have crossed a retention deadline while outside the lock.
+    // Expire before replay/authority checks, preserving exact receipt replay.
+    expire_due(db, meta, next_expire, config.retention_ms)?;
     let digest = request.request_digest();
     let last_mutation = db.last_mutation.get(id).copied();
     let tx = db.db.transaction().map_err(ServiceError::db)?;
@@ -852,7 +964,10 @@ fn mutate_inner(
                 .ok_or_else(|| ServiceError::new(StatusCode::CONFLICT, "no available snapshot"))?;
             ("available", row.4, row.5.clone(), row.7)
         }
-        FarmOperation::Suspend => ("suspended", false, None, None),
+        FarmOperation::Suspend => {
+            // Suspending publication does not reopen an ended goal.
+            ("suspended", false, None, old.as_ref().and_then(|r| r.7))
+        }
         FarmOperation::Delete => ("deleted", false, None, None),
     };
     let semantic = old.as_ref().is_none_or(|r| {
@@ -1804,7 +1919,7 @@ mod expire_index_tests {
         let store = service.db.lock().unwrap();
         let plan = explain(
             &store.db,
-            "SELECT farm_id FROM farms WHERE state='available' AND closed_at IS NOT NULL AND closed_at<=?",
+            "SELECT farm_id FROM farms WHERE closed_at IS NOT NULL AND closed_at<=?",
             &[&0i64 as &dyn rusqlite::ToSql],
         );
         assert!(
@@ -2349,5 +2464,585 @@ mod async_executor_tests {
         let meta = service.meta.lock().unwrap();
         assert_eq!(meta.streams, 0);
         assert!(meta.channels.is_empty());
+    }
+}
+
+#[cfg(test)]
+mod validation_retention_tests {
+    use super::*;
+    use axum::{body::Body, http::Request};
+    use http_body_util::BodyExt;
+    use locust_proto::{
+        crypto::Keypair,
+        farm::{FarmSnapshot, FarmStage},
+    };
+    use tower::ServiceExt;
+
+    fn ended_snapshot(key: &Keypair) -> FarmSnapshot {
+        FarmSnapshot {
+            version: 1,
+            farm_id: FarmId::from_key(key.public()),
+            title: None,
+            formation: "Retention".into(),
+            goal_state: FarmGoalState::Ended,
+            observed_at_ms: None,
+            agents: vec![],
+            groups: vec![],
+            stages: vec![],
+            tasks: vec![],
+            attempts: vec![],
+            candidates: vec![],
+            changes: vec![],
+            omitted_changes: 0,
+        }
+    }
+    fn open_snapshot(key: &Keypair) -> FarmSnapshot {
+        let mut snapshot = ended_snapshot(key);
+        snapshot.goal_state = FarmGoalState::Open;
+        snapshot
+    }
+    /// A reverse dependency chain of `stages` stages: listed in descending id
+    /// order, each stage depending on the previous id. This is the adversarial
+    /// shape for the old fixed-point cycle check (one stage resolved per pass).
+    /// When `cycle` is set, the root gains a prerequisite on the final stage,
+    /// forming a cycle that only `validate()` can detect.
+    fn chain_snapshot(key: &Keypair, stages: u32, cycle: bool) -> FarmSnapshot {
+        let mut snapshot = open_snapshot(key);
+        snapshot.stages = (1..=stages)
+            .rev()
+            .map(|id| FarmStage {
+                id,
+                label: "S".into(),
+                prerequisites: if id == 1 { vec![] } else { vec![id - 1] },
+            })
+            .collect();
+        if cycle {
+            snapshot
+                .stages
+                .last_mut()
+                .unwrap()
+                .prerequisites
+                .push(stages);
+        }
+        snapshot
+    }
+    fn upload(key: &Keypair, sequence: u64, snapshot: FarmSnapshot) -> SignedFarmRequest {
+        SignedFarmRequest::sign(
+            key,
+            FarmOperation::Upload,
+            sequence,
+            serde_json::to_string(&FarmUploadBody {
+                visibility: FarmVisibility::Listed,
+                snapshot,
+            })
+            .unwrap(),
+        )
+    }
+    async fn gallery_page(service: &Service) -> serde_json::Value {
+        let response = service
+            .router()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/farms")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        serde_json::from_slice(&response.into_body().collect().await.unwrap().to_bytes()).unwrap()
+    }
+    fn closed_at(service: &Service, id: &str) -> Option<i64> {
+        service
+            .db
+            .lock()
+            .unwrap()
+            .db
+            .query_row("SELECT closed_at FROM farms WHERE farm_id=?", [id], |r| {
+                r.get::<_, Option<i64>>(0)
+            })
+            .unwrap()
+    }
+    fn backdate_closed_at(service: &Service, id: &str, closed_at: i64) {
+        service
+            .db
+            .lock()
+            .unwrap()
+            .db
+            .execute(
+                "UPDATE farms SET closed_at=? WHERE farm_id=?",
+                params![closed_at, id],
+            )
+            .unwrap();
+        service
+            .next_expire
+            .store(closed_at as u64, Ordering::Release);
+    }
+
+    #[tokio::test]
+    async fn oversized_snapshot_is_rejected_before_validation() {
+        let service = Service::open(
+            ":memory:",
+            Config {
+                public_enrollment: true,
+                max_body_bytes: 1,
+                ..Config::default()
+            },
+        )
+        .unwrap();
+        let key = Keypair::from_seed([39; 32]);
+        let request = upload(&key, 1, chain_snapshot(&key, 4, true));
+        assert_eq!(
+            service
+                .mutate(&request.farm_id.0, request.operation, &request)
+                .unwrap_err()
+                .status,
+            StatusCode::PAYLOAD_TOO_LARGE
+        );
+        assert_eq!(
+            service
+                .mutate_async(request.farm_id.0.clone(), request.operation, request)
+                .await
+                .unwrap_err()
+                .status,
+            StatusCode::PAYLOAD_TOO_LARGE
+        );
+    }
+
+    #[tokio::test]
+    async fn queued_validation_does_not_hold_database_capacity() {
+        let service = Service::open(
+            ":memory:",
+            Config {
+                public_enrollment: true,
+                ..Config::default()
+            },
+        )
+        .unwrap();
+        let permit = service
+            .validation_permit
+            .clone()
+            .acquire_owned()
+            .await
+            .unwrap();
+        let key = Keypair::from_seed([40; 32]);
+        let request = upload(&key, 1, open_snapshot(&key));
+        let mut mutation =
+            Box::pin(service.mutate_async(request.farm_id.0.clone(), request.operation, request));
+        tokio::select! {
+            biased;
+            result = &mut mutation => panic!("validation ran without capacity: {result:?}"),
+            result = tokio::time::timeout(
+                std::time::Duration::from_secs(3),
+                service.with_db(|_, _| Ok(())),
+            ) => result.unwrap().unwrap(),
+        }
+        drop(permit);
+        mutation.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn public_reads_recheck_expiration_after_waiting_for_database_capacity() {
+        use std::future::{Future, poll_fn};
+        use std::task::Poll;
+
+        for gallery in [true, false] {
+            let service = Service::open(
+                ":memory:",
+                Config {
+                    public_enrollment: true,
+                    min_mutation_interval_ms: 0,
+                    retention_ms: 0,
+                    ..Config::default()
+                },
+            )
+            .unwrap();
+            let key = Keypair::from_seed([42; 32]);
+            let ended = upload(&key, 1, ended_snapshot(&key));
+            let uri = if gallery {
+                "/api/farms".into()
+            } else {
+                format!("/api/farms/{}", ended.farm_id)
+            };
+            let permit = service.db_permit.clone().acquire_owned().await.unwrap();
+            let mut response = Box::pin(
+                service
+                    .router()
+                    .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap()),
+            );
+            assert!(
+                poll_fn(|cx| Poll::Ready(response.as_mut().poll(cx)))
+                    .await
+                    .is_pending()
+            );
+            // This upload becomes due after the read has queued for the DB.
+            service
+                .mutate(&ended.farm_id.0, ended.operation, &ended)
+                .unwrap();
+            drop(permit);
+            let response = response.await.unwrap();
+            if !gallery {
+                assert_eq!(response.status(), StatusCode::NOT_FOUND);
+            }
+            let body: serde_json::Value =
+                serde_json::from_slice(&response.into_body().collect().await.unwrap().to_bytes())
+                    .unwrap();
+            if gallery {
+                assert!(body["farms"].as_array().unwrap().is_empty());
+            } else {
+                assert_eq!(body["status"], "unavailable");
+            }
+        }
+    }
+
+    #[test]
+    fn expiration_is_rechecked_after_validation_before_reopening() {
+        let service = Service::open(
+            ":memory:",
+            Config {
+                public_enrollment: true,
+                min_mutation_interval_ms: 0,
+                retention_ms: 60_000,
+                ..Config::default()
+            },
+        )
+        .unwrap();
+        let key = Keypair::from_seed([41; 32]);
+        let ended = upload(&key, 1, ended_snapshot(&key));
+        let receipt = service
+            .mutate(&ended.farm_id.0, ended.operation, &ended)
+            .unwrap();
+        let reopened = upload(&key, 2, open_snapshot(&key));
+        reopened.verify().unwrap();
+        // Simulate the deadline passing between validation and the DB phase.
+        backdate_closed_at(&service, &ended.farm_id.0, now_ms() as i64 - 60_001);
+        let result = mutate_inner(
+            &mut service.db.lock().unwrap(),
+            &service.meta,
+            &service.next_expire,
+            &service.config,
+            &reopened.farm_id.0,
+            reopened.operation,
+            &reopened,
+        );
+        assert_eq!(result.unwrap_err().status, StatusCode::GONE);
+        assert_eq!(
+            service
+                .mutate(&ended.farm_id.0, ended.operation, &ended)
+                .unwrap(),
+            receipt
+        );
+    }
+
+    /// An unenrolled publisher's snapshot is never validated: a cyclic stage
+    /// graph that only `validate()` can catch is rejected as FORBIDDEN (enrollment)
+    /// rather than UNAUTHORIZED (validation), proving admission runs first.
+    #[tokio::test]
+    async fn unenrolled_invalid_snapshot_rejected_before_validation() {
+        let service = Service::open(":memory:", Config::default()).unwrap();
+        let key = Keypair::from_seed([31; 32]);
+        let request = upload(&key, 1, chain_snapshot(&key, 4, true));
+        let wire = serde_json::to_vec(&request).unwrap();
+        let response = service
+            .router()
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri(format!("/api/farms/{}", request.farm_id))
+                    .header("content-type", "application/json")
+                    .body(Body::from(wire))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+        // The expensive upload never created a farm record.
+        assert!(
+            service
+                .db
+                .lock()
+                .unwrap()
+                .db
+                .query_row::<i64, _, _>(
+                    "SELECT count(*) FROM farms WHERE farm_id=?",
+                    [&request.farm_id.0],
+                    |r| r.get(0),
+                )
+                .unwrap()
+                == 0
+        );
+    }
+
+    /// The CPU-amplification shape from the audit: a 4500-stage reverse chain
+    /// uploaded by an unenrolled publisher is rejected FORBIDDEN without doing
+    /// the (now linear, but still graph-shaped) validation work.
+    #[tokio::test]
+    async fn unenrolled_large_reverse_chain_rejected_before_validation() {
+        let service = Service::open(":memory:", Config::default()).unwrap();
+        let key = Keypair::from_seed([32; 32]);
+        let request = upload(&key, 1, chain_snapshot(&key, 4500, false));
+        let wire = serde_json::to_vec(&request).unwrap();
+        let response = service
+            .router()
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri(format!("/api/farms/{}", request.farm_id))
+                    .header("content-type", "application/json")
+                    .body(Body::from(wire))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    }
+
+    /// Validation is still enforced for enrolled publishers: a cyclic graph
+    /// is rejected UNAUTHORIZED after admission passes.
+    #[tokio::test]
+    async fn enrolled_invalid_snapshot_still_rejected() {
+        let service = Service::open(
+            ":memory:",
+            Config {
+                public_enrollment: true,
+                min_mutation_interval_ms: 0,
+                ..Config::default()
+            },
+        )
+        .unwrap();
+        let key = Keypair::from_seed([33; 32]);
+        let request = upload(&key, 1, chain_snapshot(&key, 4, true));
+        let wire = serde_json::to_vec(&request).unwrap();
+        let response = service
+            .router()
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri(format!("/api/farms/{}", request.farm_id))
+                    .header("content-type", "application/json")
+                    .body(Body::from(wire))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    /// Health stays responsive while unenrolled uploads with large reverse
+    /// chains arrive concurrently: each is admitted and rejected FORBIDDEN
+    /// without holding the single DB permit during validation.
+    #[tokio::test]
+    async fn health_stays_responsive_while_unenrolled_uploads_arrive() {
+        let service = Service::open(":memory:", Config::default()).unwrap();
+        let key = Keypair::from_seed([34; 32]);
+        let request = upload(&key, 1, chain_snapshot(&key, 4500, false));
+        let wire = serde_json::to_vec(&request).unwrap();
+        let id = request.farm_id.0.clone();
+        let mut uploads = Vec::new();
+        for _ in 0..4 {
+            let router = service.router();
+            let bytes = wire.clone();
+            let id = id.clone();
+            uploads.push(tokio::spawn(async move {
+                router
+                    .oneshot(
+                        Request::builder()
+                            .method("PUT")
+                            .uri(format!("/api/farms/{id}"))
+                            .header("content-type", "application/json")
+                            .body(Body::from(bytes))
+                            .unwrap(),
+                    )
+                    .await
+                    .unwrap()
+                    .status()
+            }));
+        }
+        // Health must return ok while the unenrolled uploads are in flight; it
+        // does not wait on any validation work because admission rejects them
+        // before the expensive signed-request verification runs.
+        let health = tokio::time::timeout(
+            std::time::Duration::from_secs(3),
+            service.router().oneshot(
+                Request::builder()
+                    .uri("/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            ),
+        )
+        .await
+        .expect("health not blocked behind unenrolled uploads")
+        .unwrap();
+        assert_eq!(health.status(), StatusCode::OK);
+        for upload in uploads {
+            assert_eq!(upload.await.unwrap(), StatusCode::FORBIDDEN);
+        }
+    }
+
+    /// Gallery enforces the same retention boundary as read/SSE/mutation: at
+    /// zero retention an ended farm is expired before the gallery reads it, so
+    /// it does not leak between background maintenance runs.
+    #[tokio::test]
+    async fn gallery_expires_ended_farm_at_zero_retention() {
+        let service = Service::open(
+            ":memory:",
+            Config {
+                public_enrollment: true,
+                min_mutation_interval_ms: 0,
+                retention_ms: 0,
+                ..Config::default()
+            },
+        )
+        .unwrap();
+        let key = Keypair::from_seed([35; 32]);
+        let request = upload(&key, 1, ended_snapshot(&key));
+        service
+            .mutate(&request.farm_id.0, request.operation, &request)
+            .unwrap();
+        // The gallery read triggers maintenance, which expires the closed farm
+        // immediately at zero retention.
+        let page = gallery_page(&service).await;
+        assert_eq!(page["farms"].as_array().unwrap().len(), 0);
+        assert_eq!(
+            service.read(&request.farm_id.0).unwrap().status,
+            FarmAvailability::Unavailable
+        );
+    }
+
+    /// A suspended ended farm keeps its closure timestamp and expires at the
+    /// original retention deadline. Resuming ended after the deadline hits the
+    /// deleted tombstone and is rejected GONE.
+    #[test]
+    fn suspended_ended_farm_expires_at_original_deadline() {
+        let service = Service::open(
+            ":memory:",
+            Config {
+                public_enrollment: true,
+                min_mutation_interval_ms: 0,
+                retention_ms: 1000,
+                ..Config::default()
+            },
+        )
+        .unwrap();
+        let key = Keypair::from_seed([36; 32]);
+        let ended = upload(&key, 1, ended_snapshot(&key));
+        service
+            .mutate(&ended.farm_id.0, ended.operation, &ended)
+            .unwrap();
+        let original_closed_at = closed_at(&service, &ended.farm_id.0).unwrap();
+        let suspend = SignedFarmRequest::sign(&key, FarmOperation::Suspend, 2, "{}".into());
+        service
+            .mutate(&ended.farm_id.0, suspend.operation, &suspend)
+            .unwrap();
+        // Suspension preserves the closure timestamp; the farm is suspended but
+        // still carries the original deadline.
+        assert_eq!(
+            closed_at(&service, &ended.farm_id.0),
+            Some(original_closed_at)
+        );
+        assert_eq!(
+            service
+                .db
+                .lock()
+                .unwrap()
+                .db
+                .query_row::<String, _, _>(
+                    "SELECT state FROM farms WHERE farm_id=?",
+                    [&ended.farm_id.0],
+                    |r| r.get(0),
+                )
+                .unwrap(),
+            "suspended"
+        );
+        // Backdate the closure past retention and run maintenance.
+        backdate_closed_at(&service, &ended.farm_id.0, original_closed_at - 2000);
+        service.expire().unwrap();
+        assert_eq!(
+            service.read(&ended.farm_id.0).unwrap().status,
+            FarmAvailability::Unavailable
+        );
+        // Resuming ended after the deadline cannot resurrect the tombstone.
+        let resume = upload(&key, 3, ended_snapshot(&key));
+        assert_eq!(
+            service
+                .mutate(&resume.farm_id.0, resume.operation, &resume)
+                .unwrap_err()
+                .status,
+            StatusCode::GONE
+        );
+    }
+
+    /// Resuming ended before the original deadline retains the closure
+    /// timestamp (it does not establish a fresh one).
+    #[test]
+    fn resume_before_deadline_retains_closure_timestamp() {
+        let service = Service::open(
+            ":memory:",
+            Config {
+                public_enrollment: true,
+                min_mutation_interval_ms: 0,
+                retention_ms: 1000,
+                ..Config::default()
+            },
+        )
+        .unwrap();
+        let key = Keypair::from_seed([37; 32]);
+        let ended = upload(&key, 1, ended_snapshot(&key));
+        service
+            .mutate(&ended.farm_id.0, ended.operation, &ended)
+            .unwrap();
+        let original_closed_at = closed_at(&service, &ended.farm_id.0).unwrap();
+        let suspend = SignedFarmRequest::sign(&key, FarmOperation::Suspend, 2, "{}".into());
+        service
+            .mutate(&ended.farm_id.0, suspend.operation, &suspend)
+            .unwrap();
+        // Resume ended before the deadline: closed_at is retained, not refreshed.
+        let resume = upload(&key, 3, ended_snapshot(&key));
+        service
+            .mutate(&resume.farm_id.0, resume.operation, &resume)
+            .unwrap();
+        assert_eq!(
+            closed_at(&service, &ended.farm_id.0),
+            Some(original_closed_at)
+        );
+        assert_eq!(
+            service.read(&ended.farm_id.0).unwrap().status,
+            FarmAvailability::Available
+        );
+    }
+
+    /// An actual Open transition before the deadline clears the closure timer,
+    /// so a timely reopen does not carry the prior ended farm's retention clock.
+    #[test]
+    fn reopen_before_deadline_clears_closure_timer() {
+        let service = Service::open(
+            ":memory:",
+            Config {
+                public_enrollment: true,
+                min_mutation_interval_ms: 0,
+                retention_ms: 1000,
+                ..Config::default()
+            },
+        )
+        .unwrap();
+        let key = Keypair::from_seed([38; 32]);
+        let ended = upload(&key, 1, ended_snapshot(&key));
+        service
+            .mutate(&ended.farm_id.0, ended.operation, &ended)
+            .unwrap();
+        assert!(closed_at(&service, &ended.farm_id.0).is_some());
+        let suspend = SignedFarmRequest::sign(&key, FarmOperation::Suspend, 2, "{}".into());
+        service
+            .mutate(&ended.farm_id.0, suspend.operation, &suspend)
+            .unwrap();
+        // Reopen before the deadline clears the closure timestamp.
+        let reopen = upload(&key, 3, open_snapshot(&key));
+        service
+            .mutate(&reopen.farm_id.0, reopen.operation, &reopen)
+            .unwrap();
+        assert_eq!(closed_at(&service, &ended.farm_id.0), None);
+        assert_eq!(
+            service.read(&ended.farm_id.0).unwrap().status,
+            FarmAvailability::Available
+        );
     }
 }
