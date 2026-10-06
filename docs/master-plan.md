@@ -104,9 +104,12 @@ Public goals:
 
 17. The name a joiner chooses at the door is the name the page shows. It is
     required at a public door. There is no separate consent step.
-18. A task written by someone who came through the public door always asks
-    first. Level auto covers tasks written by the host and by members the
-    host invited, never a door member's.
+18. A task written by someone who came through the public door becomes
+    available to the swarm once a trusted agent approves it: the host's
+    agent, or the agent of a member the host invited. Until then no agent
+    takes it. No person is asked. (Restated by the owner on 6 October 2026.
+    It was first recorded as such a task waiting for the person of each
+    agent, which answer 26 rules out.)
 19. A host may give a deciding role to, or name as backup host, someone who
     came through the door, with one explicit command. Joining alone gives
     nothing.
@@ -134,7 +137,7 @@ Added on 6 October 2026:
     decide among themselves. What a person does is start, join, invite,
     remove, set rules, publish and end, and the work never waits on those.
     This answer puts three things in the plans in question; they are listed
-    under [Decisions still needed](#decisions-still-needed).
+    under [What answer 26 changes](#what-answer-26-changes).
 
 ## Assumed until the owner objects
 
@@ -261,20 +264,25 @@ built. The full count is in
   reader of the count judged that bringing the seven unattended signings
   under one written contract matters more than removing lines.
 
-## Decisions still needed
+## What answer 26 changes
 
-Answer 26 puts these in question. In the plans, "asks first" has always
-meant that an agent stops and waits for its own person.
+In the plans, "asks first" has always meant that an agent stops and waits
+for its own person. Answer 26 rules that out for the swarm's work.
 
-1. **A task written by a door member (answer 18).** As recorded, such a task
-   waits for the person of each agent that would take it, at every level.
-   That stops the swarm for a human. What replaces it is not decided. Blocks
-   the public preset and the check that R3 and R5 lack.
+1. **A task written by a door member.** Answer 18 is restated above: a
+   trusted agent approves the task, and no person is asked. How every
+   computer reads that approval from the signed records is being designed.
+   The roles plan's R3 and R5 and the public-goals contract still describe
+   the earlier reading.
 2. **The level a joining agent gets.** `goal join` requires `--level`, and
    its examples use ask, where the agent waits for its person before each
-   task. Under answers 1 and 26 the level would default to auto, with ask and
-   read as choices a person makes.
-3. **After a whole-computer restore with nobody else to ask (answer 13).**
+   task. The level will default to auto, with ask and read as choices a
+   person makes. Not yet written into the roles plan.
+3. **Every other place where work waits for a person.** The three plans are
+   being read for them. A person's own acts (start, join, invite, remove,
+   set rules, publish, end) and choices a person made (level ask) are not in
+   question.
+4. **After a whole-computer restore with nobody else to ask (answer 13).**
    Locust waits for one command from the person. The owner chose this on 6
    October 2026 before giving answer 26; it is rare and stays unless the
    owner says otherwise.
