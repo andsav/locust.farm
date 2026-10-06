@@ -2,12 +2,12 @@
 
 Status: proposed plan of 2026-10-06, one of the plans under the
 [Locust v2 master plan](master-plan.md). Not accepted and nothing here is
-built. It holds six phases: K1 gives a goal's members and rules a signing key
+built. It holds five phases: K1 gives a goal's members and rules a signing key
 of their own, G1 and G2 stop a computer started from an old copy of its data
-from signing until it has caught up, and E1, E2 and E3 let the host end a
-goal, have the host's computer remove a member that leaves, and let idle
-goals use the network less. The
-research behind it is in
+from signing until it has caught up, and E1 and E2 let the host end a goal
+and have the host's computer remove a member that leaves. A sixth phase, E3,
+would let idle goals use the network less. It is deferred until after v2 and
+named under [Left for later](#left-for-later). The research behind it is in
 [replacing a host](../research/replacing-a-host-2026-10-05.md),
 [ending a goal](../research/ending-a-goal-2026-10-05.md),
 [host-key failures](../research/host-key-failure-characterization-2026-10-05.md)
@@ -21,22 +21,41 @@ was read at `c9c3b2c` and again at `48bb12c`. Nothing was built or run, so
 every behavior after the change is inferred. The terminal texts are proposed
 output, not captured output.
 
+An [independent review](../research/v2-plan-review-2026-10-06.md) of 6
+October 2026 then said not to build the phases unchanged. Its
+[check](../research/v2-plan-review-verification-2026-10-06.md) refuted none
+of its findings. On the same day the owner narrowed answer 3, restated answer
+18, gave answers 26 and 27 and chose to keep the restore guard as planned.
+The text below is corrected for all of this. In short: the note of what a
+computer last signed is forced to disk; on a host's computer a copy of
+unknown age waits for the person and for nothing else; a disconnected agent
+can be connected again; a stage rule that nobody could meet is refused when
+the rules are set; each phase repairs the recipes and scripts it breaks; and
+the phase for idle goals is deferred.
+
 What each phase owns and removes, the checks behind its behaviors, and what
 its writers could not settle are in the
 [companion list](host-safety-and-ending-plan-details.md).
 
 ## Known gaps
 
-Found after the text below was written. Neither is fixed here yet. Two earlier
-gaps are closed. E2 is rewritten for the owner's answer 14. And one section,
-[What the host's computer signs by
-itself](#what-the-hosts-computer-signs-by-itself), lists every record the
-governance key signs with nobody present, with one rule for all of them.
+What the text below leaves open after the corrections of 6 October 2026. None
+of these is fixed here.
 
-1. **G1's release rule does not work for a public goal.** After a
-   whole-computer restore the host's computer waits to hear from every other
-   computer in the goal. A member who joined through a public door and never
-   returns blocks that for good.
+1. **After a restore, a goal can wait for a person.** Answer 26 says the swarm
+   never stops to wait for a person. The restore guard is the exception, and
+   the owner kept it on 6 October 2026 (master plan, "What answer 26
+   changes"). After a whole-computer restore or a move the host's computer
+   cannot tell how old its copy is. It signs nothing in the goals it hosts
+   until the person runs `locust --owner goal continue`, and nothing else
+   ends that hold. Until then the other members' agents still post and
+   review, but nobody joins, no stage step is taken and no approved change is
+   recorded. After a data folder alone is put back, a hold ends by itself
+   when the missing record returns from another computer. Where no computer
+   that answers holds a record the host signed, only the same command ends
+   it. Going on under a new key would need no person. It is scoped in the
+   [check of the review](../research/v2-plan-review-verification-2026-10-06.md),
+   is not built in v2 and belongs with the backup host.
 2. **The page of an ended goal cannot be corrected from a host whose data went
    back.** E1 marks the page ended whenever the host's copy holds an end, and
    lets a blank page say so. A host whose data went back numbers its requests
@@ -44,101 +63,185 @@ governance key signs with nobody present, with one rule for all of them.
    them. Such a page keeps what the service last held until the joinable plan
    lets a delete, and a suspend that says ended, be signed above the service's
    number.
+3. **Nothing in v2 brings back a goal that has lost its host.** A host's
+   computer that is lost, a copy of the data older than the goal, and two
+   records at one position of the host's log each stop joining, removing,
+   rule changes and the end of that goal for good. A conflict in the records
+   of the agent a goal was started with does the same to that goal's first
+   files: `workspace init` shares them for that agent only, and it cannot be
+   removed. The later release in which a host can be replaced is no way back
+   for any of these, because under answer 2 it does not read goals made under
+   v2.
+
+Closed since this list was first written:
+
+- E2 had the host remove a member that left by hand, against answer 14. E2 is
+  rewritten.
+- K1 counted two records that the host's computer signs by itself. The section
+  [What the host's computer signs by
+  itself](#what-the-hosts-computer-signs-by-itself) lists all six, with one
+  rule for all of them.
+- An end that a fork cut had no page state. E1 now marks the page ended
+  whenever the host's copy holds an end. Gap 2 is what is left of it.
+- G1's release rule did not work for a public goal. After a whole-computer
+  restore the host's computer waited to hear from every other computer, and a
+  member who joined through a public door and never returned blocked that for
+  good. The rule is removed. On the host's computer such a hold now waits for
+  no other computer, and gap 1 says what that costs.
+- The note of what a computer last signed was not forced to disk, so a power
+  failure followed by a restore could pass the guard. G1 now syncs the note
+  before the commit returns.
+- Disconnecting the agent a goal was started with could not be undone, and it
+  stranded the goal's first files and that agent's consent to a page. K1 adds
+  the command that connects an agent again.
+- A hand-written rule could name the creator of a stage's task where only a
+  member can act, and nobody could meet it. K1 refuses such rules when they
+  are set.
 
 ## Intended behavior
 
-**The signing key.** Nothing new to type or learn. The host is the person who
-started the goal, and their computer keeps who is in and the rules.
-Disconnecting the agent you started a goal with no longer freezes the goal:
-invitations, removals and rule changes keep working from your computer. That
-agent stays a member of the goal and cannot be removed from it; it holds any
-role nobody else holds until you give the role to someone. Disconnecting an
-agent has no undo. While that agent is disconnected it does no work, the
-goal's first files cannot be shared, and it cannot give or change its consent
-to a public page. A copy of your Locust data directory holds everything needed
-to act as the host of your goals, so keep copies private and never run a copy
-beside the original. A copy made before you started a goal cannot bring that
-goal back.
+**The signing key.** The key itself brings nothing new to type or learn. The
+host is the person who started the goal, and their computer keeps who is in
+and the rules. Disconnecting the agent you started a goal with no longer
+freezes the goal: invitations, removals and rule changes keep working from
+your computer. That agent stays a member of the goal and cannot be removed
+from it. A role nobody else holds is held by that agent, and one command
+gives it to another member. Disconnecting an agent applies at once and prints
+the command that connects it again, under the same name and with the same
+key. No other computer learns of either. While that agent is disconnected it
+does no work: nobody uses the roles only it holds, the goal's first files
+cannot be shared, and it cannot give or change its consent to a public page.
+Connecting it again ends all three, so disconnecting it strands nothing. A
+second agent of yours in the goal is a second member. If you started a goal
+alone, disconnected its agent and went on with another, a result under the
+default rule needs an approval that the disconnected agent cannot give:
+connect it again, add a third agent, or set rules that need no approval. A
+copy of your Locust data directory holds everything needed to act as the host
+of your goals, so keep copies private and never run a copy beside the
+original. A copy made before you started a goal cannot bring that goal back.
+Where no newer copy is left, nothing in v2 brings its host back: the later
+release in which a host can be replaced does not read goals made under v2.
 
 **The restore guard.** Locust keeps a small note beside its data folder, in
 `~/.locust.marks`, of the last thing this computer signed in each goal, as
-host and for each of your agents. If the data folder is ever put back from an
-older copy, Locust sees that the note is ahead, signs nothing in the goals
-that are behind, and catches up from the other members' computers by itself.
-In a goal you host, your agents wait too while the host's own records are
-missing. If the whole computer was restored or moved, so the note is a copy
-too, Locust cannot tell how old its data is: it waits until it has heard from
-the other computers in each goal, and for a goal with nobody to ask it waits
-for one command from you, `locust --owner goal continue`. An ordinary restart
-or waking from sleep changes nothing and asks nothing. A copy also brings back
-the settings it held: levels, allowed tasks, folders, and which agents were
+host and for each of your agents. Each change to the note is forced to disk
+before the record it covers is sent anywhere. If the data folder is ever put
+back from an older copy, Locust sees that the note is ahead, signs nothing in
+the goals that are behind, and catches up from the other members' computers
+by itself. In a goal you host, your agents wait too while the host's own
+records are missing. If the whole computer was restored or moved, so the note
+is a copy too, Locust cannot tell how old its data is. In a goal you host it
+then signs nothing until you run one command, `locust --owner goal continue`.
+Nothing else ends that wait, because an old copy cannot know which computers
+joined after it was made, and status lists the goal under "Waiting for you".
+In a goal someone else hosts, your agents wait until this computer has heard
+from the host's computer or from every other member's computer, and need
+nothing from you while one of those answers. An ordinary restart or waking
+from sleep changes nothing and asks you nothing. A copy also brings back the
+settings it held: levels, allowed tasks, folders, and which agents were
 disconnected or had left a goal. Never run two copies of the same Locust data
 at once; nothing can protect a goal from that.
 
-**Ending a goal.** The host can end a goal with one command, which asks first
-and cannot be undone. After that nothing new is recorded in the goal on any
-computer that has learned of the end: no tasks, results or approvals, no new
-members or rule changes, and nobody joins. Ending deletes nothing: every
-member keeps their copy and can still read it, and work a member signed before
-their computer learned of the end still counts when it arrives. A public page
-stays up marked "Ended by the host" until the host takes it down or the farm
-service removes it, by default 30 days after the service learns of the end.
-If the page can no longer show the goal's work it is blank and still reads
-"Ended by the host". No single name can be taken off it after the end. Only
-the host can end a goal, so if the host's computer is lost the goal can never
-be ended.
+**Ending a goal.** The host can end a goal with one command, which asks the
+host for a yes first and cannot be undone. After that nothing new is recorded
+in the goal on any computer that has learned of the end: no tasks, results or
+approvals, no new members or rule changes, and nobody joins. Ending deletes
+nothing: every member keeps their copy and can still read it, and work a
+member signed before their computer learned of the end still counts when it
+arrives. A public page stays up marked "Ended by the host" until the host
+takes it down or the farm service removes it, by default 30 days after the
+service learns of the end. If the page can no longer show the goal's work it
+is blank and still reads "Ended by the host". No single name can be taken off
+it after the end. Only the host can end a goal, so if the host's computer is
+lost the goal can never be ended.
 
-**Leaving a goal.** A member leaves with one command, which asks first. The
-host does nothing. The host's computer removes that member by itself, as soon
-as it has the leave and has had one chance to fetch what the member last
-posted. Work the member posted before leaving stays and counts as before.
-Nothing it signs afterwards counts. Its roles go back to the host's agent, and
-the other computers stop exchanging with the member's computer, which keeps
-its copy. No new content key is made for a leave. While the host's computer is
-off or catching up, the member stays listed, marked as left. To come back, the
-person joins with a new invitation.
+**Leaving a goal.** A person takes their agent out of a goal with one
+command, which asks that person for a yes first. The host does nothing. The
+host's computer removes that member by itself, as soon as it has the leave
+and has had one chance to fetch what the member last posted. Work the member
+posted before leaving stays and counts as before. Nothing it signs afterwards
+counts. Its roles go back to the host's agent, and the other computers stop
+exchanging with the member's computer, which keeps its copy. No new content
+key is made for a leave. While the host's computer is off or catching up, the
+member stays listed, marked as left. To come back, the person joins with a
+new invitation.
 
 ## Decided by the owner
 
 The numbers are those of the [master plan](master-plan.md).
 
 - 2: no migration. No release reads goals made under an earlier signed
-  format.
+  format. So the later release in which a host can be replaced ends the goals
+  made under v2 and is no way back for any of them.
 - 3: no computer decides anything shared from its own clock, a timeout, the
   order records arrived in or a comparison of identifiers. The host's
   computer may choose among changes that each already count, by signing one
-  record that every other computer follows (narrowed on 6 October 2026).
+  record that every other computer follows: when several approved changes
+  build on the same version it records the one with the lowest identifier
+  among those it holds, and the other authors rebuild (narrowed on 6 October
+  2026).
 - 8: the failure to design for is a host that disappears, not a hostile one.
 - 9: a goal's members and rules are signed by a key that does nothing else,
   separate from the host's working agent, kept in the Locust data folder
-  with no passphrase.
-- 13: after a whole-computer restore or a move, for a goal with nobody else
-  to ask, Locust signs nothing there until the person runs one command.
+  with no passphrase. The master plan leaves to this plan what else that key
+  may sign. It also signs what the host's computer records by itself, and
+  never a member's work; see
+  [What the host's computer signs by itself](#what-the-hosts-computer-signs-by-itself).
+- 13: after a whole-computer restore or a move, for a goal with no other
+  computer to ask, Locust signs nothing there until the person runs one
+  command. On 6 October 2026 the owner kept the restore guard as planned, and
+  the master plan records what follows: after such a restore or move every
+  goal a person hosts waits for one command from that person.
 - 14: a member whose agent signs a leave is removed by the host's computer
   automatically. E2 builds it.
 - 15: an approved change is recorded by the host's computer by itself.
+- 18: a task written by someone who came through the public door becomes
+  available to the swarm once a trusted agent approves it, and no person is
+  asked (restated on 6 October 2026). The public-goals phases build that
+  rule. It adds nothing to what the host's computer signs: the approval is a
+  member's record, and the restore guard and the end apply to it as to any
+  other.
 - 23: when the host ends a public goal its page stays, marked ended, for 30
   days and is then removed by the farm service.
+- 26: the swarm never stops to ask a human for anything. In this plan a
+  command asks only the person who typed it, and no agent's work waits for a
+  yes from its own person. What still waits for a person follows a restore of
+  old data or that person's own act. Known gap 1 and the companion's notes on
+  the restore guard say what, and the guard is kept as planned.
+- 27: minimize friction and what a person has to do. So disconnecting an
+  agent applies at once and one command undoes it, a command that would be
+  refused shows no plan first, and the phase for idle goals, which no answer
+  asks for, is deferred.
 
 Everything else in this plan is its writers' recommendation. The open ones
 are listed under [Questions for the owner](#questions-for-the-owner).
 
 ## Implementation sequence
 
-Six phases inside the sixteen of the master plan's build order, where R is a
+Five phases inside the fifteen of the master plan's build order, where R is a
 phase of the roles plan: R1, R2, R3, **K1**, R4, R5, R6, **G1**, **G2**,
-**E1**, **E2**, **E3**, R7, R8, R9, R10. Each lands on a clean tree. The
-protocol version goes from 6 to 7 in K1. E1's end record is the last change
-of the event format before replacing a host.
+**E1**, **E2**, R7, R8, R9, R10. Each lands on a clean tree: a phase
+rewrites, in the same phase, the executable recipes and the script harness
+code that call an interface it removes or changes, and its exit criteria run
+them. The protocol version goes from 6 to 7 in K1. E1's end record is the
+last change of the event format within the fifteen phases. The first public
+door changes signed bytes once more, and the master plan says under which
+number.
 
 | Phase | What works afterwards | Depends on |
 | --- | --- | --- |
-| K1 | A goal's members and rules are signed by a key of their own; the agent that started the goal is an ordinary member | R1 to R3 |
-| G1 | A computer knows what it signed; started from an older copy, it signs nothing in the affected goals until it has caught up | R1, K1 |
+| K1 | A goal's members and rules are signed by a key of their own; the agent that started the goal is an ordinary member, and a disconnected agent can be connected again | R1 to R3 |
+| G1 | A computer knows what it signed; started from an older copy, it signs nothing in the affected goals until it has caught up, and after a whole-computer restore or a move a goal it hosts waits for the person | R1, K1 |
 | G2 | Status and refusals say "catching up"; the person has one command to continue | G1, R2 to R6 |
 | E1 | The host ends a goal with one command; nothing new is recorded on any computer that has learned of it | R1 to R6, K1, G1, G2 |
-| E2 | A member that leaves is removed by the host's computer with nobody asked; disconnecting the host's agent is explained, not refused | E1 |
-| E3 | A goal with no new records dials and checks in less often | G1 |
+| E2 | A member that leaves is removed by the host's computer with nobody asked; disconnecting the agent a goal was started with says what waits until it is connected again | E1 |
+
+Deferred until after v2: E3, in which a goal with no new records dials and
+checks in less often. No answer of the owner asks for it and no other phase
+reads its code. Until it is built every goal keeps today's 30 seconds. E3
+would also have slowed the retries of a computer that was removed. Until then
+that rests on the failure backoff of the public-goals phase J0, so J0 keeps
+it. [Left for later](#left-for-later) says what a person notices without E3.
 
 ## What the host's computer signs by itself
 
@@ -158,7 +261,7 @@ a request, the same request.
 | | Record | Phase | Signed today | The same if signed twice | What stops a second, different record | What this plan asks |
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 | An admission on an invitation, with the role the ticket carries | K1, Phase 4 | Yes, with the creator's agent's key and a clock reading (`plan_join`) | Yes, from K1. It carries no clock reading. Member, endpoint, name and role come from the request and the ticket | The ticket's record, written in the commit that admits, answers a retry and signs nothing. After a found restore the guard holds the key and the copy's pending tickets are revoked (G1). The cost of that: an admission the copy lost is not answered again once its ticket is revoked (G1's notes) | K1 signs it with no clock reading. Phase 4 puts the role in this record and signs no second one beside it. Which joiner takes the next position is the order of asking, and nothing changes that |
-| 2 | A stage's steps: opening its task, offering it, asking for a review of its result | K1 | Yes, with the creator's agent's key (`drive_flow`) | Yes. Measured: `restored_host_automatic_stage_replay_is_identical_unless_another_event_used_its_position` | A step this copy holds is not wanted again. The goal is read again before each step. The guard passes over a held key | Nothing. When two copies hold different records the step that takes a position can differ, and no change to the record removes that |
+| 2 | A stage's steps: opening its task, offering it, asking the reviewers' agents for a review of its result | K1 | Yes, with the creator's agent's key (`drive_flow`) | Yes. Measured: `restored_host_automatic_stage_replay_is_identical_unless_another_event_used_its_position` | A step this copy holds is not wanted again. The goal is read again before each step. The guard passes over a held key | Nothing. When two copies hold different records the step that takes a position can differ, and no change to the record removes that |
 | 3 | An approved change to the shared plan | Phase 8 | No. A member selects by hand | Yes from the same records, once Phase 8 signs it with no clock reading | Nothing is wanted while a record by this key follows the last one. The goal is read again before each signing. The guard | Phase 8 signs it with no clock reading and adds a restore test. It cannot be the same across two copies: it records the lowest identifier among the revisions that have arrived and count, which answer 3 allows |
 | 4 | An approved change to the shared files, the first files included | Phase 9 | No. The integrator accepts by hand | As row 3, and only with the same content on this computer | As row 3. At another position a second record disputes the files only | As row 3 |
 | 5 | The removal of a member whose agent signed a leave | E2 | No. `member remove` is a command | Yes. It names the member, its admission and the leave, and carries no clock reading, no payload and no new content key | A member the copy shows as removed has not left, so no removal is wanted again. The goal is read again before each. The guard | Nothing more. A member whose log holds two leaves on two branches gets no such record, and the host removes it by hand |
@@ -226,10 +329,10 @@ It is not taken in v2 for three reasons. Stages, the shared plan and the
 shared files would still stop for good in such a goal, so it could be ended
 and not worked in; lifting that needs a record that replaces the second key,
 which is a change of host in small. The one design for replacing a host cuts
-off members, rules and recordings with one base in one log, and Phases 8, 9
-and 10 wait on that record's shape. The recovery after a restore that is now
-being designed, a host that goes on under a new key from the last record it
-holds, uses the same record. And a second key adds a key, a log in every
+off members, rules and recordings with one base in one log. Going on under a
+new key after a restore uses the same record; it is scoped in the
+[check of the review](../research/v2-plan-review-verification-2026-10-06.md)
+and is not built in v2. And a second key adds a key, a log in every
 frontier, a mark and one more state for a person to read, with no fewer
 signatures. The choice is taken again when replacing a host becomes phases.
 The five points apply to a second log unchanged.
@@ -240,8 +343,11 @@ later records is off. The person runs `goal continue`. The daemon signs the
 first due recording at once, at a position the lost log already used. When the
 member's computer returns, both hold two records at that position: nobody
 joins or is removed, the rules never change, and the goal cannot be ended. The
-plan of `goal continue` says this before it asks. The other ways to the same
-end are those G1 lists under what can still fork.
+plan of `goal continue` says this before it asks the person for a yes. After
+a whole-computer restore that command is the only way on in a goal the person
+hosts (G1), so what protects the goal there is the person waiting until the
+other members' computers have been on. The other ways to the same end are
+those G1 lists under what can still fork.
 
 Three changes follow from this section. K1 adds `author_alone` and signs an
 admission with no clock reading. Phase 4 puts the role a ticket carries in the
@@ -271,20 +377,24 @@ Proceed? [y/N] y
 Started "Parser cleanup" (3d9b6f20). Host: you. This computer keeps who is in and the rules.
 ```
 
-**K1-2. The host's agent is disconnected and the goal keeps running**
+**K1-2. Disconnecting the host's agent and connecting it again**
 
-Planned output. Lines marked ... are plans that Phase 2 words; all three of
-those commands ask first, and E2 adds the line the revoke plan prints for a
-host's agent. Before this piece the second command exits 3 with `the host
-agent is disconnected; nothing can sign for this goal`. The refusal of the
-third command is Phase 1's sentence and comes from the daemon. The fourth
-command is refused before any plan: only the disconnected agent can share this
-goal's first files, and no command undoes a revoke.
+Planned output. From this piece `agent revoke` applies at once: it shows no
+plan, asks nobody and prints the command that undoes it. E2 adds the lines it
+prints for the agent a goal was started with. The lines marked ... are the
+plan of `goal invite`, which Phase 2 words; that command asks the person
+typing it for a yes. Before this piece it exits 3 with `the host agent is
+disconnected; nothing can sign for this goal`. The third and fourth commands
+are refused before any plan. The third prints Phase 1's sentence. The fourth
+says that only the disconnected agent can share this goal's first files and
+names the command that connects it again. The last command is that one: the
+agent comes back with the name and the key it had, and `workspace init` then
+shows its plan.
 
 ```text
 $ locust --owner agent revoke --agent codex-maple-1a2b3c4d
-...
 codex-maple-1a2b3c4d is disconnected. The name stays taken.
+Undo: locust --owner agent reconnect --agent codex-maple-1a2b3c4d
 
 $ locust --owner goal invite --goal "Parser cleanup"
 ...
@@ -292,11 +402,15 @@ Proceed? [y/N] y
 locust-invite-9f2c41d7…
 
 $ locust --owner member remove --goal "Parser cleanup" --member codex-maple-1a2b3c4d
-...
 locust: conflict: the host's agent cannot be removed from its own goal
 
 $ locust --owner workspace init --goal "Parser cleanup" --root ~/parser
 locust: conflict: codex-maple-1a2b3c4d is disconnected; only codex-maple-1a2b3c4d can share this goal's first files
+  Connect it again: locust --owner agent reconnect --agent codex-maple-1a2b3c4d
+
+$ locust --owner agent reconnect --agent codex-maple-1a2b3c4d
+codex-maple-1a2b3c4d is connected again.
+Undo: locust --owner agent revoke --agent codex-maple-1a2b3c4d
 ```
 
 **K1-3. Records the host's computer signed**
@@ -352,12 +466,14 @@ Join "Static site search" as codex-maple-1a2b3c4d.
 Proposed output of `locust --owner status` on the host's computer. The marks
 survived, so Locust knows exactly what is missing and holds only this goal.
 The missing records are the host's own, so the host's agents wait too. Cedar
-is a friend's agent on another computer. Nothing is listed under 'Waiting for
-you', because a computer is left that can end the hold. The second block is
-the same goal after Cedar's computer answered; the restored line stays until
-the next ordinary start. No text names a key: the heading reads `host: you`
-and the records read 'signed as host'. Names and identifiers follow the roles
-plan's example.
+is a friend's agent on another computer. The hold waits for a computer and for
+no person: it ends when the missing records come back from any computer in the
+goal, and the block names the computers not heard from yet. Nothing is listed
+under 'Waiting for you', because a computer is left that can end the hold. The
+second block is the same goal after Cedar's computer answered; the restored
+line stays until the next ordinary start. No text names a key: the heading
+reads `host: you` and the records read 'signed as host'. Names and identifiers
+follow the roles plan's example.
 
 ```text
 $ locust --owner status
@@ -388,37 +504,45 @@ Parser cleanup (c01d55aa) · host: you
 **G-2. Status after a move to a new computer**
 
 Proposed output. Data and marks were both copied, so Locust cannot tell how
-old the copy is. The person's own goal shows no other computer, so it is the
-one entry under 'Waiting for you'. The goal hosted by Ana waits for her
+old the copy is. In a goal this computer hosts only the person ends that hold,
+so the person's own goal is listed under 'Waiting for you' from the start,
+also after Cedar's computer has answered. The goal hosted by Ana waits for her
 computer and needs nothing from the person. The restored line of G-1 is
 printed under both goals and is left out here to fit.
 
 ```text
 $ locust --owner status
 Waiting for you
-  "Parser cleanup" is catching up: this computer's Locust data may be an old copy, and the
-  goal shows no other computer to ask
+  "Parser cleanup" is catching up: this computer's Locust data may be an old copy, and only
+  you can say it is the newest
     locust --owner goal continue --goal c01d55aa
 
 Parser cleanup (c01d55aa) · host: you
-  Catching up: this computer's Locust data may be an old copy. Nobody to ask.
+  Catching up: this computer's Locust data may be an old copy.
+    Waiting for you: only you can say this is the newest copy of this computer's data.
+    Heard from since this start: Cedar's computer (2f6b90c4).
+    To continue: locust --owner goal continue --goal c01d55aa
   Maple (codex-maple-1a2b3c4d) · lead, reviewer · auto
 
 Static site search (7f3a9c1e) · host: Harbor's owner, on another computer
   Catching up: this computer's Locust data may be an old copy.
-    Waiting to hear from the host's computer (Harbor), last seen 3 hours ago.
+    Waiting to hear from the host's computer (Harbor), last seen 3 hours ago. Nothing is
+    needed from you.
     To continue without it: locust --owner goal continue --goal 7f3a9c1e
-  Maple (codex-maple-1a2b3c4d) · member · ask
+  Maple (codex-maple-1a2b3c4d) · member · auto
 ```
 
 **G-3. The override: goal continue**
 
-Proposed output. The command asks first: it shows a plan and proceeds on a
-yes, because what is signed after it cannot be undone with one command. It
-prints no Undo line. The line 'They may include ...' is printed when the
-missing records are the host's. The plan's review holds no clock reading, so
-its id is the same on a second run and stops matching once the hold is over.
-`--all` prints one such block per goal that is catching up and asks once.
+Proposed output. The command asks the person who typed it: it shows a plan and
+proceeds on a yes, because what is signed after it cannot be undone with one
+command. It prints no Undo line. The line 'They may include ...' and the two
+lines from 'Wait until' are printed when the held key is the host's. After a
+copy of unknown age the line on missing records reads: This copy may be older
+than what this computer signed here, and nothing on this computer can tell.
+The plan's review holds no clock reading, so its id is the same on a second
+run and stops matching once the hold is over. `--all` prints one such block
+per goal that is catching up and asks that person once.
 
 ```text
 $ locust --owner goal continue --goal "Parser cleanup"
@@ -427,6 +551,8 @@ Continue: sign in this goal from this computer's copy of the data.
   This copy is missing 2 records that this computer signed as host.
   They may include a removal, a rule change or the end of the goal.
   Not heard from since this start: Cedar's computer (2f6b90c4), last seen 2 days ago.
+  Wait until the computers of the members you added most recently have been on. A member
+  added after this copy was made is not listed here, and its computer may hold them.
   If another computer holds one of those records, the next record signed here
   conflicts with it. If these are the host's records, that stops joining, removing and
   rule changes in this goal for everyone, for good.
@@ -446,9 +572,11 @@ Proposed output. One refusal with the fifth side, 'this computer', rendered by
 the roles plan's `render`: P for the owner with `--owner`, A as the daemon's
 message in a tool result and from the launcher. The second P line is a host
 command refused before any plan: it reads 'You' and names no key; the words of
-the act are Phase 5's. The last block is the sentence the joinable plan prints
-on a joiner's computer while the host's computer answers `catching_up`; that
-plan owns the field it is read from.
+the act are Phase 5's. The third P line and the second A line are the same
+refusal after a copy of unknown age in a goal this computer hosts, where the
+hold waits for the person and does not end by itself. The last block is the
+sentence the joinable plan prints on a joiner's computer while the host's
+computer answers `catching_up`; that plan owns the field it is read from.
 
 ```text
 P  Maple can't post to "Parser cleanup": the Locust data here is older than what this
@@ -460,6 +588,11 @@ P  You can't change the rules of "Parser cleanup": the Locust data here is older
 A  codex-maple-1a2b3c4d can't post to this goal: the Locust data here is older than what
    this computer signed in the goal (this computer). It catches up by itself, or
    codex-maple-1a2b3c4d's owner can continue without waiting.
+P  Maple can't post to "Parser cleanup": the Locust data here may be an old copy (this
+   computer). It waits for you. To continue: locust --owner goal continue --goal c01d55aa
+A  codex-maple-1a2b3c4d can't post to this goal: the Locust data here may be an old copy
+   (this computer). It waits for codex-maple-1a2b3c4d's owner, who can continue with one
+   command.
 
 $ locust-cli contribution publish --goal c01d55aa --summary "notes"; echo $?
 locust: read_only: codex-maple-1a2b3c4d can't post to this goal: the Locust data here is
@@ -469,8 +602,8 @@ or codex-maple-1a2b3c4d's owner can continue without waiting.
 
 On a joiner's computer:
   Juniper (claude-juniper-77aa0c52) · joining
-      The host's computer is catching up and admits nobody yet. Locust asks again by
-      itself.
+      The host's computer is catching up and admits nobody yet. Locust asks the host's
+      computer again by itself.
 ```
 
 **G-5. A copy older than the goal's first member**
@@ -508,7 +641,7 @@ This copy of the Locust data is older than 2 goals this computer took part in. A
 hosted cannot be brought back from it. A goal you joined needs its ticket again.
 
 Static site search (7f3a9c1e) · host: Harbor's owner, on another computer
-  Juniper (claude-juniper-77aa0c52) · member · ask
+  Juniper (claude-juniper-77aa0c52) · member · auto
       Just admitted: checking with the host's computer.
 
 Parser cleanup (c01d55aa) · host: you
@@ -698,33 +831,25 @@ Member: Juniper (8d03f2b6) · remote · endpoint 9d21c4e8 · left, not yet remov
 **E2-2. Disconnecting the agent a goal was started with**
 
 Proposed output on the host's computer, for the agent that started "Parser
-cleanup". The lines marked ... are the plan that Phase 2 words. The three
-lines from `Maple started` on are this phase's. The second of them is printed
-only where Maple alone holds a role, the third only while the goal's shared
-files are empty. A goal that holds an end gets no lines. After K1 the plan
-carries no warning that the goal freezes.
+cleanup". From K1 the command applies at once and shows no plan, because one
+command connects the agent again. The first line is the roles plan's and the
+last, the `Undo:` line, is K1's. The four lines from `Maple started` on are
+this phase's. The second of them is printed only where Maple alone holds a
+role, the third only while the goal's shared files are empty, the fourth only
+while the goal's page is on. A goal that holds an end gets no lines. After K1
+the result carries no warning that the goal freezes.
 
 ```text
 $ locust --owner agent revoke --agent codex-maple-1a2b3c4d
-...
+codex-maple-1a2b3c4d is disconnected. The name stays taken.
 Maple started "Parser cleanup" (c01d55aa). The goal keeps running: inviting, removing and rule
   changes need no agent. Maple stays a member and cannot be removed.
-Waits until you give them to another member: the roles only Maple holds (lead, reviewer).
-Sharing this goal's first files needs Maple.
-...
-Proceed? [y/N] y
-codex-maple-1a2b3c4d is disconnected. The name stays taken.
-```
-
-**E3-1. The gallery legend for a goal with no new records**
-
-Proposed words on the farms page of the site. Nothing in the terminal changes
-in E3. The third sentence is E1's.
-
-```text
-Receiving updates: the host's computer checked in within the last two minutes.
-Quiet: no recent check-in; the goal may be idle or the host's computer off.
-Ended: the host ended the goal.
+Waits until you connect Maple again or give them to another member: the roles only Maple
+  holds (lead, reviewer).
+Sharing this goal's first files needs Maple connected.
+Maple's consent to this goal's public page cannot be given or withdrawn until it is connected
+  again.
+Undo: locust --owner agent reconnect --agent codex-maple-1a2b3c4d
 ```
 
 ## Phases
@@ -742,15 +867,19 @@ person's agents. The agent the host started the goal with becomes an ordinary
 member whose key signs only its own work. So a second record at a used
 position of that agent's log costs what any member's fork costs, and
 disconnecting that agent no longer stops invitations, removals or rule
-changes. A person types nothing new and reads no new word.
+changes. Disconnecting an agent applies at once, and one new command connects
+it again. For the key itself a person types nothing new and reads no new
+word.
 
 **Depends on.** Roles-plan Phases 1, 2 and 3. It is fourth in the one build
-order of sixteen phases: R1, R2, R3, K1, R4, R5, R6, G1, G2, E1, E2, E3, R7,
-R8, R9, R10, where R is a roles-plan phase. Its change to the Organization
-model comes first. The protocol version goes from 6 to 7 in K1, which lands
+order of fifteen phases: R1, R2, R3, K1, R4, R5, R6, G1, G2, E1, E2, R7, R8,
+R9, R10, where R is a roles-plan phase. Its change to the Organization model
+comes first. The protocol version goes from 6 to 7 in K1, which lands
 directly before Phase 4. Phase 4 and E1 change signed bytes inside 7; E1's end
-record, at index 26, is the last change of the event format. Nothing is
-released before Phase 10, so no number is raised twice. It needs nothing from
+record, at index 26, is the last change of the event format within the
+fifteen phases. The first public door changes signed bytes once more, and the
+master plan says under which number. Nothing is released before Phase 10, so
+no number is raised twice inside the fifteen. It needs nothing from
 GUARD or END to land. GUARD's hooks are `Node::hold` and
 `Node::admission_hold`; K1 leaves no hook of its own. END's end record is one
 more governance kind signed through `Node::host()`. Later phases read this
@@ -781,7 +910,7 @@ Who signs what after this phase:
 | Record | Signed by | Started by |
 | --- | --- | --- |
 | First record, admissions, removals, rules, tree epochs, task revisions, the publication policy; Phase 4's role holders; END's end record | the governance key | the person's command, except three that the host's daemon signs by itself: an admission on an invitation, which from Phase 4 carries the ticket's role; from E2 the removal of a member whose agent signed a leave; and from J1 an admission through a public door |
-| A stage's steps: opening its task, offering it, asking for a review of a stage's result | the governance key | the host's daemon by itself |
+| A stage's steps: opening its task, offering it, asking the reviewers' agents for a review of a stage's result | the governance key | the host's daemon by itself |
 | The plan's text (Phase 8) and a landed file change (Phase 9) | the governance key | the host's daemon by itself |
 | A review request for a result on a task no stage opened | the result's author | that member's daemon by itself, as today |
 | Tasks, attempts, results, reviews, checks, document revisions, file proposals, picks and closes by a role holder, page consent, leave requests, delivery and cancel records | a member's agent, the host's agent included | that agent or its person |
@@ -807,9 +936,10 @@ leave request for the host's agent.
   (case `organization-host-agent-fork`): two records at position 0 of identity
   5's log and a later admission by identity 0; every held governance record
   stays in `view.governance`. organization.md says identity 0 governs and is
-  not a member, and identity 5 is the host's agent. This is the first of three
-  changes under `research/tla`: G1's model comes next, then E1's cases, which
-  are written on this transcript.
+  not a member, and identity 5 is the host's agent. This is the first of four
+  changes under `research/tla`: the role holders of roles-plan Phase 4 come
+  next, then G1's model, then E1's cases. All of them keep this transcript's
+  identities.
 - [lib.rs](../crates/locust-proto/src/lib.rs): `PROTOCOL_VERSION` 6 to 7, with
   `versions.protocol` in [site.json](site.json). It is not raised again.
   `API_VERSION` and the store marker stay 7 from Phase 1; this phase's new
@@ -848,8 +978,11 @@ leave request for the host's agent.
   record's author or the task's creator is the governance key. In
   `crates/locust-proto/src/api/level.rs` (new in Phase 3) `Abilities.host`
   becomes `Option<PublicKey>` for the same reason; `Why::Rules.host` stays a
-  key, because a rules refusal exists only once the first record is held. No
-  request, no operation and no tool is added or removed.
+  key, because a rules refusal exists only once the first record is held. One
+  request is added: `Request::AgentReconnect { agent }` (`agent.reconnect`,
+  audience `Owner`, not a tool, answered `Done`; daemon.rs below). The
+  contract lists one more operation than the tree this phase starts from and
+  the same number of tools.
 - [testkit.rs](../crates/locust-proto/src/testkit.rs): `Author::genesis_with`
   and `Author::found_goal` take the host's agent's key and admit that key, not
   the signing key. The constants in
@@ -886,6 +1019,35 @@ leave request for the host's agent.
   `review_templates` take the runner from `self.chain.state.governance` in
   place of `self.history.administrator`. No rule changes: `validate_effect`
   already refuses a step whose signer is not its configured runner.
+- [validation.rs](../crates/locust-core/src/organization/validation.rs): a
+  stage's rules may not name `task_creator` where only a member can act. The
+  creator of a stage's task is the governance key, which is no member, so
+  such a rule could be met by nobody. In the stage loop of `Validator::run`,
+  the check reads the work rules and the decision rules the stage's task gets:
+  its task type's, or the formation's where the type sets none. It reports
+  `selector_scope` for `task_creator` in the `by` of an `independent` start,
+  in the `to` of an `offered` start and in any completion criterion, alone or
+  inside an `any`. The diagnostic names the stage, says that a stage's task
+  is opened by the host's computer, and tells the author to name `members`, a
+  role or a participant. The `by` of an `offered` start may still name
+  `task_creator`: the host's computer makes those offers by itself. Replay
+  runs the same validation on every rules binding (`valid_definition` in
+  [goal/mod.rs](../crates/locust-core/src/goal/mod.rs), called from
+  `validate_binding` in chain.rs), so the check lands with this phase's
+  protocol step, and a binding it refuses is `InvalidDefinition` on every
+  computer. It is mirrored in
+  [rules.ts](../sites/locust.farm/src/lib/formation-editor/contract/rules.ts),
+  with one more case in
+  [organization.cases.json](reference/conformance/organization.cases.json)
+  and one clause in the selector table of [formations.md](formations.md). No
+  preset names `task_creator`, so none changes. One limit stays, read and not
+  run. A subtask opened under a stage's task inherits the stage's rules with
+  `task_creator` fixed to the governance key (`inherit` in
+  [delegation.rs](../crates/locust-core/src/goal/delegation.rs)), and the
+  host's computer makes offers only for the stage's own task. So a start
+  `offered by: task_creator` gives no offer in a subtask, and a stage that
+  lets members open subtasks needs another start rule for them. The check
+  does not test that.
 - [node/local.rs](../crates/locust-core/src/node/local.rs): new record tag `K`
   in `Space::Goal`, keyed by the goal, holding the 32-byte seed. New
   `governance_write(goal, seed)`. `Local` gains `governance: Option<Keypair>`,
@@ -945,7 +1107,7 @@ leave request for the host's agent.
   [note](../research/goal-lifecycle-characterization-2026-10-05.md), claim 1:
   `offline_removed_member_retries_refused_peers_and_fresh_ticket_returns_stale_membership`).
   K1 does not change that answer.
-- [peers.rs](../crates/locust-core/src/node/peers.rs): `plan_join` asks that
+- [peers.rs](../crates/locust-core/src/node/peers.rs): `plan_join` tests that
   this daemon hosts the goal, that the invitation names the goal's governance
   key, and that the joiner's key is not that key. Phase 1's tests of the host
   agent (active, has not left) are deleted. It signs the admission with the
@@ -1023,18 +1185,50 @@ leave request for the host's agent.
   `not_found` (`resolve` in
   [callers.rs](../crates/locust-core/src/node/callers.rs)). The refusal is
   `conflict`: `AGENT is disconnected; only AGENT can share this goal's first
-  files`. Until this phase `host()` refused such a run at `rules.bind` or
-  `workspace.epoch`; without the new test those two would now succeed and
-  start an epoch that can get no first files.
+  files`, with a second line, `Connect it again: locust --owner agent
+  reconnect --agent AGENT`. Until this phase `host()` refused such a run at
+  `rules.bind` or `workspace.epoch`; without the new test those two would now
+  succeed and start an epoch that can get no first files.
 - `crates/locust/src/cli/only_you.rs` (from Phase 2): `goal add` refuses
   before its plan when `hosted_here` is false. The test it took over from
   [local_members.rs](../crates/locust/src/cli/local_members.rs), that the
   goal's signer is an active local agent and a local member, is deleted; its
-  retry key and its ticket comparison read `governance`. The `agent revoke`
-  plan loses the warning `Goals NAME hosts freeze for everyone`. It keeps its
-  review field, the goals in which this agent is the host's agent, and it
-  still asks first, because no command undoes a revoke. What the plan prints
-  for such a goal is E2's line.
+  retry key and its ticket comparison read `governance`. `member remove`
+  refuses before its plan when the member it names is `GoalStatus.host`, with
+  Phase 1's sentence. Until this phase it showed its plan, asked the person
+  typing it for a yes and was then refused by the daemon; the daemon's
+  refusal stays. `agent revoke` loses the warning `Goals NAME hosts freeze
+  for everyone` and, with it, its plan and its confirmation. From this phase
+  it applies at once, like `level` and `allow`: it takes neither `--plan`
+  nor `--confirm`, prints `NAME is disconnected. The name stays taken.` and,
+  last, `Undo: locust --owner agent reconnect --agent NAME`. Phase 2 had it
+  ask the person typing it for a yes because no command undid a revoke; one
+  now does, so by Phase 2's own rule for the two tiers it applies at once. It
+  still reads the goals in which this agent is the host's agent, and what it
+  prints for such a goal is E2's. New command `locust --owner agent reconnect
+  --agent NAME`: it sends `agent.reconnect`, applies at once and prints `NAME
+  is connected again.` and `Undo: locust --owner agent revoke --agent NAME`.
+  For an agent that is not disconnected it prints `NAME is not disconnected.
+  Nothing changed.` and exits 0.
+- [requests/daemon.rs](../crates/locust-core/src/node/requests/daemon.rs):
+  new `agent_reconnect`, the handler of `agent.reconnect`. It clears the flag
+  that `agent_revoke` set on the stored record and changes nothing else. A
+  revoke deletes nothing: the record keeps the name, the signing seed and the
+  credential digest (`PrincipalRecord` in
+  [identity.rs](../crates/locust-core/src/node/identity.rs)), so the agent
+  comes back under the same key and the credential its client stored works
+  again. No goal record is signed and no other computer learns of it. Like
+  `agent_revoke` it marks every goal the agent is a member of as changed, so
+  a step that waited for the agent is taken. An agent that is not
+  disconnected answers `Done` and writes nothing; an unknown key is
+  `not_found`. `agent_revoke` itself is unchanged.
+- Recipes and scripts. This phase rewrites, in the same change, every marked
+  recipe under `docs/guide` and every harness under `scripts/` that calls
+  something it changes, and its exit criteria run both. What they can meet:
+  `agent revoke` run with `--plan` and `--confirm`; `host` in `goal status
+  --json`, which is null until the first record is held; and a hand-written
+  formation in a fixture whose stage rules name `task_creator`. A search at
+  `d3ad6b7` finds no recipe and no script that calls `agent revoke`.
 - Unchanged after Phase 1's rename, and checked: `screen` in
   [screen.rs](../crates/locust-core/src/goal/screen.rs) keeps records by the
   governance key and by keys it admitted; `Goal::next` in
@@ -1077,8 +1271,21 @@ leave request for the host's agent.
     `host_review_fork_retracts_later_governance_but_preserves_prefix_work`.
   - `a_stage_task_names_the_governance_key_as_its_creator`: an offer rule `by:
     task_creator` or `by: members` yields offers signed by the governance key,
-    one `by` a role yields none, and a declaration rule `by: task_creator` on
-    the stage task is met by nobody.
+    and one `by` a role yields none. It binds no rule that lets `task_creator`
+    act in a stage task, because such rules are refused (the next two tests).
+  - `rules_whose_stage_task_names_the_task_creator_are_excluded_in_replay`: a
+    rules binding whose formation the new check refuses is
+    `InvalidDefinition`, and no stage task opens under it.
+- New in
+  [organization/tests.rs](../crates/locust-core/src/organization/tests.rs):
+  `a_stage_rule_that_names_the_task_creator_where_a_member_must_act_is_refused`.
+  `selector_scope` is reported for an independent start `by: task_creator`,
+  for an offered start `to: task_creator`, and for a declaration, a review, a
+  check and a posted result `by: task_creator`, alone and inside an `any`,
+  whether the rules are the stage's task type's or the formation's own. A
+  stage whose start is `offered by: task_creator` passes, and so does every
+  preset. The new case in organization.cases.json and the site's conformance
+  test assert the same diagnostic.
 - Rewritten, because the measured behaviour changes:
   - `host_review_fork_retracts_later_governance_but_preserves_prefix_work`
     becomes
@@ -1123,7 +1330,8 @@ leave request for the host's agent.
     agent's own requests fail, and its name cannot be enrolled again. It keeps
     the other two facts the old test measured: the revoke adds no goal record
     and no halt, and a copy of the store taken before the revoke still has the
-    agent connected.
+    agent connected. It then sends `agent.reconnect`: the agent's next request
+    succeeds under the same key, and still no goal record was added.
   - These restore tests state what the code does between this phase and G1. G1
     starts from these names and rewrites what they expect.
   - Phase 1's tests:
@@ -1153,6 +1361,13 @@ leave request for the host's agent.
     operation sent `on_behalf` of the governance key is `not_found`.
   - `the_hosts_agent_cannot_leave_or_be_removed_and_can_be_disconnected`
     (authorization.rs).
+  - `a_disconnected_agent_is_connected_again_with_its_name_and_key`
+    (authorization.rs): after `agent.revoke` and `agent.reconnect`, also
+    across a restart between them, the agent's stored credential works, its
+    key is the same, a step that waited for it is signed, and neither request
+    added a goal record. `agent.reconnect` is `denied` to an agent's
+    credential, `not_found` for an unknown key, and `Done` with no write for
+    an agent that is connected.
   - `a_ticket_names_the_governance_key_and_the_first_record_must_agree` and
     `a_tickets_endpoint_is_checked_against_the_hosts_agents_admission`
     ([invitations.rs](../crates/locust-core/src/node/tests/invitations.rs)).
@@ -1173,7 +1388,14 @@ leave request for the host's agent.
   command refuses before any plan and sends no write. New in
   [tests/workspace.rs](../crates/locust/tests/workspace.rs):
   `init_refuses_while_the_hosts_agent_is_disconnected`: the command exits 7
-  before any plan and sends neither `rules.bind` nor `workspace.epoch`.
+  before any plan and sends neither `rules.bind` nor `workspace.epoch`; its
+  second line names `agent reconnect`, and after that command the plan is
+  shown. Also new in cli.rs:
+  `agent_revoke_applies_at_once_and_prints_the_command_that_undoes_it` (no
+  plan, no confirmation, one `agent.revoke`, the `Undo:` line last, and that
+  line run as printed sends one `agent.reconnect`) and
+  `member_remove_naming_the_hosts_agent_refuses_before_any_plan` (exit 7, no
+  plan and no write).
 - Adapted with no change of assertion: every fixture that founds a goal signs
   governance with one key and the host's own work with another (`Fixture` in
   goal/tests.rs, `Author::found_goal`, the sync, store and replica fixtures,
@@ -1194,9 +1416,14 @@ leave request for the host's agent.
   tests are unchanged and are the check of the last exit criterion.
 
 **Exit criteria.**
-- The three cargo commands of `AGENTS.md`, `npm test` in `sites/locust.farm`,
-  `python3 scripts/check_formations.py`, `python3 scripts/check_docs.py` and
-  `python3 scripts/check_tla.py --suite organization` pass.
+- The three cargo commands of `AGENTS.md`, the four npm commands of
+  `AGENTS.md` in `sites/locust.farm`, `python3 scripts/check_formations.py`,
+  `python3 scripts/check_docs.py` and `python3 scripts/check_tla.py --suite
+  organization` pass.
+- `python3 scripts/check_documentation.py --binary target/debug/locust
+  --timeout 60` and `python3 -m unittest discover -s scripts/tests` pass.
+  They are the two CI steps that run the guide's recipes and the script
+  harnesses.
 - `locust --json contract` reports protocol 7. `GoalStatus` has `governance`,
   `hosted_here` and an optional `host`.
 - On a fresh home with maple and juniper enrolled, after `goal create --agent
@@ -1205,10 +1432,17 @@ leave request for the host's agent.
   `hosted_here` true; `events` lists the first record, the admission and the
   rules binding with `host` as their author. `goal leave --agent maple` exits
   7 with `conflict`.
-- Then `agent revoke --agent maple`. `goal invite`, `goal add --agent juniper`
-  and `rules bind` still succeed. `member remove --member maple` exits 7 with
-  `conflict`. `workspace init --empty` exits 7 with `conflict` before any
-  plan, and `events` shows no new record.
+- Then `agent revoke --agent maple`, which shows no plan and prints its
+  `Undo:` line last. `goal invite`, `goal add --agent juniper` and `rules
+  bind` still succeed. `member remove --member maple` and `workspace init
+  --empty` each exit 7 with `conflict` before any plan, and neither adds a
+  record to `events`.
+- Then the `Undo:` line as printed. `workspace init --empty` now shows its
+  plan, maple's next post succeeds under the key it had, and `events` shows
+  no record for the revoke or for the reconnect.
+- `rules bind` with a formation whose stage's task lets `task_creator`
+  declare is refused with the diagnostic `selector_scope`, and `events` shows
+  no new record.
 - In a `pipeline` goal whose host's agent is disconnected, the first stage's
   task opens and `events` shows its `effect_materialized` by `host`.
 - `git grep -n 'host agent is disconnected' -- crates` and `git grep -n
@@ -1225,13 +1459,16 @@ leave request for the host's agent.
   phase prevents that; the restore guard is GUARD's. The operations guide must
   say what a copy holds; the Backups section is G2's.
 - A copy older than a goal holds neither the goal nor its key. Put back, it
-  loses that goal's host seat for good: nobody joins or is removed and the
-  rules never change, until a backup host exists.
+  loses that goal's host seat for good: nobody joins or is removed, the rules
+  never change and the goal cannot be ended. No later release changes that
+  for a goal made under v2: the one in which a host can be replaced does not
+  read these goals (answer 2).
 - A fork in the governance log is judged as the administrator's fork is today:
   the chain is cut at that position, later governance is excluded, and the key
-  signs nothing more. It is permanent until a takeover exists. What changes is
-  what can cause it. Only governance records and host steps sit in that log,
-  so a review, a result or a task can no longer halt a goal.
+  signs nothing more. It is permanent. v2 has no takeover, and the release
+  that brings one does not read goals made under v2. What changes is what
+  can cause it. Only governance records and host steps sit in that log, so a
+  review, a result or a task can no longer halt a goal.
 - A host step forked at one position halts membership and rules too, because
   both live in one log. The daemon signs in this log with nobody present from
   K1 on: every admission on an invitation and every stage step. Phases 8 and 9
@@ -1246,7 +1483,9 @@ leave request for the host's agent.
   and the agent signs nothing more in that goal. One thing is specific to it:
   it cannot be removed, and Phase 4 gives it any role nobody else holds, so
   the host gives those roles to another member with `role give`. It can then
-  share no first files either. What the person is told is G1's
+  share no first files either. Connecting it again does not help, because the
+  conflict is in its records, and no later release helps a goal made under
+  v2. What the person is told is G1's
   `Halt::SignerConflict` and G2's line for it.
 - The host's agent cannot leave or be removed. Sync runs only between
   endpoints bound to current members (`peers` and `speaks_for_member` in
@@ -1264,7 +1503,8 @@ leave request for the host's agent.
   first is the
   daemon's act, in the same commit as the first record, not a replay rule.
   Lifting this needs the host's endpoint in a signed record; it belongs with
-  replacing a host, which names a new host's agent.
+  replacing a host, which names a new host's agent. A goal made under v2
+  never gets it, because that release does not read these goals.
 - New limit for Phase 4's rule that a goal's only member needs no approval.
   That rule is judged at the result's anchor, and an author's anchors never go
   backward along its own log. Until this phase the host's agent's log held
@@ -1280,11 +1520,19 @@ leave request for the host's agent.
   stage task's rules therefore names a key that signs only that stage's steps.
   An offer rule `by: task_creator` or `by: members` still gives automatic
   offers (`rules::matches` answers true for `members` without a membership
-  test). One `by` a role gives none, because the key holds no role; the role's
-  holder offers by hand. A rule that lets `task_creator` declare, review,
-  attest or post in a stage task can be met by nobody. No preset does any of
-  this. The member who was offered work can still ask to cancel; the offerer
-  of an automatic offer is the key and asks for nothing.
+  test). One `by` a role gives none, because the key holds no role; the agent
+  that holds the role signs the offer itself, with no person asked when its
+  level is auto. A rule that lets `task_creator` start a stage task, be
+  offered it, or declare, review, attest or post in it could be met by
+  nobody. Such rules are refused when the rules are checked (validation.rs
+  above), at binding and in replay, so a formation never opens a stage task
+  that cannot be finished. No preset does any of this. What the check
+  leaves: a subtask under a stage task inherits `offered by: task_creator`
+  as an offer that only the governance key could make, and the host's
+  computer makes none there. The agent that was offered work can still sign
+  a request to cancel its own attempt, and it acknowledges that request
+  itself. The offerer of an automatic offer is the key, which signs no such
+  request. No person is asked in either case.
 - A formation cannot name the governance key as an authority:
   `validate_binding` accepts only admitted members there. The key holds no
   role, so it never picks a result or closes a scope. Measured today, a close
@@ -1295,23 +1543,40 @@ leave request for the host's agent.
   plan's text or a landed file change is refused by the rule (`decision` in
   fold.rs: the signer is not the named authority).
 - Disconnecting the host's agent stops no host command. It is kept on this
-  computer only and it lasts: the revoke adds no goal record and no halt,
-  other members' computers still list the agent as a member, and no command
-  brings it back (measured,
+  computer only and it lasts until the agent is connected again: the revoke
+  adds no goal record and no halt, and other members' computers still list
+  the agent as a member. On today's code no command brings it back (measured,
   [note](../research/goal-lifecycle-characterization-2026-10-05.md), claim 5:
   `revoked_host_cannot_resume_governance_through_grants_or_enrollment_but_old_store_can`).
-  What waits from then on is what only that agent's key can sign: its own
-  work; the roles only it holds, until the host gives them to another member;
-  the goal's first files, which only it can share (Phase 4); and its consent
-  to a public page. The last is read in farm.rs and not measured for a revoked
-  agent: `eligible` asks every current member's consent and `farm_request`
-  needs the agent's key to sign one. The nearest measurement is of an agent
-  that left, whose consent can no longer be withdrawn
+  That is a choice and not a fact about the data: a revoke keeps the agent's
+  seed and only sets a flag, and this phase adds the request that clears it.
+  What waits while the agent is disconnected is what only that agent's key
+  can sign: its own work; the roles only it holds, until the host gives them
+  to another member; the goal's first files, which only it can share (Phase
+  4); and its consent to a public page. The last is read in farm.rs and not
+  measured for a revoked agent: `eligible` requires every current member's
+  consent and `farm_request` needs the agent's key to sign one. The nearest
+  measurement is of an agent that left, whose consent can no longer be
+  withdrawn
   (`departed_member_cannot_sign_consent_withdrawal_even_for_owner_after_restart`,
-  claim 2). So a host's agent disconnected before it consented keeps the
-  goal's page from ever being published, and one disconnected after it
-  consented can no longer withdraw. E2's plan line covers the roles and the
-  first files; the page is listed under Not settled.
+  claim 2). So while a host's agent is disconnected, a page it had not
+  consented to is not published and a consent it gave cannot be withdrawn.
+  Connecting the agent again ends each of the four, so none of them lasts
+  longer than the person wants. What `agent revoke` prints for such a goal is
+  E2's, and it names the roles, the first files and the page.
+- A host who works alone and changes agents. Read from the plans, not
+  measured. After `agent revoke --agent maple` and `goal add --agent juniper`
+  the goal's record holds two members: a second agent of the host's person is
+  a second member, and Maple cannot be removed. Phase 4's rule that a goal's
+  only member needs no approval then no longer applies. Under the default
+  rule Juniper's results need an approval, and the only other member signs
+  nothing while it is disconnected. The ways on are the person's: connect
+  Maple again, so that it approves; add a third agent; or bind rules that
+  need no approval, which later changes to the shared files then follow too.
+  A goal that goes on with one working agent and no approvals, after its
+  first agent is retired, is not to be had in v2. It needs a signed
+  replacement of the starting agent, which belongs with replacing a host and
+  never reaches a goal made under v2.
 - `goal.status` has no `host` until the first record is held. Phase 4's
   `host_name` comes from the ticket in that window.
 - The governance key is one more author in every sync frontier, which holds at
@@ -1324,8 +1589,8 @@ leave request for the host's agent.
   none and leaves no hook. After K1 alone a daemon signs with the governance
   key whenever it holds the key and `Goal::next` answers a place. The contract
   is GUARD's `Node::hold` and `Node::admission_hold`, and it is GUARD that
-  says how an ordinary private goal with only local members passes with nobody
-  to ask (G1: an ordinary restart holds nothing). A retry of an admission
+  says how an ordinary private goal with only local members passes with no
+  peer to ask (G1: an ordinary restart holds nothing). A retry of an admission
   already committed: K1 keeps it ahead of its own tests and of any signature
   (peers.rs above), so G1's hold comes after it. The first end: K1 builds
   none. E1's end record is signed with the governance key through
@@ -1355,7 +1620,10 @@ leave request for the host's agent.
   thirty call sites in twelve files and is built 61 times; `Fixture.admin`
   signs in about eighty places in goal/tests.rs and workspace_tests.rs.
   Splitting the fixtures into a governance signer and a host's agent is the
-  first commit and changes no behaviour.
+  first commit and changes no behaviour. The corrections of 6 October 2026
+  are not in these numbers: the reconnect request and command, `agent revoke`
+  applying at once, the refusal of `member remove` before its plan and the
+  check on a stage's rules. They are small beside them and were not sized.
 - The place left for replacing a host: the first lines of `Chain::build`,
   where the chain takes its key and its host's agent from the first record.
   Readers in replay and on the node go through `State.governance` and
@@ -1386,23 +1654,40 @@ leave request for the host's agent.
   projection.rs, presets.rs, the sync code, cases.json and the farm page.
   Inferred and not run: every behaviour after the change, the rewritten tests'
   outcomes, and the size.
+- Read for the corrections of 6 October 2026, at `d3ad6b7`, whose crates are
+  those of `51d50b8`. In part: `Validator` in validation.rs, to the end of
+  `run`; `inherit`, `subset`, `implies` and `narrows` in delegation.rs;
+  `agent_enroll` and `agent_revoke` in requests/daemon.rs; `PrincipalRecord`
+  and `Principals` in identity.rs; `resolve`, `resolve_binding`,
+  `task_creator` and `matches` in rules.rs; `stage_template`,
+  `offer_templates` and `review_templates` in goal/flow.rs; the arms for an
+  opened task, an offer, an attempt and a cancel request in fold.rs;
+  `valid_definition` in goal/mod.rs and `validate_binding` in chain.rs.
+  Inferred and not run: that clearing the flag makes the stored credential
+  work again, the check on a stage's rules, what a subtask inherits, and
+  every line the two commands print. The name `agent reconnect` is this
+  text's.
 
 ### G1: A daemon knows what it signed
 
 **Goal.** A daemon keeps, beside its data directory and never inside it, the
 last record each of its keys signed in each goal. At a start it can tell
 whether its data is the same files it last wrote, a copy older than what it
-signed, or a copy of unknown age. A key whose records are missing, or whose
-data is a copy of unknown age, signs nothing in that goal until this daemon
-has caught up. Where this daemon hosts the goal and the host's own records are
-missing, its agents sign nothing there either. That covers what the daemon
-signs by itself and what the person or an agent asks for. An ordinary restart
-holds nothing and waits for nobody; waking from sleep is not a start. The
+signed, or a copy of unknown age. A key whose records are missing signs
+nothing in that goal until this daemon has caught up. After a copy of unknown
+age no key signs: in a goal hosted on another computer until this daemon has
+heard from that goal's other computers, and in a goal this daemon hosts until
+the person runs one command, because no other computer can show that the copy
+holds everything the host's computer signed. Where this daemon hosts the goal
+and the host's own records are missing, its agents sign nothing there either.
+That covers what the daemon signs by itself and what the person or an agent
+asks the daemon to sign. An ordinary restart holds nothing and waits for no
+person and no computer; waking from sleep is not a start. The
 guard is this daemon's own behaviour. It changes no signed byte and no rule by
 which any daemon judges a record.
 
 **Depends on.** K1 and roles-plan Phases 1 to 6; it lands after Phase 6 and
-before Phases 8 and 9. It is the eighth of the sixteen phases in the build
+before Phases 8 and 9. It is the eighth phase of the build
 order, and the first public door is released after it, G2 and E1, as the owner
 decided. What it calls is Phase 1's and K1's. From Phase 1: `Node::hosts()`,
 `plan_join` without grants, the scan `invitation_revoke` uses for every
@@ -1423,9 +1708,9 @@ under "Model first" and the file-identity note come first.
   directory beside the data directory, so a copy of the data directory does
   not carry it.
 - *Another computer* in a goal is an endpoint, other than this daemon's, that
-  a current member is bound to. A member that asked to leave stays a current
-  member until it is removed, and its computer keeps exchanging until then
-  (measured:
+  a current member is bound to. A member whose agent signed a leave stays a
+  current member until it is removed, and its computer keeps exchanging until
+  then (measured:
   `leave_is_visible_in_events_and_replication_and_rotated_keys_continue_until_removal`),
   so it counts. From E2 the host's computer signs that removal by itself, and
   never while its governance key is held, so a restored host keeps hearing
@@ -1461,7 +1746,9 @@ wrote, and is the database the file last used.
 | lost, or a copy | another file | a copy of unknown age | every key this daemon holds is unheard in every goal; the marks are written again from the store |
 
 In the second and fourth rows, and for a goal found overwritten in place,
-`restore_found` runs once per goal (below).
+`restore_found` runs once per goal (below). The marks are also lost when
+their file holds a record whose checksum fails. A torn write then leads to the
+third or the fourth row, never to a key with no mark that signs at once.
 
 When a hold ends by itself:
 
@@ -1471,13 +1758,28 @@ When a hold ends by itself:
 | Behind, the governance key | also at once when its mark says the goal never had a member on another computer and the copy shows none |
 | Behind, an agent's key | also when this daemon has heard from every other computer in the goal and its own governance key, if it holds one there, is not held. No computer that can be asked has the record, and the mark is lowered |
 | Any agent's key on the host's computer, held because the governance key is | when the governance key's hold ends |
-| Unheard after a copy of unknown age, on the host's computer | it has heard from every other computer in the goal, and there is at least one |
 | Unheard after a copy of unknown age, on a member's computer | it has heard from the host's computer; or from every other computer that is not the host's, when there is at least one |
 | Admitted | it has heard from the host's computer |
 
-Everything else waits for the person (`goal.continue`, below). No clock ends a
-hold. The daemon never gives up a governance record by itself: the records it
-is missing are the ones that say who the other computers are.
+Two holds end only on the person's command (`goal.continue`, below).
+
+- An unheard hold in a goal this daemon hosts, from the start. The copy lists
+  the computers that were members when it was made. A computer admitted since
+  may hold the host's later records and is not on that list, and a computer
+  removed since answers and brings nothing. So hearing from every listed
+  computer shows nothing about what the host's computer signed last. While the
+  hold lasts the daemon still dials every computer the copy lists and calls
+  back a caller it does not know (below), so records keep returning. Every
+  agent's key of this daemon in that goal is held with the governance key, by
+  the fourth row.
+- A behind hold on the governance key, for as long as no computer that
+  answers holds the marked record. The daemon never gives up a governance
+  record by itself: the records it is missing are the ones that say who the
+  other computers are.
+
+Every other hold waits for the computers its row names and for no person. If
+one of them never answers the hold lasts, and the person can end it with the
+same command. No clock ends a hold.
 
 The two tables and `Node::hold` are the one signing-readiness contract.
 `Node::hold(entry, key)` answers whether this daemon may sign with this key in
@@ -1493,20 +1795,26 @@ names in finding 4.
 
 | Case | What the contract answers |
 | --- | --- |
-| A private goal whose members are all on this computer | After an ordinary start nothing is held and nobody is asked. After the data directory is put back from an older copy the hold ends at once: the mark says the goal was never shared. After a copy of unknown age the goal waits for the person, once. The copy cannot show that the goal was never shared (an owner question) |
-| A copy older than every member on another computer | Marks kept: the governance key is behind, its mark says shared, and an empty list of computers never ends that hold. A member's computer that calls is called back. Marks lost: unheard, with nobody to ask. It waits for the person, and a member's computer that calls meanwhile is called back |
-| A computer that answers but holds less, or withholds | Marks kept: only the marked record ends the hold, so neither can end it. Marks lost: not detected (residual 4 in the notes) |
+| A private goal whose members are all on this computer | After an ordinary start nothing is held, and no person and no other computer is asked for anything. After the data directory is put back from an older copy the hold ends at once: the mark says the goal was never shared. After a copy of unknown age the goal waits for the person, once, as every goal this computer hosts does. The copy cannot show that the goal was never shared (answer 13) |
+| A copy older than every member on another computer | Marks kept: the governance key is behind, its mark says shared, and an empty list of computers never ends that hold. A member's computer that calls is called back. Marks lost: unheard in a goal this computer hosts, so it waits for the person. The copy lists no other computer, and a member's computer that calls meanwhile is called back |
+| A computer that answers but holds less, or withholds | Marks kept: only the marked record ends the hold, so neither can end it. Marks lost, in a goal this computer hosts: no answer ends the hold, and the person decides when to continue. Marks lost, on a member's computer: not detected (residual 5 in the notes) |
 | Records this daemon signed that reached no other computer | Marks kept: an agent's key gives them up once every other computer has answered. The governance key never does by itself; once every other computer has answered, G2 lists the goal for the person. Marks lost: not known, and harmless, since no other computer holds them |
-| No member's computer can be reached | Nothing is signed and no clock ends the hold. The person's command does |
-| A public goal | The same answers. The farm-service check can add a hold, or end an unheard one, through `guard_attest`. It never ends a behind, and it does not show that the governance log is whole |
+| No member's computer can be reached | Nothing is signed and no clock ends the hold. With the marks kept it waits for a computer that holds the missing record, and status names the computers not heard from; the person's command is the only other way out. After a copy of unknown age a goal this computer hosts waits for the person in any case |
+| A public goal | The same answers. The farm-service check can add a hold through `guard_attest`, where a start looked ordinary and the service shows that the copy is behind. It never ends a hold, and it does not show that the governance log is whole |
 
-A hold ends in one of three ways, and only the first is proof. The marked
-record is held again: this daemon's own log is whole up to its mark. Another
-rule of the second table was met, because the goal was never shared or the
-computers it names were heard from: nothing more can be asked, which is not
-proof. The person continued: an override, which proves nothing. No view
-records afterwards which of the three it was. `Response::Continued` tells the
-caller at the time, and no text calls the second or the third "caught up".
+A hold ends in one of three ways, and only the first is proof. The first: the
+marked record is held again, so this daemon's own log is whole up to its mark;
+or the mark says the goal was never shared and the copy shows no other
+computer. Both rest on the mark being the key's true last signature, which the
+synced write below gives. The second: the computers a row of the second table
+names were heard from, and no other computer can be asked for more. That is
+not proof. It ends only holds on an agent's key: a key that is behind, an
+unheard hold on a member's computer, a key just admitted. A wrong guess there
+costs one agent its key in one goal. The third: the person continued, an
+override, which proves nothing. A hold on the governance key ends by the first
+or the third only. No view records afterwards which of the three it was.
+`Response::Continued` tells the caller at the time, and no text calls the
+second or the third "caught up".
 
 - [store.rs](../crates/locust-proto/src/store.rs): new types beside `Commit`.
   ```rust
@@ -1520,10 +1828,11 @@ caller at the time, and no text calls the second or the third "caught up".
   /// What was found beside the data directory when the store was opened.
   pub struct Marks { pub file: FileId, pub kept: Option<Vec<Mark>> }
   ```
-  `Commit` gains `marks: Vec<MarkWrite>`, applied in order. They are written
-  after the events, objects and local writes of the commit are durable and
-  before `commit` returns, so no record reaches a peer before its mark exists
-  and a failed commit writes none. A mark that cannot be written is
+  `Commit` gains `marks: Vec<MarkWrite>`, applied in order. They are written,
+  and the marks file is synced, after the events, objects and local writes of
+  the commit are durable and before `commit` returns. So no record reaches a
+  peer before its mark is on disk, and a failed commit writes none. A commit
+  with no mark pays nothing. A mark that cannot be written or synced is
   `StoreError::Failed`, and the store refuses further calls as after a failed
   sync. `Store` gains `fn marks(&self) -> Result<Marks, StoreError>`: `file`
   identifies where the store keeps its records now; `kept` is `None` when no
@@ -1542,19 +1851,28 @@ caller at the time, and no text calls the second or the third "caught up".
   [lib.rs](../crates/locust-store/src/lib.rs): the file. One header (a magic
   value and the `FileId` of its own directory when it was created) and fixed
   records of 112 bytes: goal, key, position, event id, `shared`, a 4-byte
-  checksum. A changed mark is one positional write in place, not synced. A new
-  record is appended and the file is synced once, so a goal's first signature
-  cannot lose its mark to a power failure. A record whose checksum fails is
-  left out. `read(dir)` answers `None` when the file is missing, the header
-  does not read, or `FileId::of(dir)` differs from the header's; such a file
-  is replaced by an empty one with a fresh header. `FileId::of(path)` takes
+  checksum. A changed mark is one positional write in place, and a new
+  record is appended. Every commit that carries marks writes them all and then
+  syncs the file once, before `commit` returns, so no signature can lose its
+  mark to a power failure. That is one more flush for a commit that signs,
+  whatever the number of its marks, and none for a commit that carries no
+  mark. Creating or replacing the file also syncs its directory, as
+  `Files::create` does today for the object directory
+  ([files.rs](../crates/locust-store/src/files.rs)). Both syncs pass the fault
+  points of `faults.rs`, as the syncs of files.rs do. `read(dir)` answers
+  `None` when the file is missing, the header does not read, `FileId::of(dir)`
+  differs from the header's, or any record's checksum fails; such a file is
+  replaced by an empty one with a fresh header. So a torn record makes the
+  marks lost, which the first table handles, and never leaves a key with no
+  mark that signs at once. The marks a start writes (below) follow the same
+  rule and are on disk before the transport starts. `FileId::of(path)` takes
   the inode number and the creation time from the file's metadata; the device
   number is left out because it can change between boots.
   `SqliteStore::open(dir, marks)` creates the marks directory with mode 0700;
-  `commit` applies `commit.marks` after the SQLite transaction; `marks()`
-  answers `FileId::of` the database file and `read(marks)`. The 25 call sites
-  of `SqliteStore::open` (one in `daemon/mod.rs`, the rest in tests and one
-  example) pass a directory.
+  `commit` applies `commit.marks` after the SQLite transaction and syncs the
+  marks file; `marks()` answers `FileId::of` the database file and
+  `read(marks)`. The 25 call sites of `SqliteStore::open` (one in
+  `daemon/mod.rs`, the rest in tests and one example) pass a directory.
 - [local.rs](../crates/locust-proto/src/local.rs): `MARKS_SUFFIX = ".marks"`
   and `marks_dir(home: &Path) -> PathBuf`, the home's path with the suffix
   added to its last part: `~/.locust.marks` for the default home. There is no
@@ -1563,9 +1881,10 @@ caller at the time, and no text calls the second or the third "caught up".
   `SqliteStore::open`.
 - [sync.rs](../crates/locust-proto/src/sync.rs): `Refusal` gains a last
   variant `CatchingUp` (`"catching_up"`): the responder is catching up after a
-  restore and admits nobody yet; ask again. It is the one wire addition: one
-  unsigned sync frame, inside protocol 7, which K1 raised from 6. It changes
-  no signed byte, and no number is raised for the guard.
+  restore and admits nobody yet, and the joiner's computer asks it again. It
+  is the one wire addition: one unsigned sync frame, inside protocol 7, which
+  K1 raised from 6. It changes no signed byte, and no number is raised for the
+  guard.
 - `crates/locust-proto/src/api/guard.rs` (new) and
   [api.rs](../crates/locust-proto/src/api.rs):
   ```rust
@@ -1635,9 +1954,10 @@ caller at the time, and no text calls the second or the third "caught up".
   - `Node::guard_settle(&self, goal, tx)`: applies the second table. It
     deletes `UNHEARD` records and clears `unheard` in the `RESTORED` record
     when their rule is met, and lowers a mark (`MarkWrite`) where the table
-    gives up a record. A settle that ends a hold touches the goal, so `land`
-    runs `drive_flow` and a waiting step is signed at once. Called at the
-    start and after every `reconciled`. A `Behind` hold needs no settle:
+    gives up a record. In a goal this daemon hosts it never clears `unheard`:
+    only `goal_continue` does. A settle that ends a hold touches the goal, so
+    `land` runs `drive_flow` and a waiting step is signed at once. Called at
+    the start and after every `reconciled`. A `Behind` hold needs no settle:
     `hold` reads it from the marks and the log each time.
   - `Node::restore_found(&self, entry, unheard: bool, now_ms, tx)`: writes the
     goal's `RESTORED` record. Where this daemon hosts the goal it also revokes
@@ -1662,24 +1982,30 @@ caller at the time, and no text calls the second or the third "caught up".
     functions; the rule is stated here because the functions are the guard's.
   - Specified here and built with its first caller, the joinable plan's
     service check, because a function nothing calls fails `clippy -D
-    warnings`: `Node::guard_attest(&mut self, goal, Attest, now_ms)` with `pub
-    enum Attest { Current, Behind }`. `Current` deletes the goal's `UNHEARD`
-    records and clears `unheard` in its `RESTORED` record; it never ends a
-    `Behind`. `Behind` calls `restore_found` with `unheard: true`, so it also
-    catches a rollback the marks cannot see. Private goals never call it. Three
-    limits bind its caller. `Current` may rest only on a request the service
-    accepted as new, never on a receipt: the service answers an identical old
+    warnings`: `Node::guard_attest(&mut self, goal, now_ms)`. Its caller calls
+    it when the farm service's answer shows that this copy is behind: the
+    service refused a request at a number it had already used. It calls
+    `restore_found` with `unheard: true`, so it catches a rollback the marks
+    cannot see, and the goal then waits for the person like any goal this
+    daemon hosts after a copy of unknown age. It does that only where this
+    start found nothing for the goal: the first table called the start
+    ordinary, no mark was ahead of the store, and the goal holds no `RESTORED`
+    record. Otherwise it does nothing. With the marks kept they say exactly
+    what is missing, and a page number that is behind adds nothing to that
+    proof; after a copy of unknown age the goal is unheard already. Private
+    goals never call it. No answer of the service ends a hold. A request the
+    service accepts shows that the page's number is current, not that the
+    governance log is whole: records this daemon signed after the last request
+    the service saw are outside it. And the service answers an identical old
     request with the receipt it stored, also after newer requests and a
     restart (measured:
     `old_identical_check_in_returns_its_receipt_after_newer_requests_and_restart`).
-    And `Current` says the page's sequence is current, not that the governance
-    log is whole: records this daemon signed after the last request the
-    service saw are outside it. And a request the service refused at a used
-    number is `Behind` for that start, while a request signed again above a
-    number the service handed back never counts as accepted as new. Without
-    this a copy whose page number went back with its data could clear its
-    own hold, once the joinable plan lets a suspend or a delete be signed
-    above the service's number.
+    So the service's answers are used only as evidence that a copy is behind,
+    which is what answer 21 allows. One limit binds its caller. A copy's page
+    number stays behind the service's at every later start, until the joinable
+    plan lets the publisher catch up. The caller reports one such finding
+    once, or a goal the person continued would be held again at the next
+    start.
 - [node/local.rs](../crates/locust-core/src/node/local.rs): two records, with
   rows in the table at the top of the file and arms in `absorb` for writing
   and deleting. `RESTORED = b'R'`: goal; value new `Restored { revoked: u32,
@@ -1699,16 +2025,17 @@ caller at the time, and no text calls the second or the third "caught up".
   goal the table names; marks from the store's own tips where they are lost;
   any mark below the store's tip raised to it; the `RESTORED` record deleted
   where the start is ordinary and no key of this daemon is held in the goal;
-  and `file` when it changed. A store that holds no goal and no file record is
-  new: `file` is written and nothing is held. The parameter `_now_ms` becomes
-  `now_ms`.
+  and `file` when it changed. That commit syncs the marks like any other, so a
+  mark raised here is on disk before the first exchange. A store that holds no
+  goal and no file record is new: `file` is written and nothing is held. The
+  parameter `_now_ms` becomes `now_ms`.
 - [authoring.rs](../crates/locust-core/src/node/authoring.rs): `next_place`
   asks `hold` after its membership test, which K1 skips for the governance
   key, and before `Goal::next`. For `Behind` and `Unheard` it answers
   `ErrorCode::ReadOnly` with one of two sentences: "this computer's Locust
   data is older than what it signed in this goal; it is catching up" or "this
-  computer's Locust data may be an old copy; it is waiting to hear from the
-  goal's other computers". For `Admitted` it answers `unavailable` with the
+  computer's Locust data may be an old copy; it is catching up, or waiting for
+  its owner to continue". For `Admitted` it answers `unavailable` with the
   sentence above. An author whose own log is forked, and that is not the
   governance key, gets `ErrorCode::Halted` with "this agent has two records at
   one position in this goal and signs nothing more in it; the goal is not
@@ -1727,7 +2054,9 @@ caller at the time, and no text calls the second or the third "caught up".
 - [commit.rs](../crates/locust-core/src/node/commit.rs): `land_once` sets
   `shared` on the commit's marks after `advance`, from the admissions in the
   governance log held here, and copies the marks into `Guard::marks` once the
-  store returned. `finish_joins` also writes `UNHEARD` for the admitted key
+  store returned. The bit rides the commit of the admission that first sets
+  it, so the synced write puts it on disk before that admission reaches the
+  joiner. `finish_joins` also writes `UNHEARD` for the admitted key
   unless `hosts(entry)`; that key is then held as `Admitted`. In a healthy
   join that hold lasts until the next exchange with the host's computer, about
   a second. The second is by reading, not measured: the admission changes the
@@ -1751,8 +2080,9 @@ caller at the time, and no text calls the second or the third "caught up".
   daemon already holds is answered before the guard is asked, as today: the
   branch of `plan_join` for a ticket redeemed by this member at this endpoint
   returns before `author` is reached and signs nothing. `exchange_ended`
-  already marks a join refused only for `InvitationRefused`, so the joiner
-  asks again with the driver's backoff, one second doubling to sixty. `Host
+  already marks a join refused only for `InvitationRefused`, so the joiner's
+  computer asks the host's computer again with the driver's backoff, one
+  second doubling to sixty. `Host
   for Node` gains `reconciled(goal, endpoint)`, which adds to `Guard::heard`
   and lands `guard_settle`, and `note_caller(goal, endpoint)`, which remembers
   the endpoint (newest eight) when this daemon hosts the goal, its governance
@@ -1817,11 +2147,20 @@ caller at the time, and no text calls the second or the third "caught up".
 
 **Tests.**
 - In the store's [tests.rs](../crates/locust-store/src/tests.rs):
-  `marks_survive_reopen_and_a_torn_record_is_left_out`;
+  `marks_survive_reopen_and_a_torn_record_makes_them_lost` (one record's
+  checksum fails and `kept` is `None`);
   `marks_in_a_copied_directory_are_not_kept` (the directory is copied file by
   file and `kept` is `None`); `a_failed_commit_writes_no_mark`;
-  `a_copied_database_file_has_another_identity`. In the `conformance` module:
-  `marks_follow_their_commit_and_survive_reopen`.
+  `a_failed_mark_sync_breaks_the_store_and_nothing_is_released` (the sync of
+  the marks file fails at the existing fault point `Point::FileSync`; `commit`
+  answers `StoreError::Failed` and the store refuses further calls);
+  `a_commit_with_marks_syncs_the_marks_file_once_and_one_without_syncs_none`
+  and `creating_the_marks_file_syncs_its_directory`, both read from the fault
+  trace; `a_copied_database_file_has_another_identity`. In the `conformance`
+  module: `marks_follow_their_commit_and_survive_reopen`. The crash tests in
+  [tests/crash.rs](../crates/locust-store/tests/crash.rs) kill a process and
+  cannot simulate a power loss, so a mark's durability rests on the sync and
+  is tested at its fault point.
 - In `locust-proto`: `refusals_render_in_snake_case` gains `catching_up`;
   `the_published_names_and_modes_are_stable` gains the suffix; new
   `the_marks_directory_is_beside_the_home_and_never_inside_it`.
@@ -1843,8 +2182,19 @@ caller at the time, and no text calls the second or the third "caught up".
   - `a_member_that_lacks_the_later_records_does_not_open_the_guard`: the
     member that answers holds less than the mark; the key stays behind until
     the other member answers.
-  - `a_copy_of_unknown_age_waits_for_every_other_computer`: store and marks
-    both restored; heard from one of two, held; from both, signing.
+  - `a_copy_of_unknown_age_on_the_hosts_computer_waits_for_the_person`: store
+    and marks both restored on the host's computer; after both other computers
+    were heard from nothing is signed, and a waiting step is signed after
+    `goal.continue`. Its second half is the trace the rule answers: after the
+    copy one member was removed and another admitted; the removed member's
+    computer answers and brings nothing, the host stays held, and the admitted
+    member's computer, which the copy does not list, calls, is called back and
+    returns the later records.
+  - `a_mark_short_of_the_store_is_raised_at_the_start_before_any_exchange`:
+    the marks are put back as they were before the last commit, as after a
+    crash between the database commit and the sync of the marks; the start
+    raises the mark to the store's tip in its own commit, and no exchange
+    opens before that commit returns.
   - `an_exchange_that_brought_records_does_not_count_as_hearing`: the hold
     ends on the second exchange, not the first.
   - `a_key_admitted_while_catching_up_is_held_with_the_rest`: a local agent
@@ -1929,12 +2279,24 @@ caller at the time, and no text calls the second or the third "caught up".
   `Kind::Restored { m, marks }` beside `Down` and `Asleep`: a stopped
   machine's store goes back to an earlier snapshot, with its marks kept or
   lost. New invariant
-  `a_restored_machine_signs_at_no_used_position_unless_its_owner_continued`. A
-  restore that loses the marks is injected only in scenarios that admit nobody
-  after the snapshot; the notes say why. The invariant that every machine
-  holds every acknowledged record leaves out a record that only the restored
-  machine held. Sleep stays what it is there, and no test treats a wake as a
-  start.
+  `a_restored_machine_signs_at_no_used_position_unless_its_owner_continued`,
+  claimed where it holds and nowhere else. For the governance key it holds in
+  every run, with the marks kept or lost and with members admitted or removed
+  after the snapshot: a mark is on disk before its record can leave, and with
+  the marks lost the hold ends only on the owner's command. For an agent's key
+  on the machine that hosts the goal it holds whenever the marks are lost,
+  because the key is held with the governance key. With the marks kept it
+  holds for an agent's key in runs that remove no member after the snapshot.
+  It is not claimed for an agent's key on a member's machine whose marks are
+  lost. Two seeded runs are kept that must end in a reused position, one for
+  each case left out, both under residual 5 in the notes: a member's machine
+  restored with its marks lost, whose agent's last record reached another
+  member's machine and not the host's; and an agent's record that reached only
+  a machine removed since, given up with the marks kept. These bounds are from
+  reading. A seed that breaks the invariant inside them is a finding. The
+  invariant that every machine holds every acknowledged record leaves out a
+  record that only the restored machine held. Sleep stays what it is there,
+  and no test treats a wake as a start.
 - `operations_that_are_only_the_persons_are_never_tools` in `api.rs` gains
   `goal.continue`. `signed_current_protocol_vectors_are_frozen` passes
   unedited. Phase 1's tests of `invitation revoke` with no id pass unedited
@@ -1942,7 +2304,17 @@ caller at the time, and no text calls the second or the third "caught up".
 
 **Exit criteria.**
 - The three cargo commands and `python3 scripts/check_formations.py` pass.
-  `git grep -n "signing watermarks" -- crates` finds nothing.
+  `git grep -n "signing watermarks" -- crates` finds nothing. The executable
+  recipes and the helper tests pass as CI runs them: `python3
+  scripts/check_documentation.py --binary target/debug/locust --timeout 60`
+  and `python3 -m unittest discover -s scripts/tests`. This phase removes no
+  interface they call.
+- `cargo run --release -p locust-store --example commit_latency` measures a
+  commit that carries a mark beside one that carries none, and both numbers
+  stand in the table of the crate comment in
+  [lib.rs](../crates/locust-store/src/lib.rs). This phase is not done until
+  they do. The estimate, not measured: one more flush, so a commit that signs
+  goes from about 3.9 ms to about 7.5 to 8 ms on the machine of that table.
 - The drill, in two forms, with two daemons A (host) and B on one computer,
   each on its own home. A lost post: stop A and copy its data directory; start
   A, post one record with A's agent, let B receive it, stop A; move A's data
@@ -1958,13 +2330,17 @@ caller at the time, and no text calls the second or the third "caught up".
   A's agent. After B starts the entry is gone and `rules bind` lands at the
   next position.
 - The first form with A's marks directory copied and put back too: every local
-  key shows `unheard`; it clears after B has answered twice. With B never
-  started, `locust --owner call goal.continue` with the goal's identifier
-  clears it.
+  key shows `unheard`, and still does after B has answered twice, because A
+  hosts the goal. `locust --owner call goal.continue` with the goal's
+  identifier clears it. The same copy and put-back on B, a member's computer:
+  every local key shows `unheard`, and it clears with no command after A has
+  answered twice.
 - Delete A's marks directory and restart A: no `guard` entry.
 - A host alone in its goal signs a waiting step during start, with no peer and
   no command.
-- The simulator's seeded runs with `Kind::Restored` pass the new invariant.
+- The simulator's seeded runs with `Kind::Restored` pass the new invariant
+  where the tests above claim it, and the two kept runs end in a reused
+  position.
 - One recorded note under `research/`: on macOS (APFS) and Linux (ext4),
   `FileId` of the database and of the marks directory stays equal across a
   reboot and a rename, and changes after `cp -R` and `rsync -a`. A Time
@@ -1987,30 +2363,40 @@ caller at the time, and no text calls the second or the third "caught up".
   machines are restored from snapshots; for public goals the service check can
   catch it through `guard_attest`, except for records signed after the last
   request the service saw. (3) A database overwritten in place while the marks
-  are lost: two faults at once. (4) A copy of unknown age on the host's
-  computer when no computer the copy lists holds the later records: every
-  listed member was removed since or is itself behind, and the members that
-  hold them were admitted after the copy. The hold then ends by itself and the
-  next signature forks, with no person involved. A member the copy does not
-  know is called back only if it calls while the hold lasts. The same when the
-  one computer that holds the later records withholds them. (5) With the marks
-  kept, a member that is the only holder of the host's later records and
-  withholds them keeps the host held; if the person then continues, the member
-  can show the records and the host is forked. In a goal of a host and one
-  hostile member there is no defence short of replacing the host. (6) On a
-  member's computer: a copy of unknown age when the host's computer never
-  received that member's last records and another member did; or a key
-  admitted again whose later records the host's computer lacks. This costs one
-  agent its key in one goal; the goal is unharmed. (7) A power failure before
-  an unsynced mark reaches the disk leaves the mark one record short; it
-  matters only if the data directory is then restored from an older copy. (8)
-  The person continues when they should not. By judgement (1), (8) and, on
-  virtual machines, (2) are the likely ones; (4) needs a whole-computer
-  restore older than a change of members. None was measured.
+  are lost: two faults at once. (4) With the marks kept, a member that is the
+  only holder of the host's later records and withholds them keeps the host
+  held; if the person then continues, the member can show the records and the
+  host is forked. In a goal of a host and one hostile member there is no
+  defence: v2 cannot replace a host. (5) An agent's key can still fork in
+  three ways, each at the cost of that agent's key in one goal and with the
+  goal unharmed. On a member's computer after a copy of unknown age, the
+  host's computer never received that agent's last records and another member
+  did. A key is admitted again and the host's computer lacks its later
+  records. Or, with the marks kept, a record reached only a computer removed
+  since: it is given up once every other computer has answered, and the
+  removed computer brings it back if it is ever admitted again. For the host's
+  agent the last also stops the goal's first files. (6) The person continues
+  when they should not. After a whole-computer restore or a move this is the
+  only way a host's hold ends, so a release that was a guess is now the
+  person's choice. The risky case is a copy older than a change of members:
+  every computer the copy lists can have answered while a member admitted
+  since holds the later records. That is why the plan of `goal continue` says
+  to wait for the computers of the members added most recently. By judgement
+  (1), (6) and, on virtual machines, (2) are the likely ones. None was
+  measured.
+- A crash between the database commit and the sync of the marks leaves a
+  record with no mark. `commit` had not returned, so that record never left
+  this computer. An ordinary start raises the mark before any exchange, and a
+  data directory put back from an older copy loses only a record that nobody
+  else holds.
 - Storage that reports a sync it did not do can, after a power failure, leave
-  a mark one record ahead of the store. That key is then behind after an
+  a mark ahead of the store or short of it. Ahead: that key is behind after an
   ordinary restart. An agent's key is released once every other computer has
-  answered; a governance key in a shared goal waits for `goal continue`.
+  answered. A governance key in a shared goal waits for the record to come
+  back from a computer that received it and, where none did, for the person's
+  `goal continue`. Short: an ordinary start raises the mark, but a data
+  directory put back from an older copy before that start passes the guard.
+  The guard assumes storage that keeps what it reports as synced.
 - The first table rests on file numbers. On a file system that does not keep
   them across a remount (some network and removable-disk formats), every start
   looks like a copy: pending invitations are revoked at each start, and with
@@ -2044,7 +2430,7 @@ caller at the time, and no text calls the second or the third "caught up".
   host restored from a copy older than the second admission could post a
   result that counts unapproved. With the marks kept this is closed: the
   missing admission puts the governance key behind, and the host's agents are
-  held with it. What is left is a person who continues from an old copy (8
+  held with it. What is left is a person who continues from an old copy (6
   above). Where the second member is on the same computer and no other
   computer ever held the goal, the lost admission is lost for everyone and the
   one copy again shows one member; that is by reading, not run.
@@ -2104,9 +2490,6 @@ caller at the time, and no text calls the second or the third "caught up".
   needs a join cut off between the host's signature and the joiner's receipt,
   and then a restore. The joiner is then a member by the records and refused
   on its own computer; the host removes it and invites it again.
-- E3 slows dialing for a goal with no new records. It keeps the 30-second
-  interval while `Host::catching_up(goal)` answers true, which E3 adds and the
-  node answers from the guard's holds. G1 adds nothing for it.
 - A callback asks the caller for the goal's whole record history, because the
   frontier sent is empty. It is bounded by the transport's limits for a
   connection not yet admitted and by eight callers a goal. Someone who knows a
@@ -2165,16 +2548,18 @@ caller at the time, and no text calls the second or the third "caught up".
 
 ### G2: Catching up in the person's words
 
-**Goal.** A person sees which goal is catching up, why, which computers it
-waits for and the one command that continues without them. An agent's tool
-gets the same facts as data. The override is one command in the roles plan's
-grammar. It asks first, with a plan and a confirmation, because what is signed
-after it cannot be undone with one command, which is Phase 2's rule for a
-command that asks. The guides say what a restore does.
+**Goal.** A person sees which goal is catching up, why, and whether it waits
+for other computers or for them, with the one command that continues. An
+agent's tool gets the same facts as data. The override is one command in the
+roles plan's grammar. It asks the person who typed it for a yes, with a plan
+and a confirmation, because what is signed after it cannot be undone with one
+command, which is Phase 2's rule for a command that asks for a yes. The guides
+say what a restore does.
 
 **Depends on.** G1. Roles-plan Phases 2 (`cli/confirm.rs`, `cli/only_you.rs`,
-the rule for which commands ask), 3 (`Refused`, `Why`, `Node::refuse`,
-`Attempted`, `Stalled`, `Stall`, `Node::stalled`), 4 (members' names), 5
+the rule for which commands ask the person typing them for a yes), 3
+(`Refused`, `Why`, `Node::refuse`, `Attempted`, `Stalled`, `Stall`,
+`Node::stalled`), 4 (members' names), 5
 (`WaitingForYou`, `WaitingKind`, `render`, `Voice`, `short`, the status view)
 and Phase 6 (the guides as rewritten; after Phase 6 a phase owns the documents
 it makes stale). K1 for the words: text says host and never names the
@@ -2189,11 +2574,15 @@ explanation is tested once, and before Phases 8 and 9, which extend `Stall`.
   data here is older than what this computer signed in the goal" for `Behind`,
   "the Locust data here may be an old copy" for `Unheard` and "admission has
   just arrived; Locust is checking with the host's computer" for `Admitted`;
-  the side is "(this computer)". The fix in the person's voice is "It catches
-  up by itself. To go on without waiting: LINE", with LINE from new
+  the side is "(this computer)". The fix says what the hold waits for. Where
+  it waits for a computer, the fix in the person's voice is "It catches up by
+  itself. To go on without waiting: LINE", with LINE from new
   `continue_command(goal)`; in the agent's voice it is "It catches up by
   itself, or WHO's owner can continue without waiting." and no command is
-  printed. For `Admitted` the fix in both voices is "It ends by itself." and
+  printed. Where only the person ends it, an `Unheard` hold whose view has
+  `by_host`, the person's voice reads "It waits for you. To continue: LINE"
+  and the agent's "It waits for WHO's owner, who can continue with one
+  command." For `Admitted` the fix in both voices is "It ends by itself." and
   no command is printed.
 - [authoring.rs](../crates/locust-core/src/node/authoring.rs) and
   [access.rs](../crates/locust-core/src/node/access.rs): `next_place` takes
@@ -2224,10 +2613,13 @@ explanation is tested once, and before Phases 8 and 9, which extend `Stall`.
   member's agent passes Phase 3's four tests and is not held by the guard. Its
   stalls are Phase 3's four and `CatchingUp`. (`RunnerElsewhere` arrives with
   Phase 8.) `WaitingKind` gains `CatchingUp { holds: Vec<GuardView> }`.
-  `Node::waiting_for` lists a goal under it only when the hold cannot end by
-  itself as far as this daemon can tell: an `Unheard` hold whose goal shows no
-  computer it could hear from, or a `Behind` hold on the governance key after
-  every other computer was heard from. Its `command` is `continue_command`. A
+  `Node::waiting_for` lists a goal under it only when no computer can end the
+  hold as far as this daemon can tell: an `Unheard` hold in a goal this daemon
+  hosts, from the start, because only the person ends it; or a `Behind` hold
+  on the governance key after every other computer was heard from. Its
+  `command` is `continue_command`. A hold that still waits for a computer is
+  not listed and prompts no person; the block under the goal names the
+  computers it waits for. A
   goal that waits for a member's computer to call (behind, the mark says
   shared, the copy shows nobody) is not listed there: continuing would fork
   it. A `Halted` entry is listed for `Halt::AuthorityConflict` only. From E1,
@@ -2238,8 +2630,9 @@ explanation is tested once, and before Phases 8 and 9, which extend `Stall`.
   gains `lost: u32`), so the line below lasts until the next ordinary start,
   as the restored line does.
 - `crates/locust/src/cli/only_you.rs` (new in Phase 2): one more row, and
-  `goal continue` joins the commands that ask: what is signed after it cannot
-  be undone with one command. It prints no `Undo:` line.
+  `goal continue` joins the commands that ask the person typing them for a
+  yes: what is signed after it cannot be undone with one command. It prints no
+  `Undo:` line.
 
   | Command, after `locust --owner` | Sends | `review` adds | Prints |
   | --- | --- | --- | --- |
@@ -2249,7 +2642,12 @@ explanation is tested once, and before Phases 8 and 9, which extend `Stall`.
   with their last-seen time (in `human` only, so the plan id holds no clock
   reading). When the held key is the governance key it says, after the line on
   the missing records, `They may include a removal, a rule change or the end
-  of the goal.` It says what a conflict does when the records are the host's,
+  of the goal.` and `Wait until the computers of the members you added most
+  recently have been on.`, with the reason: a member added after the copy was
+  made is not listed, and its computer may hold what the copy lacks. For an
+  `Unheard` hold the line on the missing records reads `This copy may be older
+  than what this computer signed here, and nothing on this computer can
+  tell.` The plan says what a conflict does when the records are the host's,
   and ends "Safe when this is the newest copy of this computer's Locust data
   and no other copy is running." With nothing held it prints `"T" is not
   catching up. Nothing changed.` and exits 0 with no plan. The plan of `goal
@@ -2261,9 +2659,10 @@ explanation is tested once, and before Phases 8 and 9, which extend `Stall`.
   invite` signs no record, so it keeps its plan and the warning. In a goal
   this computer hosts, a listed governance key stands for every agent's key
   there, because G1 holds them with it. The same holds for the two tiers of
-  Phase 2. A command that asks (`goal add`, `goal leave`, `member remove`,
-  `rules bind`, `task revise`, `workspace init`, `farm on`, `farm off`, `farm
-  consent`) shows no plan it could not carry out. From E1, `farm off` in a
+  Phase 2. A command that asks the person typing it for a yes (`goal add`,
+  `goal leave`, `member remove`, `rules bind`, `task revise`, `workspace
+  init`, `farm on`, `farm off`, `farm consent`) shows no plan it could not
+  carry out. From E1, `farm off` in a
   held goal takes E1's delete-only path, which signs nothing, and keeps its
   plan. A command that applies at once and signs (`role give`, `role take`)
   prints the refusal and no `Undo:` line, because nothing changed. `level`,
@@ -2288,18 +2687,30 @@ explanation is tested once, and before Phases 8 and 9, which extend `Stall`.
   when the marks name goals the store does not hold: `This copy of the Locust
   data is older than N goals this computer took part in. A goal you hosted
   cannot be brought back from it. A goal you joined needs its ticket again.`
-  `halt` keeps its short sentences for where only a `Halt` is at hand.
+  `halt` keeps its short sentences for where only a `Halt` is at hand. Every
+  block says who or what the hold waits for. A `Behind` hold waits for the
+  missing records from another computer in the goal, and the computers not
+  heard from stand under `Not yet:`. When every other computer has answered
+  and the governance key is still behind, the block adds `No computer that
+  answered holds them. Waiting for you.` An `Unheard` hold in a goal this
+  computer hosts reads `Waiting for you: only you can say this is the newest
+  copy of this computer's data.` and its last line reads `To continue: ` with
+  the continue line. An `Unheard` hold on a member's computer reads `Waiting
+  to hear from the host's computer (NAME), last seen T. Nothing is needed from
+  you.`
 - [doctor.rs](../crates/locust/src/cli/doctor.rs): one more check, `marks`:
   its detail is the directory's path; it fails with a recovery sentence when
   the directory cannot be created or written.
 - [mcp.rs](../crates/locust/src/mcp.rs),
-  [SKILL.md](../skills/locust/SKILL.md), [sharing.md](guide/sharing.md): one
-  sentence each. `read_only` means this computer is catching up after its data
-  was restored; tell your owner and do not retry in a loop. `unavailable`
-  keeps Phase 5's instruction, read again and retry, which is right for a key
-  that was just admitted. [concepts.md](guide/concepts.md): the "Only you"
-  section that Phase 6 wrote lists `goal continue` among the commands that
-  ask.
+  [SKILL.md](../skills/locust/SKILL.md), [sharing.md](guide/sharing.md): the
+  same short text in each. `read_only` means this computer is catching up
+  after its data was restored. The refusal says what the hold waits for:
+  other computers, and then it ends by itself, or your owner. Do not retry in
+  a loop; work in other goals and read again later. `unavailable` keeps Phase
+  5's instruction, read again and retry, which is right for a key that was
+  just admitted. [concepts.md](guide/concepts.md): the "Only you" section
+  that Phase 6 wrote lists `goal continue` among the commands that ask you
+  for a yes.
 - [operations.md](guide/operations.md): the Backups section loses "Restoring a
   copy is untested." It says: stop the daemon before copying; copy the data
   directory and not the marks directory beside it; a copy of the data
@@ -2309,10 +2720,11 @@ explanation is tested once, and before Phases 8 and 9, which extend `Stall`.
   notices and catches up from the other computers by itself; pending
   invitations are revoked, and levels, allowed tasks, connected folders, and
   which agents are disconnected or have left a goal are as they were in the
-  copy; after a whole-computer restore or a move Locust waits to hear from the
-  other computers and, for a goal with nobody to ask, for `goal continue`; a
-  copy older than a goal you host loses that goal; never run two copies. Phase
-  6 leaves this section to G2.
+  copy; after a whole-computer restore or a move Locust cannot tell how old
+  the copy is, so a goal you host waits for your `goal continue`, and a goal
+  hosted on another computer waits to hear from that goal's other computers;
+  a copy older than a goal you host loses that goal; never run two copies.
+  Phase 6 leaves this section to G2.
 - `python3 scripts/check_formations.py --write` regenerates the runtime
   contract; `refusal_schema` gains the fifth side.
 
@@ -2320,9 +2732,14 @@ explanation is tested once, and before Phases 8 and 9, which extend `Stall`.
 - `this_computer_reads_the_same_facts_in_both_voices` in level.rs: the
   person's voice prints the continue line; the agent's prints none and quotes
   nothing a member wrote; a refused host command reads `You can't` and names
-  no key; an `admitted` hold prints no command in either voice.
-- `status_shows_who_a_goal_catching_up_waits_for_and_the_continue_line`,
-  `a_goal_with_nobody_to_ask_is_listed_under_waiting_for_you` and
+  no key; an unheard hold in a hosted goal reads `It waits for you` to the
+  person and names the owner to the agent; an `admitted` hold prints no
+  command in either voice.
+- `status_shows_who_a_goal_catching_up_waits_for_and_the_continue_line` (one
+  block for each thing a hold waits for: another computer, the host's
+  computer, the person),
+  `a_hosted_goal_of_unknown_age_is_listed_under_waiting_for_you` (from the
+  start, and still after every other computer has answered) and
   `a_goal_waiting_for_a_call_is_not_listed_under_waiting_for_you` in
   presentation.rs. Beside them:
   `the_hosts_hold_is_printed_once_per_goal_from_the_summaries`,
@@ -2343,17 +2760,23 @@ explanation is tested once, and before Phases 8 and 9, which extend `Stall`.
 
 **Exit criteria.**
 - The three cargo commands, the four site commands, `python3
-  scripts/check_formations.py` and `scripts/check_docs.py` pass.
+  scripts/check_formations.py` and `scripts/check_docs.py` pass. The
+  executable recipes and the helper tests pass as CI runs them: `python3
+  scripts/check_documentation.py --binary target/debug/locust --timeout 60`
+  and `python3 -m unittest discover -s scripts/tests`.
 - After the second form of G1's drill, the lost rule change, `locust --owner
   status` on A prints the block of mockup G-1 with B's members named under
   `Not yet:`, and nothing under "Waiting for you". `locust --owner rules bind`
   on A prints `You can't ...` with the continue line and no plan. After B
   answers, the block is gone and the restored line stays. After the first form
   the block names A's agent and its one missing record.
-- On a host alone whose data and marks were both copied back, `status` lists
-  the goal under "Waiting for you" with the continue line. `locust --owner
-  goal continue --goal T` shows its plan and proceeds on yes; `--confirm` with
-  a stale id exits with `conflict: the plan changed; run --plan again`.
+- On a host whose data and marks were both copied back, `status` lists the
+  goal under "Waiting for you" with the continue line from the start, alone
+  and also after B has answered. On B after the same, the block reads `Waiting
+  to hear from the host's computer` and nothing is listed under "Waiting for
+  you". `locust --owner goal continue --goal T` shows its plan and proceeds on
+  yes; `--confirm` with a stale id exits with `conflict: the plan changed; run
+  --plan again`.
 - An agent's `locust-cli` post in a goal that is catching up exits 9 with
   `read_only` and the agent-voice sentence; its tool result carries `"side":
   "this_computer"`.
@@ -2364,8 +2787,18 @@ explanation is tested once, and before Phases 8 and 9, which extend `Stall`.
   plan already uses "resume" for taking an attempt over (`Act::Resume`) and
   says a closed task is paused and resumed, so neither word is used here.
 - The continue line is printed under every goal that is catching up, but a
-  goal is listed under "Waiting for you" only when waiting cannot help. A
-  person whose computer is catching up by itself is not asked to do anything.
+  goal is listed under "Waiting for you" only when no computer can end the
+  hold: a goal this computer hosts after a copy of unknown age, and a goal
+  whose missing host records no computer that answered holds. A person whose
+  computer is catching up by itself is not asked to do anything. The limit: a
+  hold that waits for a computer that never answers is not listed. It lasts
+  until that computer answers or the person continues, and status names the
+  computer and when it was last seen.
+- After a whole-computer restore or a move every goal this computer hosts
+  waits for the person's `goal continue`, and `goal continue --all` covers
+  them with one yes. That is answer 13 applied to every hosted goal: hearing
+  from the computers an old copy lists cannot show what the host's computer
+  signed last (G1).
 - No text names the governance key (K1's rule on words). A record it signed
   prints `host`, missing records read "signed as host", and a refused host
   command reads `You can't ...`.
@@ -2381,7 +2814,8 @@ explanation is tested once, and before Phases 8 and 9, which extend `Stall`.
 - A joiner whose host answers `catching_up` keeps today's sentence for a
   joining agent until the joinable plan stores a join's last refusal; that
   plan owns the field and takes this sentence: "The host's computer is
-  catching up and admits nobody yet. Locust asks again by itself."
+  catching up and admits nobody yet. Locust asks the host's computer again by
+  itself."
 - The names taken from K1 and roles-plan Phases 2 to 6 are plan text, not
   code. This phase must be read again against the tree it lands on.
 - Size, a judgement: 300 to 400 lines of production code and about 400 of
@@ -2389,11 +2823,12 @@ explanation is tested once, and before Phases 8 and 9, which extend `Stall`.
 
 ### E1: The host ends a goal
 
-**Goal.** The host can end a goal with one command that asks first. The end is
-one signed governance record, signed by the governance key. On every computer
-that holds it, nothing new is signed in that goal: no task, result, approval
-or file change, no change of members, rules or roles, no admission on a ticket
-and no automatic step. Reading, syncing what was signed earlier and taking the
+**Goal.** The host can end a goal with one command, which first asks the
+person typing it for a yes. The end is one signed governance record, signed
+by the governance key. On every computer that holds it, nothing new is signed
+in that goal: no task, result, approval or file change, no change of members,
+rules or roles, no admission on a ticket and no automatic step. Reading,
+syncing what was signed earlier and taking the
 public page down go on. Nothing is deleted on any computer. The public page
 reads ended whenever the host's copy holds an end, by the function the signing
 gate reads. The close on the goal scope is removed. Today it is a
@@ -2409,13 +2844,14 @@ A record signed before a computer learned of the end still counts when it
 arrives.
 
 **Depends on.** Roles-plan Phases 1 to 6, K1, G1 and G2. In the build order
-this phase is the tenth of sixteen: it follows G2 and comes before E2, E3 and
-roles-plan Phases 7 to 10. From the roles plan: `Audience::Host`,
-`Node::host()`, `Node::hosts()` and `invitation.revoke` with no id (Phase 1);
-`cli/confirm.rs`, `cli/only_you.rs`, the `--owner` grammar and the rule for
-which commands ask (Phase 2); `Refused`, `Why::State`, `Act`,
-`Goal::rules_allow` and `Node::stalled` (Phase 3); member names and
-`member_label` (Phase 4); the status view, `render`, `short` and
+this phase follows G2 and comes before E2 and roles-plan Phases 7 to 10. From
+the roles plan: `Audience::Host`, `Node::host()`, `Node::hosts()` and
+`invitation.revoke` with no id (Phase 1); `cli/confirm.rs`,
+`cli/only_you.rs`, the `--owner` grammar and the rule for which commands ask
+the person typing them for a yes before they act, called the commands that
+ask below (Phase 2); `Refused`, `Why::State`, `Act`, the check an agent's
+request passes before it signs, and `Node::stalled` (Phase 3); member names
+and `member_label` (Phase 4); the status view, `render`, `short` and
 `WaitingForYou` (Phase 5); the documents rewritten (Phase 6), after which a
 phase owns the documents it makes stale. From K1: the governance key, which
 signs the end record and which `Node::host()` returns; `State.governance` and
@@ -2429,7 +2865,9 @@ author, body)` and its list of bodies and acts; the rule that a signing
 command in a goal that is catching up shows no plan; and `goal continue`, the
 override one test signs through. Roles-plan Phases 8 and 9 land after this
 phase; a note below says what Phase 8 adds. The model cases named under "Exit
-criteria" are written before the chain rule is built, on K1's transcript.
+criteria" are written before the chain rule is built, on the founding
+transcript the model has by then
+([Models written first](#models-written-first)).
 
 **Changes.** Five terms, used the same way below. The *end record* is the new
 governance record `GoalEnded`, signed by the governance key, with no payload.
@@ -2512,10 +2950,11 @@ flag enters.
   `evaluation().cut_end`. `Goal::next` returns `None` for every author when
   `end_held()` is set; this is the one signing gate. `Goal::can_start` is
   false then. New `pub const ENDED: &str = "the host ended this goal"`, the
-  one sentence every refusal below uses. `Goal::rules_allow` (roles-plan
-  Phase 3) tests it first for every body and answers `Why::State { reason:
-  ENDED }`; its `ScopeDecided` row also refuses, as state, a close or reopen
-  at goal scope.
+  one sentence every refusal below uses. The check an agent's request passes
+  before it signs (roles-plan Phase 3) tests the end first, for every body,
+  before it tries the candidate record and before the level check, and
+  answers `Why::State { reason: ENDED }`. A close or reopen at goal scope
+  does not reach that check: `Request::check` refuses the request (below).
 - [authoring.rs](../crates/locust-core/src/node/authoring.rs):
   `next_place(entry, author, body)`, in order: the copy holds an end,
   `conflict(ENDED)` (E1); member and `Local.part`, skipped for the governance
@@ -2529,12 +2968,15 @@ flag enters.
   [claims.rs](../crates/locust-core/src/node/requests/claims.rs),
   [peers.rs](../crates/locust-core/src/node/peers.rs) and
   [node/flow.rs](../crates/locust-core/src/node/flow.rs)).
-- [api.rs](../crates/locust-proto/src/api.rs): new `Request::GoalEnd { goal,
-  expected: EventId }` with the row `("goal.end", false, true, Host, false,
-  "Ends the goal for every member. It cannot be undone.")`, its arms in
-  `goal()` and `is_answered_by`, and `Response::GoalEnded { end: EventId,
-  invitations_revoked: u32 }`. `expected` is the governance head the plan
-  showed. `GoalStatus`, `GoalSummary` and `PendingWork` each gain `ended:
+- [api.rs](../crates/locust-proto/src/api.rs): new `Request::GoalEnd { goal }`
+  with the row `("goal.end", false, true, Host, false, "Ends the goal for
+  every member. It cannot be undone.")`, its arms in `goal()` and
+  `is_answered_by`, and `Response::GoalEnded { end: EventId,
+  invitations_revoked: u32 }`. The request names no expected head. The host's
+  computer signs admissions and removals with nobody present, each of them
+  moves the head, and none changes what an end does. A head the plan showed
+  would only make the one command that must work fail and be typed again.
+  `GoalStatus`, `GoalSummary` and `PendingWork` each gain `ended:
   Option<EventId>`, the end this copy holds (`end_held()`); with `halted` it
   tells apart not ended, ended, halted, and ended then halted, which is
   `ended` set and `halted` equal to `authority_conflict`. `Request::check`
@@ -2547,14 +2989,12 @@ flag enters.
 - [goals.rs](../crates/locust-core/src/node/requests/goals.rs) and the
   dispatch in
   [requests/mod.rs](../crates/locust-core/src/node/requests/mod.rs): new
-  `goal_end(actor, goal, expected, now_ms)`. In order: `host()`; the entry
-  holds an end, then `conflict(ENDED)`; the goal is halted, then
-  `ErrorCode::Halted` with "this goal is halted; the host can sign nothing
-  more for it, the end included"; the governance key is held by the restore
-  guard, then GUARD's `read_only` refusal, which `next_place` gives;
-  `state().head != Some(expected)`, then `conflict("the goal changed; run
-  --plan again")`. For that order the handler asks `next_place` for the
-  governance key before it compares `expected`, and signs at the place it
+  `goal_end(actor, goal, now_ms)`. In order: `host()`; the entry holds an
+  end, then `conflict(ENDED)`; the goal is halted, then `ErrorCode::Halted`
+  with "this goal is halted; the host can sign nothing more for it, the end
+  included"; the governance key is held by the restore guard, then GUARD's
+  `read_only` refusal, which `next_place` gives. The handler compares no
+  head: it asks `next_place` for the governance key and signs at the place it
   answers with `sign_at`, as `member_remove` does today (read in this file).
   It signs `Body::GoalEnded` with the governance key, which `host()` returns
   (K1), and no text, and `revoke_pending` (next bullet) runs on the same `Tx`.
@@ -2632,11 +3072,18 @@ flag enters.
   lists no `CatchingUp` entry. `Node::hold` and the stored records are
   unchanged.
 - `crates/locust/src/cli/only_you.rs` (roles-plan Phase 2): new `locust
-  --owner goal end --goal G`, among the commands that ask;
+  --owner goal end --goal G`, among the commands that ask the person typing
+  them for a yes;
   [args.rs](../crates/locust/src/cli/args.rs) attaches it and skips the
   generated `goal end`. Its `review` adds the members' keys, the ids of
-  pending invitations and the page's `desired`; it sends `goal.end` with the
-  plan's `governance_head`. The plan and result are text E1-1. On a goal whose
+  pending invitations and the page's `desired`, and it sends `goal.end` with
+  the goal alone. An admission on a ticket, a removal that follows a leave
+  and an invitation that runs out all happen with nobody present. Between
+  `--plan` and `--confirm` each of them changes one of those fields, so the
+  plan id no longer matches, the command answers `conflict: the plan changed;
+  run --plan again`, and the person runs it again. The daemon itself compares
+  no head, so nothing the host's computer signs after the yes refuses the
+  end. The plan and result are text E1-1. On a goal whose
   status has `ended`, `goal end` computes no plan, prints `"T" has already
   ended.`, sends nothing and exits 0, with or without `--confirm`. Every other
   command of this file that would sign in such a goal computes no plan and
@@ -2678,7 +3125,16 @@ flag enters.
 - [check_farm.py](../scripts/check_farm.py): the two steps that close and
   reopen the goal scope go. After its last consent step the script ends the
   goal with `goal end`, waits for the page to read `ended`, and its `farm off`
-  then takes the delete-only path.
+  then takes the delete-only path. `finish_farm` in
+  [live_farm.py](../scripts/client_qualification/live_farm.py) closes the goal
+  scope today so that a demo's page reads ended. It ends the goal with `goal
+  end` under the owner's credential, the plan and then `--confirm`, and
+  `test_finish_waits_for_new_receipt_not_old_success` in
+  [test_live_farm.py](../scripts/tests/test_live_farm.py) counts its calls
+  again. The prompt in [live_farm_demo.py](../scripts/live_farm_demo.py) loses
+  the words "or close", because no agent can end a goal. These are the
+  only callers of a goal-scope close outside the crates (searched at
+  `541f29b`), so this phase leaves no recipe and no script failing.
 - Documents this phase owns: [status.md](status.md) loses "Closing the whole
   goal"; [guide/formations.md](guide/formations.md) loses "Closing the whole
   goal is recorded but has no effect."; [guide/sharing.md](guide/sharing.md)
@@ -2731,10 +3187,14 @@ flag enters.
   - `goal_end_signs_one_record_and_revokes_pending_invitations_in_one_commit`:
     one event and the invitation writes land together, and a redeemed or
     expired invitation is untouched.
-  - `goal_end_needs_the_host_the_shown_head_and_a_goal_that_is_not_halted`: a
-    member's daemon is `denied`, a stale `expected` is `conflict`, a halted
-    goal is `halted`, a host whose governance key the restore guard holds is
-    `read_only`, and a second end is `conflict`.
+  - `goal_end_needs_the_host_and_a_goal_that_is_not_halted_or_held`: a
+    member's daemon is `denied`, a halted goal is `halted`, a host whose
+    governance key the restore guard holds is `read_only`, and a second end is
+    `conflict`.
+  - `goal_end_follows_an_admission_the_hosts_daemon_signed_meanwhile`: a
+    joiner is admitted on a pending ticket after the status the command read;
+    the end is signed at the next position, and the redeemed invitation is
+    not counted as revoked.
   - `after_the_end_every_signing_request_is_refused_as_the_goals_state`: post,
     review, start, open a task, bind rules, remove, invite, leave, `farm.on`
     and `farm.consent` are all `conflict` with `ENDED`, while board, events,
@@ -2762,8 +3222,9 @@ flag enters.
     gate is shut and there is no fork.
   - `a_restored_host_that_signs_before_recovery_cuts_the_end_on_both_computers`:
     the same test's other ordering, signed through GUARD's override; the
-    member's daemon reads ended, then halted, the host's reads the same once
-    the end record has reached it, and neither signs.
+    member's daemon reads ended, then halted. After one exchange in each
+    direction the host's daemon holds the end record and reads the same, and
+    neither signs.
   - `an_ended_goal_is_not_shown_as_catching_up`: on a copy of unknown age that
     holds an end, `halted` and `guard` are empty and nothing waits, while
     `Node::hold` still answers.
@@ -2804,8 +3265,9 @@ flag enters.
   [args.rs](../crates/locust/src/cli/args.rs) is the existing parse test,
   kept; it already names a task.
 - [cli.rs](../crates/locust/tests/cli.rs):
-  `goal_end_binds_to_the_head_members_and_invitations_its_plan_showed` (a
-  change between plan and confirm is `conflict` and no write is sent);
+  `goal_end_binds_to_the_members_invitations_and_page_its_plan_showed` (a
+  change of one of them between plan and confirm is `conflict: the plan
+  changed` and no write is sent; the request that is sent carries no head);
   `goal_end_on_an_ended_goal_says_so_and_sends_nothing`;
   `a_signing_command_on_an_ended_goal_shows_no_plan` (`rules bind`, `workspace
   init` and `farm on` show no plan; `role give` sends nothing and prints no
@@ -2831,13 +3293,17 @@ flag enters.
 - The three cargo commands and the four site commands of `AGENTS.md` pass,
   with `python3 scripts/check_formations.py` after its `--write`, `python3
   scripts/check_docs.py` and `python3 scripts/check_tla.py --suite fast`,
-  which now runs the end cases.
+  which now runs the end cases. The two steps CI runs on every push pass too:
+  the guide's recipes, `python3 scripts/check_documentation.py --binary
+  target/debug/locust --timeout 60`, and the scripts' own tests, `python3 -m
+  unittest discover -s scripts/tests`.
 - `locust --json contract` lists `goal.end` with audience `host` and not as a
   tool. `locust --owner call scope.close` with `"scope": "goal"` exits 6 with
   `invalid`.
 - `git grep -n -e 'scope.reopen' -e 'scope.close' -- scripts/check_farm.py`
-  finds nothing, and `git grep -n Disputed -- crates/locust-proto/src/farm.rs`
-  finds only task states.
+  finds nothing, `git grep -n scope --
+  scripts/client_qualification/live_farm.py` finds nothing, and `git grep -n
+  Disputed -- crates/locust-proto/src/farm.rs` finds only task states.
 - On two throwaway daemons in one goal with a page on and one open
   invitation: `locust --owner goal end --goal G --plan` twice prints the same
   plan id and changes nothing; `--confirm` prints `Ended "T".` and `1
@@ -2877,8 +3343,8 @@ flag enters.
   of that epoch opens when the key arrives.
 - A name cannot be taken off the page after the end, because a decline is a
   signed record. A name leaves with the whole page: the host runs `farm off`,
-  or the service deletes the ended page after its retention period. That
-  deletion, 30 days by default, stays until decided otherwise.
+  or the service deletes the ended page after its retention period, 30 days
+  by default (answer 23).
 - The page can still be blanked after the end. For each covered author the
   publisher reads the consent record with the highest position that it holds,
   also when that record is excluded and an older acceptance is still the
@@ -2943,14 +3409,15 @@ flag enters.
   once held the gate never opens. While the governance key is held, G1 also
   holds every agent on the host's computer, so the host's agent posts nothing
   in a goal its host ended. What remains: the person continues before recovery
-  (`goal continue`); after a copy of unknown age every computer the copy lists
-  was heard from and none of them holds the end (case 4 in G1's list of what
-  can still fork); or the end reached no other computer before the host's copy
-  was lost, and then no copy is ended. The last is always so in a goal whose
-  members are all on the host's computer. There G1 releases the key at once
-  when its marks are kept, or after `goal continue` when they are not, and the
-  goal is open again as the copy had it. In the first two, every computer that
-  holds the end reads "ended, then halted" and signs nothing. The host's
+  (`goal continue`); or the end reached no other computer before the host's
+  copy was lost, and then no copy is ended. After a copy of unknown age the
+  hold on a host's computer ends only on that command (G1), so a person who
+  continues before a computer that holds the end has answered is the first
+  case. The second is always so in a goal whose members are all on the host's
+  computer. There G1 releases the key at once when its marks are kept, or
+  after `goal continue` when they are not, and the goal is open again as the
+  copy had it. In the first case, every computer that holds the end reads
+  "ended, then halted" and signs nothing. The host's
   publisher then wants a blank page that reads "Ended by the host". Whether
   the page changes is a further step. A copy that was put back numbers its
   requests to the farm service from an old count, and the service answers a
@@ -2962,7 +3429,11 @@ flag enters.
   was lost, the page already reads ended and is removed on time. A computer
   that holds the fork but never received the end reads plain "halted"; its
   agents can still sign work on what remains, as in any halted goal, and
-  that work counts everywhere.
+  that work counts everywhere. One kind of computer can stay in that state.
+  Sync passes the records beyond a fork on to every computer that is still a
+  member on the copy that serves them. A member admitted at or after the
+  forked position is no member on a copy that holds both records, so it is
+  refused there and may never receive the end.
 - Replacing a host is not designed here. This phase assumes the rule the
   research gives: an end at or before a takeover's base stands, and a takeover
   built on it is excluded, so an ended goal cannot be taken over; an end after
@@ -2999,25 +3470,36 @@ flag enters.
   the delete-only path for that case is the joinable plan's. Whichever lands
   second adds its condition to the one path this phase builds. That path
   already covers a goal that is catching up.
-- Which sentence a raw `call` gets. Agent requests go through `rules_allow`
-  and get the ended refusal first. A host request checks its own arguments
-  first, so a `rules.bind` with a stale `expected` on an ended goal answers
-  that conflict; with correct arguments it answers `ENDED` from `next_place`.
+- Which sentence a raw `call` gets. Agent requests go through the check of
+  roles-plan Phase 3 and get the ended refusal first. A host request checks
+  its own arguments first, so a `rules.bind` with a stale `expected` on an
+  ended goal answers that conflict; with correct arguments it answers `ENDED`
+  from `next_place`.
   On a copy that is ended, then halted, a handler that tests the halt first
   answers `halted`. On a host that is catching up and holds no end, `goal.end`
   answers `read_only` (G1). A text write on a computer that lacks the current
   content key answers `unavailable` today; once that computer holds the end it
   answers `ENDED`, because `next_place` runs before the key is looked up (read
   in authoring.rs). Nothing is signed in any of these cases.
-- An invitation that expires between `--plan` and `--confirm` changes the plan
-  id, and the person runs `--plan` again.
+- An invitation that is used or expires, or a member that is admitted or
+  removed, between `--plan` and `--confirm` changes the plan id, and the
+  person runs `--plan` again. Nothing else the host's computer signs in
+  between refuses the end, because `goal.end` carries no head. On a busy
+  public goal that can happen more than once. Whether the plan id should
+  then leave the members out is the joinable plan's to weigh.
 - Versions. The API version and the store marker go from 6 to 7 in Phase 1.
   The protocol version goes from 6 to 7 in K1, which lands directly before
   Phase 4. Phase 4 and E1 change signed bytes inside 7; E1's end record, at
-  index 26, is the last change of the event format. Nothing is released before
-  Phase 10, so no number is raised twice. Inside API 7 this phase adds one
-  operation and its response, `ended` on three views and `Act::End`, makes a
-  close or reopen of the goal scope invalid, and removes the farm state
+  index 26, is the last change of the event format in the phases of the build
+  order. It is not the last in v2. The public door changes signed bytes once
+  more in its first admission phase: its contract names
+  `MemberAdmitted.via`, `PublicationSet.goal_proof` and
+  `DisclosurePolicy.joining`. The number that change takes is the master
+  plan's to give. It stays inside 7 if nothing is released before the door,
+  and takes 8 otherwise, with replacing a host one above. Nothing is released
+  before Phase 10, so no number is raised twice. Inside API 7 this phase adds
+  one operation and its response, `ended` on three views and `Act::End`, makes
+  a close or reopen of the goal scope invalid, and removes the farm state
   `disputed`. One flag is added to the page's local record, and
   `FarmControlBody` and `FarmServiceView` gain one optional field each; no
   other stored layout changes. The frozen vectors are regenerated
@@ -3030,10 +3512,11 @@ flag enters.
   for the shared files pass through it. So a plan text that had settled, or a
   file change that counted, first files included, is not recorded after the
   end if it was not recorded before.
-- `Undo:` lines. `goal end` asks, so it prints none, and no command undoes it.
-  An `Undo:` line printed before the end for a role is refused after it with
-  the ended sentence, because it would sign. One for a level or an allowed
-  task still runs, because it changes only that computer.
+- `Undo:` lines. `goal end` asks the person typing it for a yes, so it prints
+  none, and no command undoes it. An `Undo:` line printed before the end for
+  a role is refused after it with the ended sentence, because it would sign.
+  One for a level or an allowed task still runs, because it changes only
+  that computer.
 - The words. The texts say the end cannot be undone: no command reopens an
   ended goal. They do not say the board is sealed, because late records still
   count. They do not say the end is final against a later change of host: once
@@ -3048,11 +3531,11 @@ flag enters.
     admission asks `Node::admission_hold`. The end gate is a different thing:
     it reads signed records only and never opens again. Take an ordinary
     private goal whose members are all on the host's computer. After an
-    ordinary restart nothing is held and `goal end` signs at once, with nobody
-    to ask. After the data directory was replaced by an older copy with its
-    marks kept, G1 releases the governance key at once. After a copy of
-    unknown age G1 waits for the person's `goal continue`; that wait is
-    GUARD's rule and GUARD's question for the owner, not this phase's. `farm
+    ordinary restart nothing is held and `goal end` signs at once, with no
+    other computer to ask. After the data directory was replaced by an older
+    copy with its marks kept, G1 releases the governance key at once. After a
+    copy of unknown age G1 waits for the person's `goal continue`; that wait
+    is GUARD's rule and the owner's answer 13, not this phase's. `farm
     off` needs no signature in a goal that is ended or catching up.
   - A retry of an admission that is already committed. It is answered before
     the ended test and before the guard is asked, by the order `plan_join` has
@@ -3062,16 +3545,16 @@ flag enters.
     lists what late records can still do. The end does not take the page down
     and does not freeze the publisher. The publisher uploads when the snapshot
     changes and sends no check-in, and the service deletes the page after its
-    retention period. Taking the page down in the same act is put to the
-    owner.
+    retention period. The owner chose that the page stays, marked ended, and
+    is not taken down by the end (answer 23).
   - Not given: a notice to computers that are no longer members; a refusal
     that says "ended" to a joiner; anything about a public door. The joinable
     plan closes a door in the commit of `goal_end`, beside `revoke_pending`,
     and its admission path signs through `next_place`, where the gate stops
     it. E1 gives that plan `State.ended`, `goal.end` and the terminal
-    `InvitationRefused`. The first public door waits for E1 and not for E3. E2
-    lands before it in the build order all the same, and what happens when a
-    door member leaves is E2's.
+    `InvitationRefused`. The first public door needs this phase. E2 lands
+    before the door in the build order too, and what happens when a door
+    member leaves is E2's.
 - Read and inferred. Read in the code: the chain builder, its usable prefix
   and its default standing; the ancestry walk; `Goal::next` and every caller
   of `next_place` and `sign_at`; the fold's check, decision and evaluate; the
@@ -3079,11 +3562,16 @@ flag enters.
   check-in rule; `plan_join`, `goal_invite`, `goal_join` and the invitation
   store; `pending` and `wait`; the service's upload rule and retention; the
   body list and the vector tests; the site's model and its two pages;
-  `check_farm.py`. Inferred and not run: every behaviour of the end record,
-  since it does not exist; that the governance key's log will hold host steps
-  (K1) after KEY; that a record beyond a fork of the governance key's log
-  reaches every member by ordinary sync. Read again at `48bb12c`, when the
-  three pieces were joined: `author`, `next_place` and `sign_at`;
+  `check_farm.py`. Read for the check of the plan review and not run: a
+  record beyond a fork of the governance key's log reaches every computer
+  that is still a member on the copy that serves it. The frontier digest
+  covers every held point of a log, a digest that differs sends an inventory
+  of all of them, and `screen` keeps the host key's records whatever their
+  standing (outbox.rs, initiator.rs and screen.rs). Inferred and not run:
+  every behaviour of the end record, since it does not exist; that the
+  governance key's log will hold host steps (K1) after KEY. Read again at
+  `48bb12c`, when the three pieces were joined: `author`, `next_place` and
+  `sign_at`;
   `Chain::build` and `authorize_base`; `Goal::next`; the body list, which has
   25 kinds; `eligible`, `project`, `farm_request` and the check-in rule;
   `plan_join` and `exchange_ended`; `invitation_revoke`, `goal_invite` and
@@ -3102,25 +3590,29 @@ its leave stays, nothing it signs after the leave counts, its roles go back to
 the host's agent, its place is free, and the other computers stop exchanging
 with its computer. Until the host's computer has signed it the member stays in
 the goal's record, as today, marked as left. The agent can come back with a
-new invitation. Disconnecting a host's agent ends nothing and freezes nothing,
-and its plan says so in plain facts: it names the goals that agent started,
-says that each keeps running and what waits, and leaves out goals that are
-already ended.
+new invitation. Disconnecting a host's agent ends nothing, freezes nothing
+and strands nothing, because one command connects the agent again. The
+command applies at once, and its result says so in plain facts: it names the
+goals that agent started, says that each keeps running and what waits until
+the agent is connected again, leaves out goals that are already ended, and
+ends with the line that undoes it.
 
 **Depends on.** E1. Roles-plan Phases 1 to 5: `goal leave` as the person's
 command and its result line (1, 2); `Node::stalled` with `RunnerLeft`, and
-`Goal::rules_allow` (3); names, the role lists, the rule that a removal
-empties a list to the host's agent, and the only-member part (4); the status
-view (5). K1: `State.host`; the host's agent, which cannot leave or be removed
-and can be disconnected; the governance key, which signs removals;
-`Node::hosts`; `Node::author_alone`; and the review field of the `agent
-revoke` plan, the goals in which this agent is the host's agent. G1:
-`Node::hold`, which `drive_flow` asks before it signs. In the build order this
-phase follows E1 and comes before E3. It changes no signed byte: a leave and a
-removal keep today's bodies. It changes one rule of replay, for a removal that
-carries no payload, inside protocol 7, so E1's end record stays the last
-change of the event format. The model cases named under Changes are written
-before chain.rs is touched.
+the check an agent's request passes before it signs (3); names, the role
+lists, the rule that a removal empties a list to the host's agent, and the
+only-member part (4); the status view (5). K1: `State.host`; the host's
+agent, which cannot leave or be removed and can be disconnected and connected
+again; the governance key, which signs removals; `Node::hosts`;
+`Node::author_alone`; the list `agent revoke` reads, the goals in which this
+agent is the host's agent; and `agent revoke` as a command that applies at
+once and prints `agent reconnect` as its `Undo:` line. G1: `Node::hold`,
+which `drive_flow` asks before it signs. In the build order this phase
+follows E1 and comes before roles-plan Phase 7. It changes no signed byte: a
+leave and a removal keep today's bodies. It changes one rule of replay, for a
+removal that carries no payload, inside protocol 7, so E1's end record stays
+the last change of the event format in the phases of the build order. The
+model cases named under Changes are written before chain.rs is touched.
 
 **Changes.** Three terms, each with one meaning below. A *leave* is the record
 a member's agent signs to leave a goal (`LeaveRequested`). It names the
@@ -3154,8 +3646,9 @@ peer that holds it refuses that computer.
 
 - [Organization.tla](../research/tla/Organization.tla),
   [cases.json](../research/tla/cases.json) and
-  [organization.md](../research/tla/organization.md), done first, on K1's
-  transcript. The model gains the ordinary kind `leave`. Four cases, each a
+  [organization.md](../research/tla/organization.md), done first, on the
+  transcript E1's cases use. The model gains the ordinary kind `leave`. Four
+  cases, each a
   fixed signed transcript delivered in every order, each with a config under
   `research/tla/configs/`: `organization-leave-removal` (a leave, the removal
   that names it, one record of the member below the leave and one above; the
@@ -3203,9 +3696,10 @@ peer that holds it refuses that computer.
 - [goal/mod.rs](../crates/locust-core/src/goal/mod.rs): new `Goal::left(&self)
   -> Vec<(PublicKey, EventId, AuthorPoint)>`: each current member that has
   left, with its admission and its leave, in key order. New `pub const LEFT:
-  &str = "this agent left the goal"`. `Goal::rules_allow` (Phase 3) answers
-  `Why::State { reason: LEFT }` for an agent that has left, after E1's test
-  for an end.
+  &str = "this agent left the goal"`. The check an agent's request passes
+  before it signs (Phase 3) answers `Why::State { reason: LEFT }` for an agent
+  that has left, after E1's test for an end. That is a refusal on the goal's
+  state, so its code is `conflict`, where such an agent gets `denied` today.
 - [node/local.rs](../crates/locust-core/src/node/local.rs): the `m` record
   keeps its key and loses its flag. `Local.part` becomes a set and
   `part_write` takes no `left`.
@@ -3301,18 +3795,30 @@ peer that holds it refuses that computer.
   the line that says to keep the computer on is not printed. The `member
   remove` plan prints `M already left; this computer removes it by itself.
   Removing it now also gives the goal a new content key.` when so.
-- `agent revoke`. The plan's review keeps K1's field, the goals in which this
-  agent is the host's agent, leaving out goals that hold an end. For each it
-  prints: `NAME started "T" (ID). The goal keeps running: inviting, removing
-  and rule changes need no agent. NAME stays a member and cannot be removed.`
-  and, where they apply, `Waits until you give them to another member: the
-  roles only NAME holds (ROLES).` and `Sharing this goal's first files needs
-  NAME.` Text E2-2 shows the plan. `agent_revoke` in
+- `agent revoke`. From K1 the command applies at once, shows no plan and
+  ends with the `Undo:` line that names `agent reconnect`. This phase adds
+  what its result says for a host's agent. The command reads K1's list, the
+  goals in which this agent is the host's agent, and leaves out goals that
+  hold an end. For each of the others it prints: `NAME started "T" (ID). The
+  goal keeps running: inviting, removing and rule changes need no agent. NAME
+  stays a member and cannot be removed.` and, where they apply, `Waits until
+  you connect NAME again or give them to another member: the roles only NAME
+  holds (ROLES).`, `Sharing this goal's first files needs NAME connected.`
+  and `NAME's consent to this goal's public page cannot be given or
+  withdrawn until it is connected again.` Text E2-2 shows the result.
+  `agent_revoke` in
   [daemon.rs](../crates/locust-core/src/node/requests/daemon.rs) is not
   changed. The roles line applies where the agent alone holds a role
   (roles-plan Phase 4). The first-files line applies while the goal's shared
   files are empty, because only the host's agent shares first files (Phase 4's
-  first-files rule).
+  first-files rule). The page line applies while the goal's page is on,
+  because publication needs the consent of every current member and signing
+  one needs the agent's key (K1's notes).
+- [check_operations.py](../scripts/check_operations.py): its
+  `withdrawal_leave` step expects the refusal this phase gives an agent that
+  left. Read at `541f29b` it expects `denied` twice, before and after a
+  restart. From this phase the post is refused as the goal's state, which is
+  `conflict`.
 - Documents this phase owns: the paragraph on `goal leave` that roles-plan
   Phase 6 adds to the guide, which now says that the host's computer removes
   the member by itself, what the member's status shows until then and how to
@@ -3398,16 +3904,20 @@ peer that holds it refuses that computer.
   after a restart, `goal.end` succeeds.
 - [cli.rs](../crates/locust/tests/cli.rs):
   `agent_revoke_names_only_goals_that_are_not_ended_and_says_what_waits`: for
-  a host's agent the plan prints the first line for each goal it started that
-  holds no end, the roles line only where it alone holds a role, and the
-  first-files line only while the shared files are empty.
+  a host's agent the result prints the first line for each goal it started
+  that holds no end, the roles line only where it alone holds a role, the
+  first-files line only while the shared files are empty, the page line only
+  while the page is on, and the `Undo:` line last. No plan is shown.
 - `signed_current_protocol_vectors_are_frozen` and
   `body_indices_and_bytes_are_current_contract` pass unedited.
 
 **Exit criteria.**
 - The three cargo commands pass, with `python3 scripts/check_formations.py`
   after its `--write`, `python3 scripts/check_docs.py` and `python3
-  scripts/check_tla.py --suite organization`.
+  scripts/check_tla.py --suite organization`. The two steps CI runs on every
+  push pass too: the guide's recipes, `python3 scripts/check_documentation.py
+  --binary target/debug/locust --timeout 60`, and the scripts' own tests,
+  `python3 -m unittest discover -s scripts/tests`.
 - On two daemons, A the host and B: after `locust --owner goal leave` on B,
   and within a minute, `locust --owner events` on A lists one
   `leave_requested` by the member and after it one `member_removed` by `host`,
@@ -3423,9 +3933,14 @@ peer that holds it refuses that computer.
   is effective on both daemons.
 - A member removed and admitted again shows no mark from a leave of its
   earlier admission.
-- On the host's computer, `locust --owner agent revoke --agent NAME --plan`
-  for the agent that started a goal prints the line that begins `NAME started
-  "T"`. After `goal end` on that goal the same plan prints no line for it.
+- On the host's computer, `locust --owner agent revoke --agent NAME` for the
+  agent that started a goal shows no plan. It prints the line that begins
+  `NAME started "T"` and, last, `Undo: locust --owner agent reconnect --agent
+  NAME`. `goal invite` still works. That line, run as printed, connects the
+  agent again, and `workspace init` in that goal then shows its plan. After
+  `goal end` on that goal the same `agent revoke` prints no line for it.
+- With `--binary` set to a debug build, one run of `python3
+  scripts/check_operations.py` passes with its changed leave step.
 - `git grep -n -e leave_requests -e 'acknowledged by removal' -- crates` finds
   nothing.
 
@@ -3440,6 +3955,13 @@ peer that holds it refuses that computer.
   names whatever record of the member the host's computer holds last (read in
   `member_remove`). What is left is a position that another record used in
   between, which the restore guard covers as for every record in this log.
+- One restore ends at the person. The leaver's computer is never sent the
+  removal. Where it was the goal's only other computer, the removal reached
+  no computer at all. A host's computer put back from a copy older than that
+  removal, with its marks kept, is then behind by a record nobody can give
+  back, and G1 never gives up a host record by itself: the goal waits for
+  `goal continue`. Once the earlier host records have come back, the removal
+  signed after that command is the record signed before.
 - The member stays in the goal's record until the host's computer has signed.
   While that computer is off or catching up, the member is listed with the
   mark, its computer keeps exchanging, a role it holds stays with it, and
@@ -3472,8 +3994,13 @@ peer that holds it refuses that computer.
 - The leaver's computer afterwards. Every peer that holds the removal refuses
   it, and nothing tells it why: a notice to computers that are no longer
   members is not built (E1's notes). Its daemon knows from its own leave. It
-  keeps asking each peer at the pace E3 gives a refused exchange. The second
-  status sentence rests on that refusal by the host's computer. A host's
+  keeps asking each peer about twice a minute, as a removed computer does
+  today (measured,
+  [note](../research/goal-lifecycle-characterization-2026-10-05.md), claim 1).
+  Asking less often is [left for later](#left-for-later). The joinable
+  plan's J0 backs off after a long run of failed exchanges, and the driver
+  counts a refused exchange as a failed one. The second status sentence
+  rests on that refusal by the host's computer. A host's
   computer started from a copy older than the member's admission refuses the
   same way, so in that rare case the sentence is early; the leaver's daemon
   keeps asking, and the leave is delivered once that host has caught up.
@@ -3515,9 +4042,12 @@ peer that holds it refuses that computer.
   ended admission for each key ever admitted, as after any removal. The
   joinable plan measures that with its ceiling.
 - A removal that follows a leave moves the head of the host's record with
-  nobody present, as an admission does. A `goal end` or `rules bind` whose
-  plan was shown before it answers `conflict`, and the person runs `--plan`
-  again.
+  nobody present, as an admission does. No command carries that head any
+  more (roles-plan Phase 2, and E1 for `goal end`). A `rules bind` whose plan
+  was shown before it still applies, because it is bound to the current
+  rules. A `goal end` whose plan was shown before it answers `conflict: the
+  plan changed`, because its plan shows the members, and the person runs
+  `--plan` again.
 - "Cannot leave" for the host's agent is its daemon's refusal, and from this
   phase a leave signed with that key is invalid in replay. Other computers
   reach the host's computer through that agent's admission (K1).
@@ -3532,9 +4062,11 @@ peer that holds it refuses that computer.
   and a consent record signed after the leave is past the removal. A member
   who wants its name off declines publication before it leaves. What a page
   shows for a member that left is the joinable plan's.
-- Disconnecting an agent is local and lasting, and it is no shared halt. It is
-  kept on this computer only, it survives a restart, no command undoes it, and
-  it signs no record, so no other computer learns of it (measured on today's
+- Disconnecting an agent is local, and it is no shared halt. It is kept on
+  this computer only, it survives a restart, and it signs no record, so no
+  other computer learns of it. Today no command undoes it. K1 adds the one
+  that connects the agent again, which changes the same local record and
+  signs nothing either (the revoke is measured on today's
   code, [note](../research/goal-lifecycle-characterization-2026-10-05.md),
   claim 5:
   `revoked_host_cannot_resume_governance_through_grants_or_enrollment_but_old_store_can`
@@ -3542,7 +4074,11 @@ peer that holds it refuses that computer.
   [lifecycle_characterization.rs](../crates/locust-core/src/node/tests/lifecycle_characterization.rs)).
   A data directory put back from before the revoke holds the agent connected
   again. From K1 the governance key signs without the agent, so this phase
-  words what is left to say and leaves out goals that are ended.
+  words what is left to say and leaves out goals that are ended. While the
+  agent is disconnected it approves nothing, so under peer approval a goal
+  whose only other member it is counts no new result until it is connected
+  again. Connecting it again does not help a host's agent whose own log holds
+  two records at one position; that case stays as K1 and G2 describe it.
 - Read in the code at `986c18d`, where the crates are those of `6944de4`:
   `goal_leave`, `member_remove`, `goal_join`, `finish_joins`; `Chain::build`,
   `cutoff`, `authorize` and `authorize_base`; the leave arm of the fold and of
@@ -3552,170 +4088,46 @@ peer that holds it refuses that computer.
   driver; the initiator's stages; `Entry::membership`; `eligible`;
   `agent_revoke`. Inferred and not run: every behaviour after the change; that
   the first exchange opened after a leave ends within a minute; everything
-  about the role lists, the only-member part, `rules_allow`, `Node::stalled`
-  and the plans, which the roles plan has not built; `Node::hold` and
-  `author_alone`, which are plan text.
+  about the role lists, the only-member part, the check before signing,
+  `Node::stalled` and the commands' texts, which the roles plan has not
+  built; `Node::hold`, `author_alone` and `agent reconnect`, which are plan
+  text; and that a post by an agent that left is refused as `conflict` from
+  this phase.
 - Size, a judgement: 250 to 400 lines of production code and about 800 of
   tests.
 
-### E3: Idle goals ask less often
+## Left for later
 
-**Goal.** A goal with no new records costs less. Each daemon opens exchanges
-for it less and less often, from every 30 seconds toward once an hour, and the
-host's daemon checks in with the farm service at the same slower pace. Any new
-record brings both back to 30 seconds at once. Only the daemon's own clock is
-used, and nothing shared depends on it.
+**Idle goals ask less often.** This plan had a third ending phase, E3. In it a
+goal with no new records opened exchanges less and less often, from every 30
+seconds toward once an hour, and the host's computer checked in with the farm
+service at the same slower pace. It is deferred out of v2: the plan author's
+decision of 6 October 2026, after the
+[independent review](../research/v2-plan-review-2026-10-06.md) and the
+[check of it](../research/v2-plan-review-verification-2026-10-06.md). No other
+phase reads its code, no owner answer asks for it, and it changes no signed
+record.
 
-**Depends on.** G1, for `Host::catching_up`. It needs nothing from E1 or E2.
-In the build order it follows E2 and comes before roles-plan Phase 7. The
-first public door does not wait for it.
+What a person notices without it is what they see today. Every goal keeps
+asking its other computers every 30 seconds, quiet or not, so an idle goal
+uses a little more network. A public page reads "Receiving updates" steadily
+while the host's computer is on, and no record arrives late. With E3 an idle
+page would have read "Quiet" most of the time, and a computer that was asleep
+could have waited up to an hour for the first new record. A computer that was
+removed from a goal, or whose agent left it, keeps asking each other computer
+about twice a minute, as today.
 
-**Changes.** A goal has *news* when a commit adds one of its records or its
-content index starts to want an object; this is what `Host::take_changed`
-reports today (read in [commit.rs](../crates/locust-core/src/node/commit.rs)
-and [content_graph.rs](../crates/locust-core/src/node/content_graph.rs)). Its
-*idle time* is the time since its last news, by the daemon's own clock. Today
-a healthy idle goal of three members opens 720 exchanges in a simulated hour,
-120 for each ordered pair and 30 seconds apart (measured,
-[note](../research/goal-lifecycle-characterization-2026-10-05.md), claim 8:
-`idle_three_member_goal_keeps_exchanging_for_a_simulated_hour` in
-[sim/lifecycle_characterization.rs](../crates/locust-core/src/node/sim/lifecycle_characterization.rs)).
-- [driver.rs](../crates/locust-core/src/sync/driver.rs): new `pub const
-  IDLE_ANTI_ENTROPY_MS: u64 = 3_600_000` and `pub fn idle_interval_ms(idle_ms:
-  u64) -> u64`, which is `(idle_ms / 8).clamp(ANTI_ENTROPY_MS,
-  IDLE_ANTI_ENTROPY_MS)`: 30 seconds for the first four minutes, two minutes
-  after 16, one hour after eight hours. Both are exported from
-  [sync/mod.rs](../crates/locust-core/src/sync/mod.rs). `Driver` gains `news:
-  HashMap<GoalId, u64>`, the `elapsed_ms` of each goal's last news; a goal
-  seen for the first time gets the current value. `Link` gains `interval_ms`.
-  In `poll`, each goal in `changed` has its `news` set, and the backoff of
-  each of its endpoints is cut to at most `MAX_BACKOFF_MS` from now. A pair's
-  interval is `ANTI_ENTROPY_MS` for a join in progress, while the goal still
-  wants a key or an object (`Replica::wanted_keys`, `next_wanted_blob`), and
-  while new `Host::catching_up(goal)` answers true (default false; the node
-  answers true while its `Guard` holds any local key in the goal); otherwise
-  it is `idle_interval_ms` of the goal's idle time. A link is due on change or
-  when its last open is at least that interval old. In `end_dialed`, the
-  ceiling of an endpoint's backoff is the smallest interval among its live
-  links, and never less than `MAX_BACKOFF_MS`. `news` is pruned with `links`.
-  Nothing is persisted: after a start every goal is dialed at once and is back
-  at 30 seconds.
-- [node/mod.rs](../crates/locust-core/src/node/mod.rs) and
-  [node/farm.rs](../crates/locust-core/src/node/farm.rs): `Node` gains
-  `farm_news: BTreeMap<GoalId, u64>`, kept in memory only. `farm_poll_local`
-  sets a goal's entry to `now` the first time it polls the goal after a start
-  and whenever the feed has grown since `observed_feed`. A check-in is due
-  when the last acknowledgement is absent, lies in the future, or is at least
-  `idle_interval_ms(now - news)` old, in place of the fixed `30_000`.
-  `FarmLocal` and its stored layout do not change. After a start the pace is
-  back at 30 seconds, so a check-in goes out as soon as the stored
-  acknowledgement is 30 seconds old.
-- The farms page of the site (`routes/farms/+page.svelte`): the legend reads
-  `Receiving updates: the host's computer checked in within the last two
-  minutes. Quiet: no recent check-in; the goal may be idle or the host's
-  computer off.`
-- Harnesses that assume the fixed period. `quiesce` in
-  [sync/tests/net.rs](../crates/locust-core/src/sync/tests/net.rs) waits 32
-  seconds after the last change, which is inside the first four minutes; its
-  comment is corrected. The simulator's check in
-  [sim/check.rs](../crates/locust-core/src/node/sim/check.rs) waits two fixed
-  periods after the network heals; it waits two idle intervals for the run's
-  idle time instead.
-
-**Tests.**
-- [sync/tests/driver.rs](../crates/locust-core/src/sync/tests/driver.rs):
-  `an_idle_goal_is_dialed_less_often_and_news_restores_thirty_seconds` (the
-  gaps between opens grow with idle time, and one new record makes the next
-  open immediate);
-  `a_completed_exchange_without_news_does_not_reset_the_interval`;
-  `a_goal_that_still_wants_content_keeps_the_short_interval`;
-  `a_goal_that_is_catching_up_keeps_the_short_interval`;
-  `an_endpoint_only_in_idle_goals_is_retried_at_the_idle_interval_and_sooner_after_news`.
-  `wall_clock_steps_do_not_delay_retries_or_advance_anti_entropy` and
-  `failed_exchanges_retry_at_jittered_times` are kept and also run with an
-  idle goal.
-- Unit test beside the function:
-  `the_idle_interval_runs_from_thirty_seconds_to_one_hour`.
-- [tests/farm.rs](../crates/locust-core/src/node/tests/farm.rs):
-  `check_ins_slow_for_a_goal_without_news_and_resume_with_a_record`;
-  `a_restart_checks_in_at_once`.
-- [sim/lifecycle_characterization.rs](../crates/locust-core/src/node/sim/lifecycle_characterization.rs):
-  `idle_three_member_goal_keeps_exchanging_for_a_simulated_hour` pins 120
-  exchanges for each ordered pair, all 30 seconds apart. It is rewritten as
-  `idle_three_member_goal_exchanges_less_and_less_for_a_simulated_hour`: the
-  gaps never shrink while nothing is signed, the last gap is longer than five
-  minutes, and the count for each pair is well under 120.
-
-**Exit criteria.**
-- The three cargo commands and the four site commands pass.
-- On a throwaway daemon with one peer and an idle goal, the log shows opens
-  for that goal 30 seconds apart at first and more than a minute apart after
-  ten idle minutes; publishing one record opens an exchange at once.
-- On a published idle goal whose host's daemon runs, check-ins are more than
-  two minutes apart after 16 idle minutes. The page then reads "Receiving
-  updates" for two minutes after each check-in and "Quiet" until the next.
-  Within a minute of a new record it reads "Receiving updates" again.
-
-**Risks and notes.**
-- The interval never decides anything shared. It decides only when this daemon
-  asks. What a daemon holds after an exchange is the same whenever the
-  exchange runs.
-- News is pushed at once, as today. Slower asking delays only what a missed
-  push left behind. The worst case: a goal idle for eight hours, a record
-  signed while one member's computer was asleep or cut off, and that computer
-  back without a restart. The record reaches it up to an hour later. This
-  includes an end record, and a host's computer waking to work its members did
-  while it slept. A daemon that starts asks every peer at once.
-- A goal that still wants content keeps the 30-second interval, so a goal
-  whose missing object no member holds is not slowed. That is today's
-  behaviour, kept on purpose: content travels only on exchanges a daemon opens
-  itself. The computer of a member that holds a removal but not its new
-  content key is such a case. It cannot write text until the key arrives
-  (measured on today's code,
-  [note](../research/goal-lifecycle-characterization-2026-10-05.md), claim 9:
-  `undelivered_removal_key_blocks_survivor_text_but_host_can_write_and_survivor_can_leave`
-  and
-  `verified_delivery_of_withheld_removal_key_restores_survivor_text_writes` in
-  [delivery_characterization.rs](../crates/locust-core/src/node/tests/delivery_characterization.rs)).
-  The removal's own payload names the new epoch, so `wanted_keys` lists it and
-  the short interval stays (read in `member_remove` and in
-  [replica.rs](../crates/locust-core/src/node/replica.rs)). A goal that is
-  catching up keeps the short interval too: a hold ends only on exchanges, and
-  it can outlast the first four minutes after a start.
-- An ended goal has no news once every record signed earlier has arrived, so
-  it slows by the same rule with no special case. The same holds for a removed
-  member's computer, which is never told and today retries each refusing peer
-  about twice a minute (measured,
-  [note](../research/goal-lifecycle-characterization-2026-10-05.md), claim 1:
-  39 `NotAMember` refusals from two peers in ten simulated minutes). The
-  driver treats a refused exchange as a failed one, so after this phase those
-  retries follow the idle ceiling of the backoff.
-- An idle page is not steady. After 16 idle minutes it reads "Quiet" most of
-  the time and "Receiving updates" for two minutes after each check-in. The
-  legend says what each word means. Keeping the short interval while a public
-  door is open, and stopping check-ins altogether so that an abandoned page
-  can expire, belong to the joinable plan; `idle_interval_ms` is the one
-  function they change.
-- The driver's clock counts time the process was running. On a laptop that
-  sleeps, a goal slows by awake time. The driver reads no wall clock for this,
-  as its test for wall-clock steps requires.
-- A restored host sends a check-in within 30 seconds of a start. That check-in
-  is no test of freshness. The service answers a request it has already seen
-  at that sequence with the stored receipt, and any other request at a used
-  sequence with a conflict (measured,
-  [note](../research/goal-lifecycle-characterization-2026-10-05.md), claim 4:
-  `old_identical_check_in_returns_its_receipt_after_newer_requests_and_restart`
-  in [the service's
-  tests](../crates/locust-farm/src/tests/lifecycle_characterization.rs)). What
-  a restored host learns from the service, and any faster request, is GUARD's
-  `guard_attest` and the joinable plan's.
-- Read in the code: `poll`, `end_dialed` and `peer_completed` in the driver;
-  every place the node marks a goal changed; `farm_poll_local` and
-  `farm_complete_local`; the two-minute test in the site's `farmMode`; the
-  three harnesses named above. Read again when the three pieces were joined:
-  the trait `Host` and `end_dialed` in the driver, `wanted_keys` in replica.rs
-  and `mutate_inner` in the farm service. Not run: whether the simulator's
-  seeds pass with the new wait.
+What waits with it: `idle_interval_ms` and `IDLE_ANTI_ENTROPY_MS`, the
+driver's note of each goal's last news, `Host::catching_up`, the check-in pace
+in `farm_poll_local`, and new legend sentences for "Receiving updates" and
+"Quiet". The measured test
+`idle_three_member_goal_keeps_exchanging_for_a_simulated_hour` stays as it is.
+The phase as it was written, with its tests, is in this file at commit
+`541f29b`, and its three unsettled points are in the companion. The joinable
+plan meant to change `idle_interval_ms` for an open door. It now writes its
+failure backoff (J0) and its check-in rule without that function. One fact
+from G1 goes with the phase: a goal that is catching up keeps the 30-second
+interval, because a hold ends only on exchanges.
 
 ## What is left for replacing a host
 
@@ -3746,7 +4158,8 @@ first key from the key of the current term, and that field is where it is
 added (the version ladder lists the invitation's issuer field with the
 takeover record, outside this plan's ladder); (5) a fork in the governance log
 stays a permanent halt until a takeover exists, and K1 adds nothing that lifts
-it; (6) two readers run before a chain exists and read the first record
+it, so a goal made under v2 keeps it for good (answer 2); (6) two readers run
+before a chain exists and read the first record
 itself, `screen` in crates/locust-core/src/goal/screen.rs (which records are
 kept) and the join check in crates/locust-core/src/node/replica.rs; a takeover
 design must say what each keeps for a later key.
@@ -3776,9 +4189,16 @@ on a wake. (4) The backup's daemon applies the guard to its own keys before it
 signs a takeover, and its takeover command refuses or warns from
 `Node::heard`; that command is host replacement's. (5) The guard does not make
 the last host record a takeover's signers hold any newer; it only keeps a
-restored daemon from signing below what it already signed.
+restored daemon from signing below what it already signed. One idea is
+recorded here and not built in v2: after a restore the host's computer goes
+on by itself under a new key, from the last record it holds, and what the old
+key signed later is void. It needs the takeover record, so it belongs with
+replacing a host. It is scoped in the
+[check of the review](../research/v2-plan-review-verification-2026-10-06.md).
+Until then a copy of unknown age on a host's computer waits for `goal
+continue`.
 
-**Ending a goal (E1, E2, E3).** One named place: the `GoalEnded` arm of
+**Ending a goal (E1, E2).** One named place: the `GoalEnded` arm of
 `Chain::build` in crates/locust-core/src/goal/chain.rs, marked with the
 comment `PLUG host-replacement: takeover versus end`, together with the
 `cut_end` rule that follows the loop in the same function. Everything else END
@@ -3807,7 +4227,11 @@ host replacement later reads the kept chain by ancestry from the base and not
 by the usable prefix, the same reading can make an end survive a fork of the
 old key below it; that would retire "ended, then halted" and is the upgrade
 path, not part of this piece. The other two plugs are the first lines of
-`Chain::build` (KEY) and `Node::guard_sources` (GUARD).
+`Chain::build` (KEY) and `Node::guard_sources` (GUARD). E2 adds no place of
+its own. Its removal is an ordinary record of the governance key, so
+assumption (1) covers it: one signed after a takeover's base is void like any
+other. What then removes a member that left, and what a backup host's own
+leave means, are the host-replacement plan's to say.
 
 ## Models written first
 
@@ -3815,10 +4239,11 @@ Each part asks for a model under `research/tla` before its code. None is written
 
 **The signing key (K1).** A small change to research/tla/Organization.tla,
 made and run before chain.rs is touched, as the first step of K1. It is the
-first of three changes under research/tla: K1's change, then G1's model, then
-E1's cases, which are written on K1's transcript (the host is identity 0, the
-host's agent identity 5). The model already treats identity 0 as the only
-signer of governance, but record 2 of its founding transcript admits identity
+first of four changes under research/tla: K1's change, the role holders of
+roles-plan Phase 4, G1's model, then E1's cases. All of them keep K1's
+identities (the host is identity 0, the host's agent identity 5). The model
+already treats identity 0 as the only signer of governance, but record 2 of
+its founding transcript admits identity
 0 as a member. Change that record to admit a new identity 5, the host's agent,
 and keep every other id, position and anchor, so no existing scenario is
 renumbered. Add two scenarios, each with a config under research/tla/configs
@@ -3840,9 +4265,10 @@ research/tla/workspace.md and rests that rule on its Rust tests.
 `research/tla/configs`, its entries in `research/tla/cases.json`, and one page
 in the directory's README, run by `python3 scripts/check_tla.py`, before G1.
 Its cases join the `fast` and `extended` suites in cases.json. The order of
-the three model changes is K1's change to the Organization model, then this
-model, then E1's cases. It is a node model, not a change to Organization.tla:
-the guard is not a validity rule. Two keys on one daemon (the governance key
+the model changes is K1's change to the Organization model, the role holders
+of roles-plan Phase 4, then this model, then E1's cases. It is a node model,
+not a change to Organization.tla: the guard is not a validity rule. Two keys
+on one daemon (the governance key
 and one agent key), that daemon and two peers, one admission and one removal
 allowed, bounded log length. Actions: Sign, Admit, Remove, Sync(a, b) with an
 order in which a member's records can arrive before the admission that names
@@ -3850,11 +4276,18 @@ it and are then dropped, Copy (remember the holder's store, and separately its
 marks), RestoreStore (store back, marks kept), RestoreAll (both back),
 LoseMarks, Start (classify by the first table), Hear (per peer, only on a sync
 that brought nothing), Settle (the second table, with the row that holds the
-agent key while the governance key is held), Continue. Properties: (1) NoFork
-after RestoreStore in every run without Continue; (2) NoFork after RestoreAll
-in every run without Continue and without an admission after the copy; (3) an
-ordinary Start never sets a hold; (4) every hold ends in a run where all peers
-are eventually reachable and honest; (5) on the host's daemon the agent key
+agent key while the governance key is held), Continue. Properties: (1) after
+RestoreStore, in every run without Continue, the governance key never signs at
+a used position, and the agent key never does in a run with no Remove after
+the copy. The exemption is the agent key's give-up rule: its record can have
+reached only a peer removed since, which is not asked; (2) NoFork after
+RestoreAll in every run without Continue, whatever was admitted or removed
+after the copy, because that hold ends only on Continue; (3) an ordinary Start
+never sets a hold; (4) after RestoreStore, in a run where all peers are
+eventually reachable and honest, the governance key's hold ends when a peer
+holds the marked record or the goal was never shared, and the agent key's hold
+ends once the governance key's has; after RestoreAll neither key's hold ends
+in any run that has no Continue; (5) on the host's daemon the agent key
 never signs while the governance key is held; (6) named counterexamples, kept
 as traces because each is the reason for one rule: the hold released after the
 first exchange with any one peer (the lacking member); an empty peer list
@@ -3862,22 +4295,31 @@ ending a hold while the mark says shared (the copy from before the first
 admission); hearing counted on an exchange that brought records (a rejoined
 key signs at zero); an agent key given up while the governance key is still
 behind; the agent key signing while the governance key is behind (the host's
-agent posts on a view older than an admission); and, left open on purpose,
-RestoreAll after an admission and a removal (residual 4). Also before
+agent posts on a view older than an admission); the host's hold after
+RestoreAll released once every peer the copy lists was heard from (an
+admission and a removal after the copy: the removed peer answers with nothing,
+and the admitted peer holds the later record and is not listed), which is why
+that hold ends only on Continue; and, left open on purpose, the two cases
+under residual 5: the agent key given up after RestoreStore when its record
+reached only a peer removed since, and, in a second configuration where the
+restored daemon is a member's, RestoreAll when the host's daemon never
+received the agent key's last record and the other peer did. Also before
 building, and not a model: the file-identity note named in G1's exit criteria,
 because the first table rests on how file systems treat a file's identity and
 nobody measured it.
 
-**Ending a goal (E1, E2, E3).** Before the chain rule of E1 is built, add the
+**Ending a goal (E1, E2).** Before the chain rule of E1 is built, add the
 governance kind `end` to research/tla/Organization.tla (its `GovKinds` today
 is genesis, admit, remove, rules) and register the cases in
 research/tla/cases.json in the registry's own form: one entry per case, named
 `organization-end-...`, suite fast, extended and organization, with a config
-under research/tla/configs/ and a `Scenario` in the model. Written on K1's
-transcript: the host is identity 0, the host's agent identity 5. The three
-model changes land in this order: K1's change, then G1's model, then E1's
-cases. Each case is a fixed signed transcript delivered in every order. (1)
-organization-end-late-record: a result and an approval anchored before the end
+under research/tla/configs/ and a `Scenario` in the model. Written on the
+founding transcript as roles-plan Phase 4 leaves it: K1's identities (the
+host is identity 0, the host's agent identity 5) and the two role events. The
+model changes land in this order: K1's change, Phase 4's role holders, G1's
+model, then E1's cases. Each case is a fixed signed transcript delivered in
+every order. (1) organization-end-late-record: a result and an approval
+anchored before the end
 are delivered after it and become effective. (2)
 organization-end-later-governance: an admission and a rules binding signed
 after the end are never effective. (3) organization-end-fork-at-or-before: a
@@ -3906,153 +4348,138 @@ E2 lists them.
 ## Questions for the owner
 
 Each question carries its writers' recommendation, which the text above
-assumes. Three are answered and marked. One is settled without
-the owner and marked.
+assumes. Those the owner has answered are marked, and so are those the plan
+author settled on 6 October 2026 under the owner's answers. Four questions
+about choices a person never sees were taken out, and each choice is stated
+where it is built: one key for everything the host's computer signs (under
+"What the host's computer signs by itself"), the build order (the master
+plan), calling back an unknown computer while catching up (G1), and the
+models (Models written first). The two questions about idle goals went with
+the phase that is [left for later](#left-for-later). One question from the
+check of the review is the master plan's to put: whether anything is released
+before the public door, which decides the number the door's change of signed
+bytes takes (E1's note on versions).
 
 **The signing key (K1)**
 
-1. May the same key that signs governance also sign what the host's daemon
-   records by itself (a stage's steps, the plan's text, landed file changes)?
-   **Settled, and not the owner's to decide (master plan): yes, one key and
-   one log in v2.** The reasons, the cost and the second key that was not
-   taken are under
-   [What the host's computer signs by itself](#what-the-hosts-computer-signs-by-itself).
-2. May a host remove the agent it started a goal with? Recommendation: not
-   yet; it can be disconnected or set to read and the goal keeps running
-   either way, and removal arrives with the backup host, which names a new
-   host's agent.
-3. Should a person ever see the governance key or a word for it?
-   Recommendation: no; text says host, a record it signed prints as host, and
-   only JSON for scripts carries a `governance` field.
-4. A copy of the data directory holds the key of every goal that computer
-   hosts, with no passphrase and no separate file. Accept? Recommendation:
-   yes; anything stronger would prompt the person, and the Backups section of
-   the operations guide (G2) says what a copy holds. **Answered: yes (answer
-   9).**
-5. On the host's own computer, should status and plans say `Host: you` without
-   `through Maple`? Recommendation: yes, because disconnecting Maple no longer
-   changes who hosts.
-6. Build order: the governance key directly before roles Phase 4, carrying the
-   one protocol step; the restore guard after Phase 6; ending after the guard;
-   all three before Phase 7. Accept? Recommendation: yes.
-7. With its own key, the host's agent is no longer held near the newest
-   record, so it can post a result that counts with no approval from a
-   position where it was the goal's only member. G1 closes the case of a host
-   restored from an old copy while its marks are kept. What is left is a
-   modified daemon, or a person who continues from an old copy. Accept?
-   Recommendation: yes; the host is trusted, the other members see the result,
-   and tying the two logs together would add a signed field to every
-   admission.
-8. A copy of your data that is older than a goal holds neither the goal nor
-   its key, so putting it back loses that goal's host seat for good, until a
-   backup host exists. Accept? Recommendation: yes; the key belongs with the
-   data, and G2 prints one line in `status`.
-9. Disconnecting the agent you started a goal with has no undo, and that agent
-   cannot be removed. From then on the goal's first files cannot be shared,
-   and if the goal has a public page that agent can no longer give or withdraw
-   its consent, so a page it had not consented to is never published. Should
-   `agent revoke` only say so in its plan (E2's line, with one more line for
-   the page), or refuse while the goal still lacks first files or the consent?
-   Recommendation: say so and do not refuse; a way back comes with the backup
-   host, which names a new host's agent.
+1. May a host remove the agent it started a goal with? Recommended: not in
+   v2. That agent can be disconnected and connected again, or set to read,
+   and the goal keeps running either way. Removing it needs the release that
+   brings a backup host, which names a new host's agent, and under answer 2
+   that release ends the goals made under v2.
+2. Should anything a person reads name the key that signs members and rules?
+   Recommended: no. Text says host, and a record that key signed prints as
+   host. On the host's own computer status and plans say `Host: you` with no
+   agent named, because disconnecting an agent no longer changes who hosts.
+   Only JSON for scripts carries a `governance` field.
+3. A copy of the data directory holds the key of every goal that computer
+   hosts, with no passphrase and no separate file. Accept? **Answered: yes
+   (answer 9).**
+4. A copy of your data that is older than a goal holds neither the goal nor
+   its key. Putting it back loses that goal's host seat for good: nobody
+   joins or is removed, the rules cannot change and the goal cannot be ended.
+   A backup host will not bring such a goal back either, because the release
+   that brings one ends the goals made under v2. Accept, with one line in
+   `status` that says so? Recommended: yes; the key belongs with the data.
+5. On the host's own computer a changed Locust, or a person who continues
+   from an old copy against the warning, can make the host's own agent's
+   result count with no approval. Accept? Recommended: yes. A hostile host is
+   not assumed (answer 8), continuing is the person's own act, and the other
+   members see the result.
+6. Disconnecting the agent you started a goal with: should the command only
+   say what waits, or refuse while the goal still lacks its first files?
+   **Settled by the plan author on 6 October 2026, under answers 7 and 27: a
+   disconnected agent can be connected again with one command. So
+   disconnecting applies at once, prints the command that undoes it and
+   refuses nothing.** For the agent a goal was started with it also says what
+   waits until then: the roles only that agent holds, sharing the goal's
+   first files, and its consent to a public page.
 
 **The restore guard (G1, G2)**
 
-10. Should the guard hold your agents as well as the host: an agent whose own
-    records are missing, and every agent of yours in a goal you host while the
-    host's own records are missing? Recommended: yes; it costs nothing in
-    ordinary running and stops a restored host posting work that counts
-    unapproved or working in a goal it ended. What is left is a host who
-    continues from an old copy.
-11. After a whole-computer restore or a move, for a goal with nobody else to
-    ask: wait for `locust --owner goal continue`, or carry on by itself?
-    Waiting costs one command (`--all`) at each move for the goals you run
-    alone. Recommended: wait; carrying on breaks for good a goal restored from
-    a copy older than its first member. **Answered: wait for the command
-    (answer 13).**
-12. While a goal is catching up, are your own commands in it (remove, change
-    rules, add your agent, end) refused with the continue line, before any
-    plan is shown? Recommended: refused; the damage is permanent and a warning
-    is easy to miss.
-13. May a host that is catching up call back a computer it does not know when
-    that computer names the goal? Recommended: yes; nothing is sent until the
-    host's own records name it a member.
-14. When Locust finds its data was restored it revokes the pending invitations
-    of the goals it hosts. Accept? Recommended: yes; status says how many and
-    you issue new ones.
-15. An ordinary restart admits and records at once, with no wait for another
+7. Should the guard hold your own agents as well as the host's records: an
+   agent whose own records are missing, and every agent of yours in a goal
+   you host while the host's own records are missing? Recommended: yes. It
+   costs nothing in ordinary running, and it stops a restored host from
+   posting work that counts unapproved or from working in a goal it ended.
+   Other members' agents are not held and keep working.
+8. After a whole-computer restore or a move, Locust cannot tell how old its
+   data is. Should a goal you host wait for one command from you, `locust
+   --owner goal continue`, or carry on by itself? **Answered: wait for the
+   command. Answer 13 says so for a goal with no other computer to ask. On 6
+   October 2026 the owner chose to keep the restore guard as planned, and
+   that covers every goal a person hosts (the master plan, "What answer 26
+   changes", item 4).** Hearing from the computers an old copy lists cannot
+   show that nothing newer exists, so on a host's computer this wait ends
+   only on the command. One command with `--all` covers every goal. Until it
+   is typed the host's computer keeps collecting what the other computers
+   hold, admits nobody and records nothing, and the other members' agents
+   keep working. A restore of the data folder alone, with the note beside it
+   kept, still ends by itself once the missing records are back.
+9. While a goal is catching up, are your own commands in it (remove, change
+   rules, add your agent, end) refused with the continue line, before any
+   plan is shown? Recommended: refused; the damage is permanent and a
+   warning is easy to miss.
+10. When Locust finds its data was restored it revokes the pending
+    invitations of the goals it hosts. Accept? Recommended: yes; status says
+    how many, and you send new ones to the people who had not joined yet.
+11. An ordinary restart admits and records at once and waits for no other
     computer. Accept? Recommended: yes; it is what makes a restart cost
-    nothing, and the joinable plan's gate changes with it.
-16. Keep the marks in `~/.locust.marks` beside the data directory, not in the
-    system's application-state folder? Recommended: yes.
-17. On a member's computer after a whole-computer restore, an agent goes on
-    once the host's computer, or all the other members' computers, has been
-    heard from; a rare order of events can cost that agent its key in that
-    goal. Accept? Recommended: accept.
-18. Are the words right: 'catching up' for the state and `goal continue` for
+    nothing, and the joinable plan's gate follows it.
+12. On a member's computer after a whole-computer restore, an agent goes on
+    once the host's computer has answered, or all the other members'
+    computers. A rare order of events can then cost that agent its key in
+    that goal, and the person joins with another agent. Accept? **Settled by
+    the plan author on 6 October 2026: the rule stays, with this limit,
+    because the restore guard is kept as planned.**
+13. Are the words right: "catching up" for the state and `goal continue` for
     the command? `resume` was dropped because the roles plan uses it for
     taking an attempt over. Recommended: yes.
-19. A copy of your data that is older than a goal loses that goal for its
-    host. Should `status` say so in one line? Recommended: yes.
-20. A copy put back also undoes what you set on this computer since it was
+14. Locust keeps its note of what it last signed in a folder beside the data
+    folder, `~/.locust.marks`, and not in the system's application-state
+    folder. Accept? Recommended: yes; a copy of the data folder then does
+    not carry the note, which is how Locust notices an old copy.
+15. A copy put back also undoes what you set on this computer since it was
     taken: an agent you disconnected is connected again, and an agent that
     left a goal after the copy was taken reads as a member on this computer
     again, although the other computers have removed it. Locust says so in
-    one line and does nothing more. Accept? Recommended: yes for now; undoing
-    it would mean keeping those settings beside the data directory too.
-21. Should a small model of sign, sync, restore and continue be written under
-    research/tla before G1 is built, plus a measured note on file identity?
-    Recommended: yes, about a day; it should reproduce the forks this design
-    closes and the ones it leaves.
+    one line and does nothing more. Accept? Recommended: yes for now;
+    undoing it would mean keeping those settings beside the data directory
+    too.
 
-**Ending a goal (E1, E2, E3)**
+**Ending a goal (E1, E2)**
 
-22. After the end, may a member still take their name off the page by a signed
-    decline that is exempt from the stop? Recommended: no in this step; the
-    name leaves with the page, by the host's farm off or by the service's
-    deletion, and a decline signed before that computer learned of the end
-    still blanks the page.
-23. Should goal end take the public page down by itself? Recommended: no; the
-    page stays up marked 'Ended by the host', the plan prints the farm off
-    line, and today's deletion after the service's retention period (30 days
-    by default) stays. The review of the joinable contract (finding 12)
-    prefers the other default: take the page down in the same act, and make
-    keeping it the explicit choice. That saves a second command but loses the
-    page that says the goal ended. **Answered: the page stays 30 days, marked
-    ended, and is then removed (answer 23).**
-24. When a fork of the host's record cuts an end, should every computer that
-    holds the end keep signing nothing and read 'ended, then halted'?
-    Recommended: yes; otherwise a host's restored backup would restart agents'
-    work in a goal the host ended. And should the page of such a goal be blank
-    and read 'Ended by the host', and be removed after the same 30 days?
-    Recommended: yes.
-25. Should goal end take a short public note? Recommended: no; the record
+16. After the end, may a member still take their name off the page by a
+    signed decline that is exempt from the stop? Recommended: no in this
+    step. The name leaves with the page, by the host's `farm off` or by the
+    service's deletion, and a decline signed before that computer learned of
+    the end still blanks the page.
+17. Should `goal end` take the public page down by itself? **Answered: no.
+    The page stays 30 days, marked ended, and is then removed. The host can
+    take it down sooner (answer 23).**
+18. When a second record at one position of the host's record cuts an end
+    out, should every computer that holds the end keep signing nothing and
+    read "ended, then halted"? Recommended: yes; otherwise a host's restored
+    copy would restart agents' work in a goal the host ended. Should the page
+    of such a goal be blank, read "Ended by the host" and be removed after
+    the same 30 days? Recommended: yes.
+19. Should `goal end` take a short public note? Recommended: no; the record
     stays bare, and a note can be a later field.
-26. Is one hour an acceptable longest gap between dials, and between page
-    check-ins, for a goal with no new record for eight hours? It is also the
-    longest wait before a computer that was asleep learns of the first new
-    record. Recommended: yes; any new record brings both back to 30 seconds,
-    and a daemon that starts asks at once.
-27. After that change an idle page reads 'Quiet' most of the time and
-    'Receiving updates' for two minutes after each check-in, even while the
-    host's computer is on. Acceptable? Recommended: yes, with the new legend
-    sentence.
-28. Until local delete is built, a member has no command that removes an ended
-    goal from their computer, and cannot leave it. Acceptable for the first
-    public door? Recommended: yes, said plainly in the guide.
-29. Should the result of goal end say how many members' computers already hold
-    the end? Recommended: not in this step; the result says to keep the
-    computer on and goal status shows when each peer last synchronized.
-30. What should `agent revoke` show for the agent you started a goal with?
-    Recommended: one line of fact (the goal keeps running; the roles only it
-    holds and sharing first files wait), with no warning and no refusal.
-31. When a member leaves, the host's computer removes it with a record that
+20. Until deleting a goal from one's own computer is built, a member has no
+    command that removes an ended goal from their computer, and cannot leave
+    it. Acceptable for the first public door? Recommended: yes, said plainly
+    in the guide.
+21. Should the result of `goal end` say how many members' computers already
+    have the end? Recommended: not in this step; the result says to keep the
+    computer on, and `goal status` shows when each other computer last
+    synchronized.
+22. When a member leaves, the host's computer removes it with a record that
     makes no new content key. The member keeps the key it has and is sent
-    nothing more, and no command gives the goal a new key until the host next
-    removes someone by hand. Accept? Recommended: yes; a member that leaves
-    is not an adversary, and a new key at every leave would pause every
-    member's writing each time a stranger left a public goal.
-32. The 30 days an ended page stays up are counted from the moment the farm
+    nothing more, and no command gives the goal a new key until the host
+    next removes someone by hand. Accept? Recommended: yes; a member that
+    leaves is not an adversary, and a new key at every leave would pause
+    every member's writing each time a stranger left a public goal.
+23. The 30 days an ended page stays up are counted from the moment the farm
     service is told of the end. That can be later than the end, when the
     host's computer was off or the page was blank. Accept? Recommended: yes;
     only the service can count them, and the plan of `goal end` says so.
