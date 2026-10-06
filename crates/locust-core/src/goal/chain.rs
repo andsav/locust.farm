@@ -30,6 +30,12 @@ pub(super) struct Snapshot {
 #[derive(Clone, Debug, Default)]
 pub(super) struct Chain {
     authorization: RefCell<BTreeMap<EventId, (Standing, BTreeSet<Dependency>)>>,
+    /// Validated cutoff ancestry per removed tenure, keyed by admission. The
+    /// ancestry is traversed once per tenure; later events check membership.
+    /// Rebuilt each fold, since the chain is rebuilt from history then.
+    cutoff_ancestry: RefCell<BTreeMap<EventId, Result<BTreeSet<EventId>, EventId>>>,
+    #[cfg(test)]
+    pub(super) cutoff_traversals: std::cell::Cell<usize>,
     pub order: Vec<EventId>,
     pub snapshots: BTreeMap<EventId, Snapshot>,
     pub positions: BTreeMap<EventId, usize>,
@@ -243,6 +249,8 @@ impl Chain {
 
     /// Validates the exact same-author cutoff branch. Missing ancestry waits;
     /// a malformed cutoff preserves no old events and never reopens membership.
+    /// Traverse ancestry once per tenure, then use logarithmic membership
+    /// lookups instead of walking the full branch for every retained event.
     pub fn cutoff(
         &self,
         history: &History,
@@ -255,42 +263,68 @@ impl Chain {
         let Some(point) = tenure.cutoff else {
             return Ok(false);
         };
+        if let Some(result) = self.cutoff_ancestry.borrow().get(&tenure.admission) {
+            return result
+                .as_ref()
+                .map(|ancestry| ancestry.contains(&event))
+                .map_err(|id| *id);
+        }
+        let result = self.traverse_cutoff(history, tenure, point);
+        let retained = result
+            .as_ref()
+            .map(|ancestry| ancestry.contains(&event))
+            .map_err(|id| *id);
+        self.cutoff_ancestry
+            .borrow_mut()
+            .insert(tenure.admission, result);
+        retained
+    }
+
+    /// Walks the cutoff branch once, returning the validated ancestor set.
+    /// An empty set marks a malformed cutoff: no event is retained. A missing
+    /// ancestor waits, so the next fold re-traverses once it arrives.
+    fn traverse_cutoff(
+        &self,
+        history: &History,
+        tenure: &Tenure,
+        point: AuthorPoint,
+    ) -> Result<BTreeSet<EventId>, EventId> {
+        #[cfg(test)]
+        self.cutoff_traversals.set(self.cutoff_traversals.get() + 1);
         let mut next = Some(point.id);
         let mut seq = point.seq;
-        let mut seen = BTreeSet::new();
-        let mut found = false;
+        let mut ancestry = BTreeSet::new();
         while let Some(id) = next {
-            if !seen.insert(id) {
-                return Ok(false);
+            if !ancestry.insert(id) {
+                return Ok(BTreeSet::new());
             }
             let Some(ancestor) = history.get(&id) else {
                 return Err(id);
             };
             if ancestor.header().author != tenure.principal || ancestor.header().seq != seq {
-                return Ok(false);
+                return Ok(BTreeSet::new());
             }
             if id == point.id {
                 let Some(anchor) = ancestor.header().anchor else {
-                    return Ok(false);
+                    return Ok(BTreeSet::new());
                 };
                 if self
                     .tenure_at(&tenure.principal, anchor)
                     .map(|t| t.admission)
                     != Some(tenure.admission)
                 {
-                    return Ok(false);
+                    return Ok(BTreeSet::new());
                 }
             }
-            found |= id == event;
             next = ancestor.header().prev;
             if next.is_some() {
                 let Some(before) = seq.checked_sub(1) else {
-                    return Ok(false);
+                    return Ok(BTreeSet::new());
                 };
                 seq = before;
             }
         }
-        Ok(found)
+        Ok(ancestry)
     }
 
     pub fn authorize(

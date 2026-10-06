@@ -1692,3 +1692,90 @@ fn retracted_anchor_keeps_same_goal_author_descendants_pending_even_at_surviving
     assert_eq!(goal.standing(&clean), Some(Standing::Effective));
     assert_eq!(goal.evaluation(), f.goal().evaluation());
 }
+
+/// Authorizing every retained event after a removal traverses the cutoff
+/// ancestry once per tenure, not once per event. A deterministic counter
+/// counts the shared branch walk independently of membership lookups, while
+/// the exact cutoff, fork, gap and readmission semantics are unchanged.
+#[test]
+fn retained_events_authorize_with_one_cutoff_traversal_per_tenure() {
+    let mut f = Fixture::new(Formation::default());
+    let context = f.context();
+    // A long same-author branch retained by an exact cutoff.
+    const RETAINED: usize = 64;
+    let mut published = Vec::with_capacity(RETAINED);
+    for _ in 0..RETAINED {
+        published.push(f.publish(0, context));
+    }
+    let after = f.publish(0, context);
+    let fork = f.fork(published[0], 2);
+    let point = AuthorPoint {
+        seq: f.event(published[RETAINED - 1]).header().seq,
+        id: published[RETAINED - 1],
+    };
+    f.admin(Body::MemberRemoved {
+        member: f.workers[0].key.public(),
+        admission: f.admissions[1],
+        last_accepted: Some(point),
+    });
+    let goal = f.goal();
+    // Every retained contribution is effective; the post-cutoff and fork are not.
+    for id in &published {
+        assert_eq!(goal.standing(id), Some(Standing::Effective));
+    }
+    assert!(matches!(goal.standing(&after), Some(Standing::Excluded(_))));
+    assert!(matches!(goal.standing(&fork), Some(Standing::Excluded(_))));
+    assert!(!goal.state().is_member(&f.workers[0].key.public()));
+    // One traversal for the single removed tenure, regardless of how many
+    // retained events authorized against it.
+    assert_eq!(goal.cutoff_traversals(), 1);
+
+    // Readmission does not backdate eligibility to the post-cutoff event.
+    f.admin(Body::MemberAdmitted {
+        member: f.workers[0].key.public(),
+        endpoint: EndpointId([2; 32]),
+    });
+    let goal = f.goal();
+    assert!(goal.state().is_member(&f.workers[0].key.public()));
+    assert!(matches!(goal.standing(&after), Some(Standing::Excluded(_))));
+    // The fresh fold re-traverses once for the removed tenure.
+    assert_eq!(goal.cutoff_traversals(), 1);
+}
+
+/// A missing cutoff ancestor caches a pending result only for this fold:
+/// once it arrives, the next fold re-traverses and retains the branch.
+#[test]
+fn missing_cutoff_ancestor_waits_and_retraverses_on_arrival() {
+    let mut f = Fixture::new(Formation::default());
+    let context = f.context();
+    let first = f.publish(0, context);
+    let last = f.publish(0, context);
+    let point = AuthorPoint {
+        seq: f.event(last).header().seq,
+        id: last,
+    };
+    f.admin(Body::MemberRemoved {
+        member: f.workers[0].key.public(),
+        admission: f.admissions[1],
+        last_accepted: Some(point),
+    });
+    // Drop the cutoff point from history so its ancestry is missing.
+    let mut events: Vec<Event> = f
+        .events
+        .iter()
+        .filter(|event| event.id() != last)
+        .cloned()
+        .collect();
+    let mut goal = Goal::new(f.id);
+    goal.apply(&events, &f.definitions);
+    assert!(goal.standing(&first).unwrap().is_pending());
+    // The missing ancestor is traversed once and the pending result is reused.
+    assert_eq!(goal.cutoff_traversals(), 1);
+    // Restore the missing ancestor and refold: the branch is retained.
+    events.push(f.event(last).clone());
+    goal.apply(&[f.event(last).clone()], &f.definitions);
+    assert_eq!(goal.standing(&first), Some(Standing::Effective));
+    assert_eq!(goal.standing(&last), Some(Standing::Effective));
+    // The fresh fold re-traverses once and caches the now-complete ancestry.
+    assert_eq!(goal.cutoff_traversals(), 1);
+}

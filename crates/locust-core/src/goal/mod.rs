@@ -143,6 +143,12 @@ impl Goal {
     pub(crate) fn refold_count(&self) -> usize {
         self.refolds
     }
+    /// Number of cutoff-ancestry traversals performed in the last fold. One
+    /// per removed tenure regardless of how many retained events authorize.
+    #[cfg(test)]
+    pub(crate) fn cutoff_traversals(&self) -> usize {
+        self.chain.cutoff_traversals.get()
+    }
     pub fn len(&self) -> usize {
         self.history.events.len()
     }
