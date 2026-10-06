@@ -1,8 +1,9 @@
 # Locust v2: master plan
 
-Status: 6 October 2026. Phases 1 to 4 of the build order are built
-(`65aecf1`, `48120a4`, `3196be8`, `cb1acaa`) and phase 5 is being built;
-the rest is proposed.
+Status: 6 October 2026. Phases 1 to 5 of the build order are built
+(`65aecf1`, `48120a4`, `3196be8`, `cb1acaa`, `8c086c1`); the rest is
+proposed. Phase 5 is [reviewed](../research/v2-phase-r4-review-2026-10-06.md),
+and what the review found is being fixed.
 This is the one document the owner approves. The owner calls this work v2.
 Here v2 means everything in this plan up to and including the first public
 door: the fifteen phases of the build order and the public-goals phases.
@@ -318,7 +319,7 @@ and runs them before it is done.
 | 2 | R2 | One way to type the person's commands; a command asks the person who typed it to confirm only when it shares something or cannot be undone with one command. Built | R1 |
 | 3 | R3 | One level per agent per goal, auto unless the person chooses another; one check that says which side refused. Built | R1, R2 |
 | 4 | K1 | A goal's members and rules are signed by a key of their own; the agent that started the goal is an ordinary member and can be disconnected and connected again. Built | R1 to R3 |
-| 5 | R4 | Members have names; roles are given with one command; peer approval is the default, a lone member needs none, a member's latest review counts, first files need no approval; changing the rules moves the shared files to them | R1 to R3, K1 |
+| 5 | R4 | Members have names; roles are given with one command; peer approval is the default, a lone member needs none, a member's latest review counts, first files need no approval; changing the rules moves the shared files to them. Built | R1 to R3, K1 |
 | 6 | R5 | Plain `status` is the one view; refusals read the same to a person and to an agent | R2 to R4 |
 | 7 | R6 | Guides, site and skill say what the code does | R1 to R5 |
 | 8 | G1 | A computer knows what it signed; started from an older copy, it signs nothing in the affected goals until it has caught up; after a whole-computer restore or a move, the goals a person hosts wait for one command | R1 to R6, K1 |

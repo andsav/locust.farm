@@ -2429,13 +2429,15 @@ the host agent's own changes included.
   a role that picks or closes under it would not have one holder.
   `MemberRemoved` drops the member from every list and an emptied list gets
   the host agent; an effective `MemberAdmitted` that names a role adds the new
-  member to that role's list, starting it if there is none, with no test of
-  the role's kind, as for a role record; `RoleHolders` sets one list, starting
+  member to that role's list, starting it with the host agent in it if there
+  is none, with no test of the role's kind, as for a role record; `RoleHolders` sets one list, starting
   it if there is none, when its holders are non-empty, ascending and
   admitted. No list is ever
   removed. A binding whose definition is not held yet waits as today and
   fills nothing until it arrives; none of these rules reads another
-  binding's definition. New in state.rs beside it: `Member.name` and
+  binding's definition. A list an admission starts holds the host agent for
+  that reason: a computer still waiting for the formation that declared the
+  role reads the same list as one that holds it. New in state.rs beside it: `Member.name` and
   `State.roles`.
 - [fold.rs](../crates/locust-core/src/goal/fold.rs): `Verifier::resolve`
   takes an anchor and caches by `(Context, EventId)`. Every caller passes the
@@ -2478,7 +2480,10 @@ the host agent's own changes included.
   wants a review request only for a result that does not yet count
   (`approval` finds no evidence for it), that no decision has selected, and
   whose task is open, so giving a role or admitting a member does not sign
-  one request per past result. A result that stops counting because an
+  one request per past result. It wants an automatic offer only for a stage
+  task that is open in the same sense (not closed, not finished, nothing
+  picked), so neither signs one offer per past stage task. A result that
+  stops counting because an
   approver's latest review is a reject is again one that does not yet
   count; a reviewer who already has a request for it gets no second one,
   because the effect's identity is the same.
@@ -2488,7 +2493,7 @@ the host agent's own changes included.
   symbol of its own (new `Atom::OnlyMember`), so a subtask inherits the
   only-member part and a task type cannot widen it to every member.
   [mod.rs](../crates/locust-core/src/goal/mod.rs): `effective_rules` and
-  `selected_rules` pass `state().roles`; new `Goal::role_holders`. In
+  `selected_rules` pass `state().roles`. In
   projection.rs, `project` sorts a scope's decisions by
   `(anchor position, author, seq, id)`.
 - A review the rule does not ask for, in
@@ -2587,7 +2592,11 @@ the host agent's own changes included.
 - [invitations.rs](../crates/locust-core/src/node/requests/invitations.rs):
   `goal_invite` takes `role` and refuses one with no list or a deciding one;
   `goal_join` takes `name` and signs it into its `JoinRequest`;
-  `InviteRecord`, and `JoinRecord` in node/local.rs, store the new fields.
+  `InviteRecord` stores the role and `JoinRecord` in node/local.rs the name
+  and the ticket's host name; the host's own name is signed into the ticket
+  and kept nowhere else. A join that is still waiting can be run again with
+  another `--name`, which replaces the request's name as a re-run replaces
+  its level.
   [peers.rs](../crates/locust-core/src/node/peers.rs): `plan_join` signs the
   admission with the joiner's name and the role the invitation carries, in
   one record. It signs no `RoleHolders`: the host's daemon signs a role record
@@ -2647,7 +2656,9 @@ the host agent's own changes included.
   `--completion` or in a formation, it first prints `This replaces the
   rule you gave the shared files.` When N changes of the current epoch
   have not landed it prints `N file changes that have not landed must be
-  proposed again by their authors.` The plan's `review` adds the tree's
+  proposed again by their authors.` N counts only changes the change of
+  rules strands: proposed on the current head, not landed, and not already
+  out of date. The plan's `review` adds the tree's
   epoch and the rule the files will follow. The count is printed as read
   and is not in the `review`, and neither is the head, so a change that is
   posted or lands between the plan and the yes does not void the yes. The
@@ -2684,7 +2695,9 @@ the host agent's own changes included.
   otherwise in single quotes, with a `'` inside written `'\''`. For a
   role the current rules do not declare, either command prints, in place of
   what the role does, `ROLE is not in the current rules. It still applies
-  to work under earlier rules.` `goal create`, `goal add` and
+  to work under earlier rules.` For a role the current rules list and no
+  rule names, it prints `No rule in the current rules names ROLE, so it
+  changes nothing yet.` `goal create`, `goal add` and
   `goal join` gain `--name`; it defaults to the agent's enrolled local name,
   and each plan shows the name the agent will carry. `goal invite` and `goal
   add` gain `--role ROLE` and `--no-role`; `goal create` and `rules bind`
@@ -2697,9 +2710,22 @@ the host agent's own changes included.
   The plan names the role, as in `Add claude-juniper-77aa0c52 to "Parser
   cleanup" as Juniper, a reviewer, at level auto.`, and `--no-role` or
   another `--role` says otherwise. So a `review-panel` goal counts results
-  once it has three members, with no `role give`.
+  once it has three members, with no `role give`. `rules bind` does the same
+  for the members already in the goal: when the new rules have a counting
+  role whose list does not yet hold them, the host's daemon signs, in the
+  same commit as the rules, one role record that gives the role to every
+  member, and the plan and the result say `Everyone in the goal becomes a
+  ROLE.` with the `role take` that undoes it for one member. `rules bind`
+  gains `--no-role`, which leaves the list as it is; the plan then says how
+  many reviewers are missing and prints the `role give` for each member.
   [selectors.rs](../crates/locust/src/cli/selectors.rs): `resolve_member`
-  from Phase 2 also matches a member's name, after key and key prefix.
+  from Phase 2 also matches a name, after key and key prefix. A name is a
+  member's signed name or the enrolled name of one of the person's own
+  agents in the goal, taken together: one member under that name resolves,
+  the same agent matching both ways is one member, and two different members
+  are refused as `invalid` with each listed by name and key prefix. A value
+  that is both a key prefix and another member's name is refused the same
+  way, so nobody picks a member by naming an agent after its key.
   [presentation.rs](../crates/locust/src/cli/presentation.rs): new
   `member_label`, which always prints the member's name with the first eight
   characters of its key, through `safe`. A record the governance key signed
@@ -3115,16 +3141,23 @@ the host agent's own changes included.
   the host's computer signs by itself asks.
 - Review requests follow the holders at the head, but only for a result that
   does not yet count on an open task, so a new reviewer or member is not
-  sent every past result. A request signed earlier stays valid.
+  sent every past result. A request signed earlier stays valid. Automatic
+  offers follow the same rule: only a stage task that is still open is
+  offered to a new member or holder.
 - What a changed review cannot do. It does not undo a pick, a plan text, a
   file change or an opened stage: each is judged on the reviews its record
   pinned. A member whose role was taken can no longer review, so the last
   review it gave while it held the role is the one read; for a removed
   member it is the last review the removal keeps. That holds for an honest
-  daemon. A record is judged at the anchor it names, and the only bound on
-  an author's anchors is that they do not go backward. So a modified
-  daemon that keeps anchoring where it still held a role keeps reviewing
-  there until the host removes the member. An opinion changes none of
+  daemon. A record is judged at the anchor it names, and an author's
+  anchors do not go backward. Replay adds one bound for a review, a named
+  check and a declaration: the record does not count when its anchor is
+  earlier on the host's chain than its subject's. So a modified daemon that
+  keeps anchoring where it still held a role cannot review a result another
+  member posted after the role was taken. What is left: it can still review
+  results anchored at or before the record it stays on, its own new results
+  among them under rules that let an author's role review, until the host
+  removes the member, and a removal keeps the reviews it gave before. An opinion changes none of
   this: it exists only where the rule asks for no review. A reviewer whose log
   forks loses its records from the fork on, so a reject lost that way lets
   the approval before it count again, as it counts today. An author's
@@ -3165,6 +3198,12 @@ the host agent's own changes included.
 - `is_role_name` keeps the rule formations follow today, so no formation
   that validates now is refused; a role name's length is bounded by the
   header and invitation limits.
+- One role holds about 500 members, because a role record carries the whole
+  list in one header. Above that the list still grows by admission, which
+  names one member, and `role give` and `role take` answer `limit_exceeded`
+  in plain words: the role holds the most members one record can carry, so
+  remove a member from the goal or use another role. A record that names one
+  member added or taken would lift the limit and is left for later.
 - A named check is unchanged: one passing attestation by a member the rule
   names counts, the author's own included, and no formation's hash moves
   for it. A count and an author exclusion for checks are left for later.
