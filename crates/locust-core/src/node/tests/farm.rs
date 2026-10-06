@@ -774,3 +774,6 @@ fn duplicate_upstream_stage_prerequisites_are_deduplicated_in_snapshot() {
     );
     let _ = downstream_task;
 }
+
+#[path = "farm_characterization.rs"]
+mod lifecycle_characterization;

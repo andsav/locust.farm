@@ -968,6 +968,7 @@ fn semantic_snapshot(json: Option<&str>) -> Option<serde_json::Value> {
 
 #[cfg(test)]
 mod tests {
+    mod lifecycle_characterization;
     use super::*;
     use axum::{body::Body, http::Request};
     use http_body_util::BodyExt;

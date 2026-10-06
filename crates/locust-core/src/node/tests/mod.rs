@@ -297,3 +297,5 @@ pub(super) fn snapshot(store: &MemStore) -> MemStore {
     copy.commit(&commit).unwrap();
     copy
 }
+
+mod lifecycle_characterization;

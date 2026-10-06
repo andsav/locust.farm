@@ -78,3 +78,5 @@ const REPLACED_AFTER_MS: u64 = 2_000;
 /// The frame limit the shell grants for one fork proof
 /// (`EVIDENCE_FRAME_BYTES` in the network shell).
 const EVIDENCE_FRAME_BYTES: usize = 2 * (locust_proto::limits::MAX_HEADER_BYTES + 128);
+
+mod lifecycle_characterization;

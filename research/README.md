@@ -24,6 +24,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 - [Gas Town lessons for shared workspaces](gastown-shared-workspace-assessment.md)
 - [Organization design research](formations.md)
 - [Host-key failure characterization](host-key-failure-characterization-2026-10-05.md)
+- [Goal lifecycle characterization](goal-lifecycle-characterization-2026-10-05.md)
 - [Replacing a host that is gone: groundwork, four designs and what survived](replacing-a-host-2026-10-05.md)
 - [Ending a goal and cleaning up: what exists, one design and what broke](ending-a-goal-2026-10-05.md)
 - [hcom dissection and reuse assessment](hcom-dissection.md)

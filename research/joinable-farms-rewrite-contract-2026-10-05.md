@@ -25,6 +25,15 @@ assign the rewrite from this text: the contract is revised first, after the
 phases for the governance key, the restore guard and ending a goal are
 written, because three of the findings depend on them.
 
+The revision also reads the [goal lifecycle characterization](goal-lifecycle-characterization-2026-10-05.md), which
+measured several things this contract only read from the code. Two differ
+from what is said below: a removed computer that is given a fresh invitation
+answers "joined" from its stale view and is not admitted, where this contract
+says its stale view refuses the ticket; and the page is suspended by the
+highest consent the publisher holds for a member, even an excluded one that
+accepts. It confirms that the farm service answers an identical request at an
+old sequence from its stored receipt.
+
 ## Answered by the owner after the contract was written
 
 On 2026-10-05 the owner answered four of the decisions listed at the end.

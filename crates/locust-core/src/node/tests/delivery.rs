@@ -679,3 +679,6 @@ fn restored_host_known_gap_blocks_signing_until_missing_predecessor_arrives() {
             .is_none()
     );
 }
+
+#[path = "delivery_characterization.rs"]
+mod lifecycle_characterization;

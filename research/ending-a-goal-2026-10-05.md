@@ -9,6 +9,29 @@ cited passage was checked again at `6b924d0`; no cited code file changed in
 between except test files. Tests are named; they were found by search, not
 run. Code is cited by file name and line; section 10 links each file.
 
+Measured after this note was written, in [goal lifecycle
+characterization](goal-lifecycle-characterization-2026-10-05.md) (`c9c3b2c`). Four statements below are corrected by
+it and are left as written:
+
+- A leave request is not invisible to the host. The event list and the event
+  view show it. No status line, roster or pending action does, and the leaver
+  keeps receiving records and new content keys until removed.
+- A close on the goal scope is kept in the shared decisions and can be
+  reopened; the public snapshot then says ended. Work, new tasks and
+  admissions continue after it.
+- Revoking the host's agent is local and lasting, with no command that
+  reverses it. It is not a shared halt, and an older copy of the store still
+  holds the unrevoked key.
+- The publisher suspends the page on the highest consent it holds for a
+  member, even one that is pending or excluded and even when it accepts. A
+  replayed older consent does not suspend it.
+
+It also confirms that a computer removed while off is refused on every dial
+and never told (39 refusals in ten simulated minutes), that a fresh
+invitation then answers "joined" from its stale view with no new admission,
+that an agent that left cannot withdraw its page consent, and that a quiet
+goal of three opens 720 exchanges in an hour.
+
 Answered by the owner after this note was written (2026-10-05): governance is
 signed by a key that does nothing else, separate from the host's working
 agent; a host may name one backup host, who can take over alone, and naming
