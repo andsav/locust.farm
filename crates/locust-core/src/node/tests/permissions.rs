@@ -1,9 +1,10 @@
 //! Owner permission controls preserve independent categories and observation.
 
-use super::lifecycle::{authorize, offered, setup};
+use super::lifecycle::{authorize, event, offered, setup};
 use super::*;
 use locust_proto::api::{GoalPermission, GoalPermissions};
 use locust_proto::id::GoalId;
+use locust_proto::store::Store;
 
 fn inspect(daemon: &mut Daemon, owner: ConnId, goal: GoalId, agent: PublicKey) -> GoalPermissions {
     let Response::Permissions(view) = daemon.ok(owner, Request::Permissions { goal, agent }) else {
@@ -218,4 +219,102 @@ fn owner_inbox_identifies_person_and_task_without_consuming_or_authorizing() {
             .task_authorizations
             .is_empty()
     );
+}
+
+/// `task.revise` is a host act: it rebinds a task to the current rules and
+/// supersedes every attempt on the old round. The `contribute` grant must
+/// not authorize it; only the goal's administrator with the `administer`
+/// grant (or the owner on its behalf) may revise a task.
+#[test]
+fn task_revise_requires_the_administer_grant_not_contribute() {
+    let (mut d, principal, owner, agent, goal) = setup();
+    let (task, _) = offered(&mut d, agent, goal, principal);
+    let round = d.node.goals[&goal].state().tasks[&task].current_round;
+    let before = d.store.log(&goal, 0, usize::MAX).unwrap().len();
+
+    // A `contribute` grant alone is not enough: with `administer` revoked the
+    // principal's own agent is refused and records nothing.
+    d.ok(
+        owner,
+        Request::PermissionRevoke {
+            goal,
+            agent: principal,
+            permissions: vec![GoalPermission::Administer],
+        },
+    );
+    assert!(inspect(&mut d, owner, goal, principal).grants.contribute);
+    assert!(!inspect(&mut d, owner, goal, principal).grants.administer);
+    assert_eq!(
+        code(d.call(
+            agent,
+            Request::TaskRevise {
+                goal,
+                task,
+                expected_round: round,
+                task_type: None,
+            }
+        )),
+        ErrorCode::AuthorizationRequired
+    );
+    assert_eq!(d.store.log(&goal, 0, usize::MAX).unwrap().len(), before);
+
+    // The owner's direct act stands in for the grant, so revising on the
+    // principal's behalf still succeeds while `administer` is revoked.
+    event(
+        d.on_behalf(
+            owner,
+            principal,
+            Request::TaskRevise {
+                goal,
+                task,
+                expected_round: round,
+                task_type: None,
+            },
+        )
+        .unwrap(),
+    );
+    let round = d.node.goals[&goal].state().tasks[&task].current_round;
+
+    // Restoring `administer` lets the principal's own agent revise again.
+    d.ok(
+        owner,
+        Request::PermissionAllow {
+            goal,
+            agent: principal,
+            permissions: vec![GoalPermission::Administer],
+        },
+    );
+    event(d.ok(
+        agent,
+        Request::TaskRevise {
+            goal,
+            task,
+            expected_round: round,
+            task_type: None,
+        },
+    ));
+
+    // `administer` is the grant that authorizes a revision, not `contribute`:
+    // with `contribute` revoked (and `administer` retained) revision still
+    // succeeds.
+    d.ok(
+        owner,
+        Request::PermissionRevoke {
+            goal,
+            agent: principal,
+            permissions: vec![GoalPermission::Contribute],
+        },
+    );
+    let round = d.node.goals[&goal].state().tasks[&task].current_round;
+    event(d.ok(
+        agent,
+        Request::TaskRevise {
+            goal,
+            task,
+            expected_round: round,
+            task_type: None,
+        },
+    ));
+    assert!(!inspect(&mut d, owner, goal, principal).grants.contribute);
+    assert!(inspect(&mut d, owner, goal, principal).grants.administer);
 }

@@ -1065,3 +1065,166 @@ fn an_invalid_formation_is_refused_without_naming_an_api_operation() {
     assert_eq!(refused.code, ErrorCode::Invalid);
     names_no_operation(&refused);
 }
+
+/// A task close or reopen carries no subject, and the engine's `decision`
+/// check requires no evidence for `Close` or `Reopen`: only the finish
+/// authority, the same-stream `previous` and the proof (whose roots are
+/// `context.round` and `previous`) matter. The former node code embedded
+/// every approved contribution (and each one's own evidence) in one header,
+/// so with enough approved work a single close exceeded the signed header
+/// cap and could not be recorded. The sufficient witness is empty.
+#[test]
+fn closing_a_task_with_many_approved_contributions_stays_within_the_header_cap() {
+    use locust_proto::event::{Body, Scope};
+    use locust_proto::limits::MAX_HEADER_BYTES;
+    use locust_proto::organization::{
+        Authority, CompletionRule, DecisionRules, Formation, Selector,
+    };
+
+    let (mut d, principal, owner, agent, _) = setup();
+    // A formation under which a contribution counts as complete the moment it
+    // is published (its author is a member), and whose finish decider is the
+    // principal, so the principal may close and reopen the task.
+    let formation = Formation {
+        decisions: DecisionRules {
+            completion: CompletionRule::Contribution {
+                by: Selector::Members,
+            },
+            selection: None,
+            finish: Some(Authority::Participant {
+                key: principal.to_string(),
+            }),
+        },
+        ..Default::default()
+    };
+    let Response::GoalCreated { goal } = d.ok(
+        agent,
+        Request::GoalCreate {
+            title: "Many results".into(),
+            formation_json: Some(serde_json::to_string(&formation).unwrap()),
+            roles: std::collections::BTreeMap::new(),
+            inputs: Default::default(),
+        },
+    ) else {
+        panic!()
+    };
+    d.ok(
+        owner,
+        Request::GoalGrant {
+            goal,
+            agent: principal,
+            grants: GoalGrants {
+                administer: true,
+                contribute: true,
+                review: true,
+                select: true,
+                flow: true,
+                ..Default::default()
+            },
+        },
+    );
+    let task = TaskId::Authored(event(d.ok(
+        agent,
+        Request::TaskOpen {
+            goal,
+            text: "Produce many results".into(),
+            task_type: None,
+            inputs: Default::default(),
+            parent: None,
+        },
+    )));
+    // More approved contributions than fit in a 16 KiB header as evidence:
+    // each approved contribution added its own id (32 bytes) under the old
+    // code, so 600 of them alone occupy ~18.8 KiB before any header overhead.
+    const APPROVED: usize = 600;
+    for index in 0..APPROVED {
+        let contribution = event(d.ok(
+            agent,
+            Request::ContributionPublish {
+                goal,
+                task: Some(task),
+                attempt: None,
+                generation: None,
+                summary: format!("result {index}"),
+                sources: Vec::new(),
+                artifacts: vec![],
+            },
+        ));
+        let Response::Contributions(contributions) = d.ok(
+            agent,
+            Request::Contributions {
+                goal,
+                task: Some(task),
+            },
+        ) else {
+            panic!()
+        };
+        let found = contributions
+            .iter()
+            .find(|view| view.contribution == contribution)
+            .expect("the contribution is recorded");
+        assert!(found.approved, "result {index} should count as complete");
+    }
+    let before = d.store.log(&goal, 0, usize::MAX).unwrap().len();
+    let closed = event(d.ok(
+        agent,
+        Request::ScopeClose {
+            goal,
+            scope: Scope::Task(task),
+            expected: None,
+        },
+    ));
+    assert_eq!(d.store.log(&goal, 0, usize::MAX).unwrap().len(), before + 1);
+    let close_event = d.store.event(&closed).unwrap().unwrap();
+    let Body::ScopeDecided { evidence, .. } = &close_event.header().body else {
+        panic!("close event: {:?}", close_event.header().body)
+    };
+    assert!(
+        evidence.is_empty(),
+        "a close carries no subject and needs no evidence"
+    );
+    assert!(close_event.header_bytes().len() <= MAX_HEADER_BYTES);
+    assert!(
+        d.node.goals[&goal].state().tasks[&task]
+            .rounds
+            .values()
+            .next()
+            .unwrap()
+            .closed
+    );
+    let reopened = event(d.ok(
+        agent,
+        Request::ScopeReopen {
+            goal,
+            scope: Scope::Task(task),
+            expected: Some(closed),
+        },
+    ));
+    let reopen_event = d.store.event(&reopened).unwrap().unwrap();
+    let Body::ScopeDecided { evidence, .. } = &reopen_event.header().body else {
+        panic!("reopen event: {:?}", reopen_event.header().body)
+    };
+    assert!(evidence.is_empty());
+    assert!(reopen_event.header_bytes().len() <= MAX_HEADER_BYTES);
+    assert!(
+        !d.node.goals[&goal].state().tasks[&task]
+            .rounds
+            .values()
+            .next()
+            .unwrap()
+            .closed
+    );
+    // The approved contributions remain readable and still count; the close
+    // did not drop or reinterpret any work.
+    let Response::Contributions(contributions) = d.ok(
+        agent,
+        Request::Contributions {
+            goal,
+            task: Some(task),
+        },
+    ) else {
+        panic!()
+    };
+    assert_eq!(contributions.len(), APPROVED);
+    assert!(contributions.iter().all(|view| view.approved));
+}

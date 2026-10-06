@@ -105,8 +105,11 @@ impl<S: Store, E: Entropy> Node<S, E> {
         task_type: Option<String>,
         now: u64,
     ) -> Plan {
-        let (entry, principal) = self.member(actor, &goal)?;
-        self.require_grant(actor, entry, entry.local.grants(&principal).contribute)?;
+        // Revising a task binds it to the current rules and supersedes every
+        // attempt on its old round, so it is a host act: the goal's
+        // administrator with the `administer` grant, or the owner on its
+        // behalf. A `contribute` grant does not authorize it.
+        let (entry, principal) = self.administrator(actor, &goal)?;
         let context = task_context(entry, task)?;
         if context.round != expected_round {
             return Err(conflict("the task round changed"));
@@ -350,15 +353,15 @@ impl<S: Store, E: Entropy> Node<S, E> {
             .goal
             .current_context(scope)
             .ok_or_else(|| not_found("no such current scope"))?;
-        let evidence = entry
-            .state()
-            .contributions
-            .values()
-            .filter(|contribution| contribution.context == context && contribution.approved)
-            .flat_map(|contribution| {
-                std::iter::once(contribution.id).chain(contribution.evidence.iter().copied())
-            })
-            .collect();
+        // A close or reopen carries no subject and the engine's `decision`
+        // check requires no evidence for it: the signer must be the named
+        // finish authority, `previous` must belong to the same stream, and
+        // the proof roots (`context.round` and `previous`) are added by the
+        // proof builder itself. Embedding every approved contribution (and
+        // each one's own evidence) is not required and is unbounded: with
+        // enough approved work a single close would exceed the signed header
+        // cap. The sufficient witness is therefore empty, the same witness
+        // the engine tests use for `Close` and `Reopen`.
         self.scope_decide(
             actor,
             goal,
@@ -369,7 +372,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             } else {
                 DecisionAction::Close
             },
-            evidence,
+            Vec::new(),
             now,
         )
     }
