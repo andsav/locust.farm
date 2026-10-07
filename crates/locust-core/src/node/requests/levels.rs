@@ -196,10 +196,12 @@ impl<S: Store, E: Entropy> Node<S, E> {
             .get(&found.current_round)
             .ok_or_else(|| not_found("no current task round"))?;
         if round.closed || round.completed || round.selected.is_some() {
-            return Err(self.refused_error(
+            // Nothing was started here: the allowance is for taking the task.
+            return Err(self.refusal(
                 entry,
                 agent,
-                &crate::node::access::Attempted::Resume { task },
+                locust_proto::api::Act::TakeTask,
+                Some(task),
                 locust_proto::api::Why::State {
                     reason: "this task is closed, finished or picked".into(),
                 },

@@ -1,5 +1,5 @@
 //! Role and name changes through the daemon's authenticated request seam.
-use super::lifecycle::{event, finding};
+use super::lifecycle::{event, finding, offered, progress};
 use super::*;
 use locust_proto::api::{GoalStatus, Level, Membership};
 use locust_proto::event::{Body, ReviewVerdict};
@@ -319,14 +319,20 @@ fn oversized_role_give_and_take_report_a_plain_limit_and_sign_nothing() {
         assert_eq!(error.code, ErrorCode::LimitExceeded);
         assert!(error.message.contains("reviewer"));
         assert!(error.message.contains("too many holders"));
+        assert!(
+            error
+                .message
+                .contains("Remove a member from the goal or use another role.")
+        );
         assert!(!error.message.contains("header"));
         assert_eq!(records(&d, goal), before);
     }
     let expected_rules = d.node.goals[&goal].state().current_rules.unwrap();
-    assert_eq!(
-        code(bind(&mut d, owner, goal, formation("review-panel"))),
-        ErrorCode::LimitExceeded
-    );
+    let error = bind(&mut d, owner, goal, formation("review-panel")).unwrap_err();
+    assert_eq!(error.code, ErrorCode::LimitExceeded);
+    assert!(error.message.contains("every member a \"reviewer\""));
+    assert!(error.message.contains("--no-role"), "{}", error.message);
+    assert!(!error.message.contains("another role"), "{}", error.message);
     assert_eq!(records(&d, goal), before);
     assert_eq!(
         d.node.goals[&goal].state().current_rules,
@@ -435,20 +441,97 @@ fn rules_bind_gives_the_counting_role_in_one_commit_unless_no_role_is_set() {
 }
 
 #[test]
+fn binding_counted_reviews_over_rules_where_one_reviewer_acts_alone_gives_the_role_to_no_one() {
+    let (mut d, host, owner, lead, goal) = setup(Some("directed"));
+    let (maple, maple_conn) = join(&mut d, owner, goal, 2, "Maple", None);
+    let (task, offer) = offered(&mut d, lead, goal, maple);
+    let Response::Claimed(claim) = d.ok(
+        maple_conn,
+        Request::AttemptStart {
+            goal,
+            task,
+            offer: Some(offer),
+        },
+    ) else {
+        panic!()
+    };
+    assert!(
+        status(&mut d, owner, goal)
+            .acting_alone
+            .contains("reviewer")
+    );
+    let before = records(&d, goal);
+    bind(&mut d, owner, goal, formation("review-panel")).unwrap();
+    // One record: the binding alone, no role list.
+    assert_eq!(records(&d, goal), before + 1);
+    assert_eq!(d.node.goals[&goal].state().roles["reviewer"], vec![host]);
+    // The open task keeps the directed rules, under which one reviewer
+    // approves alone, even its own result; Maple holds no role there.
+    d.ok(maple_conn, progress(goal, claim.attempt, 1));
+    let result = event(d.ok(
+        maple_conn,
+        Request::ContributionPublish {
+            goal,
+            attempt: Some(claim.attempt),
+            generation: Some(1),
+            summary: "done".into(),
+            sources: Vec::new(),
+            artifacts: vec![],
+        },
+    ));
+    let _ = d.call(
+        maple_conn,
+        Request::ReviewRecord {
+            goal,
+            subject: result,
+            verdict: ReviewVerdict::Approve,
+            text: "mine".into(),
+        },
+    );
+    assert!(!approved(&d, goal, result));
+    d.ok(
+        lead,
+        Request::ReviewRecord {
+            goal,
+            subject: result,
+            verdict: ReviewVerdict::Approve,
+            text: "reviewed".into(),
+        },
+    );
+    assert!(approved(&d, goal, result));
+    // Without such earlier rules the bind gives the role as before.
+    let (mut d, host, owner, _, goal) = setup(Some("peer-review"));
+    let (maple, _) = join(&mut d, owner, goal, 2, "Maple", None);
+    assert!(status(&mut d, owner, goal).acting_alone.is_empty());
+    bind(&mut d, owner, goal, formation("review-panel")).unwrap();
+    let mut holders = vec![host, maple];
+    holders.sort();
+    assert_eq!(d.node.goals[&goal].state().roles["reviewer"], holders);
+}
+
+#[test]
 fn an_invitation_role_is_given_on_admission_and_an_authority_role_is_refused_at_issue() {
     let (mut d, _, owner, agent, goal) = setup(Some("directed"));
     for role in ["lead", "absent"] {
-        assert_eq!(
-            code(d.call(
+        let error = d
+            .call(
                 owner,
                 Request::GoalInvite {
                     goal,
                     role: Some(role.into()),
-                    expires_ms: 1_000_000
-                }
-            )),
-            ErrorCode::Invalid
-        );
+                    expires_ms: 1_000_000,
+                },
+            )
+            .unwrap_err();
+        assert_eq!(error.code, ErrorCode::Invalid);
+        let details: serde_json::Value =
+            serde_json::from_str(error.details_json.as_deref().unwrap()).unwrap();
+        assert_eq!(details["role"], role);
+        if role == "absent" {
+            // The goal's roles travel with the refusal so the person can
+            // pick the right one without a second command.
+            assert_eq!(details["roles"], serde_json::json!(["lead", "reviewer"]));
+        }
     }
     let before = records(&d, goal);
     let (member, _) = join(&mut d, owner, goal, 2, "Maple", Some("reviewer"));

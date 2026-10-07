@@ -205,6 +205,7 @@ fn level_and_allow_apply_in_one_run_and_print_an_undo_that_names_the_agent() {
                     host_name: Some("Host".into()),
                     roles: Default::default(),
                     deciding: Default::default(),
+                    acting_alone: Default::default(),
 
                     goal,
                     title: Some("Goal title".into()),
@@ -1036,7 +1037,7 @@ fn goal_invite_defaults_to_seven_days_and_never_impersonates_the_host_agent() {
             assert_eq!(selected, goal);
             return Ok(Response::GoalStatus(
                 serde_json::from_value(json!({
-                    "goal":goal,"title":"Demo","governance":PublicKey([9;32]),"hosted_here":true,"host_name":"Host","roles":{},"deciding":[],"host":PublicKey([2;32]),
+                    "goal":goal,"title":"Demo","governance":PublicKey([9;32]),"hosted_here":true,"host_name":"Host","roles":{},"deciding":[],"acting_alone":[],"host":PublicKey([2;32]),
                     "governance_head":null,"current_rules":null,"scope_halts":[],
                     "members":[],"halted":null,"abilities":[],"stalled":[],"peers":[]
                 }))
@@ -1131,7 +1132,7 @@ fn changed_goal_title_refuses_an_invitation_confirm_without_issuing_a_ticket() {
             Ok(Response::GoalStatus(
                 serde_json::from_value(json!({
                     "goal":goal,"title":if reads < 3 {"Demo"} else {"Renamed"},
-                    "governance":PublicKey([9;32]),"hosted_here":true,"host_name":"Host","roles":{},"deciding":[],"host":PublicKey([2;32]),"governance_head":null,"current_rules":null,
+                    "governance":PublicKey([9;32]),"hosted_here":true,"host_name":"Host","roles":{},"deciding":[],"acting_alone":[],"host":PublicKey([2;32]),"governance_head":null,"current_rules":null,
                     "scope_halts":[],"members":[],"halted":null,
                     "abilities":[],"stalled":[],"peers":[]
                 }))
@@ -1228,7 +1229,7 @@ fn member_selector_resolves_local_name_and_visible_key_prefix() {
             assert_eq!(selected, goal);
             Ok(Response::GoalStatus(
                 serde_json::from_value(json!({
-                    "goal":goal,"title":"Demo","governance":PublicKey([9;32]),"hosted_here":true,"host_name":"Host","roles":{},"deciding":[],"host":PublicKey([2;32]),
+                    "goal":goal,"title":"Demo","governance":PublicKey([9;32]),"hosted_here":true,"host_name":"Host","roles":{},"deciding":[],"acting_alone":[],"host":PublicKey([2;32]),
                     "governance_head":null,"current_rules":null,"scope_halts":[],
                     "members":[{"member":worker,"name":"Member","endpoint":EndpointId([3;32]),"local":true,"admitted":0}],
                     "halted":null,"abilities":[],"stalled":[],"peers":[]
@@ -1279,6 +1280,7 @@ fn hosted_goal_status(
         host_name: Some("Host".into()),
         roles: Default::default(),
         deciding: Default::default(),
+        acting_alone: Default::default(),
 
         goal,
         title: Some("Demo".into()),
@@ -1612,7 +1614,7 @@ fn subtask_revision_plan_names_parent_rules() {
             assert_eq!(selected, goal);
             Ok(Response::GoalStatus(
                 serde_json::from_value(json!({
-                    "goal":goal,"title":"Demo","governance":PublicKey([9;32]),"hosted_here":true,"host_name":"Host","roles":{},"deciding":[],"host":PublicKey([2;32]),
+                    "goal":goal,"title":"Demo","governance":PublicKey([9;32]),"hosted_here":true,"host_name":"Host","roles":{},"deciding":[],"acting_alone":[],"host":PublicKey([2;32]),
                     "governance_head":null,"current_rules":null,"scope_halts":[],
                     "members":[],"halted":null,"abilities":[],"stalled":[],"peers":[]
                 }))
@@ -1716,7 +1718,7 @@ fn invitation_revoke_all_runs_immediately_and_reports_count() {
             assert_eq!(selected, goal);
             Ok(Response::GoalStatus(
                 serde_json::from_value(json!({
-                    "goal":goal,"title":"Demo","governance":PublicKey([9;32]),"hosted_here":true,"host_name":"Host","roles":{},"deciding":[],"host":PublicKey([2;32]),
+                    "goal":goal,"title":"Demo","governance":PublicKey([9;32]),"hosted_here":true,"host_name":"Host","roles":{},"deciding":[],"acting_alone":[],"host":PublicKey([2;32]),
                     "governance_head":null,"current_rules":null,"scope_halts":[],
                     "members":[],"halted":null,"abilities":[],"stalled":[],"peers":[]
                 }))

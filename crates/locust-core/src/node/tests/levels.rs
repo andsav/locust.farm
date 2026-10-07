@@ -201,6 +201,8 @@ fn allowance_survives_close_reopen_but_not_a_revision() {
     let refused: locust_proto::api::Refused =
         serde_json::from_str(error.details_json.as_deref().unwrap()).unwrap();
     assert!(matches!(refused.why, Why::State { .. }));
+    assert_eq!(refused.act, locust_proto::api::Act::TakeTask);
+    assert_eq!(refused.task, Some(task));
     d.ok(
         agent,
         Request::ScopeReopen {

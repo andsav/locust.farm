@@ -24,14 +24,15 @@ pub fn is_authority_role(formation: &Formation, role: &str) -> bool {
         .contains(role)
 }
 
-pub fn role_duties(formation: &Formation, role: &str) -> BTreeSet<RoleDuty> {
-    fn names(selector: &Selector, role: &str) -> bool {
-        match selector {
-            Selector::Role { name } => name == role,
-            Selector::Any { selectors } => selectors.iter().any(|s| names(s, role)),
-            _ => false,
-        }
+fn names(selector: &Selector, role: &str) -> bool {
+    match selector {
+        Selector::Role { name } => name == role,
+        Selector::Any { selectors } => selectors.iter().any(|s| names(s, role)),
+        _ => false,
     }
+}
+
+pub fn role_duties(formation: &Formation, role: &str) -> BTreeSet<RoleDuty> {
     fn add(set: &mut BTreeSet<RoleDuty>, selector: &Selector, role: &str, duty: RoleDuty) {
         if names(selector, role) {
             set.insert(duty);
@@ -93,9 +94,48 @@ pub fn role_duties(formation: &Formation, role: &str) -> BTreeSet<RoleDuty> {
     }
     if let Some(value) = &formation.workspace {
         completion(&mut duties, &value.completion, role);
-        authority(&mut duties, &value.integrator, role, RoleDuty::Pick);
     }
     duties
+}
+
+/// True when one holder of `role` acts on its own under `formation`: it has
+/// a duty other than review, or a review it settles alone with the author
+/// not excluded. Authority roles are not asked; they are a kind of their own.
+pub fn acts_alone(formation: &Formation, role: &str) -> bool {
+    fn lone_review(rule: &CompletionRule, role: &str) -> bool {
+        match rule {
+            CompletionRule::Reviews {
+                by,
+                count,
+                exclude_author,
+            } => *count <= 1 && !exclude_author && names(by, role),
+            CompletionRule::All { rules } | CompletionRule::Any { rules } => {
+                rules.iter().any(|rule| lone_review(rule, role))
+            }
+            _ => false,
+        }
+    }
+    if role_duties(formation, role)
+        .iter()
+        .any(|duty| *duty != RoleDuty::Review)
+    {
+        return true;
+    }
+    let mut completions = vec![&formation.decisions.completion];
+    completions.extend(
+        formation
+            .task_types
+            .values()
+            .filter_map(|task| task.decisions.as_ref())
+            .map(|decisions| &decisions.completion),
+    );
+    completions.extend(
+        formation
+            .workspace
+            .as_ref()
+            .map(|workspace| &workspace.completion),
+    );
+    completions.into_iter().any(|rule| lone_review(rule, role))
 }
 
 fn review_roles(rule: &CompletionRule, found: &mut BTreeSet<String>) {

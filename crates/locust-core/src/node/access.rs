@@ -147,11 +147,6 @@ impl<S: Store, E: Entropy> Node<S, E> {
         attempted: &Attempted<'_>,
         why: Why,
     ) -> ApiError {
-        let agent_name = self
-            .principals
-            .get(&agent)
-            .map(|p| p.record.name.clone())
-            .unwrap_or_else(|| agent.to_string().chars().take(8).collect());
         let (act, task) = match attempted {
             Attempted::Sign { event, .. } => (
                 act(&event.header().body),
@@ -167,6 +162,24 @@ impl<S: Store, E: Entropy> Node<S, E> {
             Attempted::Store => (Act::Post, None),
             Attempted::Withdraw => (Act::Withdraw, None),
         };
+        self.refusal(entry, agent, act, task, why)
+    }
+
+    /// The refusal of `act` on `task`, in the agent's voice with the person's
+    /// facts in the details.
+    pub(super) fn refusal(
+        &self,
+        entry: &Entry,
+        agent: PublicKey,
+        act: Act,
+        task: Option<TaskId>,
+        why: Why,
+    ) -> ApiError {
+        let agent_name = self
+            .principals
+            .get(&agent)
+            .map(|p| p.record.name.clone())
+            .unwrap_or_else(|| agent.to_string().chars().take(8).collect());
         let task_title = task.and_then(|task| entry.task_title(&self.store, &task, None));
         let code = match &why {
             Why::YourSetting { .. } => ErrorCode::LevelRequired,

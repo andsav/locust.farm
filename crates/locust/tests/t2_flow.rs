@@ -1421,6 +1421,69 @@ fn binding_reviewer_rules_assigns_current_members_and_no_role_keeps_the_choice_e
         2,
         "{status}"
     );
+
+    // Where the earlier rules let one reviewer approve alone, the bind gives
+    // the role to no one and the plan says so before asking.
+    let p = Participant::new();
+    for name in ["harbor", "maple"] {
+        p.cli(&["--owner"], &["agent", "enroll", name]);
+    }
+    let created = p.approved_cli(
+        &["--owner", "--agent", "harbor"],
+        &[
+            "goal",
+            "create",
+            "--title",
+            "Was directed",
+            "--formation",
+            "directed",
+        ],
+    );
+    let goal = created["goal_created"]["goal"].as_str().unwrap();
+    p.approved_cli(
+        &["--owner"],
+        &["goal", "add", "--goal", goal, "--agent", "maple"],
+    );
+    let plan = p.human(&[
+        "--owner",
+        "rules",
+        "bind",
+        "--goal",
+        goal,
+        "--formation",
+        "review-panel",
+        "--plan",
+    ]);
+    assert!(
+        plan.contains(
+            "Under the goal's earlier rules, which open tasks still follow, one reviewer acts alone, so this change gives the role to no one.\n2 more reviewers are needed. The role's holders stay as they are.\nGive the role: locust --owner role give"
+        ),
+        "{plan}"
+    );
+    assert!(!plan.contains("Everyone in the goal becomes"), "{plan}");
+    let id = plan
+        .lines()
+        .find_map(|line| line.strip_prefix("Plan id: "))
+        .unwrap();
+    p.human(&[
+        "--owner",
+        "rules",
+        "bind",
+        "--goal",
+        goal,
+        "--formation",
+        "review-panel",
+        "--confirm",
+        id,
+    ]);
+    let status = p.cli(&["--owner"], &["goal", "status", "--goal", goal]);
+    assert_eq!(
+        status["goal_status"]["roles"]["reviewer"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
 }
 
 #[test]

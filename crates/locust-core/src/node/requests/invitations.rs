@@ -178,8 +178,9 @@ impl<S: Store, E: Entropy> Node<S, E> {
         if let Some(role) = &role {
             if !entry.state().roles.contains_key(role) {
                 return Err(
-                    ApiError::new(ErrorCode::Invalid, "this goal has no such role")
-                        .with_details(serde_json::json!({"role": role})),
+                    ApiError::new(ErrorCode::Invalid, "this goal has no such role").with_details(
+                        serde_json::json!({"role": role, "roles": entry.state().roles.keys().collect::<Vec<_>>()}),
+                    ),
                 );
             }
             if deciding.contains(role) {

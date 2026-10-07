@@ -1529,6 +1529,11 @@ pub struct GoalStatus {
     pub host_name: Option<String>,
     pub roles: BTreeMap<String, Vec<PublicKey>>,
     pub deciding: BTreeSet<String>,
+    /// Roles an earlier binding lets one holder act on alone: a review one
+    /// approval settles with the author not excluded, or any duty other than
+    /// review. Open tasks may still follow those rules, so binding rules that
+    /// count such a role's reviews gives it to no one.
+    pub acting_alone: BTreeSet<String>,
     pub governance_head: Option<EventId>,
     pub current_rules: Option<EventId>,
     pub scope_halts: Vec<ScopeHalt>,

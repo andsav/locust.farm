@@ -1528,13 +1528,22 @@ fn rules_plan(
             .iter()
             .filter(|member| !holders.contains(&member.member))
             .collect();
-        if no_role {
+        // The daemon gives no role where earlier rules, which open tasks
+        // still follow, let one holder act alone.
+        let alone = observed.acting_alone.contains(role);
+        if no_role || alone {
             // The bind creates an absent list as the host's agent alone.
             let mut lists = observed.roles.clone();
             lists.entry(role.clone()).or_insert_with(|| holders.clone());
             let missing = roles::missing_reviewers(&formation, role, &lists)
                 .map(|missing| format!("{missing} more reviewers are needed. "))
                 .unwrap_or_default();
+            if alone && !no_role {
+                role_lines.push_str(&format!(
+                    "\nUnder the goal's earlier rules, which open tasks still follow, one {} acts alone, so this change gives the role to no one.",
+                    presentation::safe(role)
+                ));
+            }
             role_lines.push_str(&format!("\n{missing}The role's holders stay as they are."));
             for member in unheld {
                 role_lines.push('\n');
@@ -1929,6 +1938,7 @@ mod tests {
             host_name: Some("Host".into()),
             roles: Default::default(),
             deciding: Default::default(),
+            acting_alone: Default::default(),
             governance_head: None,
             current_rules: None,
             scope_halts: vec![],

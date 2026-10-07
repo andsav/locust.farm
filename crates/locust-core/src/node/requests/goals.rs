@@ -236,7 +236,13 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 &mut tx,
             )?;
         }
-        if !no_role && let Some(role) = crate::organization::counting_role(&formation) {
+        // Open tasks keep the rules they were opened under; where those let
+        // one holder of the role act alone, making every member a holder
+        // would hand each of them that power, so the host gives it by hand.
+        if !no_role
+            && let Some(role) = crate::organization::counting_role(&formation)
+            && !Self::acting_alone(entry).contains(&role)
+        {
             let holders: Vec<_> = entry
                 .state()
                 .members
@@ -273,7 +279,14 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     now,
                     &mut tx,
                 )
-                .map_err(|error| role_list_error(error, &role))?;
+                .map_err(|error| {
+                    role_list_error(
+                        error,
+                        format!(
+                            "These rules would make every member a {role:?}, and that is more members than one role change can carry. Bind again with --no-role to leave the role's holders as they are."
+                        ),
+                    )
+                })?;
             }
         }
         super::tasks::recorded(event, tx)
@@ -307,6 +320,27 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 "the goal's earlier rules have not arrived yet",
             )
         })
+    }
+
+    /// Roles an earlier binding lets one holder act on alone. Open tasks may
+    /// still follow those rules.
+    fn acting_alone(entry: &Entry) -> BTreeSet<String> {
+        let mut roles = BTreeSet::new();
+        for rules in entry.state().rules.values() {
+            if let Some(formation) = entry
+                .definitions
+                .definition(&rules.binding.definition.semantic)
+            {
+                roles.extend(
+                    formation
+                        .roles
+                        .keys()
+                        .filter(|name| crate::organization::acts_alone(formation, name))
+                        .cloned(),
+                );
+            }
+        }
+        roles
     }
 
     fn deciding_known(entry: &Entry) -> (BTreeSet<String>, bool) {
@@ -405,7 +439,14 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 now,
                 &mut tx,
             )
-            .map_err(|error| role_list_error(error, &role))?;
+            .map_err(|error| {
+                role_list_error(
+                    error,
+                    format!(
+                        "The {role:?} role has too many holders to fit in one role change. Remove a member from the goal or use another role."
+                    ),
+                )
+            })?;
         super::tasks::recorded(event, tx)
     }
 
@@ -440,6 +481,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             host_name: Self::host_name(entry),
             roles: state.roles.clone(),
             deciding: Self::deciding_known(entry).0,
+            acting_alone: Self::acting_alone(entry),
             governance_head: state.head,
             current_rules: state.current_rules,
             scope_halts: entry
@@ -619,16 +661,13 @@ fn checked_definition(source: &str) -> Result<(DefinitionHash, String, Formation
     Ok((hash, normalized, formation))
 }
 
-fn role_list_error(error: ApiError, role: &str) -> ApiError {
+/// A role list that overflows one record, told in the caller's words: what
+/// cures it differs between a bind and a give or take.
+fn role_list_error(error: ApiError, message: String) -> ApiError {
     if error.code == ErrorCode::Invalid
         && error.message == locust_proto::event::EventError::TooLarge.to_string()
     {
-        ApiError::new(
-            ErrorCode::LimitExceeded,
-            format!(
-                "The {role:?} role has too many holders to fit in one role change. Use another role for this group."
-            ),
-        )
+        ApiError::new(ErrorCode::LimitExceeded, message)
     } else {
         error
     }

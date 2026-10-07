@@ -14409,6 +14409,14 @@
             },
             "type": "array"
           },
+          "acting_alone": {
+            "description": "Roles an earlier binding lets one holder act on alone: a review one\napproval settles with the author not excluded, or any duty other than\nreview. Open tasks may still follow those rules, so binding rules that\ncount such a role's reviews gives it to no one.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "uniqueItems": true
+          },
           "current_rules": {
             "anyOf": [
               {
@@ -14530,6 +14538,7 @@
           "hosted_here",
           "roles",
           "deciding",
+          "acting_alone",
           "scope_halts",
           "members",
           "abilities",

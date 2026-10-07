@@ -1307,6 +1307,7 @@ mod tests {
             host_name: Some("Host".into()),
             roles: Default::default(),
             deciding: Default::default(),
+            acting_alone: Default::default(),
 
             goal,
             title: Some("Parser cleanup".into()),
@@ -2172,6 +2173,7 @@ Daemon 0.1.0 · endpoint 5c0e77aa";
             host_name: Some("Host".into()),
             roles: Default::default(),
             deciding: Default::default(),
+            acting_alone: Default::default(),
 
             goal,
             title: None,

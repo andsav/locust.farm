@@ -8,7 +8,7 @@ use serde_json::Value;
 
 mod explanation;
 mod roles;
-pub use roles::{RoleDuty, counting_role, is_authority_role, role_duties};
+pub use roles::{RoleDuty, acts_alone, counting_role, is_authority_role, role_duties};
 mod normalize;
 mod strict_json;
 mod validation;
