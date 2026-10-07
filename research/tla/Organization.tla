@@ -56,6 +56,7 @@ ForkTask == E(14,1,0,0,7,"task",14,14,0,{},0,0,0,0,7)
 ForkReview == E(14,2,0,0,7,"review",8,8,9,{},0,0,0,0,7)
 Remove(cutoff) == E(15,0,9,7,7,"remove",0,0,0,{},0,2,4,cutoff,0)
 Readmit == E(16,0,10,15,15,"admit",0,0,0,{},0,2,0,0,0)
+EndRecord == E(14,0,9,7,7,"end",0,0,0,{},0,0,0,0,0)
 OtherBranch == <<ForkTask,
  E(15,1,1,14,7,"contribution",14,14,0,{},0,0,0,0,7),
  E(16,2,0,0,7,"review",14,14,15,{},0,0,0,0,7),
@@ -107,12 +108,26 @@ Work == CASE Scenario = "taskless" -> <<
  [] Scenario = "role-removal" -> <<Task,Candidate,ReviewA,ReviewB,
  E(14,0,9,7,7,"remove",0,0,0,{},0,4,6,0,0),
  E(15,5,0,0,14,"select",8,8,9,{10,11},0,0,0,0,7)>>
+ [] Scenario = "end-late-record" -> <<Task, Candidate, ReviewA, EndRecord>>
+ [] Scenario = "end-later-governance" -> <<EndRecord,
+      E(15,0,10,14,14,"admit",0,0,0,{},0,6,0,0,0),
+      E(16,0,11,15,15,"rules",0,14,0,{},0,0,0,0,14)>>
+ [] Scenario = "end-fork-at-or-before" -> <<EndRecord,
+      E(15,0,9,7,7,"admit",0,0,0,{},0,6,0,0,0),
+      E(16,0,8,21,21,"admit",0,0,0,{},0,6,0,0,0)>>
+ [] Scenario = "end-fork-above" -> <<EndRecord,
+      E(15,0,10,14,14,"admit",0,0,0,{},0,6,0,0,0),
+      E(16,0,10,14,14,"rules",0,14,0,{},0,0,0,0,14)>>
+ [] Scenario = "end-anchored-at-end" -> <<EndRecord,
+      E(8,1,0,0,14,"contribution",0,7,0,{},0,0,0,0,7)>>
+ [] Scenario = "end-after-readmission" -> Base \o <<ForkReview, Remove(10), Readmit,
+      E(17,0,11,16,16,"end",0,0,0,{},0,0,0,0,0)>>
  [] OTHER -> Base
 
 Transcript == Founding \o Work
 IDs == {Transcript[i].id : i \in 1..Len(Transcript)}
 ByID == [id \in IDs |-> CHOOSE e \in {Transcript[i] : i \in 1..Len(Transcript)} : e.id = id]
-GovKinds == {"genesis","admit","remove","rules","roles"}
+GovKinds == {"genesis","admit","remove","rules","roles","end"}
 IsGov(id) == ByID[id].kind \in GovKinds
 
 RECURSIVE Ancestors(_, _)
@@ -132,7 +147,8 @@ UniquePositions(H,id) ==
     Cardinality({b \in H : ByID[b].author = ByID[a].author /\ ByID[b].seq = ByID[a].seq}) = 1
 Usable(H,id) == AuthorChain(H,id) /\ UniquePositions(H,id)
 Governance(H) == {id \in H : IsGov(id) /\ ByID[id].author = 0 /\ Usable(H,id)
- /\ \A a \in Ancestors(H,id) : ByID[a].anchor = ByID[a].prev}
+ /\ (\A a \in Ancestors(H,id) : ByID[a].anchor = ByID[a].prev)
+ /\ (~\E a \in Ancestors(H,id) \ {id} : ByID[a].kind = "end")}
 
 Admission(H,p,anchor) == {a \in Governance(H) :
  /\ ByID[a].kind = "admit" /\ ByID[a].member = p
@@ -171,6 +187,7 @@ AnchorsMonotonic(H,id) ==
       ByID[ByID[a].anchor].seq <= ByID[ByID[b].anchor].seq
 Eligible(H,id) == /\ id \in H /\ AuthorChain(H,id)
  /\ MemberAt(H,ByID[id].author,ByID[id].anchor)
+ /\ ByID[ByID[id].anchor].kind # "end"
  /\ AnchorsMonotonic(H,id)
  /\ (~CheckCutoff \/ CutoffAllows(H,id))
 Authorized(H,id,pins) == Eligible(H,id) /\
@@ -265,11 +282,13 @@ Witness(H,D,V) == CASE Scenario = "taskless" -> {8,9} \subseteq V.ordinary /\ V.
       {10,17} \subseteq V.ordinary /\ {15,16} \cap V.ordinary = {}
  [] Scenario = "lead-change" -> {12,15} \subseteq V.selected /\ Current(H,D,8) = 15
  [] Scenario = "role-removal" -> 14 \in H /\ 15 \in V.selected /\ RolesAt(H,14).lead = {5}
+ [] Scenario = "end-late-record" -> 14 \in H /\ {9,10} \subseteq V.ordinary
  [] OTHER -> 12 \in V.selected
 Fault(H,D) == CASE Scenario \in {"role-change","lead-change","role-removal"} -> 14 \in H
  [] Scenario = "missing-definition" -> 7 \notin D
  [] Scenario = "remove-empty" -> 15 \in H
  [] Scenario \in {"fork","review-fork","rule-change","two-scopes"} -> 14 \in H
+ [] Scenario \in {"end-late-record","end-later-governance","end-fork-at-or-before","end-fork-above","end-anchored-at-end","end-after-readmission"} -> 14 \in H
  [] OTHER -> 12 \in H
 Init == /\ held = (1..7) \cup {20,21} /\ definitions = IF Scenario = "missing-definition" THEN {} ELSE {7,14}
         /\ view = Projection(held,definitions) /\ witnessReached = FALSE /\ faultPresent = Fault(held,definitions)
@@ -316,6 +335,11 @@ RoleHeldAtAnchor ==
 LaterLeadWins == \A d \in view.selected :
  LET current == Current(held,definitions,ByID[d].scope)
  IN current # 0 /\ ByID[ByID[d].anchor].seq <= ByID[ByID[current].anchor].seq
+EndIsTerminal ==
+ \A e \in view.governance : ByID[e].kind = "end" =>
+  /\ \A g \in view.governance : ByID[g].seq <= ByID[e].seq
+  /\ \A r \in view.ordinary \cup view.selected :
+       ByID[r].anchor = 0 \/ ByID[ByID[r].anchor].seq < ByID[e].seq
 ReplayMatchesHeld == view = Projection(held,definitions)
 NeverWitness == ~witnessReached
 =============================================================================

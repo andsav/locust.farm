@@ -4681,6 +4681,237 @@
         "api_version": 7,
         "status": "current-organization-role-holder-subset"
       }
+    },
+    {
+      "id": "organization-end-late-record",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-end-late-record.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "properties": [
+        "TypeOK",
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld",
+        "EndIsTerminal"
+      ],
+      "model_baseline": {
+        "source_commit": "8c086c1eb72ffa5ad0572777c8944d8d66b5c7ee",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "current-organization-role-holder-subset"
+      }
+    },
+    {
+      "id": "organization-end-later-governance",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-end-later-governance.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "properties": [
+        "TypeOK",
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld",
+        "EndIsTerminal"
+      ],
+      "model_baseline": {
+        "source_commit": "8c086c1eb72ffa5ad0572777c8944d8d66b5c7ee",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "current-organization-role-holder-subset"
+      }
+    },
+    {
+      "id": "organization-end-fork-at-or-before",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-end-fork-at-or-before.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "properties": [
+        "TypeOK",
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld",
+        "EndIsTerminal"
+      ],
+      "model_baseline": {
+        "source_commit": "8c086c1eb72ffa5ad0572777c8944d8d66b5c7ee",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "current-organization-role-holder-subset"
+      }
+    },
+    {
+      "id": "organization-end-fork-above",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-end-fork-above.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "properties": [
+        "TypeOK",
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld",
+        "EndIsTerminal"
+      ],
+      "model_baseline": {
+        "source_commit": "8c086c1eb72ffa5ad0572777c8944d8d66b5c7ee",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "current-organization-role-holder-subset"
+      }
+    },
+    {
+      "id": "organization-end-anchored-at-end",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-end-anchored-at-end.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "properties": [
+        "TypeOK",
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld",
+        "EndIsTerminal"
+      ],
+      "model_baseline": {
+        "source_commit": "8c086c1eb72ffa5ad0572777c8944d8d66b5c7ee",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "current-organization-role-holder-subset"
+      }
+    },
+    {
+      "id": "organization-end-after-readmission",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-end-after-readmission.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "properties": [
+        "TypeOK",
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld",
+        "EndIsTerminal"
+      ],
+      "model_baseline": {
+        "source_commit": "8c086c1eb72ffa5ad0572777c8944d8d66b5c7ee",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "current-organization-role-holder-subset"
+      }
+    },
+    {
+      "id": "organization-end-late-record-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-end-late-record-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "properties": [
+        "TypeOK",
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld",
+        "EndIsTerminal",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
+      ],
+      "model_baseline": {
+        "source_commit": "8c086c1eb72ffa5ad0572777c8944d8d66b5c7ee",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "current-organization-role-holder-subset"
+      }
     }
   ]
 }

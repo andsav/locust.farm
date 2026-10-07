@@ -35,8 +35,9 @@ pinned definition. It may delay work; it may not substitute default rules.
 | Named authority and its own stream | `Decision` validates its unpinned signer, same-scope predecessor and double-successor exclusion. | [Decision evaluator](../../crates/locust-core/src/goal/fold.rs); `same_slot_scope_authority_equivocation_is_explicitly_disputed`, `scope_equivocation_halts_only_that_stream_and_keeps_other_work`, `selection_predecessor_cannot_cross_task_scopes`. |
 | Exact scope proof survives an unrelated author fork | `Proof` includes signed ancestry and typed dependencies; only its own decision can use the pins. Two scopes may accept opposite exact branches. Their combination is incompatible. | [Proof closure index](../../crates/locust-core/src/goal/commitments.rs), [scoped projection](../../crates/locust-core/src/goal/projection.rs); `accepted_fork_branch_is_readable_only_in_its_selected_scope`, `incompatible_proof_branches_dispute_only_their_scope`; [read-side regression](../../crates/locust-core/src/node/tests/content.rs). |
 | Cutoffs are exact global tenure restrictions | `Admission`, `CutoffAllows`, `RetainedByCutoff`; empty cutoff excludes old evidence; readmission does not backdate it; a retained original review does not retain its sibling. | [Tenure/cutoff checks](../../crates/locust-core/src/goal/chain.rs); `removal_retains_only_exact_cutoff_ancestry_and_readmission_does_not_backdate`, `scope_proof_cannot_retain_evidence_past_the_host_cutoff`. |
+| Ending a goal is terminal | `EndIsTerminal` ensures that in any held set with an end in force, no governance record after the end and no record anchored at or after it is effective. The six E1 scenarios check late delivery after the end (`end-late-record`), rejection of governance signed after the end (`end-later-governance`), retraction under a fork at or before the end (`end-fork-at-or-before`), survival without halt under a fork above the end (`end-fork-above`), exclusion of work anchored at the end (`end-anchored-at-end`), and preservation of prior tenure and cutoffs across readmission (`end-after-readmission`). | Goal ending in [Chain](../../crates/locust-core/src/goal/chain.rs) and [state](../../crates/locust-core/src/goal/state.rs). |
 
-The model has 21 ordinary safety scenarios. Their transcripts contain 11–20 total
+The model has 27 ordinary safety scenarios (including the six E1 goal-ending scenarios). Their transcripts contain 11–20 total
 records including the nine-record founding prefix. The largest scenario has
 11 remaining records and 2,048 held subsets; the missing-definition case adds
 one independent definition arrival. Two rule identities use review thresholds
@@ -56,17 +57,31 @@ lists or of every holder's membership. Exercising these missing cases would
 change founding transcripts, role-record validation and the selection rule;
 this correction leaves those semantics unchanged.
 Identity 0 is the goal's governance key: it alone
-governs admission/rules and is not a member. Identity 5 is the host's agent,
+governs admission/rules/end and is not a member. Identity 5 is the host's agent,
 admitted by the founding prefix's second record. These are finite
 verification choices, not role, member, history or execution limits in Locust.
 
 Nine deliberate mutations disable pins, scope isolation, cutoff enforcement,
 distinct counting, exact-scope matching, named authority, rule pinning, or exact
 definition availability, or read roles at the current head instead of the act's own anchor. Each must violate its named property with the registered
-fault present. Twelve negated reachability cases require their specific positive
-witness, including two valid independent scope selections and rejection of a
-combined incompatible proof, role replacement, later lead selection and removal
-fallback.
+fault present. Thirteen negated reachability cases require their specific positive
+witness, including two valid independent scope selections, rejection of a
+combined incompatible proof, role replacement, later lead selection, removal
+fallback, and delivery after goal end (`organization-end-late-record-witness`).
+
+### Ending a goal (E1) and unmodeled behavior
+
+The formal model adds the governance kind `end` and the safety invariant `EndIsTerminal`.
+Not modelled, and explicitly recorded here:
+- The signing gate and `cut_end`, which are daemon behaviour and not replay.
+- The frontier, which is not built.
+- An end against a takeover base, which waits for the takeover record to have a shape.
+
+The registry's baseline in [cases.json](cases.json) records that the model covers an
+explicit subset of the organization rules at an older protocol number (`source_commit`:
+`8c086c1eb72ffa5ad0572777c8944d8d66b5c7ee`, protocol 7, API 7, status:
+`current-organization-role-holder-subset`); these E1 cases extend that subset and do
+not move the baseline.
 
 `ReplayMatchesHeld` checks that delivery updates the stored projection to fresh
 replay. Both use the same mathematical projection algebra; this is not independent
