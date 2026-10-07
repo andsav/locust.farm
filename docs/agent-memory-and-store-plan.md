@@ -200,7 +200,7 @@ edit only their own skill sentences.
 | `one_event_apply`, the new sizes, the long-goal note | S2 |
 | `format_digests`, the ledger, `--record-published`, the fixture and its test | S3 |
 | `Report.received`, the last-refusal map, `PeerView.last_refusal`, `PeerRefusal`, `refusal_words` | J1+ |
-| `locust hook`, the hook events, output contract and adapter interface, marks, the hook rules, `hooks.rs`; later adapters; `session.chat`, presence, the hooks each chat has reported | H1a; H1b; H3 |
+| `locust hook`, the hook events, output contract and adapter interface, marks, the hook rules, `hooks.rs`, `Goal::unattended` and `WorkItem.unattended`; later adapters; `session.chat`, presence, the hooks each chat has reported | H1a; H1b; H3 |
 | Phase state, findings numbering, R7's run text, hand-off sentences in v2 plans | P |
 
 ## Phases
@@ -310,7 +310,7 @@ answer. Naming a task works as today.
   drop the write, as context.rs 180-183 does; read `pending_work` (views.rs
   355); if `work.claimed` holds this session's live claim (465-490), answer
   it; else take the first `to_start` item whose current round has no
-  running attempt by anyone, via a new `unattended` helper, because
+  running attempt by anyone, via `Goal::unattended`, because
   `attempting` leaves out the caller's own principal (428-443); run the
   existing signing path; with no item, return `Pending(work)` unsigned. One
   `respond` plans and lands both (requests/mod.rs 54, 116, 138), so two

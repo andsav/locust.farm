@@ -152,7 +152,7 @@ impl Harness {
                 self.agent,
                 Request::AttemptStart {
                     goal,
-                    task,
+                    task: Some(task),
                     offer: None,
                 },
             ) else {
@@ -248,7 +248,7 @@ fn independent_attempts_and_local_aba_takeover_remain_distinct() {
         h.agent,
         Request::AttemptStart {
             goal,
-            task,
+            task: Some(task),
             offer: None,
         },
     ) else {
@@ -267,7 +267,7 @@ fn independent_attempts_and_local_aba_takeover_remain_distinct() {
         b_conn,
         Request::AttemptStart {
             goal,
-            task,
+            task: Some(task),
             offer: None,
         },
     ) else {
@@ -463,7 +463,7 @@ fn stage_steps_are_signed_while_the_hosts_agent_is_disconnected() {
             h.agent,
             Request::AttemptStart {
                 goal,
-                task: board[0].task,
+                task: Some(board[0].task),
                 offer: None,
             },
         )
@@ -685,7 +685,7 @@ fn closure_gates_authoring_and_reopened_starts_record_the_exact_position() {
             h.agent,
             Request::AttemptStart {
                 goal,
-                task,
+                task: Some(task),
                 offer: None
             }
         )
@@ -705,7 +705,7 @@ fn closure_gates_authoring_and_reopened_starts_record_the_exact_position() {
         h.agent,
         Request::AttemptStart {
             goal,
-            task,
+            task: Some(task),
             offer: None,
         },
     ) else {
@@ -720,7 +720,7 @@ fn closure_gates_authoring_and_reopened_starts_record_the_exact_position() {
         h.agent,
         Request::AttemptStart {
             goal,
-            task,
+            task: Some(task),
             offer: None,
         },
     ) else {

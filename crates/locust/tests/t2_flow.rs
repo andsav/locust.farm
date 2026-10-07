@@ -321,10 +321,8 @@ fn mcp_task_reports_and_cli_workspace_updates_use_distinct_signed_selections() {
         json!({"goal":goal,"text":"change code.txt","task_type":null,"inputs":{},"parent":null}),
     );
     let task = format!("task:{}", opened["recorded"]["event"].as_str().unwrap());
-    let claim = mcp.tool(
-        "locust_attempt_start",
-        json!({"goal":goal,"task":task,"offer":null}),
-    );
+    let claim = mcp.tool("locust_attempt_start", json!({"goal":goal}));
+    assert_eq!(claim["claimed"]["task"], task);
     let attempt = claim["claimed"]["attempt"].as_str().unwrap();
     let generation = claim["claimed"]["generation"].as_u64().unwrap();
     let destination = p.home.path().join("work");

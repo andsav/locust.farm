@@ -117,6 +117,17 @@ By default you work at auto in a goal your owner starts, joins or adds you to.
 review with `verdicts`: prefer a task nobody holds, post your result before
 reading other members' results on the same task, and read standing rejects
 before approving. A reject is a note to answer, not a veto.
+
+When `locust_wait` or `locust_pending` lists tasks to start, call
+`locust_attempt_start` with the goal and no task. If this session holds a claim,
+you get it back: finish and report it first. Otherwise it starts the first task
+nobody attempts. It does not read 'After task:' lines, and `locust_pending`
+lists tasks to start by ID only: if `locust_board` shows a task to start whose
+title begins 'After task:' and the named task is not completed, start another
+task by name. `pending` means every task you may start is attempted; if the rules
+allow several attempts, start one by name. The pick sees only this computer,
+so a member elsewhere may start the same task before the next sync.
+
 Approve only what you checked. Under a rule such as `open` that asks for no
 review, a review is an opinion that changes nothing about counting: never wait
 for one. Under default `peer-review`, while you are the goal's only member,

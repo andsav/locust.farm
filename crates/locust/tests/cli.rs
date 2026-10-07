@@ -2022,7 +2022,7 @@ fn claims_require_an_explicit_session_and_present_exact_file_bytes() {
             frame.request,
             Request::AttemptStart {
                 goal,
-                task,
+                task: Some(task),
                 offer: None
             }
         );

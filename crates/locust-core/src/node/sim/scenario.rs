@@ -212,7 +212,7 @@ fn task(r: &mut Run) -> Result<(), Fail> {
     )?;
     let claim = Request::AttemptStart {
         goal,
-        task,
+        task: Some(task),
         offer: Some(offer),
     };
     let Response::Claimed(first) = r.op(M2, Who::Session(0), claim.clone())? else {

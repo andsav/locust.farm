@@ -163,7 +163,7 @@ fn a_task_scoped_read_shows_the_same_findings_and_no_attempt_results() {
         agent,
         Request::AttemptStart {
             goal,
-            task,
+            task: Some(task),
             offer: Some(offer),
         },
     ) else {

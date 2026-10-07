@@ -227,7 +227,7 @@ fn complete_transcript_keeps_contribution_review_and_selection_separate_after_re
             a,
             Request::AttemptStart {
                 goal,
-                task,
+                task: Some(task),
                 offer: Some(offer)
             }
         )),
@@ -238,7 +238,7 @@ fn complete_transcript_keeps_contribution_review_and_selection_separate_after_re
         a,
         Request::AttemptStart {
             goal,
-            task,
+            task: Some(task),
             offer: Some(offer),
         },
     ) else {
@@ -325,7 +325,7 @@ fn results_on_a_closed_picked_or_revised_task_are_in_nobodys_review_list() {
         a,
         Request::AttemptStart {
             goal,
-            task,
+            task: Some(task),
             offer: Some(offer),
         },
     ) else {
@@ -387,7 +387,7 @@ fn results_on_a_closed_picked_or_revised_task_are_in_nobodys_review_list() {
         a,
         Request::AttemptStart {
             goal,
-            task: other,
+            task: Some(other),
             offer: Some(other_offer),
         },
     ) else {
@@ -472,7 +472,7 @@ fn takeover_a_b_a_fences_old_generation_even_when_secret_returns() {
         a,
         Request::AttemptStart {
             goal,
-            task,
+            task: Some(task),
             offer: Some(offer),
         },
     ) else {
@@ -503,7 +503,7 @@ fn takeover_a_b_a_fences_old_generation_even_when_secret_returns() {
             a,
             Request::AttemptStart {
                 goal,
-                task,
+                task: Some(task),
                 offer: Some(offer)
             }
         ),
@@ -521,7 +521,7 @@ fn cancellation_requires_holder_generation_and_is_not_completion_evidence() {
         a,
         Request::AttemptStart {
             goal,
-            task,
+            task: Some(task),
             offer: Some(offer),
         },
     ) else {
@@ -604,7 +604,7 @@ fn sessions_survive_restart_drop_requires_finished_claim_and_binding_is_permanen
         a,
         Request::AttemptStart {
             goal,
-            task,
+            task: Some(task),
             offer: Some(offer),
         },
     ) else {
@@ -803,7 +803,7 @@ fn declining_one_offer_does_not_impose_an_attempt_budget() {
             a,
             Request::AttemptStart {
                 goal,
-                task,
+                task: Some(task),
                 offer: Some(first)
             }
         )),
@@ -821,7 +821,7 @@ fn declining_one_offer_does_not_impose_an_attempt_budget() {
         a,
         Request::AttemptStart {
             goal,
-            task,
+            task: Some(task),
             offer: Some(second),
         },
     ) else {
@@ -850,7 +850,7 @@ fn declining_one_offer_does_not_impose_an_attempt_budget() {
             a,
             Request::AttemptStart {
                 goal,
-                task,
+                task: Some(task),
                 offer: Some(third)
             }
         ),
@@ -867,7 +867,7 @@ fn completion_requires_an_attempt_result_but_not_review_or_integration() {
         a,
         Request::AttemptStart {
             goal,
-            task,
+            task: Some(task),
             offer: Some(offer),
         },
     ) else {
@@ -921,7 +921,7 @@ fn stopped_cancellation_commits_a_terminal_report_and_retries_without_new_events
         a,
         Request::AttemptStart {
             goal,
-            task,
+            task: Some(task),
             offer: Some(offer),
         },
     ) else {
@@ -989,7 +989,7 @@ fn uncertain_cancellation_fences_work_but_allows_ending_and_completed_needs_resu
         a,
         Request::AttemptStart {
             goal,
-            task,
+            task: Some(task),
             offer: Some(offer),
         },
     ) else {
@@ -1048,7 +1048,7 @@ fn completed_round_is_not_startable_and_revision_restores_eligibility() {
         a,
         Request::AttemptStart {
             goal,
-            task,
+            task: Some(task),
             offer: Some(offer),
         },
     ) else {
@@ -1100,7 +1100,7 @@ fn completed_round_is_not_startable_and_revision_restores_eligibility() {
             a,
             Request::AttemptStart {
                 goal,
-                task,
+                task: Some(task),
                 offer: Some(offer)
             }
         )),
@@ -1136,7 +1136,7 @@ fn completed_round_is_not_startable_and_revision_restores_eligibility() {
         a,
         Request::AttemptStart {
             goal,
-            task,
+            task: Some(task),
             offer: Some(offer),
         },
     );
@@ -1151,7 +1151,7 @@ fn an_ended_attempt_lists_no_cancellation_request() {
         a,
         Request::AttemptStart {
             goal,
-            task,
+            task: Some(task),
             offer: Some(offer),
         },
     ) else {
@@ -1186,7 +1186,7 @@ fn an_ended_attempt_lists_no_cancellation_request() {
         a,
         Request::AttemptStart {
             goal,
-            task,
+            task: Some(task),
             offer: Some(offer),
         },
     ) else {
@@ -1298,7 +1298,7 @@ fn closing_a_task_with_many_approved_contributions_stays_within_the_header_cap()
         agent,
         Request::AttemptStart {
             goal,
-            task,
+            task: Some(task),
             offer: None,
         },
     ) else {

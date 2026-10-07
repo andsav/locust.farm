@@ -278,7 +278,7 @@ fn pending_pages_are_complete_match_full_and_filter_each_category() {
         agent,
         Request::AttemptStart {
             goal,
-            task: offers[0].0,
+            task: Some(offers[0].0),
             offer: Some(offers[0].1),
         },
     ) else {
@@ -296,7 +296,7 @@ fn pending_pages_are_complete_match_full_and_filter_each_category() {
         other,
         Request::AttemptStart {
             goal,
-            task: offers[2].0,
+            task: Some(offers[2].0),
             offer: Some(offers[2].1),
         },
     );
@@ -621,6 +621,273 @@ fn work_view(d: &mut Daemon, agent: ConnId, goal: GoalId) -> locust_proto::api::
     work
 }
 
+fn no_task_start(goal: GoalId) -> Request {
+    Request::AttemptStart {
+        goal,
+        task: None,
+        offer: None,
+    }
+}
+
+fn open_work(
+    d: &mut Daemon,
+    agent: ConnId,
+    goal: GoalId,
+    text: &str,
+) -> locust_proto::event::TaskId {
+    locust_proto::event::TaskId::Authored(event(d.ok(
+        agent,
+        Request::TaskOpen {
+            goal,
+            text: text.into(),
+            task_type: None,
+            inputs: Default::default(),
+            parent: None,
+        },
+    )))
+}
+
+#[test]
+fn no_task_start_takes_the_first_unattended_task_and_a_failed_attempt_frees_it() {
+    use locust_proto::event::AttemptStatus;
+    let (mut d, goal, _, agents) = collaboration_view_setup(Default::default());
+    for index in 0..3 {
+        open_work(&mut d, agents[0], goal, &format!("Work {index}"));
+    }
+    let first = work_view(&mut d, agents[1], goal).to_start[0].task;
+    let Response::Claimed(claim) = d.ok(agents[1], no_task_start(goal)) else {
+        panic!("the first free task must be claimed");
+    };
+    assert_eq!(claim.task, first);
+    d.ok(
+        agents[1],
+        Request::AttemptReport {
+            goal,
+            attempt: claim.attempt,
+            generation: claim.generation,
+            status: AttemptStatus::Progress,
+            text: "Working".into(),
+        },
+    );
+    assert!(!d.node.goals[&goal].goal.unattended(first));
+    d.ok(
+        agents[1],
+        Request::AttemptReport {
+            goal,
+            attempt: claim.attempt,
+            generation: claim.generation,
+            status: AttemptStatus::Failed,
+            text: "Stopped".into(),
+        },
+    );
+    assert!(d.node.goals[&goal].goal.unattended(first));
+    let Response::Claimed(next) = d.ok(agents[2], no_task_start(goal)) else {
+        panic!("the failed attempt must leave its task free");
+    };
+    assert_eq!(next.task, first);
+    assert_ne!(next.attempt, claim.attempt);
+}
+
+#[test]
+fn no_task_start_returns_the_live_claim_before_picking_and_other_sessions_get_another_task() {
+    let (mut d, goal, _, agents) = collaboration_view_setup(Default::default());
+    for index in 0..3 {
+        open_work(&mut d, agents[0], goal, &format!("Work {index}"));
+    }
+    let Response::Claimed(claim) = d.ok(agents[1], no_task_start(goal)) else {
+        panic!("a free task must be claimed");
+    };
+    let before = d.store.log(&goal, 0, usize::MAX).unwrap();
+    assert_eq!(
+        d.ok(agents[1], no_task_start(goal)),
+        Response::Claimed(claim)
+    );
+    assert_eq!(d.store.log(&goal, 0, usize::MAX).unwrap(), before);
+
+    // The other-attempts list omits this principal. Its other session still
+    // must not select the task it already attempts.
+    let other_session = d.connect(credential(2), Some(session(99)));
+    let work = work_view(&mut d, other_session, goal);
+    let occupied = work
+        .to_start
+        .iter()
+        .find(|item| item.task == claim.task)
+        .unwrap();
+    assert!(occupied.attempting.is_empty());
+    assert!(!occupied.unattended);
+    let expected = work
+        .to_start
+        .iter()
+        .find(|item| item.unattended)
+        .unwrap()
+        .task;
+    let Response::Claimed(second) = d.ok(other_session, no_task_start(goal)) else {
+        panic!("the second session must claim another free task");
+    };
+    assert_eq!(second.task, expected);
+    assert_ne!(second.task, claim.task);
+    let Response::Claimed(third) = d.ok(agents[2], no_task_start(goal)) else {
+        panic!("the other principal must claim the remaining free task");
+    };
+    assert_ne!(third.task, claim.task);
+    assert_ne!(third.task, second.task);
+
+    d.restart();
+    let resumed = d.connect(credential(2), Some(session(2)));
+    assert_eq!(d.ok(resumed, no_task_start(goal)), Response::Claimed(claim));
+}
+
+#[test]
+fn no_task_start_answers_pending_without_signing_or_binding_and_replays_by_key() {
+    use locust_proto::event::AttemptStatus;
+    let (mut d, goal, _, agents) = collaboration_view_setup(Default::default());
+    open_work(&mut d, agents[0], goal, "Work");
+    let Response::Claimed(claim) = d.ok(agents[1], no_task_start(goal)) else {
+        panic!("the only task must be claimed");
+    };
+    let expected = Response::Pending(work_view(&mut d, agents[2], goal));
+    let before = d.store.log(&goal, 0, usize::MAX).unwrap();
+    let sessions = d.store.scan(Space::Session, &[]).unwrap();
+    let claims = d.store.scan(Space::Claim, &[]).unwrap();
+    assert_eq!(d.ok(agents[2], no_task_start(goal)), expected);
+    assert_eq!(
+        d.keyed(agents[2], 99, no_task_start(goal)).unwrap(),
+        expected
+    );
+    assert_eq!(d.store.log(&goal, 0, usize::MAX).unwrap(), before);
+    assert_eq!(d.store.scan(Space::Session, &[]).unwrap(), sessions);
+    assert_eq!(d.store.scan(Space::Claim, &[]).unwrap(), claims);
+
+    d.ok(
+        agents[1],
+        Request::AttemptReport {
+            goal,
+            attempt: claim.attempt,
+            generation: claim.generation,
+            status: AttemptStatus::Failed,
+            text: "Stopped".into(),
+        },
+    );
+    assert_eq!(
+        d.keyed(agents[2], 99, no_task_start(goal)).unwrap(),
+        expected
+    );
+    assert!(matches!(
+        d.ok(agents[2], no_task_start(goal)),
+        Response::Claimed(_)
+    ));
+}
+
+#[test]
+fn no_task_start_at_ask_leaves_ask_first_alone_and_takes_only_allowed_work() {
+    use locust_proto::api::Level;
+    let (mut d, goal, members, agents) = collaboration_view_setup(Default::default());
+    let first = open_work(&mut d, agents[0], goal, "First");
+    let second = open_work(&mut d, agents[0], goal, "Second");
+    let owner = d.owner();
+    d.ok(
+        owner,
+        Request::LevelSet {
+            goal,
+            agent: members[1],
+            level: Level::Ask,
+        },
+    );
+    let work = work_view(&mut d, agents[1], goal);
+    assert!(work.to_start.is_empty());
+    assert_eq!(work.ask_first.len(), 2);
+    let before = d.store.log(&goal, 0, usize::MAX).unwrap();
+    assert_eq!(
+        d.ok(agents[1], no_task_start(goal)),
+        Response::Pending(work)
+    );
+    assert_eq!(d.store.log(&goal, 0, usize::MAX).unwrap(), before);
+    authorize(&mut d, owner, goal, second, members[1]);
+    let Response::Claimed(claim) = d.ok(agents[1], no_task_start(goal)) else {
+        panic!("the allowed task must be claimed");
+    };
+    assert_eq!(claim.task, second);
+    assert_eq!(work_view(&mut d, agents[1], goal).ask_first[0].task, first);
+
+    d.ok(
+        owner,
+        Request::LevelSet {
+            goal,
+            agent: members[2],
+            level: Level::Read,
+        },
+    );
+    let work = work_view(&mut d, agents[2], goal);
+    assert!(work.to_start.is_empty());
+    assert!(work.ask_first.is_empty());
+    assert_eq!(
+        d.ok(agents[2], no_task_start(goal)),
+        Response::Pending(work)
+    );
+}
+
+#[test]
+fn no_task_start_refuses_another_principals_session_even_with_nothing_to_start() {
+    let (mut d, goal, _, agents) = collaboration_view_setup(Default::default());
+    let shared_session = d.connect(credential(3), Some(session(2)));
+    assert_eq!(
+        d.ok(shared_session, no_task_start(goal)),
+        Response::Pending(work_view(&mut d, shared_session, goal))
+    );
+    assert!(d.node.sessions.get(&session(2).instance()).is_none());
+    open_work(&mut d, agents[0], goal, "Work");
+    d.ok(agents[1], no_task_start(goal));
+    let before = d.store.log(&goal, 0, usize::MAX).unwrap();
+    let error = d.call(shared_session, no_task_start(goal)).unwrap_err();
+    assert_eq!(error.code, ErrorCode::Denied);
+    assert_eq!(error.message, "the session belongs to another principal");
+    assert_eq!(d.store.log(&goal, 0, usize::MAX).unwrap(), before);
+}
+
+#[test]
+fn no_task_start_uses_the_selected_offer_and_recovers_that_claim() {
+    let (mut d, principal, owner, agent, goal) = setup();
+    let (task, offer) = offered(&mut d, agent, goal, principal);
+    authorize(&mut d, owner, goal, task, principal);
+    assert_eq!(
+        work_view(&mut d, agent, goal).to_start[0].offer,
+        Some(offer)
+    );
+    let Response::Claimed(claim) = d.ok(agent, no_task_start(goal)) else {
+        panic!("the offered task must be claimed");
+    };
+    assert_eq!(claim.task, task);
+    assert_eq!(
+        d.node.goals[&goal].state().attempts[&claim.attempt].offer,
+        Some(offer)
+    );
+    assert_eq!(d.ok(agent, no_task_start(goal)), Response::Claimed(claim));
+}
+
+#[test]
+fn no_task_start_does_not_interpret_after_task_titles() {
+    let (mut d, goal, _, agents) = collaboration_view_setup(Default::default());
+    let predecessor = open_work(&mut d, agents[0], goal, "Predecessor");
+    let successor = open_work(
+        &mut d,
+        agents[0],
+        goal,
+        &format!("After task: {predecessor} Follow-up"),
+    );
+    d.ok(
+        agents[1],
+        Request::AttemptStart {
+            goal,
+            task: Some(predecessor),
+            offer: None,
+        },
+    );
+    let Response::Claimed(claim) = d.ok(agents[2], no_task_start(goal)) else {
+        panic!("the title is not an enforced dependency");
+    };
+    assert_eq!(claim.task, successor);
+}
+
 #[test]
 fn unattended_includes_own_attempts_in_another_session_and_without_a_claim() {
     use locust_proto::event::{AttemptStatus, TaskId};
@@ -640,7 +907,7 @@ fn unattended_includes_own_attempts_in_another_session_and_without_a_claim() {
         agents[1],
         Request::AttemptStart {
             goal,
-            task,
+            task: Some(task),
             offer: None,
         },
     ) else {
@@ -658,6 +925,12 @@ fn unattended_includes_own_attempts_in_another_session_and_without_a_claim() {
             !item.unattended,
             "a running attempt still occupies the task"
         );
+        let before = d.store.log(&goal, 0, usize::MAX).unwrap();
+        assert_eq!(
+            d.ok(other_chat, no_task_start(goal)),
+            Response::Pending(work)
+        );
+        assert_eq!(d.store.log(&goal, 0, usize::MAX).unwrap(), before);
     };
     check(&mut d);
     let held = d
@@ -719,7 +992,7 @@ fn to_start_shows_other_attempts_results_and_sorts_least_attended_first() {
             agents[1],
             Request::AttemptStart {
                 goal,
-                task: *task,
+                task: Some(*task),
                 offer: None,
             },
         ) else {
@@ -939,7 +1212,7 @@ fn finished_task_allowance_survives_retracted_approval_and_restart_on_same_round
         agents[0],
         Request::AttemptStart {
             goal,
-            task,
+            task: Some(task),
             offer: None,
         },
     ) else {
@@ -999,7 +1272,7 @@ fn finished_task_allowance_survives_retracted_approval_and_restart_on_same_round
             agents[0],
             Request::AttemptStart {
                 goal,
-                task,
+                task: Some(task),
                 offer: None,
             },
         )
@@ -1030,7 +1303,7 @@ fn finished_task_allowance_survives_retracted_approval_and_restart_on_same_round
             agent,
             Request::AttemptStart {
                 goal,
-                task,
+                task: Some(task),
                 offer: None
             }
         ),

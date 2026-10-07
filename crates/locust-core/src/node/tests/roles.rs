@@ -449,7 +449,7 @@ fn binding_counted_reviews_over_rules_where_one_reviewer_acts_alone_gives_the_ro
         maple_conn,
         Request::AttemptStart {
             goal,
-            task,
+            task: Some(task),
             offer: Some(offer),
         },
     ) else {

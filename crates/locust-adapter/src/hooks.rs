@@ -487,7 +487,9 @@ fn own_call(adapter: &HookAdapter, value: &Value) -> Option<OwnCall> {
                 return None;
             }
             match &request {
-                Request::AttemptStart { task, .. } if *task != claim.task => return None,
+                Request::AttemptStart {
+                    task: Some(task), ..
+                } if *task != claim.task => return None,
                 Request::AttemptTakeover { attempt, .. } if *attempt != claim.attempt => {
                     return None;
                 }
@@ -1441,6 +1443,70 @@ mod tests {
             parse(Client::Codex, "tool", &value).event,
             Event::Tool { own_call: None }
         ));
+    }
+
+    #[test]
+    fn no_task_start_observes_the_task_in_its_claimed_answer() {
+        let claim = Claim {
+            goal: GoalId([0x11; 32]),
+            task: TaskId::Authored(EventId([2; 32])),
+            attempt: EventId([3; 32]),
+            instance: InstanceId([4; 16]),
+            generation: 1,
+        };
+        for spec in ADAPTERS {
+            let mut value = native_for(spec.client, "PostToolUse");
+            value["tool_name"] = json!(format!("{}locust_attempt_start", spec.native_tool_prefix));
+            value["tool_input"] = json!({"goal":claim.goal});
+            value["tool_response"] = response_for(
+                spec.client,
+                value["tool_name"].as_str().unwrap(),
+                json!({"ok":true,"result":Response::Claimed(claim)}),
+            );
+            let Event::Tool {
+                own_call: Some(call),
+            } = parse(spec.client, "tool", &value).event
+            else {
+                panic!("the no-task start's claim must be observed");
+            };
+            assert_eq!(call.operation, "attempt.start");
+            assert_eq!(call.goal, Some(claim.goal));
+            assert_eq!(call.action, OwnAction::Claimed(claim));
+            value["tool_input"]["goal"] = json!(GoalId([9; 32]));
+            assert!(matches!(
+                parse(spec.client, "tool", &value).event,
+                Event::Tool { own_call: None }
+            ));
+        }
+    }
+
+    #[test]
+    fn no_task_start_observes_pending_without_inventing_a_claim() {
+        let goal = GoalId([0x11; 32]);
+        for spec in ADAPTERS {
+            let mut value = native_for(spec.client, "PostToolUse");
+            value["tool_name"] = json!(format!("{}locust_attempt_start", spec.native_tool_prefix));
+            value["tool_input"] = json!({"goal":goal});
+            value["tool_response"] = response_for(
+                spec.client,
+                value["tool_name"].as_str().unwrap(),
+                json!({"ok":true,"result":Response::Pending(PendingWork::default())}),
+            );
+            let Event::Tool {
+                own_call: Some(call),
+            } = parse(spec.client, "tool", &value).event
+            else {
+                panic!("the pending answer must be observed");
+            };
+            assert_eq!(call.operation, "attempt.start");
+            assert_eq!(call.goal, Some(goal));
+            assert_eq!(call.action, OwnAction::Other);
+            value["tool_input"]["task"] = json!(TaskId::Authored(EventId([2; 32])));
+            assert!(matches!(
+                parse(spec.client, "tool", &value).event,
+                Event::Tool { own_call: None }
+            ));
+        }
     }
 
     #[test]

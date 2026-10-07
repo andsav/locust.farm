@@ -253,7 +253,7 @@ fn task_context_joins_scoped_progress_findings_reviews_and_documents_at_one_revi
         agent,
         Request::AttemptStart {
             goal,
-            task,
+            task: Some(task),
             offer: Some(offer),
         },
     ) else {
@@ -509,7 +509,7 @@ fn scoped_pages_keep_goal_wide_news() {
         agent,
         Request::AttemptStart {
             goal,
-            task: unrelated,
+            task: Some(unrelated),
             offer: Some(offer),
         },
     ) else {

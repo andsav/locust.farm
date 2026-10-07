@@ -487,6 +487,28 @@ mod tests {
     }
 
     #[test]
+    fn attempt_start_parses_without_a_task() {
+        let goal = locust_proto::id::GoalId([1; 32]);
+        let matches = command()
+            .try_get_matches_from(["locust", "attempt", "start", "--goal", &goal.to_string()])
+            .unwrap();
+        let (name, fields) = selected(&matches);
+        assert_eq!(name, "attempt.start");
+        let request: locust_proto::api::Request = serde_json::from_value(
+            serde_json::json!({name.as_str():values(&name, fields).unwrap()}),
+        )
+        .unwrap();
+        assert_eq!(
+            request,
+            locust_proto::api::Request::AttemptStart {
+                goal,
+                task: None,
+                offer: None,
+            }
+        );
+    }
+
+    #[test]
     fn new_goal_accepts_optional_formation_and_name() {
         let matches = command()
             .try_get_matches_from(["locust", "goal", "create", "--title", "open"])

@@ -616,6 +616,92 @@ fn on_the_hosts_computer_no_agent_signs_while_the_hosts_own_records_are_missing(
 }
 
 #[test]
+fn no_task_start_refuses_like_a_named_start_while_the_goal_or_key_is_catching_up() {
+    use locust_proto::event::TaskId;
+    use locust_proto::store::Space;
+    for governance_held in [false, true] {
+        for occupied in [false, true] {
+            let mut net = Network::with(2);
+            let (goal, host) = hosted(&mut net, 0, HOST);
+            let agent = net.nodes[0].connect(credential(HOST), Some(session(1)));
+            let Response::Recorded { event } = net.nodes[0].ok(
+                agent,
+                Request::TaskOpen {
+                    goal,
+                    text: "Work".into(),
+                    task_type: None,
+                    inputs: Default::default(),
+                    parent: None,
+                },
+            ) else {
+                panic!()
+            };
+            let task = TaskId::Authored(event);
+            if occupied {
+                let other = net.nodes[0].connect(credential(HOST), Some(session(99)));
+                net.nodes[0].ok(
+                    other,
+                    Request::AttemptStart {
+                        goal,
+                        task: Some(task),
+                        offer: None,
+                    },
+                );
+            }
+            let copy = if governance_held {
+                let copy = snapshot(&net.nodes[0].store);
+                join(&mut net, 0, 1, goal, 2);
+                copy
+            } else {
+                join(&mut net, 0, 1, goal, 2);
+                let copy = snapshot(&net.nodes[0].store);
+                post(&mut net, 0, HOST, goal).unwrap();
+                settle(&mut net);
+                copy
+            };
+            net.down.insert(1);
+            net.start_over(0, copy);
+            let daemon = &mut net.nodes[0];
+            assert!(daemon.node.hold(&daemon.node.goals[&goal], &host).is_some());
+            assert_eq!(
+                status(daemon, goal).halted == Some(Halt::SignerRecovery),
+                governance_held
+            );
+            let agent = daemon.connect(credential(HOST), Some(session(1)));
+            let before = daemon.store.log(&goal, 0, usize::MAX).unwrap();
+            let sessions = daemon.store.scan(Space::Session, &[]).unwrap();
+            let claims = daemon.store.scan(Space::Claim, &[]).unwrap();
+            let named = daemon
+                .call(
+                    agent,
+                    Request::AttemptStart {
+                        goal,
+                        task: Some(task),
+                        offer: None,
+                    },
+                )
+                .unwrap_err();
+            let picked = daemon
+                .call(
+                    agent,
+                    Request::AttemptStart {
+                        goal,
+                        task: None,
+                        offer: None,
+                    },
+                )
+                .unwrap_err();
+            assert_eq!(picked, named);
+            assert_eq!(picked.code, ErrorCode::ReadOnly);
+            assert!(picked.message.contains("catching up"));
+            assert_eq!(daemon.store.log(&goal, 0, usize::MAX).unwrap(), before);
+            assert_eq!(daemon.store.scan(Space::Session, &[]).unwrap(), sessions);
+            assert_eq!(daemon.store.scan(Space::Claim, &[]).unwrap(), claims);
+        }
+    }
+}
+
+#[test]
 fn a_member_that_lacks_the_later_records_does_not_open_the_guard() {
     let mut net = Network::with(3);
     let (goal, host) = hosted(&mut net, 0, 1);

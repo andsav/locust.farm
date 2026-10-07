@@ -88,12 +88,31 @@ impl<S: Store, E: Entropy> Node<S, E> {
         &self,
         actor: &Actor,
         goal: GoalId,
-        task: TaskId,
+        task: Option<TaskId>,
         offer: Option<EventId>,
         now: u64,
     ) -> Plan {
         let (entry, principal) = self.member(actor, &goal)?;
         let instance = actor.session()?;
+        let (task, offer) = match task {
+            Some(task) => (task, offer),
+            None => {
+                // A pending answer binds nothing, but cannot use another
+                // principal's session or bypass a restore hold.
+                self.sessions.bind(&instance, &principal)?;
+                if let Some(hold) = self.hold(entry, &principal) {
+                    return Err(hold.refusal());
+                }
+                let work = self.pending_work(entry, actor);
+                if let Some(claim) = work.claimed.first() {
+                    return answer(Response::Claimed(*claim));
+                }
+                let Some(item) = work.to_start.iter().find(|item| item.unattended) else {
+                    return answer(Response::Pending(work));
+                };
+                (item.task, item.offer)
+            }
+        };
         let context = task_context(entry, task)?;
         // Retrying on the same session recovers its durable claim. Independent
         // attempts by other sessions remain independent shared facts.

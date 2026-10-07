@@ -216,7 +216,7 @@ fn status_shows_the_owner_every_principal_and_an_agent_only_itself() {
             agent,
             Request::AttemptStart {
                 goal,
-                task,
+                task: Some(task),
                 offer: Some(offer),
             },
         )
@@ -264,7 +264,7 @@ fn status_lists_what_waits_for_the_owner_with_a_ready_command() {
             agent,
             Request::AttemptStart {
                 goal,
-                task,
+                task: Some(task),
                 offer: Some(offer),
             },
         )
@@ -321,7 +321,7 @@ fn status_lists_what_waits_for_the_owner_with_a_ready_command() {
             agent,
             Request::AttemptStart {
                 goal,
-                task: other,
+                task: Some(other),
                 offer: Some(other_offer),
             },
         )
@@ -368,7 +368,7 @@ fn status_lists_what_waits_for_the_owner_with_a_ready_command() {
             agent,
             Request::AttemptStart {
                 goal,
-                task: third,
+                task: Some(third),
                 offer: Some(third_offer),
             },
         )
@@ -419,7 +419,7 @@ fn status_lists_what_waits_for_the_owner_with_a_ready_command() {
             agent,
             Request::AttemptStart {
                 goal,
-                task: third,
+                task: Some(third),
                 offer: Some(third_offer),
             },
         ),
@@ -439,7 +439,7 @@ fn status_lists_what_waits_for_the_owner_with_a_ready_command() {
             agent,
             Request::AttemptStart {
                 goal,
-                task: fourth,
+                task: Some(fourth),
                 offer: Some(fourth_offer),
             },
         )

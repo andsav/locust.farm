@@ -513,7 +513,7 @@ mod tests {
         let mut client = Client::open(stream, CREDENTIAL, Some(SESSION)).unwrap();
         let claim = Request::AttemptStart {
             goal: goal(),
-            task: crate::event::TaskId::Authored(EventId([3; 32])),
+            task: Some(crate::event::TaskId::Authored(EventId([3; 32]))),
             offer: None,
         };
         let Err(ClientError::Api(error)) = client.call(claim) else {

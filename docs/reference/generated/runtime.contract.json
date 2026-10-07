@@ -2850,13 +2850,13 @@
                 "long": "task",
                 "name": "task",
                 "positional": false,
-                "required": true,
+                "required": false,
                 "short": null
               }
             ],
             "commands": [],
             "name": "start",
-            "summary": "Takes a task: starts an attempt on it, or recovers this session's claim on the same task and offer. The goal's rules and the agent's level decide whether it may."
+            "summary": "Starts a named task or recovers its claim; without a task, returns this session's live claim, starts the first locally unattended eligible task, or answers pending without signing."
           },
           {
             "arguments": [
@@ -7375,7 +7375,7 @@
       "mcp_tool": "locust_attempt_start",
       "name": "attempt.start",
       "read_only": false,
-      "summary": "Takes a task: starts an attempt on it, or recovers this session's claim on the same task and offer. The goal's rules and the agent's level decide whether it may."
+      "summary": "Starts a named task or recovers its claim; without a task, returns this session's live claim, starts the first locally unattended eligible task, or answers pending without signing."
     },
     {
       "audience": "agent",
@@ -10369,12 +10369,18 @@
                 ]
               },
               "task": {
-                "$ref": "#/$defs/TaskId"
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/TaskId"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
             },
             "required": [
-              "goal",
-              "task"
+              "goal"
             ],
             "type": "object"
           }
@@ -17813,7 +17819,7 @@
       },
       {
         "additionalProperties": false,
-        "description": "Answers `pending`.",
+        "description": "Answers `pending`, or `attempt.start` without a task when this session\nholds no live claim and no eligible task is unattended.",
         "properties": {
           "pending": {
             "$ref": "#/$defs/PendingWork"
