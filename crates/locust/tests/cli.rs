@@ -1797,6 +1797,101 @@ fn generic_call_and_wait_use_stable_error_and_timeout_statuses() {
     }
 }
 #[test]
+fn an_owner_reads_a_refusal_in_the_persons_voice_and_json_keeps_the_daemons() {
+    use locust_proto::api::{Act, Refused, Rule, Voice, Why, render};
+    use locust_proto::organization::Selector;
+    let goal = GoalId([3; 32]);
+    let agent = PublicKey([5; 32]);
+    let host = PublicKey([2; 32]);
+    let refused = Refused {
+        agent,
+        agent_name: "codex-maple-1a2b3c4d".into(),
+        member_name: Some("Maple".into()),
+        goal: Some(goal),
+        goal_title: Some("Static site search".into()),
+        act: Act::Post,
+        task: None,
+        task_title: None,
+        why: Why::Rules {
+            rule: Rule::Publish,
+            qualifies: Selector::Role {
+                name: "reviewer".into(),
+            },
+            except_author: false,
+            author: false,
+            host,
+            host_name: Some("Harbor".into()),
+            hosted_here: true,
+        },
+    };
+    let agent_voice = render(&refused, Voice::Agent);
+    let person_voice = render(&refused, Voice::Person);
+    assert_ne!(agent_voice, person_voice);
+    for json in [false, true] {
+        let home = scratch();
+        write_secret(&home.path().join("owner.credential"), &[1; 32]);
+        let error = ApiError {
+            code: ErrorCode::NotEligible,
+            message: agent_voice.clone(),
+            details_json: Some(serde_json::to_string(&refused).unwrap()),
+        };
+        let handle = server(home.path(), 1, move |frame| match frame.request {
+            Request::Status => Ok(status(vec![GoalSummary {
+                goal,
+                title: Some("Static site search".into()),
+                member: agent,
+                membership: Membership::Member,
+                name: "Maple".into(),
+                host_name: Some("Harbor".into()),
+                invitations_open: 0,
+                invitations_expire_ms: None,
+                halted: None,
+                abilities: abilities(goal, agent),
+            }])),
+            Request::GoalStatus { .. } => {
+                Ok(Response::GoalStatus(hosted_goal_status(goal, host, true)))
+            }
+            Request::ContributionPublish { .. } => Err(error.clone()),
+            other => panic!("unexpected {other:?}"),
+        });
+        let mut command = plain();
+        command.arg("--home").arg(home.path());
+        if json {
+            command.arg("--json");
+        }
+        let output = command
+            .args([
+                "--owner",
+                "--agent",
+                &agent.to_string(),
+                "contribution",
+                "publish",
+                "--goal",
+                &goal.to_string(),
+                "A finding",
+            ])
+            .output()
+            .unwrap();
+        if json {
+            let body = envelope(&output, 13);
+            assert_eq!(body["error"]["message"], agent_voice);
+            assert_eq!(body["error"]["details"]["why"]["side"], "rules");
+            assert_eq!(body["error"]["details"]["goal_title"], "Static site search");
+        } else {
+            let stderr = String::from_utf8(output.stderr).unwrap();
+            assert_eq!(output.status.code(), Some(13), "{stderr}");
+            assert_eq!(
+                stderr.trim_end(),
+                format!("locust: not_eligible: {person_voice}")
+            );
+            assert!(stderr.contains("\"Static site search\""), "{stderr}");
+            assert!(stderr.contains("reviewer"), "{stderr}");
+            assert!(!stderr.contains("level"), "{stderr}");
+        }
+        handle.join().unwrap();
+    }
+}
+#[test]
 fn wait_help_names_the_statuses_of_a_quiet_wait() {
     let output = plain().args(["wait", "--help"]).output().unwrap();
     assert_eq!(output.status.code(), Some(0));

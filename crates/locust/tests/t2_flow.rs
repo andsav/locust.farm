@@ -1593,3 +1593,78 @@ fn a_refused_task_reaches_the_person_as_a_waiting_line_they_can_run() {
         "{agent_status}"
     );
 }
+
+#[test]
+fn pending_in_text_mode_names_the_attempting_member_and_the_tasks_title() {
+    let participant = Participant::new();
+    let alice = participant.cli(&["--owner"], &["agent", "enroll", "alice"]);
+    participant.cli(&["--owner"], &["agent", "enroll", "bob"]);
+    let credential = alice["agent_enrolled"]["credential_path"].as_str().unwrap();
+    let session_path = participant.home.path().join("alice.session");
+    let session = session_path.to_str().unwrap();
+    participant.cli(&[], &["session", "create", session]);
+    let authority = ["--credential", credential, "--session", session];
+    let created = participant.approved_cli(
+        &["--owner", "--agent", "alice"],
+        &[
+            "goal",
+            "create",
+            "--title",
+            "Demo work",
+            "--formation",
+            "peer-review",
+        ],
+    );
+    let goal = created["goal_created"]["goal"].as_str().unwrap();
+    participant.approved_cli(
+        &["--owner"],
+        &["goal", "add", "--goal", goal, "--agent", "bob"],
+    );
+    let opened = participant.cli(
+        &authority,
+        &["task", "open", "--goal", goal, "Fix the parser"],
+    );
+    let task = format!("task:{}", opened["recorded"]["event"].as_str().unwrap());
+    let claim = participant.cli(
+        &authority,
+        &["attempt", "start", "--goal", goal, "--task", &task],
+    );
+    // Bob's owner reads names and titles, not keys and bare identifiers.
+    let pending = participant.human(&["--owner", "--agent", "bob", "pending", "--goal", goal]);
+    assert!(
+        pending.contains(&format!(
+            "Ready to start: Fix the parser ({})\n  Attempting: alice (",
+            &task[..13]
+        )),
+        "{pending}"
+    );
+    participant.cli(
+        &authority,
+        &[
+            "contribution",
+            "publish",
+            "--goal",
+            goal,
+            "--attempt",
+            claim["claimed"]["attempt"].as_str().unwrap(),
+            "--generation",
+            &claim["claimed"]["generation"].to_string(),
+            "A first result",
+        ],
+    );
+    let pending = participant.human(&["--owner", "--agent", "bob", "pending", "--goal", goal]);
+    assert!(pending.contains("Attempting: alice ("), "{pending}");
+    assert!(pending.contains(" · 0 of 1 approvals"), "{pending}");
+    // The agent's own wait, answered at once, reads the same names.
+    let waited = participant.human(&[
+        "--owner",
+        "--agent",
+        "bob",
+        "watch",
+        "--goal",
+        goal,
+        "--timeout-ms",
+        "0",
+    ]);
+    assert!(waited.contains("Fix the parser"), "{waited}");
+}
