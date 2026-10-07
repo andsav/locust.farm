@@ -24,6 +24,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 - [Roles and permissions: what exists and a simpler model](roles-and-permissions-2026-10-05.md)
 - [Roles and permissions implementation plan review](roles-and-permissions-plan-review-2026-10-05.md)
 - [Gas Town lessons for shared workspaces](gastown-shared-workspace-assessment.md)
+- [beads and Locust: storage, agent memory and ideas to adapt](beads-assessment-2026-10-06.md)
 - [Organization design research](formations.md)
 - [Host-key failure characterization](host-key-failure-characterization-2026-10-05.md)
 - [Goal lifecycle characterization](goal-lifecycle-characterization-2026-10-05.md)
