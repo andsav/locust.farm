@@ -46,6 +46,7 @@ The pages published on locust.farm under `/docs`. See the
 - [Roles and permissions plan: removals and checks](roles-and-permissions-plan-details.md): companion list of what each phase removes and the check behind each behaviour.
 - [Host safety and ending a goal: implementation plan](host-safety-and-ending-plan.md): phase contracts for the host boundary, a guard for a computer restored from an old copy, and ending a goal.
 - [Host safety and ending a goal: what each part owns, removes and checks](host-safety-and-ending-plan-details.md): companion list for the six phases.
+- [Agent memory and store follow-ups: implementation plan](agent-memory-and-store-plan.md): proposed, not accepted or built; phases from the beads assessment and where they fit around the v2 build order.
 
 ## Building and releasing
 
