@@ -373,7 +373,7 @@ changes signed bytes, and it rides in J2's step.
 | Phase | What works afterwards | Lands |
 | --- | --- | --- |
 | S1 | Nothing removes stored content; a failed start says what to do | before G1, else right after (removal); after G1 (sentences) |
-| A1 | Agent tools say what they return; a context page holds at most 32 items | before R7, if ready |
+| A1 | Agent tools say what they return; a context page holds at most 32 items | Built (`60c22d1`) |
 | A2 | An agent starts a free task in one call | before R7, if ready |
 | A3 | The first compact page lists current findings | before R7 and J5, if ready |
 | A4 | `status` lists held tasks and how to resume | before R7, if ready |
