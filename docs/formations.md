@@ -190,8 +190,8 @@ the `role take` command that undoes it for one member. `--no-role` keeps the
 current holders. Holders also stay unchanged when earlier rules let one of
 them act alone: giving the role to everyone could bypass review on older tasks.
 The plan explains the earlier use and prints `role give` commands instead. This
-behavior is enforced by [the rules handler](../crates/locust-core/src/node/requests/goals.rs)
-and [role tests](../crates/locust-core/src/node/tests/roles.rs).
+binding command is in [the rules handler](../crates/locust-core/src/node/requests/goals.rs)
+with regression coverage in [role tests](../crates/locust-core/src/node/tests/roles.rs).
 
 `rules bind` changes the goal's defaults. Its plan records the current rules
 event; if it changes before confirmation, locust.farm refuses the update.

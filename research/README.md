@@ -7,6 +7,8 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 
 ## Investigations and experiments
 
+- [Locust v2 R6: documents, site and scripts](v2-phase-r6-build-notes-2026-10-06.md)
+
 - [A2A and Locust](a2a-assessment.md)
 - [Agent ergonomics audit and proposals](agent-ergonomics-2026-10-05.md)
 - [Agent integration and local execution boundaries](agent-agnostic-integration.md)
