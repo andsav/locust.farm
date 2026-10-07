@@ -7,7 +7,8 @@ unchanged until the owner approves the
 [rows proposed below](#rows-proposed-for-the-master-plans-build-order).
 
 Code lines were verified at `0e902e3`; lines in files changed since were
-re-checked at `0a448ad`. Each phase re-checks its lines when it starts.
+re-checked at `0a448ad`, and H's at `3dfb1fd`. Each phase re-checks its
+lines when it starts.
 
 ## What this does, today against after
 
@@ -19,6 +20,7 @@ re-checked at `0a448ad`. Each phase re-checks its lines when it starts.
 | Starting work | An agent picks a task by ID; another session of the same agent may pick the same one. | When the list shows work, one call with no task starts a task nobody is attempting, as far as this computer has heard. Asking twice returns the same claim. With nothing free, nothing is signed. (A2) |
 | What the goal knows | Findings arrive as items to page through; after J5 a newcomer's unread view leaves older ones out. | The first compact page lists the 20 newest goal-wide findings by first line, with the total. (A3) |
 | Back after a break | `locust_status` returns the attempts an agent holds, but nothing says what they mean, and the CLI `status` does not print them. | The instructions say each is an attempt to resume and how; the CLI `status` lists each with its title and generation and the two commands that resume it. (A4) |
+| Work waiting, cancellation, compaction | Seen only through the agent's calls. | Hooks keep it working, show a cancellation at the next tool call, and reset the read record. (H) |
 | Retiring a finding | An agent cannot say its own earlier finding is out of date. | A new finding can replace the same author's old one, which leaves the current list. (A6) |
 | IDs a person sees | Some lines cut IDs at a fixed 8 characters even on a clash. | One cutter everywhere: 8 characters, longer only on a real clash. (A5a) |
 | IDs an agent types | MCP tools need full IDs. | After R7, if its counts justify it: 8 characters of an ID a tool showed in the same connection; anything else is refused with a fix. (A5b) |
@@ -31,12 +33,13 @@ re-checked at `0a448ad`. Each phase re-checks its lines when it starts.
 
 ## Where it sits in v2
 
-**No phase here is a need of a v2 phase.** Each lands before its target if
-ready; the v2 phase never waits. The critical path stays R4/R5 fixes, G1,
-G2, E1, E2, R7, R8, R9, R10, then J2 to J6.
+**One need.** R7's early run waits for H1a, so it sees the stop hook that
+ships. Every other phase lands before its target if ready; the v2 phase
+never waits. The critical path stays R4/R5 fixes, G1, G2, E1, E2, R7, R8,
+R9, R10, then J2 to J6.
 
-**Before R7's early run, if ready:** A1, A2, A3, A4, A5a and P. R7 rewords
-skill and tool words on a miss
+**Before R7's early run, if ready:** A1, A2, A3, A4, A5a, P, H1b, H2 and
+H3. R7 rewords skill and tool words on a miss
 ([roles plan](roles-and-permissions-plan.md) 4157-4160), so it should see
 the text that ships; P rewrites R7's run text. A slipped phase is measured
 in R10's run.
@@ -79,6 +82,9 @@ change, since the binary carries that code.
   `definitions.rs`, `daemon/mod.rs` open errors,
   `organization_performance.rs`, `build_release.py`
   and P's plan edits; never Lane A's files.
+- **Lane D, hooks:** H. Owns `hook.rs`, `hooks.rs`, setup's hook file and
+  qualification scripts; edits Lane A's files between its commits, after
+  A4, and `node/mod.rs` never during G1.
 - **Lane C, J1 with J1+,** in R7's window, when v2 writes almost no Rust.
   Never touches SKILL.md, the `wait` and `pending` rows or collaboration.md.
 
@@ -98,6 +104,8 @@ Shared files: S1a precedes A1 in `node/tests/context.rs`; in
 | S1b | After G1 | G1 | Covers G1's open failures in one pass |
 | J1+ | Inside J1 | J1, E2 | J1 rewrites the same function; it folds in E2's set |
 | A5b | After R7's early run | A5a, R7's counts | Judged against measured ID errors |
+| H1a | Before R7's early run (a need) | A4 (order) | R7 sees the hook that ships |
+| H1b, H2, H3 | After H1a, before R7 if ready | H1a | Harnesses as confirmed |
 | A6 | Right after J2's change set | A3, R7's run | Shares J2's signed step |
 | S3 | With the first published build | G1, owner's answer on versions | The ledger must exist at the first release |
 
@@ -106,8 +114,8 @@ Shared files: S1a precedes A1 in `node/tests/context.rs`; in
 Under Build order, after the table of fifteen, add:
 
 > **Alongside the fifteen.** From the
-> [agent memory and store plan](agent-memory-and-store-plan.md). No v2 phase
-> waits for them. Only A6 changes signed bytes.
+> [agent memory and store plan](agent-memory-and-store-plan.md). Only R7's
+> early run waits for one, H1a. Only A6 changes signed bytes.
 >
 > | Phase | What works afterwards | Lands before, if ready |
 > | --- | --- | --- |
@@ -118,9 +126,11 @@ Under Build order, after the table of fifteen, add:
 > | A4 | `status` lists held tasks and how to resume | R7 |
 > | A5 | One ID cutter; later, short IDs an agent was shown | R7 (cutter); after R7 (bridge) |
 > | S2 | A long goal's cost is measured | R8 |
+> | H | An agent with work waiting keeps working | R7 (H1a needed) |
 > | A6 | An agent can retire its own finding | right after J2, in J2's step |
 > | S3 | No format change ships under a released number | the first published build |
 
+Amend **R7**'s Needs: "…and H1a of the agent memory and store plan."
 Amend **J1**: "…and `goal status` shows the last refusal each computer
 sent." Amend **J2**: "A finding can replace the same author's earlier one
 (A6), in J2's step." In Versions, after "The first public door changes signed
@@ -128,7 +138,7 @@ bytes once more, in J2.", add "A6 lands right after it in the same step."
 
 ## Decided by the plan author
 
-- **A2 keeps the wait:** agents call `locust_wait` or `locust_pending`, then start with no task, so R7's criterion (roles plan 4135) stands.
+- **A2 keeps the wait:** agents call `locust_wait` or `locust_pending`, on their own or after a hook line, then start with no task; R7's criterion widens (P).
 - **A no-task start ignores "After task:" lines:** the skill sends the agent to name a task when one is still waiting.
 - **No pick tiebreak:** R7's run shows herding if any; a local fix would change no format.
 - **The context cap is 32, silent, in the daemon:** half a frame, every client bounded alike.
@@ -140,18 +150,19 @@ bytes once more, in J2.", add "A6 lands right after it in the same step."
 - **A6 ships without a kind field:** "finding" keeps A3's meaning.
 - **J1+ replaces E2's refused set:** one structure, not two.
 - **R7's seeds are findings, not tasks:** R7's setup stays true and A3 shows them.
+- **Stop rule:** block only for work IDs not shown since the chat's last Locust write; after an ignored block, stops go through until a new ID. One worker chat per session waits, at most 270 s.
+- **Hook output:** one ASCII line under 512 bytes: counts, IDs, tool names, fixed words; on failure, "Locust context was NOT injected".
+- **State stays local;** a reset forgets rather than flags. No `--owner`, prompt-submit or reject hook.
 
 ## Decided by the owner
 
 Answers of 6 October 2026 to this plan's two questions.
 
-1. **Showing an agent its held work when a chat starts (hooks).** "We should
-   initially integrate locust as mcp tools, we can explore hooks if it helps
-   the system. Hooks are supported by all harnesses not just claude code."
-   So Locust reaches agents through its MCP tools; `status` (A4) is how an
-   agent gets back to its work. No hook is installed by this plan. Whether
-   hooks help is a separate investigation across every harness Locust sets
-   up, not Claude Code alone.
+1. **Hooks.** "We already know the numbers are going to be better with
+   hooks and we can use mcp tools as fallback"; each harness's hooks "we
+   can figure out in time". So hooks are in, with no measurement gate, for
+   every harness Locust sets up (H). MCP tools stay the integration, the
+   fallback and the only way an agent acts.
 2. **An agent marking one of its own earlier findings as replaced.** "Yes."
    A6 is accepted and lands in J2's format change.
 
@@ -176,6 +187,7 @@ edit only their own skill sentences.
 | `one_event_apply`, the new sizes, the long-goal note | S2 |
 | `format_digests`, the ledger, `--record-published`, the fixture and its test | S3 |
 | `Report.received`, the last-refusal map, `PeerView.last_refusal`, `PeerRefusal`, `refusal_words` | J1+ |
+| `locust hook`, marks, the hook rules, `hooks.rs`; `session.chat`, presence | H1a; H3 |
 | Phase state, findings numbering, R7's run text, hand-off sentences in v2 plans | P |
 
 ## Phases
@@ -412,11 +424,12 @@ and makes `locust status` print them for an agent on the CLI.
 **Depends on.** R5.
 
 **Changes.**
-- `INSTRUCTIONS` (mcp.rs 41) gains one sentence after "Start with
+- `INSTRUCTIONS` (mcp.rs 41) gains two sentences after "Start with
   locust_status.": "Each entry in its claims is an attempt you hold; after a
   new chat, a restart or a compaction, read that task with
-  locust_context_read view=full, then continue the work or report it."
-  SKILL.md 35 says the same.
+  locust_context_read view=full, then continue the work or report it. One
+  locust_pending lists under held_elsewhere needs locust_attempt_takeover
+  first." (views.rs 483-488.) SKILL.md 35 says the same.
 - [cli/mod.rs](../crates/locust/src/cli/mod.rs) 489-504: for each goal with
   claims, read `board()` (628-637) into `Reader.tasks`.
   [presentation.rs](../crates/locust/src/cli/presentation.rs) `agent_lines`
@@ -428,7 +441,7 @@ and makes `locust status` print them for an agent on the CLI.
   (selectors.rs 227-279). In `Voice::Agent`, per claim `Context: locust
   context read --goal G --task T --view full --limit 20` (SKILL.md 43-45)
   and per goal `Pending: locust pending --goal G`. agents.md gains one fact.
-- No API change. Locust installs no hook (owner's answer 1).
+- No API change. H1's start line tells a compacted chat the same.
 
 **Tests.** Presentation tests for claim lines, quoted titles and a missing
 board; `every_printed_command_parses_as_printed` (presentation.rs 2131) adds
@@ -546,6 +559,78 @@ released before the door, else under J2's 8.
 A6 is its own commit right after it.
 
 **Risks and notes.** Progress notes can be superseded too.
+
+### H: Hooks
+
+**Goal.** Hooks bring Locust facts to an agent at moments it would not
+think to ask, in every harness Locust sets up. MCP tools stay the fallback
+and the only way an agent acts.
+- H1: when a worker chat tries to end its turn while work waits for it, the
+  stop hook keeps it going with one line naming the work, or waits for work
+  without spending model tokens. A worker chat is one that started or took
+  over an attempt, or called `locust_wait`. Any other chat that used Locust
+  is held only for attempts it holds. After a compaction, the chat is told
+  which attempts it holds.
+- H2: after any tool call, a chat learns at once that its attempt was
+  cancelled or taken over.
+- H3: a chat's first Locust call and each compaction reset that session's
+  read record, and `status` says whether an attempt's holder is active,
+  waiting or closed
+  ([agent ergonomics](../research/agent-ergonomics-2026-10-05.md) 525-546).
+
+**Depends on.** H1a: A4, for order. H1b, H2: H1a. H3: H1a, A4.
+
+**Changes, H1a** (Claude Code, R7's harnesses).
+- `locust hook start|stop|tool --harness NAME`, a new `hook.rs` dispatched
+  like `mcp` (args.rs 221-225), run through `locust-cli` (launcher.rs
+  14-35). It refuses an owner (mcp.rs 253-255) and exits 0.
+- Per-chat marks under `HOME/hook-marks/`, private like receipts
+  (context_receipts.rs 55-98), only for Locust chats, locked while used.
+- `stop` reads `status` (member, not halted: api.rs 1487, 1495) and
+  `pending`: the session's claims and cancellations (views.rs 481-506), and
+  for a worker chat reviews, deliveries and free tasks, by a predicate
+  shared with A2. It waits on one connection per goal (callers.rs 27-32).
+  `start` keeps this session's claims (`Claim.instance`, api.rs 1602).
+- A pure `locust-adapter/src/hooks.rs` registers and removes only its own
+  entries; Claude Code's `Stop`, `PostToolUse` and `SessionStart` go in
+  `.claude/settings.json`.
+- Setup installs them by default under the MCP entry's rules (setup.rs
+  600-749), in a v3 record (220, 476); a v2 one is refused with its
+  recovery, and a hand-removed entry stays out. `LOCUST_HOOKS=off`
+  silences them; `client run` and all but one qualification scenario set
+  it (cli/client.rs 336-337; check_installed_clients.py 433);
+  `real_models.py` merges Droid's settings.
+- agents.md gains a Hooks section (the default profile is the person's own
+  client); SKILL.md after 245-246 explains `Locust:` lines.
+
+**Changes, H1b.** A commit per harness as its events are confirmed: Codex,
+Droid, pi; Kimi Code once setup has it (setup.rs 10-18).
+
+**Changes, H2.** `tool` calls `wait` with `timeout_ms` 0 per goal, free when
+unchanged (reading.rs 216-219), and names a cancellation, or a lost claim no
+write of this chat explains.
+
+**Changes, H3.** The daemon keeps in memory each session's last
+request (requests/mod.rs 54-73), open chats and closed time. A local `session.chat`:
+the bridge sends `Opened` at its first call and `Closed` at stdin EOF, the
+start hook `Compacted`. `Opened` and `Compacted` delete the session's acknowledgments
+and receipt cache, keeping the revision (context.rs 31-90, 348-350).
+`DaemonStatus` (api.rs 1394-1408) gains presence; A4's claim line ends
+"active 10 s ago", "waiting" or "chat closed, not reported".
+
+**Tests and exit.** Each rule as a pure function, alternating sets and a
+declining chat included; titles never print; concurrent tool events print
+once; the predicate matches A2's. In a Claude Code profile under /tmp, a
+waiting task blocks once, then goes through; `setup remove` restores bytes;
+client checks pass or are reported missing; checks as A1.
+
+**Format impact.** Nothing signed or synced; one local operation, inside 7.
+**Overlap with v2.** G1, G2 and E2 edit `status`, not at once; E1 counts no
+work in an ended goal.
+
+**Risks and notes.** Beads #3451 pushed stops; guards: the stop rule,
+facts only, "unless your owner asked you to stop", Esc. A waiting stop
+holds a typed prompt, as `locust_wait` does. Unverified: one bridge per chat.
 
 ### S1: Store hygiene
 
@@ -754,8 +839,10 @@ P is one docs commit in Lane B, now.
   records tasks with more than one attempt and the work wasted, starts
   despite an "After task:" line, ID errors and prefix refusals, and each
   compaction or restart an agent went through, with whether it found its
-  held attempt again through `locust_status`. That last count is evidence
-  for the hooks question. Exit criteria stay.
+  held attempt again, and each hook line and its effect. One agent runs
+  with `LOCUST_HOOKS=off` and still calls `locust_wait` first; the others
+  may answer a stop-hook line instead (roles plan 4072-4073, 4135; R10
+  4918).
 - **Hand-offs,** one sentence each in the v2 phase: E1 decides the
   no-task start in an ended goal, prints no claim lines there and replaces
   A1's two scope sentences; G2 lists claims while catching up; E2 notes that
@@ -778,8 +865,6 @@ rejected and deferred items:
 - Board paging, surface budgets, an oversized-page refusal (idea 1): only if an oversized page is recorded.
 - A hashed start tiebreak and a new empty-answer type (idea 2).
 - A schema-based field checker, plain-status refusal lines, a finding-ID checker.
-- Hooks in any harness (idea 4): by the owner's answer, Locust integrates
-  through its MCP tools first. Whether hooks help is a separate
-  investigation across all five harnesses Locust sets up.
+- Waking a closed chat (agent-ergonomics 564); hooks for `client run`.
 - A task ordering edge (idea 10): asked only if R7 records early starts.
 - A local fold checkpoint (idea 9): raised only if S2 nears J6's bound.
