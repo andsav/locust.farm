@@ -4912,6 +4912,156 @@
         "api_version": 7,
         "status": "current-organization-role-holder-subset"
       }
+    },
+    {
+      "id": "organization-leave-removal",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-leave-removal.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "properties": [
+        "TypeOK",
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld",
+        "EndIsTerminal"
+      ],
+      "model_baseline": {
+        "source_commit": "8c086c1eb72ffa5ad0572777c8944d8d66b5c7ee",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "current-organization-role-holder-subset"
+      }
+    },
+    {
+      "id": "organization-leave-fork",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-leave-fork.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "properties": [
+        "TypeOK",
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld",
+        "EndIsTerminal"
+      ],
+      "model_baseline": {
+        "source_commit": "8c086c1eb72ffa5ad0572777c8944d8d66b5c7ee",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "current-organization-role-holder-subset"
+      }
+    },
+    {
+      "id": "organization-leave-readmission",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-leave-readmission.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "properties": [
+        "TypeOK",
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld",
+        "EndIsTerminal"
+      ],
+      "model_baseline": {
+        "source_commit": "8c086c1eb72ffa5ad0572777c8944d8d66b5c7ee",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "current-organization-role-holder-subset"
+      }
+    },
+    {
+      "id": "organization-leave-host-agent",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-leave-host-agent.cfg",
+      "expect": "pass",
+      "kind": "current-safety",
+      "properties": [
+        "TypeOK",
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld",
+        "EndIsTerminal"
+      ],
+      "model_baseline": {
+        "source_commit": "8c086c1eb72ffa5ad0572777c8944d8d66b5c7ee",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "current-organization-role-holder-subset"
+      }
+    },
+    {
+      "id": "restore-leave",
+      "suite": [
+        "fast",
+        "extended",
+        "restore"
+      ],
+      "module": "RestoreGuard.tla",
+      "config": "configs/restore-leave.cfg",
+      "expect": "pass",
+      "kind": "proposed-property",
+      "properties": [
+        "TypeOK",
+        "NoFork",
+        "RemovalMatchesBefore"
+      ],
+      "model_baseline": {
+        "source_commit": "03fe83081056d6e29a0cfc47a819ceaade7d5e75",
+        "status": "proposed-restore-guard-v2-before-implementation",
+        "specification": "docs/host-safety-and-ending-plan.md: Models written first; G1 and G2"
+      }
     }
   ]
 }

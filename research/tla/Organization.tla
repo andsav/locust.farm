@@ -122,6 +122,23 @@ Work == CASE Scenario = "taskless" -> <<
       E(8,1,0,0,14,"contribution",0,7,0,{},0,0,0,0,7)>>
  [] Scenario = "end-after-readmission" -> Base \o <<ForkReview, Remove(10), Readmit,
       E(17,0,11,16,16,"end",0,0,0,{},0,0,0,0,0)>>
+ [] Scenario = "leave-removal" -> <<Task, Candidate, ReviewA,
+      E(14,2,1,10,7,"leave",0,0,0,{},0,0,0,0,0),
+      E(15,0,9,7,7,"remove",0,0,0,{},0,2,4,14,0),
+      E(16,2,2,14,7,"review",8,8,9,{},0,0,0,0,7),
+      E(17,2,3,16,15,"review",8,8,9,{},0,0,0,0,7)>>
+ [] Scenario = "leave-fork" -> <<Task, Candidate, ReviewA,
+      E(14,2,1,10,7,"leave",0,0,0,{},0,0,0,0,0),
+      E(15,2,1,10,7,"leave",0,0,0,{},0,0,0,0,0),
+      E(16,0,9,7,7,"remove",0,0,0,{},0,2,4,14,0),
+      E(17,0,9,7,7,"remove",0,0,0,{},0,2,4,15,0)>>
+ [] Scenario = "leave-readmission" -> <<Task, Candidate, ReviewA,
+      E(14,2,1,10,7,"leave",0,0,0,{},0,0,0,0,0),
+      E(15,0,9,7,7,"remove",0,0,0,{},0,2,4,14,0),
+      E(16,0,10,15,15,"admit",0,0,0,{},0,6,0,0,0),
+      E(17,6,0,0,16,"contribution",0,7,0,{},0,0,0,0,7)>>
+ [] Scenario = "leave-host-agent" -> Base \o <<
+      E(14,5,0,0,7,"leave",0,0,0,{},0,0,0,0,0)>>
  [] OTHER -> Base
 
 Transcript == Founding \o Work
@@ -190,6 +207,7 @@ Eligible(H,id) == /\ id \in H /\ AuthorChain(H,id)
  /\ ByID[ByID[id].anchor].kind # "end"
  /\ AnchorsMonotonic(H,id)
  /\ (~CheckCutoff \/ CutoffAllows(H,id))
+ /\ (~\E a \in Ancestors(H,id) \ {id} : ByID[a].kind = "leave")
 Authorized(H,id,pins) == Eligible(H,id) /\
  (Usable(H,id) \/ RetainedByCutoff(H,id) \/
   (EnablePins /\ id \in pins /\ ByID[id].kind # "select"))
@@ -251,6 +269,7 @@ Valid(H,D,id,pins) ==
               /\ Valid(H,D,e.round,pins) /\ Valid(H,D,e.subject,pins)
               /\ ByID[e.subject].kind = "contribution"
               /\ e.scope = ByID[e.subject].scope /\ e.round = ByID[e.subject].round
+         [] e.kind = "leave" -> e.author # 5
          [] OTHER -> FALSE
 
 Selected(H,D) == {d \in H : ByID[d].kind = "select" /\ Decision(H,D,d)}
@@ -283,12 +302,17 @@ Witness(H,D,V) == CASE Scenario = "taskless" -> {8,9} \subseteq V.ordinary /\ V.
  [] Scenario = "lead-change" -> {12,15} \subseteq V.selected /\ Current(H,D,8) = 15
  [] Scenario = "role-removal" -> 14 \in H /\ 15 \in V.selected /\ RolesAt(H,14).lead = {5}
  [] Scenario = "end-late-record" -> 14 \in H /\ {9,10} \subseteq V.ordinary
+ [] Scenario = "leave-removal" -> {14,15,16,17} \subseteq H /\ {10,14} \subseteq V.ordinary /\ {16,17} \cap V.ordinary = {}
+ [] Scenario = "leave-fork" -> {14,15,16,17} \subseteq H /\ {14,15} \cap V.ordinary = {} /\ {16,17} \cap V.governance = {}
+ [] Scenario = "leave-readmission" -> {14,15,16,17} \subseteq H /\ {10,14,17} \subseteq V.ordinary /\ 16 \in V.governance
+ [] Scenario = "leave-host-agent" -> 14 \in H /\ 14 \notin V.ordinary /\ 12 \in V.selected
  [] OTHER -> 12 \in V.selected
 Fault(H,D) == CASE Scenario \in {"role-change","lead-change","role-removal"} -> 14 \in H
  [] Scenario = "missing-definition" -> 7 \notin D
  [] Scenario = "remove-empty" -> 15 \in H
  [] Scenario \in {"fork","review-fork","rule-change","two-scopes"} -> 14 \in H
  [] Scenario \in {"end-late-record","end-later-governance","end-fork-at-or-before","end-fork-above","end-anchored-at-end","end-after-readmission"} -> 14 \in H
+ [] Scenario \in {"leave-removal","leave-fork","leave-readmission","leave-host-agent"} -> 14 \in H
  [] OTHER -> 12 \in H
 Init == /\ held = (1..7) \cup {20,21} /\ definitions = IF Scenario = "missing-definition" THEN {} ELSE {7,14}
         /\ view = Projection(held,definitions) /\ witnessReached = FALSE /\ faultPresent = Fault(held,definitions)

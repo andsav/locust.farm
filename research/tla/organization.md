@@ -36,8 +36,9 @@ pinned definition. It may delay work; it may not substitute default rules.
 | Exact scope proof survives an unrelated author fork | `Proof` includes signed ancestry and typed dependencies; only its own decision can use the pins. Two scopes may accept opposite exact branches. Their combination is incompatible. | [Proof closure index](../../crates/locust-core/src/goal/commitments.rs), [scoped projection](../../crates/locust-core/src/goal/projection.rs); `accepted_fork_branch_is_readable_only_in_its_selected_scope`, `incompatible_proof_branches_dispute_only_their_scope`; [read-side regression](../../crates/locust-core/src/node/tests/content.rs). |
 | Cutoffs are exact global tenure restrictions | `Admission`, `CutoffAllows`, `RetainedByCutoff`; empty cutoff excludes old evidence; readmission does not backdate it; a retained original review does not retain its sibling. | [Tenure/cutoff checks](../../crates/locust-core/src/goal/chain.rs); `removal_retains_only_exact_cutoff_ancestry_and_readmission_does_not_backdate`, `scope_proof_cannot_retain_evidence_past_the_host_cutoff`. |
 | Ending a goal is terminal | `EndIsTerminal` ensures that in any held set with an end in force, no governance record after the end and no record anchored at or after it is effective. The six E1 scenarios check late delivery after the end (`end-late-record`), rejection of governance signed after the end (`end-later-governance`), retraction under a fork at or before the end (`end-fork-at-or-before`), survival without halt under a fork above the end (`end-fork-above`), exclusion of work anchored at the end (`end-anchored-at-end`), and preservation of prior tenure and cutoffs across readmission (`end-after-readmission`). | Goal ending in [Chain](../../crates/locust-core/src/goal/chain.rs) and [state](../../crates/locust-core/src/goal/state.rs). |
+| Member leaving a goal | `leave` is an ordinary kind signed by a member; the host signs member removal with the leave record as cutoff. `Eligible` excludes ordinary records above a leave (`~\E a \in Ancestors(H,id) \ {id} : ByID[a].kind = "leave"`), and `Valid` rejects leave signed by the host's own agent (identity 5). Four E2 scenarios check leave followed by removal (`organization-leave-removal`), a leave fork with removals on different branches (`organization-leave-fork`), leave followed by readmission on a new agent key (`organization-leave-readmission`), and rejection of a leave signed by the host's agent (`organization-leave-host-agent`). | Agent leaving in [Chain](../../crates/locust-core/src/goal/chain.rs) and [flow](../../crates/locust-core/src/node/flow.rs). |
 
-The model has 27 ordinary safety scenarios (including the six E1 goal-ending scenarios). Their transcripts contain 11–20 total
+The model has 31 ordinary safety scenarios (including the six E1 goal-ending scenarios and four E2 leave scenarios). Their transcripts contain 11–20 total
 records including the nine-record founding prefix. The largest scenario has
 11 remaining records and 2,048 held subsets; the missing-definition case adds
 one independent definition arrival. Two rule identities use review thresholds
@@ -82,6 +83,16 @@ explicit subset of the organization rules at an older protocol number (`source_c
 `8c086c1eb72ffa5ad0572777c8944d8d66b5c7ee`, protocol 7, API 7, status:
 `current-organization-role-holder-subset`); these E1 cases extend that subset and do
 not move the baseline.
+
+### Leaving a goal (E2) and unmodeled behavior
+
+The formal model adds the ordinary kind `leave` and models four member departure scenarios.
+Not modelled, and explicitly recorded here:
+- The network exchange with leaver peers before signing removal, which is daemon sync behavior.
+- The `Member.left` local state in the daemon.
+- Leave tickets for departing members.
+- Content encryption key rotation across member removal epochs.
+- Re-signing removals during replay.
 
 `ReplayMatchesHeld` checks that delivery updates the stored projection to fresh
 replay. Both use the same mathematical projection algebra; this is not independent

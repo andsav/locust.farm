@@ -53,7 +53,8 @@ Init ==
          brought |-> FALSE, reachable |-> {}, didAdmit |-> FALSE,
          didRemove |-> FALSE, removedAfterCopy |-> FALSE,
          continued |-> FALSE, last |-> "init", signedKey |-> "none",
-         signedHeld |-> FALSE, gaveHeld |-> FALSE, ordinaryBad |-> FALSE]
+         signedHeld |-> FALSE, gaveHeld |-> FALSE, ordinaryBad |-> FALSE,
+         didLeave |-> FALSE]
  /\ phase = 0 /\ forkG = FALSE /\ forkA = FALSE
  /\ reusedG = FALSE /\ reusedA = FALSE /\ agentWhileHeld = FALSE
  /\ gaveWhileHeld = FALSE /\ ordinaryHeld = FALSE
@@ -83,10 +84,12 @@ Admit(p) == /\ ~s.didAdmit
     ELSE /\ p \in Peers \ Members(s.hist,s.db[Host])
          /\ SignRecord("gov","admit",Members(s.hist,s.db[Host]) \cup {p},
                        Admitted(s.hist,s.db[Host]))
-Remove(p) == /\ ~s.didRemove /\ p \in Members(s.hist,s.db[Host])
+Remove(p) == /\ (~s.didRemove \/ s.continued) /\ p \in Members(s.hist,s.db[Host])
  /\ p # Host
  /\ SignRecord("gov","remove",Members(s.hist,s.db[Host]) \ {p},
                Admitted(s.hist,s.db[Host]))
+Leave(p) == /\ ~s.didLeave /\ p \in Members(s.hist,s.db[Host]) /\ p # Host
+            /\ s' = [s EXCEPT !.didLeave = TRUE, !.last = Observe("leave")]
 Copy == /\ s.running /\ ~s.copied
  /\ s' = [s EXCEPT !.copyDB = s.db[L], !.copyMarks = s.marks,
           !.copyShared = s.shared, !.copied = TRUE, !.last = Observe("copy")]
@@ -96,7 +99,9 @@ Restore(kind) == /\ s.copied /\ s.restored = "none"
        !.marks = IF kind = "all" THEN s.copyMarks ELSE @,
        !.shared = IF kind = "all" THEN s.copyShared ELSE @,
        !.sameFile = FALSE, !.kept = (kind # "all" /\ s.kept),
-       !.running = FALSE, !.reachable = {}, !.heard = {}, !.pending = "none", !.last = Observe("restore")]
+       !.running = FALSE, !.reachable = {}, !.heard = {}, !.pending = "none",
+       !.didRemove = FALSE,
+       !.last = Observe("restore")]
 RestoreStore == Restore("store")
 RestoreAll == Restore("all")
 LoseMarks == /\ s.kept /\ s.restored = "none"
@@ -192,9 +197,11 @@ Program == CASE Scenario = "lacking" ->
  [] Scenario = "give-recover" -> <<"copy","g","LP","a","store","start">>
  [] Scenario = "alone" -> <<"copy","g","a","store","start">>
  [] Scenario = "override" -> <<"copy","g","LP","all","start","continue","g">>
+ [] Scenario = "leave" -> <<"copy","leave","removeP","store","start","PL","hear","settle","continue","removeP">>
  [] OTHER -> <<>>
 Command(c) == CASE c = "copy" -> Copy [] c = "g" -> Sign("gov") [] c = "a" -> Sign("agent")
  [] c = "admitQ" -> Admit(Q) [] c = "admitA" -> Admit("agent") [] c = "removeP" -> Remove(P)
+ [] c = "leave" -> Leave(P) [] c = "leaveP" -> Leave(P)
  [] c = "LQ" -> Sync(L,Q) [] c = "LP" -> Sync(L,P) [] c = "PL" -> Sync(P,L) [] c = "QL" -> Sync(Q,L)
  [] c = "store" -> RestoreStore [] c = "all" -> RestoreAll [] c = "start" -> Start
  [] c = "hear" -> Hear [] c = "settle" -> Settle [] c = "continue" -> Continue
@@ -258,4 +265,11 @@ WillingRecoveryEligible == s.restored = "store" /\ s.running /\
                                       p \in Members(s.hist,s.db[p]))
 WillingHoldsEnd == WillingRecoveryEligible ~> (~GovHeld(s) /\ ~AgentHeld(s))
 RecoveryReached == <>(s.restored = "store" /\ s.running)
+RemovalMatchesBefore ==
+  \A i, j \in 1..Len(s.hist) :
+    (s.hist[i].kind = "remove" /\ s.hist[j].kind = "remove") =>
+      (s.hist[i].key = s.hist[j].key /\
+       s.hist[i].pos = s.hist[j].pos /\
+       s.hist[i].members = s.hist[j].members /\
+       s.hist[i].admitted = s.hist[j].admitted)
 =============================================================================

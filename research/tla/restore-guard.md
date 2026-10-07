@@ -91,6 +91,11 @@ Deadlock checking is disabled because waiting while held is intentional.
 `continue-override` additionally shows that the owner's command may cause a
 retained governance fork. It is a reachability demonstration, not a safety claim.
 
+`restore-leave` (E2) models a restored host whose only other computer belongs to a
+member that left. While held, the restored host signs no removal; the exchange with
+that leaver peer runs to its end, and after `continue` releases the host, the removal
+the host signs matches the record it signed before restoration (`RemovalMatchesBefore`).
+
 ## Liveness and runner contract
 
 TLC checks actual temporal `PROPERTY` formulas (`~>` and `<>`), not a finite
