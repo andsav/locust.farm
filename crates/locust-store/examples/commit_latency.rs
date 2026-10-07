@@ -1,22 +1,25 @@
 //! Prints what the SQLite store costs on this machine: commit latency for one
-//! event per commit and for 256 events per commit, and the rate of replaying
-//! a goal's feed from position 1. Built by `cargo test`, never run by it.
+//! event per commit, with and without a mark, and for 256 events per commit,
+//! and the rate of replaying a goal's feed from position 1. Built by
+//! `cargo test`, never run by it.
 //!
 //! ```sh
 //! cargo run --release -p locust-store --example commit_latency [-- <dir>]
 //! ```
 //!
-//! The state directory is made in `<dir>`, by default the system's temporary
-//! directory, so another disk can be measured.
+//! The state directory and its marks directory are made in a temporary
+//! directory inside `<dir>`, by default the system's temporary directory, so
+//! another disk can be measured.
 
 use std::env;
 use std::time::{Duration, Instant};
 
 use locust_proto::PROTOCOL_VERSION;
-use locust_proto::event::{Body, Event, Header, PayloadRef};
+use locust_proto::event::{AuthorPoint, Body, Event, Header, PayloadRef};
 use locust_proto::id::{BlobHash, EventId, GoalId};
 use locust_proto::limits::{MAX_ARTIFACTS, MAX_EVENTS_PER_BATCH, MAX_PARENTS, MAX_PAYLOAD_BYTES};
-use locust_proto::store::{Commit, Store};
+use locust_proto::local::marks_dir;
+use locust_proto::store::{Commit, Mark, MarkWrite, Store};
 use locust_proto::testkit::{Author, keypair};
 use locust_store::SqliteStore;
 
@@ -29,15 +32,16 @@ fn main() {
         None => tempfile::tempdir(),
     }
     .unwrap();
-    println!("state directory {}", dir.path().display());
-    let mut store = SqliteStore::open(dir.path()).unwrap();
+    let state = dir.path().join("state");
+    println!("state directory {}", state.display());
+    let mut store = SqliteStore::open(&state, &marks_dir(&state)).unwrap();
 
     let mut owner = Author::new(1);
     let genesis = owner.genesis(locust_proto::testkit::keypair(9).public());
     let goal = genesis.header().goal;
     let round = genesis.id();
     let anchor = Some(round);
-    commit(&mut store, vec![genesis]);
+    commit(&mut store, vec![genesis], Vec::new());
     let mut note = || {
         owner.event(
             goal,
@@ -54,16 +58,31 @@ fn main() {
         )
     };
 
-    let single: Vec<Duration> = (0..SINGLE_COMMITS)
-        .map(|_| commit(&mut store, vec![note()]))
-        .collect();
+    // Alternated, so both see the same disk and the same log size.
+    let (mut single, mut marked) = (Vec::new(), Vec::new());
+    for _ in 0..SINGLE_COMMITS {
+        single.push(commit(&mut store, vec![note()], Vec::new()));
+        let event = note();
+        let mark = MarkWrite::Set(Mark {
+            goal,
+            key: event.header().author,
+            point: AuthorPoint {
+                seq: event.header().seq,
+                id: event.id(),
+            },
+            shared: true,
+        });
+        marked.push(commit(&mut store, vec![event], vec![mark]));
+    }
     report("1 event per commit", single, 1);
+    report("1 event and 1 mark per commit", marked, 1);
 
     let batches: Vec<Duration> = (0..BATCH_COMMITS)
         .map(|_| {
             commit(
                 &mut store,
                 (0..MAX_EVENTS_PER_BATCH).map(|_| note()).collect(),
+                Vec::new(),
             )
         })
         .collect();
@@ -74,7 +93,7 @@ fn main() {
     let batches: Vec<Duration> = (0..BATCH_COMMITS)
         .map(|_| {
             let batch = (0..MAX_EVENTS_PER_BATCH).map(|_| largest.next()).collect();
-            commit(&mut store, batch)
+            commit(&mut store, batch, Vec::new())
         })
         .collect();
     report(
@@ -98,9 +117,10 @@ fn main() {
     );
 }
 
-fn commit(store: &mut SqliteStore, events: Vec<Event>) -> Duration {
+fn commit(store: &mut SqliteStore, events: Vec<Event>, marks: Vec<MarkWrite>) -> Duration {
     let commit = Commit {
         events,
+        marks,
         ..Commit::default()
     };
     let start = Instant::now();

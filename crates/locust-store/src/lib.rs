@@ -10,6 +10,16 @@
 //! - `blobs/`: one file per larger object, named by its hash in hex, and the
 //!   partial copies of objects being received (`<hash>.staged`).
 //!
+//! It also takes the marks directory, beside the state directory and never
+//! inside it (`locust_proto::local::marks_dir`), and keeps one file there,
+//! `marks`: the last record each key signed in each goal, with a header that
+//! names the file's own identity (see `marks.rs`). A copy of the state
+//! directory does not carry it, and a copy of the file, or an older one put
+//! back, does not match its header and reads as lost. The open reads the
+//! marks once, after it holds the database, and
+//! [`Store::marks`](locust_proto::store::Store::marks) answers what it found
+//! with the identity of `locust.db`.
+//!
 //! One thread owns the store, as the storage seam requires: one connection,
 //! no pool, no lock of our own, no async. The type is `Send` so the daemon
 //! can move it onto that thread.
@@ -26,6 +36,17 @@
 //! next open removes. A failure while the transaction commits (a failed
 //! sync) has an unknown outcome, so the store then refuses every call until
 //! it is reopened and reads the outcome back.
+//!
+//! Only then are the commit's marks written, each in its slot of the marks
+//! file, and the file synced once, before `commit` returns, so a record the
+//! caller releases once the commit returns already has its mark on disk. A
+//! commit that fails before its transaction commits writes no mark. A mark
+//! that cannot be written or synced fails the commit and fences the store
+//! the same way.
+//! A crash between the transaction and the sync leaves marks behind the
+//! database, never ahead of it. The first write after the marks were found
+//! lost builds a whole new file under a temporary name, syncs it, renames it
+//! into place and syncs the directory.
 //!
 //! Staging appends, discards and promotion can also fail after changing the
 //! filesystem. Those failures fence the handle until reopen. Opening runs a
@@ -62,14 +83,18 @@
 //!   `F_FULLFSYNC` on macOS as well.
 //!
 //! A commit therefore costs one full flush, plus, when it carries new large
-//! objects, one per object file and one for the directory. The flush, not
-//! the rows, is the cost, so batching is what makes ingest cheap. Measured
-//! with `examples/commit_latency.rs` (release build) on an Apple M5 Pro,
-//! internal SSD, APFS, macOS 26.4, on 2026-10-03:
+//! objects, one per object file and one for the directory, and one more for
+//! the marks file when it carries marks, whatever their number. A commit
+//! with no mark does no marks I/O at all. The flush, not the rows, is the
+//! cost, so batching is what makes ingest cheap. Measured with
+//! `examples/commit_latency.rs` (release build) on an Apple M5 Pro, internal
+//! SSD, APFS, macOS 26.4, on 2026-10-03; the two one-event rows on
+//! 2026-10-06, alternating in one run:
 //!
 //! | Commit | Median | p90 |
 //! |---|---|---|
-//! | 1 event | 3.9 ms | 4.2 ms |
+//! | 1 event | 4.0 ms | 4.1 ms |
+//! | 1 event and 1 mark | 7.9 ms | 8.1 ms |
 //! | 256 events (notes) | 4.0 ms, 16 µs per event | 4.9 ms |
 //! | 256 of the largest headers the contract admits (4,380 bytes) | 10.7 ms | 15–17 ms |
 //!
@@ -109,6 +134,7 @@ mod events;
 mod faults;
 mod files;
 mod local;
+mod marks;
 mod objects;
 mod schema;
 mod store;

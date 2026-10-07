@@ -1,34 +1,70 @@
 use std::cell::Cell;
 use std::fmt::Debug;
 use std::fs;
-use std::path::Path;
+use std::os::unix::fs::{FileExt, PermissionsExt};
+use std::path::{Path, PathBuf};
 
 use locust_proto::PROTOCOL_VERSION;
 use locust_proto::event::{AuthorPoint, Body, Context, Event, Header, PayloadRef, Scope};
-use locust_proto::id::{BlobHash, EventId, GoalId};
+use locust_proto::id::{BlobHash, EventId, GoalId, PublicKey};
 use locust_proto::limits::{
     BLOB_CHUNK_BYTES, MAX_ARTIFACTS, MAX_EVENTS_PER_BATCH, MAX_PARENTS, MAX_PAYLOAD_BYTES,
 };
-use locust_proto::store::{Blob, Commit, LocalWrite, Space, Store, StoreError, conformance};
+use locust_proto::local::marks_dir;
+use locust_proto::store::{
+    Blob, Commit, FileId, LocalWrite, Mark, MarkWrite, Marks, Space, Store, StoreError, conformance,
+};
 use locust_proto::testkit::{Author, keypair};
 use rusqlite::{Connection, params};
 use tempfile::TempDir;
 
 use crate::{INLINE_MAX_BYTES, OpenError, SqliteStore};
 
-fn scratch() -> (TempDir, SqliteStore) {
-    let dir = tempfile::tempdir().unwrap();
-    let store = SqliteStore::open(dir.path()).unwrap();
+/// A state directory and its marks directory, side by side in one temporary
+/// directory that removes both.
+struct Scratch {
+    data: PathBuf,
+    marks: PathBuf,
+    root: TempDir,
+}
+
+impl Scratch {
+    fn new() -> Self {
+        let root = tempfile::tempdir().unwrap();
+        let data = root.path().join("state");
+        Self {
+            marks: marks_dir(&data),
+            data,
+            root,
+        }
+    }
+
+    fn path(&self) -> &Path {
+        &self.data
+    }
+
+    fn open(&self) -> Result<SqliteStore, OpenError> {
+        SqliteStore::open(&self.data, &self.marks)
+    }
+
+    fn marks_file(&self) -> PathBuf {
+        self.marks.join("marks")
+    }
+}
+
+fn scratch() -> (Scratch, SqliteStore) {
+    let dir = Scratch::new();
+    let store = dir.open().unwrap();
     (dir, store)
 }
 
-fn reopen(dir: &TempDir) -> SqliteStore {
-    SqliteStore::open(dir.path()).unwrap()
+fn reopen(dir: &Scratch) -> SqliteStore {
+    dir.open().unwrap()
 }
 
 /// A connection that bypasses the store, for damaging its files on purpose.
 /// The store must be closed.
-fn raw(dir: &TempDir) -> Connection {
+fn raw(dir: &Scratch) -> Connection {
     Connection::open(dir.path().join("locust.db")).unwrap()
 }
 
@@ -86,14 +122,15 @@ fn the_store_meets_the_contract() {
     let next = Cell::new(0);
     conformance::run(|| {
         next.set(next.get() + 1);
-        SqliteStore::open(root.path().join(next.get().to_string())).unwrap()
+        let dir = root.path().join(next.get().to_string());
+        SqliteStore::open(&dir, &marks_dir(&dir)).unwrap()
     });
 }
 
 #[test]
 fn a_reopened_store_meets_the_contract() {
-    let dir = tempfile::tempdir().unwrap();
-    conformance::run_reopen(|| SqliteStore::open(dir.path()).unwrap());
+    let dir = Scratch::new();
+    conformance::run_reopen(|| dir.open().unwrap());
 }
 
 #[test]
@@ -105,13 +142,13 @@ fn the_store_can_move_to_its_own_thread() {
 #[test]
 fn a_second_open_of_one_state_directory_fails_until_the_first_is_dropped() {
     let (dir, store) = scratch();
-    let second = SqliteStore::open(dir.path());
+    let second = dir.open();
     assert_eq!(
         second.unwrap_err(),
         OpenError::InUse(dir.path().to_path_buf())
     );
     drop(store);
-    assert!(SqliteStore::open(dir.path()).is_ok());
+    assert!(dir.open().is_ok());
 }
 
 #[test]
@@ -142,7 +179,8 @@ fn the_database_is_opened_for_power_loss_durability_under_an_exclusive_lock() {
 #[test]
 fn every_unsupported_schema_is_refused_without_mutating_state() {
     for version in (-1..crate::schema::VERSION).chain([crate::schema::VERSION + 1, 999]) {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = Scratch::new();
+        fs::create_dir(dir.path()).unwrap();
         let path = dir.path().join("locust.db");
         let raw = Connection::open(&path).unwrap();
         raw.execute_batch(
@@ -153,7 +191,7 @@ fn every_unsupported_schema_is_refused_without_mutating_state() {
         drop(raw);
         let before = fs::read(&path).unwrap();
         assert_eq!(
-            SqliteStore::open(dir.path()).unwrap_err(),
+            dir.open().unwrap_err(),
             OpenError::UnsupportedSchema {
                 found: version,
                 known: crate::schema::VERSION
@@ -165,6 +203,7 @@ fn every_unsupported_schema_is_refused_without_mutating_state() {
             1,
             "refusal created files for schema {version}"
         );
+        assert!(!dir.marks.exists());
     }
 }
 
@@ -238,6 +277,7 @@ fn a_commit_that_fails_part_way_leaves_nothing() {
             put(Space::Goal, b"first", b"1"),
             put(Space::Goal, b"refuse", b""),
         ],
+        marks: Vec::new(),
     };
 
     assert!(matches!(store.commit(&failing), Err(StoreError::Failed(_))));
@@ -715,7 +755,7 @@ fn recovery_barrier_failure_prevents_open_and_garbage_collection() {
     fs::write(&orphan, b"orphan").unwrap();
     faults::arm(Point::Recovery, Path::new(""));
     assert!(matches!(
-        SqliteStore::open(dir.path()),
+        dir.open(),
         Err(OpenError::Store(StoreError::Failed(_)))
     ));
     faults::assert_fired();
@@ -751,7 +791,7 @@ fn a_failed_staging_flush_is_fenced_and_repaired_before_reopen_succeeds() {
 
     faults::arm(Point::FileSync, &path);
     assert!(matches!(
-        SqliteStore::open(dir.path()),
+        dir.open(),
         Err(OpenError::Store(StoreError::Failed(_)))
     ));
     faults::assert_fired();
@@ -800,7 +840,7 @@ fn uncertain_stage_and_discard_directory_updates_require_recovery() {
 
     faults::arm(Point::DirectorySync, &blobs);
     assert!(matches!(
-        SqliteStore::open(dir.path()),
+        dir.open(),
         Err(OpenError::Store(StoreError::Failed(_)))
     ));
     faults::assert_fired();
@@ -819,7 +859,7 @@ fn uncertain_stage_and_discard_directory_updates_require_recovery() {
     drop(store);
 
     faults::arm(Point::DirectorySync, &blobs);
-    assert!(SqliteStore::open(dir.path()).is_err());
+    assert!(dir.open().is_err());
     faults::assert_fired();
     let mut store = reopen(&dir);
     assert_eq!(store.discard_staged_blob(&hash), Ok(()));
@@ -980,6 +1020,7 @@ fn incompatible_event_protocol_refuses_open_before_collecting_or_rewriting_state
                 key: b"sentinel".to_vec(),
                 value: b"identity".to_vec(),
             }],
+            marks: Vec::new(),
         })
         .unwrap();
     store
@@ -1001,7 +1042,7 @@ fn incompatible_event_protocol_refuses_open_before_collecting_or_rewriting_state
     fs::write(&orphan, b"uncollected evidence").unwrap();
     let before = object_files(dir.path());
     assert!(
-        matches!(SqliteStore::open(dir.path()), Err(OpenError::UnsupportedProtocolVersion { found, known })
+        matches!(dir.open(), Err(OpenError::UnsupportedProtocolVersion { found, known })
         if found == old_header[0] && known == locust_proto::PROTOCOL_VERSION)
     );
     assert_eq!(object_files(dir.path()), before);
@@ -1059,5 +1100,316 @@ fn locked_connection_rechecks_event_protocol_after_preflight() {
     assert!(
         matches!(crate::connection::open(&database, dir.path()), Err(OpenError::UnsupportedProtocolVersion { found, known })
         if found == old_header[0] && known == locust_proto::PROTOCOL_VERSION)
+    );
+}
+
+fn mark(goal: u8, key: u8, seq: u64) -> Mark {
+    Mark {
+        goal: GoalId([goal; 32]),
+        key: PublicKey([key; 32]),
+        point: AuthorPoint {
+            seq,
+            id: EventId([seq as u8; 32]),
+        },
+        shared: seq % 2 == 1,
+    }
+}
+
+fn marking(writes: Vec<MarkWrite>) -> Commit {
+    Commit {
+        marks: writes,
+        ..Commit::default()
+    }
+}
+
+/// The steps of a fault trace that touched the marks directory.
+fn marks_steps(dir: &Scratch) -> Vec<(crate::faults::Point, PathBuf)> {
+    crate::faults::take_trace()
+        .into_iter()
+        .filter(|(_, path)| path.starts_with(&dir.marks))
+        .collect()
+}
+
+/// Changes one byte of the last record in place, as a torn write leaves it.
+fn tear_last_record(path: &Path) {
+    let file = fs::OpenOptions::new().write(true).open(path).unwrap();
+    let len = file.metadata().unwrap().len();
+    file.write_all_at(&[0xa5], len - 40).unwrap();
+}
+
+/// Copies every file directly inside `from` into a new directory `to`.
+fn copy_files(from: &Path, to: &Path) {
+    fs::create_dir(to).unwrap();
+    for entry in fs::read_dir(from).unwrap() {
+        let entry = entry.unwrap();
+        if entry.file_type().unwrap().is_file() {
+            fs::copy(entry.path(), to.join(entry.file_name())).unwrap();
+        }
+    }
+}
+
+#[test]
+fn marks_survive_reopen_and_a_torn_record_makes_them_lost() {
+    let (dir, mut store) = scratch();
+    let (first, second, raised) = (mark(1, 1, 0), mark(1, 2, 3), mark(1, 1, 1));
+    store
+        .commit(&marking(vec![
+            MarkWrite::Set(second),
+            MarkWrite::Set(first),
+        ]))
+        .unwrap();
+    let file = store.marks().unwrap().file;
+    drop(store);
+    assert_eq!(
+        reopen(&dir).marks(),
+        Ok(Marks {
+            file,
+            kept: Some(vec![first, second]),
+        })
+    );
+
+    tear_last_record(&dir.marks_file());
+    let mut store = reopen(&dir);
+    assert_eq!(store.marks(), Ok(Marks { file, kept: None }));
+    // The next write replaces the file; the marks that were lost stay lost.
+    store
+        .commit(&marking(vec![MarkWrite::Set(raised)]))
+        .unwrap();
+    assert_eq!(store.marks().unwrap().kept, None, "what the open found");
+    drop(store);
+    assert_eq!(reopen(&dir).marks().unwrap().kept, Some(vec![raised]));
+}
+
+#[test]
+fn marks_in_a_copied_directory_are_not_kept() {
+    let (dir, mut store) = scratch();
+    let kept = mark(1, 1, 4);
+    store.commit(&marking(vec![MarkWrite::Set(kept)])).unwrap();
+    drop(store);
+    let copy = dir.root.path().join("copy.marks");
+    copy_files(&dir.marks, &copy);
+    assert_eq!(
+        fs::read(copy.join("marks")).unwrap(),
+        fs::read(dir.marks_file()).unwrap()
+    );
+    let store = SqliteStore::open(dir.path(), &copy).unwrap();
+    assert_eq!(store.marks().unwrap().kept, None);
+    drop(store);
+    assert_eq!(reopen(&dir).marks().unwrap().kept, Some(vec![kept]));
+}
+
+#[test]
+fn an_older_marks_file_put_back_into_its_directory_reads_as_lost() {
+    let (dir, mut store) = scratch();
+    let (older, newer) = (mark(1, 1, 2), mark(1, 1, 3));
+    store.commit(&marking(vec![MarkWrite::Set(older)])).unwrap();
+    let saved = dir.root.path().join("saved");
+    fs::copy(dir.marks_file(), &saved).unwrap();
+    store.commit(&marking(vec![MarkWrite::Set(newer)])).unwrap();
+    drop(store);
+
+    let directory = FileId::of(&dir.marks).unwrap();
+    fs::remove_file(dir.marks_file()).unwrap();
+    fs::copy(&saved, dir.marks_file()).unwrap();
+    assert_eq!(FileId::of(&dir.marks).unwrap(), directory);
+    assert_eq!(reopen(&dir).marks().unwrap().kept, None);
+}
+
+#[test]
+fn a_failed_commit_writes_no_mark() {
+    let (dir, mut store) = scratch();
+    let kept = mark(1, 1, 0);
+    store.commit(&marking(vec![MarkWrite::Set(kept)])).unwrap();
+    let writes = vec![
+        MarkWrite::Set(mark(1, 1, 1)),
+        MarkWrite::Set(mark(2, 2, 0)),
+        MarkWrite::Clear {
+            goal: kept.goal,
+            key: kept.key,
+        },
+    ];
+    // Refused inside the transaction: the store carries on.
+    store
+        .connection()
+        .execute_batch(
+            "CREATE TEMP TRIGGER refuse BEFORE INSERT ON local \
+             WHEN NEW.key = CAST('refuse' AS BLOB) \
+             BEGIN SELECT RAISE(ABORT, 'refused by the test'); END;",
+        )
+        .unwrap();
+    crate::faults::take_trace();
+    let refused = Commit {
+        local: vec![put(Space::Goal, b"refuse", b"")],
+        marks: writes.clone(),
+        ..Commit::default()
+    };
+    assert!(matches!(store.commit(&refused), Err(StoreError::Failed(_))));
+    assert_eq!(marks_steps(&dir), []);
+    assert_eq!(store.get(Space::Goal, b"refuse"), Ok(None));
+    drop(store);
+    let store = reopen(&dir);
+    assert_eq!(store.marks().unwrap().kept, Some(vec![kept]));
+
+    // Failed while committing, with an unknown outcome: the store stops.
+    store
+        .connection()
+        .execute_batch(
+            "PRAGMA foreign_keys = ON;
+             CREATE TEMP TABLE parent (id INTEGER PRIMARY KEY);
+             CREATE TEMP TABLE child (
+                 parent INTEGER REFERENCES parent (id) DEFERRABLE INITIALLY DEFERRED
+             );
+             CREATE TEMP TRIGGER fail_at_commit AFTER INSERT ON local
+             WHEN NEW.key = CAST('fail at commit' AS BLOB)
+             BEGIN INSERT INTO child VALUES (1); END;",
+        )
+        .unwrap();
+    let mut store = store;
+    let failing = Commit {
+        local: vec![put(Space::Goal, b"fail at commit", b"")],
+        marks: writes,
+        ..Commit::default()
+    };
+    assert!(matches!(store.commit(&failing), Err(StoreError::Failed(_))));
+    assert_eq!(marks_steps(&dir), []);
+    drop(store);
+    assert_eq!(reopen(&dir).marks().unwrap().kept, Some(vec![kept]));
+}
+
+#[test]
+fn a_failed_mark_sync_breaks_the_store_and_nothing_is_released() {
+    use crate::faults::{self, Point};
+    let (dir, mut store) = scratch();
+    store
+        .commit(&marking(vec![MarkWrite::Set(mark(1, 1, 0))]))
+        .unwrap();
+    let mut owner = Author::new(1);
+    let genesis = owner.genesis(keypair(9).public());
+    faults::arm(Point::FileSync, &dir.marks_file());
+    let signed = Commit {
+        events: vec![genesis.clone()],
+        marks: vec![MarkWrite::Set(mark(1, 1, 1))],
+        ..Commit::default()
+    };
+    // The caller releases a signed record only once its commit returns.
+    assert!(matches!(store.commit(&signed), Err(StoreError::Failed(_))));
+    faults::assert_fired();
+    assert!(matches!(
+        store.has_event(&genesis.id()),
+        Err(StoreError::Failed(_))
+    ));
+    assert!(matches!(store.marks(), Err(StoreError::Failed(_))));
+    assert!(matches!(
+        store.commit(&Commit::default()),
+        Err(StoreError::Failed(_))
+    ));
+    drop(store);
+    // The database committed before the marks were written.
+    assert_eq!(reopen(&dir).has_event(&genesis.id()), Ok(true));
+}
+
+#[test]
+fn a_commit_with_marks_syncs_the_marks_file_once_and_one_without_syncs_none() {
+    use crate::faults::Point;
+    let (dir, mut store) = scratch();
+    let first = mark(1, 1, 0);
+    store.commit(&marking(vec![MarkWrite::Set(first)])).unwrap();
+    crate::faults::take_trace();
+    store
+        .commit(&Commit {
+            local: vec![put(Space::Goal, b"g", b"1")],
+            marks: vec![
+                MarkWrite::Set(mark(1, 1, 1)),
+                MarkWrite::Set(mark(1, 2, 0)),
+                MarkWrite::Set(mark(2, 1, 0)),
+                MarkWrite::Clear {
+                    goal: first.goal,
+                    key: first.key,
+                },
+            ],
+            ..Commit::default()
+        })
+        .unwrap();
+    assert_eq!(marks_steps(&dir), [(Point::FileSync, dir.marks_file())]);
+    store
+        .commit(&Commit {
+            local: vec![put(Space::Goal, b"g", b"2")],
+            ..Commit::default()
+        })
+        .unwrap();
+    assert_eq!(marks_steps(&dir), []);
+    drop(store);
+    let mut store = reopen(&dir);
+    assert_eq!(
+        store.marks().unwrap().kept,
+        Some(vec![mark(1, 2, 0), mark(2, 1, 0)])
+    );
+    // A new mark takes the slot the cleared one left.
+    let len = fs::metadata(dir.marks_file()).unwrap().len();
+    store
+        .commit(&marking(vec![MarkWrite::Set(mark(3, 3, 0))]))
+        .unwrap();
+    assert_eq!(fs::metadata(dir.marks_file()).unwrap().len(), len);
+    drop(store);
+    assert_eq!(
+        reopen(&dir).marks().unwrap().kept,
+        Some(vec![mark(1, 2, 0), mark(2, 1, 0), mark(3, 3, 0)])
+    );
+}
+
+#[test]
+fn creating_the_marks_file_syncs_its_directory() {
+    use crate::faults::Point;
+    let (dir, mut store) = scratch();
+    let mode = |path: &Path| fs::metadata(path).unwrap().permissions().mode() & 0o777;
+    assert_eq!(mode(&dir.marks), 0o700);
+    assert!(!dir.marks_file().exists(), "no file until the first mark");
+    let created = [
+        (Point::FileSync, dir.marks.join("marks.tmp")),
+        (Point::DirectorySync, dir.marks.clone()),
+    ];
+    crate::faults::take_trace();
+    store
+        .commit(&marking(vec![MarkWrite::Set(mark(1, 1, 0))]))
+        .unwrap();
+    assert_eq!(marks_steps(&dir), created);
+    assert_eq!(mode(&dir.marks_file()), 0o600);
+    drop(store);
+
+    // A file that does not read is replaced the same way.
+    tear_last_record(&dir.marks_file());
+    let mut store = reopen(&dir);
+    crate::faults::take_trace();
+    store
+        .commit(&marking(vec![MarkWrite::Set(mark(1, 1, 1))]))
+        .unwrap();
+    assert_eq!(marks_steps(&dir), created);
+}
+
+#[test]
+fn a_copied_database_file_has_another_identity() {
+    let (dir, mut store) = scratch();
+    let kept = mark(1, 1, 0);
+    store
+        .commit(&Commit {
+            local: vec![put(Space::Goal, b"g", b"1")],
+            marks: vec![MarkWrite::Set(kept)],
+            ..Commit::default()
+        })
+        .unwrap();
+    let file = store.marks().unwrap().file;
+    drop(store);
+    assert_eq!(reopen(&dir).marks().unwrap().file, file);
+
+    let copy = dir.root.path().join("copy");
+    copy_files(dir.path(), &copy);
+    let store = SqliteStore::open(&copy, &dir.marks).unwrap();
+    assert_eq!(store.get(Space::Goal, b"g"), Ok(Some(b"1".to_vec())));
+    let found = store.marks().unwrap();
+    assert_ne!(found.file, file);
+    assert_eq!(
+        found.kept,
+        Some(vec![kept]),
+        "the marks are beside, not copied"
     );
 }

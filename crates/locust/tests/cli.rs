@@ -16,13 +16,26 @@ use std::os::unix::net::UnixListener;
 use std::process::{Command, Output, Stdio};
 use std::thread;
 
-fn scratch() -> tempfile::TempDir {
-    let dir = tempfile::Builder::new()
+/// A private home one level inside its temporary directory, so the marks
+/// directory a daemon keeps beside it is removed with it.
+struct Scratch {
+    path: std::path::PathBuf,
+    _root: tempfile::TempDir,
+}
+impl Scratch {
+    fn path(&self) -> &std::path::Path {
+        &self.path
+    }
+}
+fn scratch() -> Scratch {
+    let root = tempfile::Builder::new()
         .prefix("lc-cli-")
         .tempdir_in("/tmp")
         .unwrap();
-    fs::set_permissions(dir.path(), fs::Permissions::from_mode(0o700)).unwrap();
-    dir
+    let path = root.path().join("h");
+    fs::create_dir(&path).unwrap();
+    fs::set_permissions(&path, fs::Permissions::from_mode(0o700)).unwrap();
+    Scratch { path, _root: root }
 }
 fn write_secret(path: &std::path::Path, bytes: &[u8; 32]) {
     fs::write(path, bytes).unwrap();

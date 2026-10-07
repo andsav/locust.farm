@@ -26,6 +26,7 @@ use locust_net::Endpoint;
 #[cfg(test)]
 use locust_proto::engine::Entropy;
 use locust_proto::engine::{Engine, PeerEngine, PeerInput};
+use locust_proto::local;
 use locust_store::SqliteStore;
 use tokio::signal::unix::{SignalKind, signal};
 
@@ -71,14 +72,21 @@ pub(crate) struct EngineInit {
 /// Runs the daemon on `home` in the foreground until SIGINT, SIGTERM or
 /// `daemon.stop`.
 pub fn run(home: &Path) -> Result<(), Failure> {
-    run_networked_with(home, std::convert::identity, network::bind, |socket| {
-        log(format_args!(
-            "locust: daemon {} listening on {}",
-            version::daemon(),
-            socket.display()
-        ));
-        signals()
-    })?;
+    let marks = local::marks_dir(home);
+    run_networked_with(
+        home,
+        &marks,
+        std::convert::identity,
+        network::bind,
+        |socket| {
+            log(format_args!(
+                "locust: daemon {} listening on {}",
+                version::daemon(),
+                socket.display()
+            ));
+            signals()
+        },
+    )?;
     log(format_args!("locust: daemon stopped"));
     Ok(())
 }
@@ -89,6 +97,7 @@ pub fn run(home: &Path) -> Result<(), Failure> {
 /// the shell hands it.
 fn run_networked_with<E, O, B, BF, L, W>(
     home: &Path,
+    marks: &Path,
     observe: O,
     bind: B,
     listening: L,
@@ -108,11 +117,12 @@ where
         .map_err(|error| Failure::internal(format!("the runtime could not start: {error}")))?;
     let daemon_version = version::daemon();
     let init_home = state.home().to_path_buf();
+    let init_marks = marks.to_path_buf();
     let owner_digest = state.owner().digest();
     let init_version = daemon_version.clone();
     let mut engine = worker::EngineThread::start_networked(
         move || {
-            let store = SqliteStore::open(&init_home).map_err(store_open_failure)?;
+            let store = SqliteStore::open(&init_home, &init_marks).map_err(store_open_failure)?;
             let mut node = Node::open(
                 store,
                 system::OsEntropy,

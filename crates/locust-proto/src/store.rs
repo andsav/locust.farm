@@ -22,7 +22,12 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt;
 use std::ops::Bound;
+use std::path::Path;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+use std::time::UNIX_EPOCH;
+
+use serde::{Deserialize, Serialize};
 
 use crate::crypto::content_hash;
 use crate::event::{AuthorPoint, Event};
@@ -72,7 +77,8 @@ impl Blob {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[repr(u8)]
 pub enum Space {
-    /// Daemon identity, endpoint key and signing watermarks.
+    /// Daemon identity, endpoint key and the identity of the database file
+    /// the daemon last ran on.
     Identity = 0,
     /// Enrolled principals: keys, names, grants and credential digests.
     Agent = 1,
@@ -128,6 +134,67 @@ pub struct Commit {
     pub blobs: Vec<Blob>,
     /// Applied in order after the events and blobs.
     pub local: Vec<LocalWrite>,
+    /// Applied in order once everything above is durable, and durable
+    /// themselves before the commit returns. A commit with none pays nothing
+    /// for them.
+    pub marks: Vec<MarkWrite>,
+}
+
+/// Identity of a file on this computer: its inode number and, where the file
+/// system reports one, its creation time. A copy of the file has another; a
+/// rename keeps it. The device number is left out because it can change
+/// between boots.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct FileId {
+    pub ino: u64,
+    /// `None` where the file system reports no creation time; the inode
+    /// number alone then decides.
+    pub created_ms: Option<u64>,
+}
+
+impl FileId {
+    /// The identity of the file at `path`, read from its metadata.
+    pub fn of(path: &Path) -> std::io::Result<Self> {
+        use std::os::unix::fs::MetadataExt;
+        let metadata = std::fs::metadata(path)?;
+        let created_ms = metadata
+            .created()
+            .ok()
+            .and_then(|created| created.duration_since(UNIX_EPOCH).ok())
+            .map(|since| u64::try_from(since.as_millis()).unwrap_or(u64::MAX));
+        Ok(Self {
+            ino: metadata.ino(),
+            created_ms,
+        })
+    }
+}
+
+/// The last record `key` signed in `goal` on this daemon.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Mark {
+    pub goal: GoalId,
+    pub key: PublicKey,
+    pub point: AuthorPoint,
+    /// The governance log held here admits a member on another computer.
+    pub shared: bool,
+}
+
+/// A change to the marks: one key's mark set, or cleared.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MarkWrite {
+    Set(Mark),
+    Clear { goal: GoalId, key: PublicKey },
+}
+
+/// What was found beside the data directory when the store was opened.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Marks {
+    /// Where the store keeps its records now.
+    pub file: FileId,
+    /// Ascending by goal and key. `None` when no marks were found, they did
+    /// not read, or the file that holds them is not the one they were
+    /// written in.
+    pub kept: Option<Vec<Mark>>,
 }
 
 /// Why a store could not answer.
@@ -262,18 +329,24 @@ pub trait Store {
     /// Records in `space` whose key starts with `prefix`, ascending by key
     /// bytes.
     fn scan(&self, space: Space, prefix: &[u8]) -> Result<Vec<LocalRecord>, StoreError>;
+
+    /// The identity of the file that holds this store's records, and the
+    /// marks as they were found when the store was opened.
+    fn marks(&self) -> Result<Marks, StoreError>;
 }
 
 /// Reference implementation held in memory. It defines the behavior every
 /// store must match and backs tests and early integration. It is not durable:
 /// its state lives as long as one of its handles.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct MemStore {
     state: Arc<Mutex<MemState>>,
+    marks: MemMarks,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct MemState {
+    file: FileId,
     events: HashMap<EventId, Event>,
     logs: BTreeMap<GoalId, Vec<EventId>>,
     authors: BTreeSet<(GoalId, PublicKey, u64, EventId)>,
@@ -282,26 +355,76 @@ struct MemState {
     local: BTreeMap<(Space, Vec<u8>), Vec<u8>>,
 }
 
+/// The marks of a [`MemStore`], kept apart from its records as the marks
+/// file is kept beside a data directory. Handles share one cell, which reads
+/// as lost until a commit first writes to it.
+#[derive(Clone, Debug, Default)]
+pub struct MemMarks(Arc<Mutex<Option<MarksByKey>>>);
+
+type MarksByKey = BTreeMap<(GoalId, PublicKey), Mark>;
+
+impl MemMarks {
+    fn cell(&self) -> MutexGuard<'_, Option<MarksByKey>> {
+        self.0.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+}
+
+/// Every new memory store is another file.
+static NEXT_FILE: AtomicU64 = AtomicU64::new(1);
+
 impl MemStore {
-    /// An empty store.
+    /// An empty store, with lost marks.
     pub fn new() -> Self {
-        Self::default()
+        let file = FileId {
+            ino: NEXT_FILE.fetch_add(1, Ordering::Relaxed),
+            created_ms: None,
+        };
+        Self {
+            state: Arc::new(Mutex::new(MemState {
+                file,
+                events: HashMap::new(),
+                logs: BTreeMap::new(),
+                authors: BTreeSet::new(),
+                blobs: HashMap::new(),
+                staged: HashMap::new(),
+                local: BTreeMap::new(),
+            })),
+            marks: MemMarks::default(),
+        }
     }
 
-    /// Another handle on this store's state, as reopening a durable store
-    /// after a restart would give: everything committed or staged through one
-    /// handle is visible through every other. Lets tests restart a daemon, or
-    /// run `conformance::run_reopen`, over the same state.
+    /// Another handle on this store's state and marks, as reopening a durable
+    /// store after a restart would give: everything committed or staged
+    /// through one handle is visible through every other. Lets tests restart
+    /// a daemon, or run `conformance::run_reopen`, over the same state.
     pub fn reopen(&self) -> Self {
         Self {
             state: Arc::clone(&self.state),
+            marks: self.marks.clone(),
         }
+    }
+
+    /// This store with `marks` in place of its own, as a data directory put
+    /// beside another marks directory would have.
+    pub fn with_marks(self, marks: MemMarks) -> Self {
+        Self { marks, ..self }
+    }
+
+    /// Another handle on this store's marks.
+    pub fn marks_handle(&self) -> MemMarks {
+        self.marks.clone()
     }
 
     fn state(&self) -> MutexGuard<'_, MemState> {
         // Writes never stop part-way (allocation failure aborts), so a lock
         // poisoned by a panicking caller still guards consistent state.
         self.state.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+}
+
+impl Default for MemStore {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -334,6 +457,21 @@ impl Store for MemStore {
                 }
                 LocalWrite::Delete { space, key } => {
                     state.local.remove(&(*space, key.clone()));
+                }
+            }
+        }
+        drop(guard);
+        if !commit.marks.is_empty() {
+            let mut cell = self.marks.cell();
+            let kept = cell.get_or_insert_with(BTreeMap::new);
+            for write in &commit.marks {
+                match *write {
+                    MarkWrite::Set(mark) => {
+                        kept.insert((mark.goal, mark.key), mark);
+                    }
+                    MarkWrite::Clear { goal, key } => {
+                        kept.remove(&(goal, key));
+                    }
                 }
             }
         }
@@ -482,6 +620,19 @@ impl Store for MemStore {
             .map(|((_, key), value)| (key.clone(), value.clone()))
             .collect())
     }
+
+    /// Reads the cell as it is now, which is what an open finds until the
+    /// first commit after it.
+    fn marks(&self) -> Result<Marks, StoreError> {
+        Ok(Marks {
+            file: self.state().file,
+            kept: self
+                .marks
+                .cell()
+                .as_ref()
+                .map(|kept| kept.values().copied().collect()),
+        })
+    }
 }
 
 /// Behavior every [`Store`] must share. Run both suites against each
@@ -564,6 +715,7 @@ pub mod conformance {
     /// before opening the next, so an implementation may hold an exclusive
     /// lock on its state.
     pub fn run_reopen<S: Store>(open: impl Fn() -> S) {
+        marks_follow_their_commit_and_survive_reopen(&open);
         let mut owner = Author::new(1);
         let mut member = Author::new(2);
         let first = straight_log(&mut owner, 2);
@@ -578,6 +730,7 @@ pub mod conformance {
             events: [first.clone(), other.clone()].concat(),
             blobs: vec![blob.clone()],
             local: vec![put(Space::Key, &[0x00, 0xff], b"")],
+            marks: Vec::new(),
         };
 
         {
@@ -640,6 +793,83 @@ pub mod conformance {
         assert_eq!(positions(&store.log(&goal, 0, 10).unwrap()), [1, 2, 3, 4]);
     }
 
+    /// Marks are lost until a commit first writes them, change only with a
+    /// commit that carries them, come back ascending by goal and key, and
+    /// stay with the same file across a reopen. Writes no event, so the
+    /// rest of `run_reopen` still starts from an empty log.
+    fn marks_follow_their_commit_and_survive_reopen<S: Store>(open: &impl Fn() -> S) {
+        let mark = |goal: u8, key: u8, seq: u64, shared: bool| Mark {
+            goal: GoalId([goal; 32]),
+            key: PublicKey([key; 32]),
+            point: AuthorPoint {
+                seq,
+                id: EventId([seq as u8; 32]),
+            },
+            shared,
+        };
+        let (late, early, raised) = (
+            mark(2, 1, 4, true),
+            mark(1, 3, 0, false),
+            mark(2, 1, 5, true),
+        );
+
+        let file = {
+            let mut store = open();
+            let found = store.marks().unwrap();
+            assert_eq!(found.kept, None, "a first open finds no marks");
+            store
+                .commit(&Commit {
+                    local: vec![put(Space::Goal, b"marks", b"1")],
+                    marks: vec![MarkWrite::Set(late), MarkWrite::Set(early)],
+                    ..Commit::default()
+                })
+                .unwrap();
+            found.file
+        };
+        {
+            let mut store = open();
+            assert_eq!(
+                store.marks(),
+                Ok(Marks {
+                    file,
+                    kept: Some(vec![early, late]),
+                })
+            );
+            assert_eq!(store.get(Space::Goal, b"marks"), Ok(Some(b"1".to_vec())));
+            store
+                .commit(&Commit {
+                    marks: vec![
+                        MarkWrite::Set(raised),
+                        MarkWrite::Clear {
+                            goal: early.goal,
+                            key: early.key,
+                        },
+                    ],
+                    ..Commit::default()
+                })
+                .unwrap();
+        }
+        {
+            let mut store = open();
+            assert_eq!(store.marks().unwrap().kept, Some(vec![raised]));
+            store
+                .commit(&Commit {
+                    local: vec![put(Space::Goal, b"marks", b"2")],
+                    ..Commit::default()
+                })
+                .unwrap();
+        }
+        let store = open();
+        assert_eq!(
+            store.marks(),
+            Ok(Marks {
+                file,
+                kept: Some(vec![raised]),
+            }),
+            "a commit with no mark leaves the marks as they were"
+        );
+    }
+
     fn an_empty_store_answers_with_nothing<S: Store>(mut store: S) {
         let goal = GoalId([1; 32]);
         let hash = BlobHash([1; 32]);
@@ -670,6 +900,7 @@ pub mod conformance {
                 events: vec![genesis.clone()],
                 blobs: vec![blob.clone()],
                 local: vec![put(Space::Goal, b"g", b"settings")],
+                marks: Vec::new(),
             })
             .unwrap();
 
@@ -1145,6 +1376,34 @@ mod tests {
             .unwrap();
         assert_eq!(handle.blob_len(&blob.hash()), Ok(Some(6)));
         assert_eq!(MemStore::new().blob_len(&blob.hash()), Ok(None));
+    }
+
+    #[test]
+    fn a_new_memory_store_is_another_file_and_can_be_given_marks() {
+        let mut store = MemStore::new();
+        let mark = Mark {
+            goal: GoalId([1; 32]),
+            key: PublicKey([2; 32]),
+            point: AuthorPoint {
+                seq: 0,
+                id: EventId([3; 32]),
+            },
+            shared: false,
+        };
+        store
+            .commit(&Commit {
+                marks: vec![MarkWrite::Set(mark)],
+                ..Commit::default()
+            })
+            .unwrap();
+        let file = store.marks().unwrap().file;
+        assert_eq!(store.reopen().marks().unwrap().file, file);
+
+        let copy = MemStore::new();
+        assert_ne!(copy.marks().unwrap().file, file);
+        assert_eq!(copy.marks().unwrap().kept, None);
+        let copy = copy.with_marks(store.marks_handle());
+        assert_eq!(copy.marks().unwrap().kept, Some(vec![mark]));
     }
 
     #[test]

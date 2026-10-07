@@ -18,6 +18,7 @@ use locust_proto::engine::{
 };
 use locust_proto::farm::{FarmUpload, FarmUploadResult};
 use locust_proto::id::{EventId, GoalId, PublicKey};
+use locust_proto::local;
 use locust_proto::store::Store;
 use locust_proto::sync::{Refusal, SyncMessage};
 use locust_store::SqliteStore;
@@ -461,7 +462,7 @@ fn a_diverged_author_log_reconciles_between_two_real_daemons() {
     host.stop();
 
     for home in [first.path(), copy.path()] {
-        let store = SqliteStore::open(home).unwrap();
+        let store = SqliteStore::open(home, &local::marks_dir(home)).unwrap();
         let [first, second] = [lost, rival].map(|id| store.event(&id).unwrap().unwrap());
         assert_eq!(first.header().author, author);
         assert_eq!(second.header().author, author);

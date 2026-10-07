@@ -20,6 +20,11 @@
 //! | `agents/<name>.credential` | One enrolled principal's credential |
 //! | `sessions/<instance>.secret` | One execution session's secret |
 //!
+//! Beside the state directory, never inside it, is the marks directory
+//! ([`marks_dir`]): the state directory's path with [`MARKS_SUFFIX`] added,
+//! `~/.locust.marks` by default. It holds the store's marks, so a copy of the
+//! state directory does not carry them.
+//!
 //! A credential or secret file holds exactly the 32 secret bytes, nothing
 //! else, and has mode 0600. Whoever generates a secret writes its file before
 //! telling the daemon about it, so a secret the daemon knows is never lost.
@@ -70,6 +75,10 @@ pub const BLOBS_DIR: &str = "blobs";
 
 /// Directory of daemon and adapter logs.
 pub const LOGS_DIR: &str = "logs";
+
+/// Added to the last part of the state directory's path to name the marks
+/// directory beside it.
+pub const MARKS_SUFFIX: &str = ".marks";
 
 /// The owner's credential.
 pub const OWNER_CREDENTIAL_FILE: &str = "owner.credential";
@@ -185,6 +194,25 @@ pub fn blobs_dir(home: &Path) -> PathBuf {
 /// The directory of logs inside `home`.
 pub fn logs_dir(home: &Path) -> PathBuf {
     home.join(LOGS_DIR)
+}
+
+/// The marks directory of `home`: beside it, never inside it, so a copy of
+/// `home` does not carry it. `home`'s path with [`MARKS_SUFFIX`] added to its
+/// last part. A trailing `/` or `/.` is not a part: it would put the suffix
+/// inside `home`.
+pub fn marks_dir(home: &Path) -> PathBuf {
+    match (home.parent(), home.file_name()) {
+        (Some(parent), Some(name)) => {
+            let mut name = name.to_owned();
+            name.push(MARKS_SUFFIX);
+            parent.join(name)
+        }
+        _ => {
+            let mut path = home.as_os_str().to_owned();
+            path.push(MARKS_SUFFIX);
+            PathBuf::from(path)
+        }
+    }
 }
 
 /// The owner's credential file inside `home`. A client uses it only when the
@@ -313,6 +341,21 @@ mod tests {
     }
 
     #[test]
+    fn the_marks_directory_is_beside_the_home_and_never_inside_it() {
+        let default = home_dir(None, os("/Users/ada")).unwrap();
+        assert_eq!(
+            marks_dir(&default),
+            PathBuf::from("/Users/ada/.locust.marks")
+        );
+        for home in ["/srv/locust", "/srv/locust/", "/srv/locust/."] {
+            let marks = marks_dir(Path::new(home));
+            assert_eq!(marks, PathBuf::from("/srv/locust.marks"), "{home}");
+            assert!(!marks.starts_with(home), "{home}");
+            assert_eq!(marks.parent(), Path::new(home).parent(), "{home}");
+        }
+    }
+
+    #[test]
     fn a_session_secret_file_is_named_by_the_public_handle() {
         let secret = SessionSecret([0x6b; 32]);
         let path = session_secret_path(Path::new("/h"), &secret.instance());
@@ -424,6 +467,7 @@ mod tests {
             ["LOCUST_HOME", "LOCUST_CREDENTIAL", "LOCUST_SESSION"]
         );
         assert_eq!(DEFAULT_HOME, ".locust");
+        assert_eq!(MARKS_SUFFIX, ".marks");
         assert_eq!((HOME_MODE, SECRET_FILE_MODE), (0o700, 0o600));
         assert_eq!(MAX_SOCKET_PATH_BYTES + 1, 104);
     }

@@ -3,7 +3,7 @@ use serde_json::{Value, json};
 use std::fs;
 use std::io::{BufRead, BufReader, Write};
 use std::os::unix::fs::PermissionsExt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
@@ -24,17 +24,33 @@ fn command(home: &std::path::Path) -> Command {
         .arg(home);
     command
 }
-fn scratch() -> tempfile::TempDir {
-    let home = tempfile::Builder::new()
+/// A private home one level inside its temporary directory, so the marks
+/// directory a daemon keeps beside it is removed with it.
+struct Scratch {
+    path: PathBuf,
+    _root: tempfile::TempDir,
+}
+impl Scratch {
+    fn path(&self) -> &Path {
+        &self.path
+    }
+}
+fn scratch() -> Scratch {
+    let root = tempfile::Builder::new()
         .prefix("lc-mcp-")
         .tempdir_in("/tmp")
         .unwrap();
-    fs::set_permissions(home.path(), fs::Permissions::from_mode(0o700)).unwrap();
+    let home = root.path().join("h");
+    fs::create_dir(&home).unwrap();
+    fs::set_permissions(&home, fs::Permissions::from_mode(0o700)).unwrap();
     for file in ["credential", "session"] {
-        fs::write(home.path().join(file), [1u8; 32]).unwrap();
-        fs::set_permissions(home.path().join(file), fs::Permissions::from_mode(0o600)).unwrap();
+        fs::write(home.join(file), [1u8; 32]).unwrap();
+        fs::set_permissions(home.join(file), fs::Permissions::from_mode(0o600)).unwrap();
     }
-    home
+    Scratch {
+        path: home,
+        _root: root,
+    }
 }
 #[test]
 fn actual_stdio_pipes_negotiate_ping_and_exit_cleanly_on_eof() {

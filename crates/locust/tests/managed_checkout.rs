@@ -2,22 +2,40 @@
 use serde_json::{Value, json};
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::thread;
 use std::time::{Duration, Instant};
 
 struct Daemon {
-    home: tempfile::TempDir,
+    home: Home,
     process: Child,
+}
+
+/// A private home one level inside its temporary directory, so the marks
+/// directory the daemon keeps beside it is removed with it.
+struct Home {
+    path: PathBuf,
+    _root: tempfile::TempDir,
+}
+
+impl Home {
+    fn path(&self) -> &Path {
+        &self.path
+    }
 }
 
 impl Daemon {
     fn start() -> Self {
-        let home = tempfile::Builder::new()
+        let root = tempfile::Builder::new()
             .prefix("lc-owned-")
             .tempdir_in("/tmp")
             .unwrap();
+        let home = Home {
+            path: root.path().join("h"),
+            _root: root,
+        };
+        fs::create_dir(home.path()).unwrap();
         fs::set_permissions(home.path(), fs::Permissions::from_mode(0o700)).unwrap();
         let log = fs::File::create(home.path().join("test-daemon.log")).unwrap();
         let process = command(home.path())

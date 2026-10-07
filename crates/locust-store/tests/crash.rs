@@ -18,6 +18,7 @@ use std::time::Duration;
 use locust_proto::crypto::content_hash;
 use locust_proto::event::{Body, Event};
 use locust_proto::id::{BlobHash, GoalId};
+use locust_proto::local::marks_dir;
 use locust_proto::store::{Blob, Commit, LocalWrite, Space, Store};
 use locust_proto::testkit::{Author, sealed_payload};
 use locust_store::{INLINE_MAX_BYTES, OpenError, SqliteStore};
@@ -103,6 +104,7 @@ impl History {
                 key: Self::record(n),
                 value: n.to_le_bytes().to_vec(),
             }],
+            marks: Vec::new(),
         }
     }
 }
@@ -115,7 +117,7 @@ fn child_commits_until_stopped() {
         return;
     };
     let exit_after: Option<usize> = env::var(CHILD_EXIT_AFTER).ok().map(|n| n.parse().unwrap());
-    let mut store = SqliteStore::open(&dir).unwrap();
+    let mut store = SqliteStore::open(&dir, &marks_dir(Path::new(&dir))).unwrap();
     let mut history = History::new();
     let start = store.log(&history.goal(), 0, usize::MAX).unwrap().len();
     let mut out = std::io::stdout().lock();
@@ -159,7 +161,7 @@ fn acknowledged(line: &str) -> Option<usize> {
 /// right bytes, and that no file is left that no row names. Returns the
 /// number of commits held.
 fn check(dir: &Path, acknowledged: usize) -> usize {
-    let store = SqliteStore::open(dir).unwrap();
+    let store = SqliteStore::open(dir, &marks_dir(dir)).unwrap();
     let mut history = History::new();
     let log = store.log(&history.goal(), 0, usize::MAX).unwrap();
     assert!(
@@ -209,10 +211,11 @@ fn kill_delay(round: u32) -> Duration {
 
 #[test]
 fn acknowledged_commits_survive_a_process_killed_mid_commit() {
-    let dir = tempfile::tempdir().unwrap();
+    let root = tempfile::tempdir().unwrap();
+    let dir = root.path().join("state");
     let mut held = 0;
     for round in 0..10 {
-        let mut child = spawn_child(dir.path(), None);
+        let mut child = spawn_child(&dir, None);
         let mut lines = BufReader::new(child.stdout.take().unwrap()).lines();
         let mut acked = held;
         let mut seen = 0;
@@ -228,7 +231,7 @@ fn acknowledged_commits_survive_a_process_killed_mid_commit() {
         }
         if round == 0 {
             assert!(matches!(
-                SqliteStore::open(dir.path()),
+                SqliteStore::open(&dir, &marks_dir(&dir)),
                 Err(OpenError::InUse(_))
             ));
         }
@@ -240,14 +243,15 @@ fn acknowledged_commits_survive_a_process_killed_mid_commit() {
                 acked = n + 1;
             }
         }
-        held = check(dir.path(), acked);
+        held = check(&dir, acked);
     }
 }
 
 #[test]
 fn a_process_that_exits_without_closing_the_store_loses_no_commit() {
-    let dir = tempfile::tempdir().unwrap();
-    let mut child = spawn_child(dir.path(), Some(12));
+    let root = tempfile::tempdir().unwrap();
+    let dir = root.path().join("state");
+    let mut child = spawn_child(&dir, Some(12));
     let output = BufReader::new(child.stdout.take().unwrap());
     let acked = output
         .lines()
@@ -256,7 +260,7 @@ fn a_process_that_exits_without_closing_the_store_loses_no_commit() {
     assert!(child.wait().unwrap().success());
     assert_eq!(acked, 12);
     // The store was never closed, so its commits are still in the WAL.
-    let wal = fs::metadata(dir.path().join("locust.db-wal")).unwrap();
+    let wal = fs::metadata(dir.join("locust.db-wal")).unwrap();
     assert!(wal.len() > 0);
-    assert_eq!(check(dir.path(), acked), 12);
+    assert_eq!(check(&dir, acked), 12);
 }

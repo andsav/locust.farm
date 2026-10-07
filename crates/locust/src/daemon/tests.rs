@@ -212,7 +212,7 @@ impl Engine for Scripted {
 
 /// A daemon running the scripted engine on its own thread.
 struct Running {
-    _dir: Option<tempfile::TempDir>,
+    _dir: Option<crate::testdir::ShortDir>,
     home: PathBuf,
     log: Log,
     shutdown: Option<tokio::sync::oneshot::Sender<()>>,

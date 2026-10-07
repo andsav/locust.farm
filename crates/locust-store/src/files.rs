@@ -304,13 +304,13 @@ impl Files {
     }
 }
 
-fn sync_directory(path: &Path) -> io::Result<()> {
+pub(crate) fn sync_directory(path: &Path) -> io::Result<()> {
     #[cfg(test)]
     crate::faults::check(crate::faults::Point::DirectorySync, path)?;
     File::open(path)?.sync_all()
 }
 
-fn sync_file(file: &File, path: &Path) -> io::Result<()> {
+pub(crate) fn sync_file(file: &File, path: &Path) -> io::Result<()> {
     #[cfg(test)]
     crate::faults::check(crate::faults::Point::FileSync, path)?;
     #[cfg(not(test))]
@@ -320,7 +320,7 @@ fn sync_file(file: &File, path: &Path) -> io::Result<()> {
 
 /// Creates missing ancestors from the first existing directory down. The
 /// sync operation is supplied so tests can inject a failed parent sync.
-fn create_directories(
+pub(crate) fn create_directories(
     dir: &Path,
     mut sync_parent: impl FnMut(&Path) -> io::Result<()>,
 ) -> Result<(), StoreError> {

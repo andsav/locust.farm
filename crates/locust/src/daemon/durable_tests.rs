@@ -52,12 +52,18 @@ impl Running {
         let (ready, waiting) = mpsc::channel();
         let state = home.to_path_buf();
         let thread = thread::spawn(move || {
-            run_networked_with(&state, observe, local_endpoint, move |_| {
-                ready.send(()).unwrap();
-                Ok(async move {
-                    let _ = stopped.await;
-                })
-            })
+            run_networked_with(
+                &state,
+                &local::marks_dir(&state),
+                observe,
+                local_endpoint,
+                move |_| {
+                    ready.send(()).unwrap();
+                    Ok(async move {
+                        let _ = stopped.await;
+                    })
+                },
+            )
         });
         waiting
             .recv_timeout(Duration::from_secs(15))
@@ -920,7 +926,7 @@ pub(super) fn copy_stopped_home(from: &Path, to: &Path) {
 /// The goal's events held by a stopped daemon's store.
 fn held_events(home: &Path, goal: GoalId) -> Vec<locust_proto::event::Event> {
     use locust_proto::store::Store;
-    locust_store::SqliteStore::open(home)
+    locust_store::SqliteStore::open(home, &local::marks_dir(home))
         .unwrap()
         .log(&goal, 0, usize::MAX)
         .unwrap()
@@ -933,7 +939,7 @@ fn held_events(home: &Path, goal: GoalId) -> Vec<locust_proto::event::Event> {
 /// its order are tested with Network.
 fn replay(home: &Path, events: Vec<locust_proto::event::Event>) {
     use locust_proto::store::{Commit, Store};
-    locust_store::SqliteStore::open(home)
+    locust_store::SqliteStore::open(home, &local::marks_dir(home))
         .unwrap()
         .commit(&Commit {
             events,
@@ -1005,7 +1011,7 @@ fn sqlite_older_directory_forks_only_the_hosts_agent_when_its_own_work_was_lost(
         drop(agent);
         restored.stop();
         {
-            let store = SqliteStore::open(backup.path()).unwrap();
+            let store = SqliteStore::open(backup.path(), &local::marks_dir(backup.path())).unwrap();
             let new = store.event(&new_id).unwrap().unwrap();
             assert_ne!(new_id, old_id);
             assert_eq!(
@@ -1088,7 +1094,7 @@ fn sqlite_older_directory_halts_governance_when_a_governance_record_was_lost() {
     let new_id = rebind_rules(&mut restored.owner(), goal, principal);
     restored.stop();
     {
-        let store = SqliteStore::open(backup.path()).unwrap();
+        let store = SqliteStore::open(backup.path(), &local::marks_dir(backup.path())).unwrap();
         let new = store.event(&new_id).unwrap().unwrap();
         assert_ne!(new_id, old_id);
         assert_eq!(new.header().author, old.header().author);

@@ -4,7 +4,7 @@ use locust_proto::engine::{PeerEngine, PeerInput};
 use locust_proto::event::{AuthorPoint, Event};
 use locust_proto::id::EndpointId;
 use locust_proto::id::{BlobHash, EventId, GoalId};
-use locust_proto::store::{Commit, LocalRecord, Space, Store, StoreError};
+use locust_proto::store::{Commit, LocalRecord, Marks, Space, Store, StoreError};
 use std::cell::Cell;
 use std::rc::Rc;
 
@@ -101,6 +101,9 @@ impl Store for Failing {
     }
     fn scan(&self, space: Space, prefix: &[u8]) -> Result<Vec<LocalRecord>, StoreError> {
         self.inner.scan(space, prefix)
+    }
+    fn marks(&self) -> Result<Marks, StoreError> {
+        self.inner.marks()
     }
 }
 fn call(

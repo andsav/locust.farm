@@ -3,6 +3,7 @@ use crate::daemon::{EngineInit, run_with};
 use ed25519_dalek::{Signer, SigningKey};
 use locust_core::node::Node;
 use locust_proto::engine::Entropy;
+use locust_proto::local::marks_dir;
 use locust_store::SqliteStore;
 use std::sync::mpsc;
 use std::thread::{self, JoinHandle};
@@ -30,7 +31,8 @@ impl Running {
             run_with(
                 &home,
                 |init: EngineInit| {
-                    let store = SqliteStore::open(&init.home).map_err(|e| e.to_string())?;
+                    let store = SqliteStore::open(&init.home, &marks_dir(&init.home))
+                        .map_err(|e| e.to_string())?;
                     Node::open(
                         store,
                         SuppliedEntropy(init.entropy),
@@ -71,7 +73,7 @@ impl Drop for Running {
 struct Fixture {
     // Stop the daemon before deleting the temporary state directory.
     running: Option<Running>,
-    _dir: tempfile::TempDir,
+    _dir: crate::testdir::ShortDir,
     spec: Spec,
 }
 impl Fixture {

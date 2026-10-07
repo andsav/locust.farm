@@ -16,6 +16,7 @@ use std::path::Path;
 use std::process::{Command, Output};
 
 use locust_proto::event::Body;
+use locust_proto::local::marks_dir;
 use locust_proto::store::{Blob, Commit, Store};
 use locust_proto::testkit::Author;
 use locust_store::{INLINE_MAX_BYTES, SqliteStore};
@@ -34,8 +35,9 @@ fn recovery_child() {
     let Ok(step) = env::var(STEP) else { return };
     let dir = env::var(DIR).unwrap();
     let arm = env::var(ARM).unwrap();
+    let marks = marks_dir(Path::new(&dir));
     if step == "write" {
-        let mut store = SqliteStore::open(&dir).unwrap();
+        let mut store = SqliteStore::open(&dir, &marks).unwrap();
         let mut author = Author::new(1);
         let genesis = author.genesis(locust_proto::testkit::keypair(9).public());
         let goal = genesis.header().goal;
@@ -67,7 +69,7 @@ fn recovery_child() {
         panic!("writer kill injection never fired");
     }
     if step == "fail-recovery" {
-        let result = SqliteStore::open(&dir);
+        let result = SqliteStore::open(&dir, &marks);
         assert!(
             result.is_err(),
             "open must fail when the recovered WAL cannot be synced"
@@ -85,7 +87,7 @@ fn recovery_child() {
         );
     } else {
         assert_eq!(step, "read");
-        let store = SqliteStore::open(&dir).unwrap();
+        let store = SqliteStore::open(&dir, &marks).unwrap();
         eprintln!("[recovery-test] open returned");
         let goal = Author::new(1)
             .genesis(locust_proto::testkit::keypair(9).public())

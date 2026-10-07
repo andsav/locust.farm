@@ -2,18 +2,21 @@
 //! ordering file and database steps for durable acknowledgements and
 //! recoverable interrupted operations.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::slice;
 
 use locust_proto::event::{AuthorPoint, Event};
 use locust_proto::id::{BlobHash, EventId, GoalId, PublicKey};
 use locust_proto::local as conventions;
-use locust_proto::store::{Blob, Commit, LocalRecord, Space, Store, StoreError};
+use locust_proto::store::{
+    Blob, Commit, FileId, LocalRecord, Mark, Marks, Space, Store, StoreError,
+};
 use rusqlite::{Connection, Transaction};
 
-use crate::error::{OpenError, sql};
+use crate::error::{OpenError, file, sql};
 use crate::files::{Files, Staged};
-use crate::{connection, events, local, objects, schema};
+use crate::marks::MarksFile;
+use crate::{connection, events, local, marks, objects, schema};
 
 const BROKEN: &str = "an earlier write failed while it was being made durable, so its outcome \
      is unknown; reopen the store to read it back";
@@ -23,10 +26,14 @@ const BROKEN: &str = "an earlier write failed while it was being made durable, s
 #[derive(Debug)]
 pub struct SqliteStore {
     conn: Connection,
+    database: PathBuf,
     files: Files,
+    marks: MarksFile,
+    /// The marks as the open found them. Writes change the file, not this.
+    found: Option<Vec<Mark>>,
     /// Set when a durable mutation fails with an uncertain outcome (database
-    /// commit, staging append, promotion or discard). Every later call fails
-    /// until reopen repairs and reads back the persisted state.
+    /// commit, mark write, staging append, promotion or discard). Every later
+    /// call fails until reopen repairs and reads back the persisted state.
     broken: bool,
 }
 
@@ -41,20 +48,29 @@ impl SqliteStore {
     /// with [`OpenError::UnsupportedSchema`] for any unsupported database format. Signed events of another protocol are refused with
     /// [`OpenError::UnsupportedProtocolVersion`] before initialization or garbage
     /// collection. Unsupported formats are checked before configuring WAL or collecting files.
-    pub fn open(dir: impl AsRef<Path>) -> Result<Self, OpenError> {
+    ///
+    /// The marks live in `marks`, a directory beside `dir` and never inside
+    /// it, created owner-only if missing. They are read once the database is
+    /// held, so [`Store::marks`] answers what this open found.
+    pub fn open(dir: impl AsRef<Path>, marks: &Path) -> Result<Self, OpenError> {
         let dir = dir.as_ref();
         // `connection::preflight` reads the format and protocol version with a
         // read-only connection before any directory is created; `connection::open`
         // re-checks both under the exclusive lock. No third scan is needed here.
-        connection::preflight(&conventions::database_path(dir), dir)?;
+        let database = conventions::database_path(dir);
+        connection::preflight(&database, dir)?;
         let files = Files::create(conventions::blobs_dir(dir))?;
-        let mut conn = connection::open(&conventions::database_path(dir), dir)?;
+        let mut conn = connection::open(&database, dir)?;
         schema::initialize(&mut conn)?;
         files.recover_staging()?;
         objects::collect_garbage(&conn, &files)?;
+        let (marks, found) = marks::open(marks)?;
         Ok(Self {
             conn,
+            database,
             files,
+            marks,
+            found,
             broken: false,
         })
     }
@@ -144,7 +160,8 @@ fn commit_durably(tx: Transaction<'_>, broken: &mut bool) -> Result<(), StoreErr
 impl Store for SqliteStore {
     /// Installs the commit's new large objects as files first; then one
     /// transaction appends the events, adds the objects' rows (small objects
-    /// inline) and applies the local writes in order.
+    /// inline) and applies the local writes in order; once it has committed,
+    /// the marks are written and their file synced.
     fn commit(&mut self, commit: &Commit) -> Result<(), StoreError> {
         self.usable()?;
         objects::install(&self.conn, &self.files, &commit.blobs)?;
@@ -152,7 +169,10 @@ impl Store for SqliteStore {
         events::append(&tx, &commit.events)?;
         objects::insert(&tx, &commit.blobs)?;
         local::apply(&tx, &commit.local)?;
-        commit_durably(tx, &mut self.broken)
+        commit_durably(tx, &mut self.broken)?;
+        self.marks.write(&commit.marks).inspect_err(|_| {
+            self.broken = true;
+        })
     }
 
     fn event(&self, id: &EventId) -> Result<Option<Event>, StoreError> {
@@ -267,5 +287,14 @@ impl Store for SqliteStore {
     fn scan(&self, space: Space, prefix: &[u8]) -> Result<Vec<LocalRecord>, StoreError> {
         self.usable()?;
         local::scan(&self.conn, space, prefix)
+    }
+
+    fn marks(&self) -> Result<Marks, StoreError> {
+        self.usable()?;
+        Ok(Marks {
+            file: FileId::of(&self.database)
+                .map_err(|error| file("inspect", &self.database, error))?,
+            kept: self.found.clone(),
+        })
     }
 }
