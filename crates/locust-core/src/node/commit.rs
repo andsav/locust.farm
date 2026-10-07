@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 
 use super::feed::Feed;
 use super::{Node, local, records};
-use crate::goal::{Changes, Goal, Standing};
+use crate::goal::{Changes, Goal, Standing, Waiting};
 
 /// A candidate that a request already replayed on a copy of its goal before
 /// the local level was read. While the transaction still holds exactly those
@@ -464,6 +464,9 @@ impl<S: Store, E: Entropy> Node<S, E> {
             let reason = match excluded {
                 Some(Standing::Excluded(exclusion)) => {
                     exclusion.reason().unwrap_or_else(|| exclusion.name())
+                }
+                Some(Standing::Pending(Waiting::Definition)) => {
+                    return Err(super::access::awaiting_rules());
                 }
                 _ => "the event cannot be applied yet",
             };

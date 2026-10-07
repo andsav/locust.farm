@@ -2453,3 +2453,44 @@ fn a_key_just_admitted_waits_for_the_goals_rules_as_well_as_the_hosts_computer()
     assert!(summary(&mut net.nodes[1], goal, agent).guard.is_empty());
     post(&mut net, 1, 2, goal).unwrap();
 }
+
+/// The owner continues the goal while a new member's content is still
+/// arriving, which ends the admission hold before the member can read the
+/// goal's rules. A post then waits on content this computer does not hold
+/// yet: it is refused as unavailable, naming what it waits for, and not as
+/// a conflict that nothing will change. Once the content lands the same post
+/// is recorded.
+#[test]
+fn a_post_judged_before_the_goals_rules_arrive_is_unavailable_not_a_conflict() {
+    let mut net = Network::with(2);
+    let (goal, _) = hosted_at_ask(&mut net, 0, HOST);
+    for _ in 0..30 {
+        posted(&mut net, 0, HOST, goal);
+    }
+    let ticket = invite(&mut net.nodes[0], goal);
+    let agent = net.nodes[1].enroll("member", 2);
+    let owner = net.nodes[1].owner();
+    net.nodes[1].ok(owner, join_request(agent, ticket));
+    let mut checked = false;
+    net.poll_only(&[1], 1);
+    while net.step() {
+        let entry = &net.nodes[1].node.goals[&goal];
+        if !checked && entry.is_member(&agent) && !entry.keys.is_empty() {
+            checked = true;
+            assert!(!reads_rules(&net.nodes[1], goal));
+            assert_eq!(continued(&mut net.nodes[1], goal), 1);
+            assert!(summary(&mut net.nodes[1], goal, agent).guard.is_empty());
+            let refused = post(&mut net, 1, 2, goal).unwrap_err();
+            assert_eq!(refused.code, ErrorCode::Unavailable, "{refused}");
+            assert!(
+                refused
+                    .message
+                    .contains("the goal's rules this is judged by have not arrived"),
+                "{refused}"
+            );
+        }
+    }
+    assert!(checked);
+    assert!(reads_rules(&net.nodes[1], goal));
+    post(&mut net, 1, 2, goal).unwrap();
+}

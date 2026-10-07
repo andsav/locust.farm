@@ -15,7 +15,7 @@ use super::Node;
 use super::callers::Actor;
 use super::commit::Trial;
 use super::entry::Entry;
-use crate::goal::Standing;
+use crate::goal::{Standing, Waiting};
 
 pub(super) fn not_found(message: &'static str) -> ApiError {
     ApiError::new(ErrorCode::NotFound, message)
@@ -27,6 +27,19 @@ pub(super) fn denied(message: &'static str) -> ApiError {
 
 pub(super) fn conflict(message: &'static str) -> ApiError {
     ApiError::new(ErrorCode::Conflict, message)
+}
+
+/// The answer to a record that cannot be judged because the rules definition
+/// it is judged by has not arrived: its content, or the content key that
+/// opens it. It is no conflict, since the same request succeeds once that
+/// arrives. Other pending records stay conflicts: a missing reference or
+/// evidence can be for good, such as a materialized effect that stands on a
+/// fork or a decision whose evidence was cancelled.
+pub(super) fn awaiting_rules() -> ApiError {
+    ApiError::new(
+        ErrorCode::Unavailable,
+        "the goal's rules this is judged by have not arrived on this computer yet; read again and retry once they have",
+    )
 }
 
 /// A candidate already signed in memory, or a local content/claim action.
@@ -282,6 +295,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                         },
                     ));
                 }
+                Some(Standing::Pending(Waiting::Definition)) => return Err(awaiting_rules()),
                 _ => {
                     return Err(self.refused_error(
                         entry,
