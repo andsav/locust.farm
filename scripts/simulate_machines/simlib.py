@@ -44,6 +44,11 @@ _homes = itertools.count(1)
 LIVE = set()  # every daemon Popen this process started and has not reaped
 
 
+def multicast_only(env):
+    """No relay and local lookup alone: members find each other only by multicast."""
+    return env.get("LOCUST_RELAY") == "none" and env.get("LOCUST_LOOKUP") == "local"
+
+
 def fresh_home():
     """A short private home, claimed atomically; an existing one is never reused."""
     while True:
@@ -314,6 +319,8 @@ class Cluster(base.Qualification):
         self.summary["binaries"] = {name: base.binary_facts(path, 30) for name, path in BINARIES.items()}
         self.t0 = time.monotonic()
         try:
+            if multicast_only(PROFILES[self.profile]):
+                base.require_local_multicast(self.summary["transport"])
             body(self)
             self.summary["status"] = "passed"
         finally:

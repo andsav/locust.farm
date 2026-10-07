@@ -1,4 +1,5 @@
 from pathlib import Path
+import errno
 import json
 import os
 import signal
@@ -9,7 +10,43 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from check_t1 import CheckFailure, Machine, Qualification, identity, process_stop, redact, route_fact
+from check_t1 import (CheckFailure, Machine, Qualification, identity, local_multicast, mdns_query,
+                      process_stop, redact, route_fact)
+
+
+class FakeMulticastSocket:
+    """A UDP socket whose send may fail and whose reads return scripted datagrams."""
+
+    def __init__(self, send_error=None, replies=()):
+        self.send_error, self.replies, self.sent = send_error, list(replies), None
+
+    def __call__(self, *_args):
+        return self
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_exc):
+        return False
+
+    def setsockopt(self, *_args):
+        pass
+
+    def bind(self, _address):
+        pass
+
+    def settimeout(self, _seconds):
+        pass
+
+    def sendto(self, data, _address):
+        if self.send_error is not None:
+            raise self.send_error
+        self.sent = data
+
+    def recvfrom(self, _size):
+        if not self.replies:
+            raise TimeoutError
+        return self.replies.pop(0)(self.sent), ("192.0.2.1", 5353)
 
 
 class T1HarnessTests(unittest.TestCase):
@@ -124,6 +161,7 @@ class T1HarnessTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             suite = self.suite(Path(directory))
             with patch("check_t1.binary_facts", return_value={"sha256": "fixture"}), \
+                    patch("check_t1.local_multicast", return_value=None), \
                     patch.object(suite, "flow", side_effect=CheckFailure("fixture flow failure")), \
                     patch.object(suite, "cleanup") as cleanup:
                 self.assertFalse(suite.run())
@@ -131,6 +169,53 @@ class T1HarnessTests(unittest.TestCase):
             summary = json.loads((suite.artifact_dir / "summary.json").read_text())
             self.assertEqual(summary["status"], "failed")
             self.assertIn("not published-build or three-Mac", summary["qualification"])
+
+    def test_the_multicast_probe_asks_one_standard_mdns_question(self):
+        query = mdns_query(0x1234)
+        self.assertEqual(query[:12], bytes.fromhex("123400000001000000000000"))
+        self.assertEqual(query[12:], b"\x07_irohv1\x04_udp\x05local\x00\x00\x0c\x00\x01")
+
+    def test_the_multicast_probe_needs_its_own_query_back_over_loopback(self):
+        heard = FakeMulticastSocket(replies=[lambda sent: b"another responder", lambda sent: sent])
+        with patch("check_t1.socket.socket", heard):
+            self.assertIsNone(local_multicast(0.5))
+        dropped = FakeMulticastSocket(replies=[lambda sent: b"another responder"])
+        with patch("check_t1.socket.socket", dropped):
+            self.assertIn("did not come back", local_multicast(0.5))
+
+    def test_the_multicast_probe_names_a_denied_send(self):
+        # macOS Local Network privacy refuses with EHOSTUNREACH; a sandbox with EPERM.
+        for code in (errno.EHOSTUNREACH, errno.EPERM):
+            denied = FakeMulticastSocket(send_error=OSError(code, os.strerror(code)))
+            with self.subTest(code=code), patch("check_t1.socket.socket", denied):
+                self.assertTrue(local_multicast(0.5).startswith(errno.errorcode[code] + " ("))
+
+    def test_a_local_run_without_multicast_fails_as_the_environment_before_any_daemon(self):
+        with tempfile.TemporaryDirectory() as directory:
+            suite = self.suite(Path(directory))
+            reason = "EHOSTUNREACH (No route to host)"
+            with patch("check_t1.binary_facts", return_value={"sha256": "fixture"}), \
+                    patch("check_t1.local_multicast", return_value=reason), \
+                    patch.object(suite, "flow") as flow:
+                self.assertFalse(suite.run())
+                flow.assert_not_called()
+            self.assertEqual(suite.machines, [])
+            summary = json.loads((suite.artifact_dir / "summary.json").read_text())
+            self.assertEqual(summary["transport"]["local_multicast"], reason)
+            self.assertTrue(summary["failures"][0].startswith(
+                "environment: local-network multicast is unavailable to this run: " + reason))
+
+    def test_a_default_network_run_does_not_depend_on_multicast(self):
+        with tempfile.TemporaryDirectory() as directory:
+            suite = Qualification(Path(sys.executable), 0.05, Path(directory) / "artifacts")
+            with patch("check_t1.binary_facts", return_value={"sha256": "fixture"}), \
+                    patch("check_t1.local_multicast", side_effect=AssertionError("probed")), \
+                    patch.object(suite, "flow", side_effect=CheckFailure("fixture flow failure")), \
+                    patch.object(suite, "cleanup"):
+                self.assertFalse(suite.run())
+            summary = json.loads((suite.artifact_dir / "summary.json").read_text())
+            self.assertEqual(summary["failures"], ["fixture flow failure"])
+            self.assertNotIn("local_multicast", summary["transport"])
 
 
 if __name__ == "__main__":

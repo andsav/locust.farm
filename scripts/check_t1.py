@@ -12,6 +12,7 @@ from artifacts. Credential and session secret files are never read by Python.
 
 import argparse
 from datetime import datetime, timezone
+import errno
 import hashlib
 import json
 import math
@@ -21,6 +22,8 @@ import platform
 import re
 import secrets
 import shutil
+import socket
+import struct
 import subprocess
 import sys
 import tempfile
@@ -74,6 +77,64 @@ def route_fact(line):
         for kind, selected, rtt in PATH.findall(match.group(2))
     ]
     return {"peer_endpoint": match.group(1), "paths": paths}
+
+
+MDNS_GROUP = ("224.0.0.251", 5353)
+
+
+def mdns_query(transaction):
+    """One standard mDNS question: PTR records of the service Iroh's local lookup uses."""
+    name = b"".join(bytes([len(label)]) + label for label in (b"_irohv1", b"_udp", b"local")) + b"\0"
+    return struct.pack("!6H", transaction, 0, 1, 0, 0, 0) + name + struct.pack("!2H", 12, 1)
+
+
+def local_multicast(timeout=2.0):
+    """None when this process can send an mDNS query to the local multicast group
+    and hear it back over multicast loopback, else why not.
+
+    With no relay, members that are not the host find each other only through
+    multicast lookup (crates/locust-net/src/lib.rs, Lookup::local_network). A
+    sandbox, or macOS Local Network privacy for the app that started this run,
+    can deny multicast while unicast works: the daemons then reach only the host
+    their ticket names, and only until it restarts on a new port. The daemons
+    started here inherit this process's permission."""
+    query = mdns_query(secrets.randbits(16))
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP) as sock:
+            # Share the mDNS port as the system responder and the daemons do.
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            if hasattr(socket, "SO_REUSEPORT"):
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+            sock.bind(("", MDNS_GROUP[1]))
+            sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP,
+                            socket.inet_aton(MDNS_GROUP[0]) + socket.inet_aton("0.0.0.0"))
+            sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1)
+            sock.sendto(query, MDNS_GROUP)
+            deadline = time.monotonic() + timeout
+            while (remaining := deadline - time.monotonic()) > 0:
+                sock.settimeout(remaining)
+                if sock.recvfrom(9000)[0] == query:
+                    return None
+    except TimeoutError:
+        pass
+    except OSError as error:
+        if not error.errno:
+            return type(error).__name__
+        return f"{errno.errorcode.get(error.errno, error.errno)} ({os.strerror(error.errno)})"
+    return f"the query did not come back over multicast loopback within {timeout:g}s"
+
+
+def require_local_multicast(transport):
+    """The precondition of a relay-free local-lookup run. Records the probe in
+    `transport` and fails as the environment's fault, before any daemon starts."""
+    reason = local_multicast()
+    transport["local_multicast"] = reason or "available"
+    if reason is not None:
+        raise CheckFailure(
+            f"environment: local-network multicast is unavailable to this run: {reason}. "
+            "With no relay, members find each other only by multicast lookup. On macOS, "
+            "allow Local Network access for the app that started this run (System Settings, "
+            "Privacy & Security, Local Network) or start it from one that has it")
 
 
 def identity(value, name):
@@ -385,6 +446,8 @@ class Qualification:
 
     def execute(self):
         self.summary["binary"] = binary_facts(self.binary, self.timeout)
+        if self.network == "local":
+            require_local_multicast(self.summary["transport"])
         with tempfile.TemporaryDirectory(prefix="lct-", dir="/tmp") as directory:
             root = Path(directory)
             root.chmod(0o700)

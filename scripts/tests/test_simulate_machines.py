@@ -27,6 +27,12 @@ class CommandLine(unittest.TestCase):
             run.main(["--quick"])
         self.assertEqual(stop.exception.code, 2)
 
+    def test_only_the_relay_free_local_profile_needs_multicast(self):
+        profiles = run.simlib.PROFILES
+        self.assertTrue(run.simlib.multicast_only(profiles["lan"]))
+        self.assertFalse(run.simlib.multicast_only(profiles["isolated"]))
+        self.assertFalse(run.simlib.multicast_only(profiles["defaults"]))
+
     def test_mixed_build_without_a_second_binary_is_a_usage_error(self):
         with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as stop:
             run.main(["--binary", "/nonexistent/locust", "mixed-build"])
