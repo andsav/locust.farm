@@ -12,7 +12,7 @@
 //! backup can be restored more than once, and drops every later backup of
 //! that machine: those copies are of a history the restore abandoned.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use locust_proto::id::{BlobHash, EventId, GoalId, PublicKey};
 use locust_proto::store::{MemStore, Store};
@@ -57,9 +57,9 @@ pub struct Restore {
     /// content: content is fetched after its record, so a copy can hold a
     /// record without the text it names.
     pub lost_blobs: BTreeSet<BlobHash>,
-    /// The keys with a mark the restored copy starts with, by goal: none
-    /// when the marks are lost.
-    pub marked: BTreeSet<(GoalId, PublicKey)>,
+    /// The position each key's mark names when the restored copy starts,
+    /// by goal and key: none when the marks are lost.
+    pub marked: BTreeMap<(GoalId, PublicKey), u64>,
 }
 
 impl World {
@@ -217,7 +217,7 @@ impl World {
             .into_iter()
             .filter(|hash| !copy_blobs.contains(hash) && !other_blobs.contains(hash))
             .collect();
-        let mut marked = BTreeSet::new();
+        let mut marked = BTreeMap::new();
         if marks == Marks::Kept {
             copy = copy.with_marks(self.machines[m].store.marks_handle());
             let found = copy.marks().expect("memory marks read");
@@ -226,7 +226,7 @@ impl World {
                     .kept
                     .into_iter()
                     .flatten()
-                    .map(|mark| (mark.goal, mark.key)),
+                    .map(|mark| ((mark.goal, mark.key), mark.point.seq)),
             );
         }
         self.machines[m].store = copy;

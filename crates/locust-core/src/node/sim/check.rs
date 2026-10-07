@@ -106,7 +106,7 @@ pub fn reuses(r: &Run) -> Vec<Reuse> {
             // Every key that is no principal's is the governance key.
             let agent = r.principals.iter().position(|p| *p == key);
             let m = agent.unwrap_or(HOST);
-            let claimed = claimed(r, m, agent.is_none(), &records);
+            let claimed = claimed(r, m, agent.is_none(), seq, &records);
             Reuse {
                 key,
                 seq,
@@ -125,14 +125,14 @@ pub fn reuses(r: &Run) -> Vec<Reuse> {
 /// the machine's next restore, which the claim judges afresh:
 ///
 /// - the machine's owner sent `goal.continue`, for any key;
-/// - on a member's machine, an agent's key of which a restore with the
-///   marks kept finds no mark (an earlier restore lost the marks and wrote
-///   them again from a copy in which the key had no record, and it has
-///   signed nothing here since): no mark names its last record or carries
-///   that the goal was a copy of unknown age;
 /// - for an agent's key on a member's machine, a restore with the marks
 ///   lost (residual 5: the host's computer may lack that agent's last
 ///   records while another member holds them);
+/// - for an agent's key on a member's machine, a restore with the marks
+///   kept whose marks do not reach the reused position, when a record at
+///   that position was lost by an earlier restore of the machine with its
+///   marks lost ([`lost_with_the_marks`]): the same residual, put off past
+///   the later restore, which found nothing missing that the marks knew;
 /// - for any agent's key, a restore with the marks kept in a run where a
 ///   member was removed after the backup was taken (residual 5: the record
 ///   may have reached only the removed computer, and is given up once every
@@ -147,7 +147,7 @@ pub fn reuses(r: &Run) -> Vec<Reuse> {
 /// It stays claimed for the governance key whatever the marks and the
 /// members admitted or removed since, and for the host's agent whenever
 /// the marks were lost, since that key is held with the governance key.
-fn claimed(r: &Run, m: usize, governance: bool, records: &BTreeSet<EventId>) -> bool {
+fn claimed(r: &Run, m: usize, governance: bool, seq: u64, records: &BTreeSet<EventId>) -> bool {
     let next = |at: Micros| {
         r.w.restores
             .iter()
@@ -176,11 +176,38 @@ fn claimed(r: &Run, m: usize, governance: bool, records: &BTreeSet<EventId>) -> 
                             r.removals.iter().any(|at| *at > restore.taken)
                                 || (m != HOST
                                     && (host_missed_the_same_admission(r, restore)
-                                        || !restore.marked.contains(&(r.goal(), r.principals[m]))))
+                                        || lost_with_the_marks(r, restore, seq, records)))
                         }
                     }
             });
     !continued && !excluded
+}
+
+/// Whether `restore`, of a member's machine with its marks kept, started
+/// with no mark of the machine's agent at `seq` or later, while a record at
+/// that position had been lost by an earlier restore of that machine with
+/// its marks lost. That restore wrote the marks again from a copy without
+/// the record, so no mark has named it since, and the hold it started could
+/// end by hearing from the host's computer alone, which may never have had
+/// it (the first way of risk (5)). A record that came back since raised the
+/// mark, and is not this case. It covers the limit under the start table
+/// too, where the agent had no record in the copy and so no mark at all.
+pub(super) fn lost_with_the_marks(
+    r: &Run,
+    restore: &Restore,
+    seq: u64,
+    records: &BTreeSet<EventId>,
+) -> bool {
+    let key = (r.goal(), r.principals[restore.m]);
+    restore.marked.get(&key).is_none_or(|marked| *marked < seq)
+        && r.w.restores.iter().any(|earlier| {
+            earlier.m == restore.m
+                && earlier.at < restore.at
+                && earlier.marks == Marks::Lost
+                && records
+                    .iter()
+                    .any(|id| earlier.before.contains(id) && !earlier.copy.contains(id))
+        })
 }
 
 /// The fourth case of risk (5): `restore` put a member's computer back with

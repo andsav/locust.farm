@@ -1,7 +1,7 @@
 //! Restores built step by step rather than drawn from a seed's faults. m1
 //! hosts the goal, m2 and m3 are members.
 //!
-//! Four of them are the runs the restore guard is known to lose, kept so
+//! Five of them are the runs the restore guard is known to lose, kept so
 //! that they stay lost in the way the plan says: each must end in a
 //! position of a member's agent signed twice, outside the claims of
 //! `a_restored_machine_signs_at_no_used_position_unless_its_owner_continued`
@@ -11,7 +11,9 @@ use locust_proto::api::Request;
 use locust_proto::id::EventId;
 use locust_proto::store::Store;
 
-use super::check::{host_missed_the_same_admission, reuses, settle, violations};
+use super::check::{
+    host_missed_the_same_admission, lost_with_the_marks, reuses, settle, violations,
+};
 use super::machine::Who;
 use super::restore::Marks;
 use super::run::{Acked, Run};
@@ -321,4 +323,88 @@ fn a_member_whose_agent_had_no_record_in_the_copy_signs_again_after_a_second_res
         .unwrap_or_else(|| panic!("no reuse at {at}: {found:?}"));
     assert!(reuse.records.contains(&first) && reuse.records.contains(&again));
     assert!(!reuse.claimed, "{}", reuse.describe(&r));
+}
+
+/// The first run, put off past a second restore. m2 is put back whole, its
+/// marks lost, after its agent's last record reached m3 and not the host's
+/// computer, and its hold ends once it hears from the host's computer. Its
+/// agent signs nothing yet. Then m2's data directory alone goes back to the
+/// same backup with the marks kept: the marks were written again from the
+/// copy and name nothing it lacks, so the start holds nothing and the agent
+/// signs at the position m3 holds. The marks-kept restore lost nothing the
+/// marks knew; the record was lost with the marks.
+#[test]
+fn a_member_restored_with_its_marks_lost_and_then_kept_signs_again_what_only_another_member_holds()
+{
+    let mut r = joined(8207);
+    scenario::finding(&mut r, M2, "in the backup").unwrap();
+    r.w.run_for(60 * SEC);
+    r.w.backups[M2].clear();
+    r.w.backup(M2);
+    cut(&mut r, M1, M2, true);
+    cut(&mut r, M1, M3, true);
+    let first = scenario::finding(&mut r, M2, "reached m3 only").unwrap();
+    let at = seq(&r, M2, first);
+    r.w.run_for(60 * SEC);
+    assert!(holds(&r, M3, first) && !holds(&r, M1, first));
+    r.w.stop(M3, true);
+    r.w.put_back(M2, 0, Marks::Lost, true);
+    cut(&mut r, M1, M2, false);
+    r.w.start(M2);
+    assert!(!r.signs(M2), "the restored m2 is held at its start");
+    r.w.run_for(120 * SEC);
+    assert!(
+        r.signs(M2),
+        "m2 has heard from the host's computer: {:?}",
+        r.read(M2, goal_status(&r))
+    );
+    r.w.put_back(M2, 0, Marks::Kept, true);
+    let second = r.w.restores.last().unwrap();
+    let marked = second.marked.get(&(r.goal(), r.principals[M2]));
+    assert!(marked.is_some_and(|marked| *marked < at), "{marked:?}");
+    r.w.start(M2);
+    reused_after(&mut r, first, at);
+}
+
+/// As the run before, but m3 answers m2 after the first restore and its
+/// record comes back, which raises the mark. The second restore, with the
+/// marks kept, then finds the record missing and m2 waits for it: a reuse
+/// here would be inside the claims, since the marks knew the position.
+#[test]
+fn a_record_that_came_back_after_the_marks_were_lost_leaves_the_claim_standing() {
+    let mut r = joined(8208);
+    scenario::finding(&mut r, M2, "in the backup").unwrap();
+    r.w.run_for(60 * SEC);
+    r.w.backups[M2].clear();
+    r.w.backup(M2);
+    cut(&mut r, M1, M2, true);
+    cut(&mut r, M1, M3, true);
+    let first = scenario::finding(&mut r, M2, "reached m3 only").unwrap();
+    let at = seq(&r, M2, first);
+    r.w.run_for(60 * SEC);
+    assert!(holds(&r, M3, first) && !holds(&r, M1, first));
+    r.w.put_back(M2, 0, Marks::Lost, true);
+    cut(&mut r, M1, M2, false);
+    r.w.start(M2);
+    r.w.run_for(120 * SEC);
+    assert!(holds(&r, M2, first), "m3 sent the record back");
+    assert!(r.signs(M2));
+    r.w.put_back(M2, 0, Marks::Kept, true);
+    let second = r.w.restores.last().unwrap();
+    let marked = second.marked.get(&(r.goal(), r.principals[M2])).copied();
+    assert!(marked.is_some_and(|marked| marked >= at), "{marked:?}");
+    let records = [first, EventId([7; 32])].into();
+    assert!(!lost_with_the_marks(&r, second, at, &records));
+    r.w.start(M2);
+    assert!(!r.signs(M2), "the record the marks name is missing");
+    r.w.run_for(120 * SEC);
+    assert!(
+        r.signs(M2),
+        "m2 is still held: {:?}",
+        r.read(M2, goal_status(&r))
+    );
+    let after = scenario::finding(&mut r, M2, "written after the restore").unwrap();
+    assert!(seq(&r, M2, after) > at);
+    r.w.run_for(60 * SEC);
+    assert!(reuses(&r).is_empty(), "{:?}", reuses(&r));
 }

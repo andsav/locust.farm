@@ -2348,3 +2348,52 @@ fn an_agents_mark_is_kept_while_the_goals_own_key_is_held() {
         assert_eq!(entry.goal.fork_point(&governance), None);
     }
 }
+
+/// The first way of risk (5), put off past a second restore. A member's
+/// agent signs a record that reaches another member's computer and not the
+/// host's. The member's computer is put back whole, its marks lost: the
+/// start writes the marks again from the copy, which lacks that record, and
+/// the hold ends once the host's computer is heard, which lacks it too. The
+/// agent signs nothing yet. Then the data directory alone goes back to the
+/// same copy with the marks kept. They name nothing the copy lacks, so the
+/// start holds nothing and the agent signs at the position the other
+/// member's computer holds. No computer that answered knew of that record;
+/// the guard cannot hold it without waiting for every member's computer.
+#[test]
+fn a_record_lost_with_the_marks_is_signed_over_after_a_later_restore_with_the_marks_kept() {
+    let mut net = Network::with(3);
+    let (goal, _) = hosted(&mut net, 0, HOST);
+    let member = join(&mut net, 0, 1, goal, 2);
+    join(&mut net, 0, 2, goal, 3);
+    posted(&mut net, 1, 2, goal);
+    settle(&mut net);
+    let backup = snapshot_all(&net.nodes[1].store);
+
+    // The agent's next record reaches daemon 2 only.
+    net.down = [0].into();
+    let lost = posted(&mut net, 1, 2, goal);
+    settle(&mut net);
+    assert!(net.nodes[2].store.has_event(&lost.id()).unwrap());
+    assert!(!net.nodes[0].store.has_event(&lost.id()).unwrap());
+
+    // The whole computer goes back to the backup; only the host's computer
+    // answers, and that ends the hold.
+    net.down = [2].into();
+    net.start_over(1, snapshot_all(&backup));
+    assert_eq!(
+        reasons(&summary(&mut net.nodes[1], goal, member).guard),
+        [(member, GuardReason::Unheard)]
+    );
+    settle(&mut net);
+    assert!(summary(&mut net.nodes[1], goal, member).guard.is_empty());
+    let rewritten = mark(&net.nodes[1], goal, member).unwrap();
+    assert!(rewritten.point.seq < lost.header().seq && !rewritten.unheard);
+
+    // The data directory alone goes back to the same backup, the marks kept.
+    let store = snapshot_all(&backup).with_marks(net.nodes[1].store.marks_handle());
+    net.start_over(1, store);
+    assert!(summary(&mut net.nodes[1], goal, member).guard.is_empty());
+    let again = posted(&mut net, 1, 2, goal);
+    assert_eq!(again.header().seq, lost.header().seq);
+    assert_ne!(again.id(), lost.id());
+}

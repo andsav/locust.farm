@@ -2363,7 +2363,10 @@ second or the third "caught up".
   is given up once every other computer has answered, and the position can
   be signed again (the model's `restore-finding-unseen-agent-reuse`).
   It is not claimed for an agent's key on a member's machine whose marks are
-  lost. Nor is it claimed for an agent's key on a member's machine restored
+  lost, and that stays so after a later restore of the same machine with its
+  marks kept, at a position the marks have not named since the marks were
+  lost: they were written again from a copy without that record, so the
+  later restore finds nothing missing. Nor is it claimed for an agent's key on a member's machine restored
   with its marks kept to a copy older than an admission, when the host's
   computer held that admission and was itself restored to a copy without it:
   no computer that answers knows the admitted member, so the mark is given
@@ -2371,11 +2374,13 @@ second or the third "caught up".
   admitted member holds can be signed over. A host copy that lacks the
   admission only because it was taken before the admission existed does not
   count: the host's computer learns of the admission again and answers for
-  that member. Three runs built step by step are kept that must end in a
-  reused position, one for each of these cases, all under risk (5) in the
-  notes (the limit of a goal with no mark, under the start table above, has
-  its own): a member's machine restored with its marks lost, whose agent's last
-  record reached another member's machine and not the host's; an agent's
+  that member. Four runs built step by step are kept that must end in a
+  reused position, all under risk (5) in the notes (the limit of a goal with
+  no mark, under the start table above, has its own): a member's machine
+  restored with its marks lost, whose agent's last record reached another
+  member's machine and not the host's; the same machine, once caught up by
+  the host's computer, restored again with its marks kept before its agent
+  signs; an agent's
   record that reached only a machine whose removal the restored copy does
   not hold, given up with the marks kept; and a member's machine and the
   host's each restored to a copy from before the same admission, the
@@ -2495,7 +2500,12 @@ second or the third "caught up".
   four ways, each at the cost of that agent's key in one goal and with the
   goal unharmed. On a member's computer after a copy of unknown age, the
   host's computer never received that agent's last records and another member
-  did. A key is admitted again and the host's computer lacks its later
+  did. The hold ends on hearing the host's computer, and the marks written
+  again from the copy do not name those records, so this fork can also come
+  later: if the data directory alone is then put back with the marks kept,
+  that start finds nothing missing and the agent signs at the same position.
+  Holding it would mean waiting for every member's computer after every copy
+  of unknown age, which the second table does not ask. A key is admitted again and the host's computer lacks its later
   records. With the marks kept, a record reached only a computer removed
   since: it is given up once every other computer has answered, and the
   removed computer brings it back if it is ever admitted again. For the host's
