@@ -9,6 +9,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 
 - [OpenAI mathematics methodology and its relevance to Locust](openai-math-methodology-2026-10-07.md)
 - [Locust v2 R6: documents, site and scripts](v2-phase-r6-build-notes-2026-10-06.md)
+- [Locust v2 G1: a daemon knows what it signed](v2-phase-g1-build-notes-2026-10-07.md)
 
 - [A2A and Locust](a2a-assessment.md)
 - [Agent ergonomics audit and proposals](agent-ergonomics-2026-10-05.md)
