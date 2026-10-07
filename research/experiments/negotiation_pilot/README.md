@@ -177,3 +177,20 @@ publication/readback receipts. Do not publish API keys, local capabilities,
 provider hidden reasoning, encrypted reasoning blocks or private daemon stores.
 The tracked results package should retain the material evidence, not just a
 summary pointing at ignored scratch output.
+
+
+## Implementation erratum during the first batch
+
+The initial runner raised `JSONDecodeError` when an OpenAI response reached its
+output allowance inside a function-call argument. This violated the already
+specified phase fallback: a truncated candidate must not abort the trial. The
+repair drops incomplete calls from executable/replayed history, preserves their
+visible partial arguments in the trace, and ends an incomplete response's phase
+with the best existing public candidate. It retains the original token-counting
+margin, dollar allocations, model settings, task inputs, graders and prompts.
+An added regression test covers accounting and non-execution of partial calls.
+The first batch remains intact. Explicit technical reruns of failed trials use
+`--only`, a separate `--output`, `--prefix repair-`, and the **same global
+--ledger**. Their charges and results must be reported separately, alongside all
+original failures. These reruns are not fresh preregistered replications and must
+not silently replace failed trials in the original-batch denominator.

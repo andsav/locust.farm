@@ -138,16 +138,25 @@ class Session:
         else:
             payload.update(max_tokens=maximum, output_config={'effort': 'high'})
         item = self.ledger.reserve(self.label, MODELS[self.provider], reserved)
+        item.update(max_output_tokens=maximum, counted_input_tokens=counted, input_reservation=reserve_input)
+        self.ledger.save()
         response = post(self.provider, 'responses' if self.provider == 'a' else 'messages', payload)
         self.ledger.settle(item, response, self.provider)
         calls, visible = [], []
         if self.provider == 'a':
-            self.history.extend(response['output'])  # Preserve opaque reasoning for API continuity.
+            retained = []
             for value in response['output']:
                 if value['type'] == 'function_call':
-                    calls.append((value['call_id'], value['name'], json.loads(value['arguments'])))
+                    try:
+                        arguments = json.loads(value['arguments'])
+                    except json.JSONDecodeError:
+                        visible.append('Incomplete tool call discarded: '+value['name']+' '+value['arguments'])
+                        continue
+                    calls.append((value['call_id'], value['name'], arguments))
                 if value['type'] == 'message':
                     visible.extend(c.get('text', '') for c in value.get('content', []) if c['type'] == 'output_text')
+                retained.append(value)
+            self.history.extend(retained)  # Preserve opaque reasoning, never an incomplete call.
             stop = response.get('status')
         else:
             self.history.append({'role': 'assistant', 'content': response['content']})

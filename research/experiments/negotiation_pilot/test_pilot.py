@@ -84,5 +84,23 @@ class BoundaryTests(unittest.TestCase):
         self.assertEqual(evaluate('def solve(x): return 2',fixtures)['passed'],1)
         self.assertEqual(evaluate('def solve(x): raise ValueError("oops")',fixtures)['passed'],0)
 
+class PartialResponseTests(unittest.TestCase):
+    def test_incomplete_tool_arguments_are_not_executed_or_replayed(self):
+        from unittest.mock import patch
+        from providers import Session
+        response=dict(id='mock',usage=dict(input_tokens=10,output_tokens=10),status='incomplete',
+                      output=[dict(type='function_call',call_id='call',name='submit',arguments='{"source":"partial')])
+        with tempfile.TemporaryDirectory() as d:
+            ledger=Ledger(Path(d)/'ledger.json',1)
+            session=Session('a','test',[],ledger,'trial')
+            session.user('test')
+            with patch('providers.post',side_effect=[{'input_tokens':10},response]):
+                calls,text,stop=session.request(.1)
+            self.assertEqual(calls,[])
+            self.assertIn('Incomplete tool call discarded',text[0])
+            self.assertEqual(stop,'incomplete')
+            self.assertEqual(session.history,[dict(role='user',content='test')])
+            self.assertGreater(ledger.spent(),0)
+
 
 if __name__=='__main__':unittest.main()

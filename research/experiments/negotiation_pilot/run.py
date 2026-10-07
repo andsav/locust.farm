@@ -92,7 +92,7 @@ class Worker:
                 self.trace.append(dict(event='phase_submission',sha256=submitted['sha256']))
                 save(self.path,dict(provider=self.provider,trace=self.trace,candidates=self.candidates))
                 return submitted
-            if not calls:
+            if not calls or stop in ('incomplete','max_tokens'):
                 break
         save(self.path,dict(provider=self.provider,trace=self.trace,candidates=self.candidates))
         return self.best()
@@ -112,7 +112,7 @@ def transmitted(board, reader, expected):
 
 
 def run_trial(task,arm,args,ledger):
-    label = task+'-'+arm
+    label = getattr(args,'prefix','')+task+'-'+arm
     directory = args.output/label
     directory.mkdir()
     started = time.time()
@@ -178,11 +178,20 @@ def main():
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--binary',type=Path,required=True)
     parser.add_argument('--workers',type=int,default=3)
+    parser.add_argument('--ledger',type=Path)
+    parser.add_argument('--only',action='append',help='Explicit task:arm pairs for disclosed technical reruns')
+    parser.add_argument('--prefix',default='')
     args=parser.parse_args()
     args.output=args.output.resolve()
     args.binary=args.binary.resolve()
-    ledger=Ledger(args.output/'ledger.json',50)
+    args.output.mkdir(parents=True,exist_ok=True)
+    ledger=Ledger(args.ledger or args.output/'ledger.json',50)
     tasks=[(t,a) for t in SPECS for a in ARMS]
+    if args.only:
+        selected=[tuple(value.split(':')) for value in args.only]
+        if any(value not in tasks for value in selected):
+            parser.error('Unknown task:arm selection')
+        tasks=[value for value in tasks if value in selected]
     random.Random(871023).shuffle(tasks)
     save(args.output/'run-manifest.json',dict(order=tasks,task_sha256=hashlib.sha256(Path(__file__).with_name('tasks.py').read_bytes()).hexdigest(),
          binary_sha256=hashlib.sha256(args.binary.read_bytes()).hexdigest(),models=MODELS,ceiling=50,trial_ceiling=2))
