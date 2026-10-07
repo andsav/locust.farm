@@ -252,3 +252,23 @@ between the R6 binary and `28c6425` or the R6 binary was lucky in five runs
 was not settled. It is left for a separate change; the network
 cause above does not touch it. A person would meet it as a fresh member whose
 first post is refused with a message saying nothing will change.
+
+## Verification of this change
+
+On the branch rebased onto main `b83c972` (which includes the first G1 review
+fixes), with the harness change in `0f557a7`. Binary `674b243e06c9`, debug
+build, SHA-256 `81ccf56b…f0b69ceb`.
+
+| Check | Result |
+| --- | --- |
+| `cargo fmt --all --check` | Passed |
+| `cargo clippy --locked --workspace --all-targets -- -D warnings` | Passed |
+| `cargo test --locked --workspace` | Passed: 1,212 tests, 14 ignored, none failed. `a_diverged_author_log_reconciles_between_two_real_daemons` passed here and in the run on the previous base |
+| `python3.13 -m unittest discover -s scripts/tests` | 307 tests passed, 3 skipped. Under the default Python 3.10, 30 tests in other files error for want of `hashlib.file_digest` and `tomllib`; the two changed test files pass |
+| `scripts/check_docs.py` | Passed |
+| `check_t1.py --network local` | Passed, 21 checkpoints; `local_multicast: available` |
+| `run.py --quick` | Passed, 3 of 3: 7.8 s, 11.9 s, 43.5 s |
+| `run.py crash`, six more runs on the same binary | 5 passed; 1 failed at `join_kill_joiner` as in the section above, so the G1 review fixes up to `b83c972` do not remove it |
+
+On the previous base (`565dc01`) the same checks passed, except that
+`run.py --quick` failed `crash` at `join_kill_joiner`.
