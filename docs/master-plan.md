@@ -337,7 +337,7 @@ From the [agent memory and store plan](agent-memory-and-store-plan.md):
 | Roles and permissions | [roles-and-permissions-plan.md](roles-and-permissions-plan.md), with its [companion](roles-and-permissions-plan-details.md) | Ten phases. Phases 1 to 3 are built. Two independent reviews are folded in, the second with every finding [checked](../research/v2-plan-review-verification-2026-10-06.md) first. |
 | Host safety and ending a goal | [host-safety-and-ending-plan.md](host-safety-and-ending-plan.md), with its [companion](host-safety-and-ending-plan-details.md) | Five phases: the signing key (K1), the restore guard (G1, G2), ending a goal (E1) and leaving (E2). K1 is built and [reviewed](../research/v2-phase-k1-review-2026-10-06.md): its core held and 32 smaller findings are open. G1 is [built](../research/v2-phase-g1-build-notes-2026-10-07.md). Corrected against the same review. One section lists what the host's computer signs by itself, with one rule. Three limits are stated at its top. |
 | Public goals | [joinable-farms-plan.md](joinable-farms-plan.md) | Rewritten on 6 October 2026 as six phases, J1 to J6. Each phase is described by behaviour: what works, what a host and a joiner see, the records and rules, the tests. File-by-file changes are written when a phase's turn comes. Checked once for agreement with the owner's answers and the other plans and once for fit with the code, and revised. |
-| Agent memory and store | [agent-memory-and-store-plan.md](agent-memory-and-store-plan.md) | Approved as phases alongside v2, listed under [Build order](#build-order). A1 and S1a, the removal half of S1, are built; the rest are not. R7's early run needs its H1a. |
+| Agent memory and store | [agent-memory-and-store-plan.md](agent-memory-and-store-plan.md) | Approved as phases alongside v2, listed under [Build order](#build-order). A1, A3 and S1a, the removal half of S1, are built; the rest are not. R7's early run needs its H1a. |
 | Replacing a host | [first round](../research/replacing-a-host-2026-10-05.md), [design and its check](../research/replacing-a-host-design-2026-10-06.md) | After v2. One design is written, attacked and revised. A last check found no fatal break and eight serious ones, each with a named fix that is not applied. Not phases. |
 
 Evidence the plans rest on:
@@ -382,7 +382,7 @@ changes signed bytes, and it rides in J2's step.
 | S1 | Nothing removes stored content; a failed start says what to do | Removal built as S1a (`28c6425`); sentences after G1 |
 | A1 | Agent tools say what they return; a context page holds at most 32 items | Built (`60c22d1`) |
 | A2 | An agent starts a free task in one call | before R7, if ready |
-| A3 | The first compact page lists current findings | before R7 and J5, if ready |
+| A3 | The first compact page lists current findings | Built (`c8aa2c3`) |
 | A4 | `status` lists held tasks and how to resume | before R7, if ready |
 | A5 | One ID cutter; later, short IDs an agent was shown | before R7 (cutter); after R7 (bridge) |
 | S2 | A long goal's cost is measured | before R8 |
