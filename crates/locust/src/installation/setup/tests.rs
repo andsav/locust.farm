@@ -737,7 +737,9 @@ fn unsupported_pending_journal_formats_refuse_before_resuming_or_cleanup() {
         Client::Droid,
         Client::Shell,
     ] {
-        for applied_paths in 0..=4 + usize::from(matches!(client, Client::Codex | Client::Claude)) {
+        let (_directory, initial_spec) = fixture(client);
+        let change_count = prepare(&initial_spec, false).unwrap().changes.len();
+        for applied_paths in 0..=change_count {
             let (_d, s) = fixture(client);
             let p = paths(&s).unwrap();
             let mut tx = prepare(&s, false).unwrap();
@@ -877,7 +879,7 @@ fn droid_setup_refuses_ancestor_overrides_before_writing_its_profile() {
 
 #[test]
 fn native_hooks_roundtrip_exact_bytes_and_absent_files() {
-    for client in [Client::Codex, Client::Claude] {
+    for client in [Client::Codex, Client::Claude, Client::Droid] {
         for baseline in [
             None,
             Some(b"{ \"unrelated\": true, \"hooks\": { \"Stop\": [] } }\n".as_slice()),
@@ -886,7 +888,14 @@ fn native_hooks_roundtrip_exact_bytes_and_absent_files() {
             let p = paths(&spec).unwrap();
             let hook = p.hook.as_ref().unwrap();
             if let Some(bytes) = baseline {
-                put(hook, bytes);
+                put(
+                    hook,
+                    if client == Client::Droid {
+                        b"{  \"Stop\": [], \"Notification\": [] }\n"
+                    } else {
+                        bytes
+                    },
+                );
                 fs::set_permissions(hook, fs::Permissions::from_mode(0o640)).unwrap();
             }
             let original = snapshot(hook).unwrap();
@@ -900,7 +909,7 @@ fn native_hooks_roundtrip_exact_bytes_and_absent_files() {
             assert_eq!(record.hooks.len(), 1);
             assert!(
                 hooks::installed(
-                    &parse_json(&snapshot(hook).unwrap()).unwrap(),
+                    &hook_document(client, &snapshot(hook).unwrap()).unwrap(),
                     &record.hooks[0].registration
                 )
                 .unwrap()
@@ -913,23 +922,32 @@ fn native_hooks_roundtrip_exact_bytes_and_absent_files() {
     }
 }
 
+fn put_hook_document(client: Client, path: &Path, document: &Value) {
+    let bytes = hooks::render_configuration(adapter_client(client).unwrap(), document)
+        .unwrap()
+        .expect("JSON adapter renders native bytes");
+    put(path, &bytes);
+}
+
 #[test]
 fn hook_removal_and_reapply_preserve_unrelated_entries() {
-    for client in [Client::Codex, Client::Claude] {
+    for client in [Client::Codex, Client::Claude, Client::Droid] {
         for reapply in [false, true] {
             let (_directory, spec) = fixture(client);
             let p = paths(&spec).unwrap();
             let hook = p.hook.as_ref().unwrap();
             let reviewed = plan(&spec, false).unwrap();
             apply(&spec, &reviewed.digest().unwrap()).unwrap();
-            let mut config = parse_json(&snapshot(hook).unwrap()).unwrap();
+            let mut config = hook_document(client, &snapshot(hook).unwrap()).unwrap();
             let other = json!({"hooks":[{"type":"command","command":"other-agent-hook"}]});
             config["hooks"]["Stop"]
                 .as_array_mut()
                 .unwrap()
                 .push(other.clone());
-            config["unrelated"] = json!({"keep":true});
-            put(hook, &encode(&config).unwrap());
+            let other_event =
+                json!({"hooks":[{"type":"command","command":"unrelated-notification-hook"}]});
+            config["hooks"]["Notification"] = json!([other_event.clone()]);
+            put_hook_document(client, hook, &config);
             if reapply {
                 let before = snapshot(hook).unwrap();
                 let reviewed = plan(&spec, false).unwrap();
@@ -938,10 +956,10 @@ fn hook_removal_and_reapply_preserve_unrelated_entries() {
             }
             let reviewed = plan(&spec, true).unwrap();
             remove(&spec, &reviewed.digest().unwrap()).unwrap();
-            let after = parse_json(&snapshot(hook).unwrap()).unwrap();
+            let after = hook_document(client, &snapshot(hook).unwrap()).unwrap();
             assert_eq!(
                 after,
-                json!({"hooks":{"Stop":[other]},"unrelated":{"keep":true}})
+                json!({"hooks":{"Stop":[other],"Notification":[other_event]}})
             );
         }
     }
@@ -949,7 +967,7 @@ fn hook_removal_and_reapply_preserve_unrelated_entries() {
 
 #[test]
 fn hand_removed_hook_and_hook_file_stay_out_across_reapply_and_remove() {
-    for client in [Client::Codex, Client::Claude] {
+    for client in [Client::Codex, Client::Claude, Client::Droid] {
         for remove_file in [false, true] {
             let (_directory, spec) = fixture(client);
             let p = paths(&spec).unwrap();
@@ -961,12 +979,12 @@ fn hand_removed_hook_and_hook_file_stay_out_across_reapply_and_remove() {
             if remove_file {
                 fs::remove_file(hook).unwrap();
             } else {
-                let mut value = parse_json(&snapshot(hook).unwrap()).unwrap();
+                let mut value = hook_document(client, &snapshot(hook).unwrap()).unwrap();
                 value["hooks"]
                     .as_object_mut()
                     .unwrap()
                     .remove(&removed.native_event);
-                put(hook, &encode(&value).unwrap());
+                put_hook_document(client, hook, &value);
             }
             assert_eq!(status(&spec).unwrap()["hooks_ready"], false);
             let before = snapshot(hook).unwrap();
@@ -986,7 +1004,7 @@ fn hand_removed_hook_and_hook_file_stay_out_across_reapply_and_remove() {
             if remove_file {
                 assert!(!hook.exists());
             } else {
-                let value = parse_json(&snapshot(hook).unwrap()).unwrap();
+                let value = hook_document(client, &snapshot(hook).unwrap()).unwrap();
                 assert!(!value.to_string().contains("Locust"));
             }
         }
@@ -995,15 +1013,15 @@ fn hand_removed_hook_and_hook_file_stay_out_across_reapply_and_remove() {
 
 #[test]
 fn modified_owned_hooks_refuse_apply_remove_and_preserve_bytes() {
-    for client in [Client::Codex, Client::Claude] {
+    for client in [Client::Codex, Client::Claude, Client::Droid] {
         let (_directory, spec) = fixture(client);
         let p = paths(&spec).unwrap();
         let hook = p.hook.as_ref().unwrap();
         let reviewed = plan(&spec, false).unwrap();
         apply(&spec, &reviewed.digest().unwrap()).unwrap();
-        let mut value = parse_json(&snapshot(hook).unwrap()).unwrap();
+        let mut value = hook_document(client, &snapshot(hook).unwrap()).unwrap();
         value["hooks"]["Stop"][0]["hooks"][0]["command"] = json!("user-edited-hook");
-        put(hook, &encode(&value).unwrap());
+        put_hook_document(client, hook, &value);
         let before = setup_images(&spec);
         assert_eq!(status(&spec).unwrap()["hooks_ready"], false);
         assert!(plan(&spec, false).is_err());
@@ -1014,21 +1032,24 @@ fn modified_owned_hooks_refuse_apply_remove_and_preserve_bytes() {
 
 #[test]
 fn unowned_hook_collisions_and_hook_symlinks_refuse_without_mutation() {
-    for client in [Client::Codex, Client::Claude] {
+    for client in [Client::Codex, Client::Claude, Client::Droid] {
         let (_directory, spec) = fixture(client);
         let p = paths(&spec).unwrap();
         let hook = p.hook.as_ref().unwrap();
         let registration =
             hooks::registration(adapter_client(client).unwrap(), &p.launcher).unwrap();
         let existing = hooks::install(&json!({}), &registration).unwrap();
-        put(hook, &encode(&existing).unwrap());
+        put_hook_document(client, hook, &existing);
         let before = setup_images(&spec);
         assert!(preflight_new(&spec).is_err());
         assert!(plan(&spec, false).is_err());
         assert_eq!(setup_images(&spec), before);
         let reviewed = plan(&spec, true).unwrap();
         remove(&spec, &reviewed.digest().unwrap()).unwrap();
-        assert_eq!(parse_json(&snapshot(hook).unwrap()).unwrap(), existing);
+        assert_eq!(
+            hook_document(client, &snapshot(hook).unwrap()).unwrap(),
+            existing
+        );
         fs::remove_file(hook).unwrap();
         std::os::unix::fs::symlink(&spec.session, hook).unwrap();
         assert!(preflight_new(&spec).is_err());
@@ -1040,12 +1061,12 @@ fn unowned_hook_collisions_and_hook_symlinks_refuse_without_mutation() {
 
 #[test]
 fn hook_edits_invalidate_review_and_pending_unknown_state() {
-    for client in [Client::Codex, Client::Claude] {
+    for client in [Client::Codex, Client::Claude, Client::Droid] {
         let (_directory, spec) = fixture(client);
         let p = paths(&spec).unwrap();
         let hook = p.hook.as_ref().unwrap();
         let reviewed = plan(&spec, false).unwrap();
-        put(hook, b"{\"unrelated\":true}");
+        put_hook_document(client, hook, &json!({"hooks":{"Notification":[]}}));
         let before = setup_images(&spec);
         assert!(apply(&spec, &reviewed.digest().unwrap()).is_err());
         assert_eq!(setup_images(&spec), before);
@@ -1056,7 +1077,11 @@ fn hook_edits_invalidate_review_and_pending_unknown_state() {
             ))
             .is_err()
         );
-        put(hook, b"{\"unknown_state\":true}");
+        put_hook_document(
+            client,
+            hook,
+            &json!({"hooks":{"Notification":[{"hooks":[{"type":"command","command":"unexpected-state-hook"}]}]}}),
+        );
         let before = setup_images(&spec);
         assert!(plan(&spec, false).is_err());
         assert!(plan(&spec, true).is_err());

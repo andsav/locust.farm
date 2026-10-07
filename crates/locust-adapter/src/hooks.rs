@@ -7,6 +7,11 @@
 //! session's claims cannot establish a subagent's ownership. Codex 0.153.4
 //! serializes agent_id on subagent tool hooks (the common-field docs omit it):
 //! <https://github.com/openai/codex/blob/rust-v0.153.4/codex-rs/hooks/src/events/post_tool_use.rs>.
+//! Droid's standalone event map and envelopes follow
+//! <https://docs.factory.com/harness/hooks>. Root callbacks retain the exact
+//! session_id; child callback routing remains unverified. Droid supplies no
+//! tool invocation ID, so repeated identical successful logical effects may
+//! coalesce. Typed recorded events and claims distinguish authored effects.
 
 pub mod core;
 pub use core::{Event, Outcome, OwnAction, OwnCall};
@@ -28,6 +33,9 @@ pub struct HookAdapter {
     /// Relative to the explicitly selected profile home.
     pub relative_config_path: &'static str,
     pub events: &'static [NativeEvent],
+    pub native_tool_prefix: &'static str,
+    pub native_tool_use_id: bool,
+    pub command_timeout_seconds: u32,
     /// The stop command gets 300 seconds; the runtime leaves 30 for transport.
     pub stop_timeout_seconds: u32,
     pub wait_limit_ms: u32,
@@ -77,6 +85,9 @@ pub const ADAPTERS: &[HookAdapter] = &[
         harness: "codex",
         relative_config_path: ".codex/hooks.json",
         events: EVENTS,
+        native_tool_prefix: "mcp__locust__",
+        native_tool_use_id: true,
+        command_timeout_seconds: 600,
         stop_timeout_seconds: 300,
         wait_limit_ms: 270_000,
     },
@@ -85,6 +96,20 @@ pub const ADAPTERS: &[HookAdapter] = &[
         harness: "claude",
         relative_config_path: ".claude/settings.json",
         events: CLAUDE_EVENTS,
+        native_tool_prefix: "mcp__locust__",
+        native_tool_use_id: true,
+        command_timeout_seconds: 600,
+        stop_timeout_seconds: 300,
+        wait_limit_ms: 270_000,
+    },
+    HookAdapter {
+        client: Client::FactoryDroid,
+        harness: "droid",
+        relative_config_path: ".factory/hooks.json",
+        events: EVENTS,
+        native_tool_prefix: "locust___",
+        native_tool_use_id: false,
+        command_timeout_seconds: 300,
         stop_timeout_seconds: 300,
         wait_limit_ms: 270_000,
     },
@@ -95,7 +120,7 @@ pub fn adapter(client: Client) -> Option<&'static HookAdapter> {
 }
 
 /// A normalized document is the adapter interface; setup does not own native
-/// serialization. Current adapters both use JSON, and an absent file is empty.
+/// serialization. JSON adapters normalize absent files to empty documents.
 pub fn parse_configuration(client: Client, bytes: Option<&[u8]>) -> Result<Value, HookError> {
     adapter(client).ok_or(HookError::UnsupportedClient)?;
     let value = match bytes {
@@ -107,7 +132,14 @@ pub fn parse_configuration(client: Client, bytes: Option<&[u8]>) -> Result<Value
     if !value.is_object() {
         return Err(HookError::InvalidConfiguration);
     }
-    Ok(value)
+    if client == Client::FactoryDroid {
+        if value.get("hooks").is_some() {
+            return Err(HookError::InvalidConfiguration);
+        }
+        Ok(json!({"hooks":value}))
+    } else {
+        Ok(value)
+    }
 }
 
 /// `None` removes an adapter-owned file; an empty source file is not absence.
@@ -119,8 +151,23 @@ pub fn render_configuration(
     if !document.is_object() {
         return Err(HookError::InvalidConfiguration);
     }
+    let empty = json!({});
+    let native = if client == Client::FactoryDroid {
+        if document
+            .as_object()
+            .is_some_and(|object| object.keys().any(|key| key != "hooks"))
+        {
+            return Err(HookError::InvalidConfiguration);
+        }
+        document.get("hooks").unwrap_or(&empty)
+    } else {
+        document
+    };
+    if !native.is_object() {
+        return Err(HookError::InvalidConfiguration);
+    }
     let mut bytes =
-        serde_json::to_vec_pretty(document).map_err(|_| HookError::InvalidConfiguration)?;
+        serde_json::to_vec_pretty(native).map_err(|_| HookError::InvalidConfiguration)?;
     bytes.push(b'\n');
     Ok(Some(bytes))
 }
@@ -196,7 +243,9 @@ pub fn parse_input(
         "stop" => Event::Stop,
         "tool" => {
             required_string(value, "tool_name")?;
-            required_string(value, "tool_use_id")?;
+            if adapter.native_tool_use_id {
+                required_string(value, "tool_use_id")?;
+            }
             Event::Tool {
                 own_call: if native_name == "PostToolUse" {
                     own_call(client, value).map(Box::new)
@@ -238,7 +287,10 @@ fn optional_string(value: &Value, field: &str) -> Result<Option<String>, HookErr
 fn own_call(client: Client, value: &Value) -> Option<OwnCall> {
     // No bare tool-name or vendor/plugin prefix aliases: only the configured
     // server name and the operation registry can establish a Locust call.
-    let tool = value["tool_name"].as_str()?.strip_prefix("mcp__locust__")?;
+    let adapter = adapter(client)?;
+    let tool = value["tool_name"]
+        .as_str()?
+        .strip_prefix(adapter.native_tool_prefix)?;
     let operation = OPERATIONS
         .iter()
         .find(|operation| operation.tool && operation.tool_name() == tool)?;
@@ -247,7 +299,7 @@ fn own_call(client: Client, value: &Value) -> Option<OwnCall> {
         serde_json::from_value::<Option<IdempotencyKey>>(key).ok()?;
     }
     let result = successful_result(client, &value["tool_response"])?;
-    let (goal, action) = if operation.name == "context.acknowledge" {
+    let (goal, action, effect) = if operation.name == "context.acknowledge" {
         #[derive(Deserialize)]
         #[serde(deny_unknown_fields)]
         struct Acknowledge {
@@ -269,7 +321,9 @@ fn own_call(client: Client, value: &Value) -> Option<OwnCall> {
         if ack.goal != args.goal {
             return None;
         }
-        (Some(args.goal), OwnAction::Other)
+        let effect =
+            json!([{"goal":args.goal,"receipt":args.receipt},Response::ContextAcknowledged(ack)]);
+        (Some(args.goal), OwnAction::Other, effect)
     } else {
         let request_value = if args.is_empty()
             && serde_json::from_value::<Request>(json!(operation.name)).is_ok()
@@ -290,6 +344,11 @@ fn own_call(client: Client, value: &Value) -> Option<OwnCall> {
         if !request.is_answered_by(&response) {
             return None;
         }
+        let effect = match &response {
+            Response::Recorded { event } => json!({"recorded":event}),
+            Response::Claimed(claim) => json!({"claimed":claim}),
+            _ => json!([&request, &response]),
+        };
         let claim = match response {
             Response::Claimed(claim) => Some(claim),
             _ => None,
@@ -330,10 +389,18 @@ fn own_call(client: Client, value: &Value) -> Option<OwnCall> {
             },
             _ => claim.map_or(OwnAction::Other, OwnAction::Claimed),
         };
-        (request.goal(), action)
+        (request.goal(), action, effect)
     };
     Some(OwnCall {
-        invocation_id: value["tool_use_id"].as_str()?.to_owned(),
+        invocation_id: if adapter.native_tool_use_id {
+            value["tool_use_id"].as_str()?.to_owned()
+        } else {
+            let bytes = serde_json::to_vec(&json!([operation.name, goal, effect])).ok()?;
+            format!(
+                "logical-effect:{}",
+                locust_proto::crypto::content_hash(&bytes)
+            )
+        },
         operation: operation.name.to_owned(),
         goal,
         action,
@@ -343,19 +410,20 @@ fn own_call(client: Client, value: &Value) -> Option<OwnCall> {
 fn successful_result(client: Client, response: &Value) -> Option<Value> {
     // Native successful MCP callbacks may project the server's text envelope.
     // It is still checked as the exact typed Locust result below.
-    let envelope = if client == Client::ClaudeCode && response.is_string() {
-        serde_json::from_str(response.as_str()?).ok()?
-    } else if response["isError"].as_bool()? {
-        return None;
-    } else if let Some(structured) = response.get("structuredContent") {
-        structured.clone()
-    } else {
-        let content = response["content"].as_array()?;
-        if content.len() != 1 || content[0]["type"] != "text" {
+    let envelope =
+        if matches!(client, Client::ClaudeCode | Client::FactoryDroid) && response.is_string() {
+            serde_json::from_str(response.as_str()?).ok()?
+        } else if response["isError"].as_bool()? {
             return None;
-        }
-        serde_json::from_str(content[0]["text"].as_str()?).ok()?
-    };
+        } else if let Some(structured) = response.get("structuredContent") {
+            structured.clone()
+        } else {
+            let content = response["content"].as_array()?;
+            if content.len() != 1 || content[0]["type"] != "text" {
+                return None;
+            }
+            serde_json::from_str(content[0]["text"].as_str()?).ok()?
+        };
     if envelope["ok"] != true {
         return None;
     }
@@ -421,7 +489,7 @@ pub fn registration(client: Client, executable: &Path) -> Result<HookRegistratio
         .ok_or(HookError::InvalidExecutable)?;
     let quoted = format!("'{}'", path.replace('\'', "'\\''"));
     Ok(HookRegistration::JsonGroups { entries: adapter.events.iter().map(|event| {
-        let timeout = if event.event == "stop" { adapter.stop_timeout_seconds } else { 600 };
+        let timeout = if event.event == "stop" { adapter.stop_timeout_seconds } else { adapter.command_timeout_seconds };
         HookEntry { native_event: event.native_name.to_owned(), group: json!({"hooks":[{"type":"command","command":format!("{quoted} hook {} --harness {}", event.event, adapter.harness),"timeout":timeout,"statusMessage":"Locust"}]}) }
     }).collect() })
 }
@@ -570,20 +638,24 @@ mod tests {
 
     fn native_for(client: Client, event: &str) -> Value {
         let mut value = native(event);
-        if client == Client::ClaudeCode {
+        if client == Client::FactoryDroid {
+            value["tool_name"] = json!("locust___locust_wait");
+            value.as_object_mut().unwrap().remove("tool_use_id");
+        }
+        if matches!(client, Client::ClaudeCode | Client::FactoryDroid) {
             value["tool_response"] = json!(value["tool_response"]["structuredContent"].to_string());
         }
         value
     }
 
     #[test]
-    fn config_and_envelope_goldens_for_both_vendors() {
+    fn config_and_envelope_goldens_for_all_adapters() {
         for spec in ADAPTERS {
             let registration =
                 registration(spec.client, Path::new("/tmp/lh.fixture/launch.sh")).unwrap();
             assert_eq!(
                 registration.entries()[0].group,
-                json!({"hooks":[{"type":"command","command":format!("'/tmp/lh.fixture/launch.sh' hook start --harness {}",spec.harness),"timeout":600,"statusMessage":"Locust"}]})
+                json!({"hooks":[{"type":"command","command":format!("'/tmp/lh.fixture/launch.sh' hook start --harness {}",spec.harness),"timeout":spec.command_timeout_seconds,"statusMessage":"Locust"}]})
             );
             assert_eq!(
                 registration.entries()[1].group,
@@ -649,8 +721,19 @@ mod tests {
     #[test]
     fn setup_uses_native_configuration_parser_and_renderer() {
         for spec in ADAPTERS {
-            assert_eq!(parse_configuration(spec.client, None).unwrap(), json!({}));
-            let document = json!({"hooks":{},"unrelated":7});
+            assert_eq!(
+                parse_configuration(spec.client, None).unwrap(),
+                if spec.client == Client::FactoryDroid {
+                    json!({"hooks":{}})
+                } else {
+                    json!({})
+                }
+            );
+            let document = if spec.client == Client::FactoryDroid {
+                json!({"hooks":{"Notification":[]}})
+            } else {
+                json!({"hooks":{},"unrelated":7})
+            };
             let bytes = render_configuration(spec.client, &document)
                 .unwrap()
                 .unwrap();
@@ -749,7 +832,11 @@ mod tests {
                 panic!("verified call expected");
             };
             assert_eq!(call.operation, "wait");
-            assert_eq!(call.invocation_id, "call-1");
+            if spec.native_tool_use_id {
+                assert_eq!(call.invocation_id, "call-1");
+            } else {
+                assert!(call.invocation_id.starts_with("logical-effect:"));
+            }
             assert_eq!(call.action, OwnAction::Other);
             assert_eq!(call.goal, Some(GoalId([0x11; 32])));
         }
@@ -757,7 +844,10 @@ mod tests {
         let mut malformed_child = native("PostToolUse");
         malformed_child["agent_type"] = json!("default");
         assert!(parse_input(Client::Codex, "tool", &malformed_child).is_err());
-        assert!(adapter(Client::FactoryDroid).is_none());
+        assert_eq!(
+            adapter(Client::FactoryDroid).unwrap().relative_config_path,
+            ".factory/hooks.json"
+        );
         assert!(adapter(Client::Pi).is_none());
         assert!(adapter(Client::KimiCode).is_none());
     }
@@ -937,7 +1027,9 @@ mod tests {
             assert!(start.line.as_ref().unwrap().contains("1 held attempts"));
             results.push((used, first, ignored, cancelled, start));
         }
-        assert_eq!(results[0], results[1]);
+        for outcome in results.iter().skip(1) {
+            assert_eq!(results[0], *outcome);
+        }
     }
 
     #[test]
@@ -998,15 +1090,17 @@ mod tests {
                 AttemptStatus::Uncertain,
             ] {
                 let mut input = native_for(spec.client, "PostToolUse");
-                input["tool_name"] = json!("mcp__locust__locust_attempt_report");
+                input["tool_name"] =
+                    json!(format!("{}locust_attempt_report", spec.native_tool_prefix));
                 input["tool_input"] = json!({"goal":GoalId([0x11;32]),"attempt":attempt,"generation":7,"status":status,"text":"TITLE\nDo not retain this text"});
                 let response =
                     json!({"ok":true,"result":Response::Recorded {event:EventId([5;32])}});
-                input["tool_response"] = if spec.client == Client::ClaudeCode {
-                    json!(response.to_string())
-                } else {
-                    json!({"isError":false,"structuredContent":response})
-                };
+                input["tool_response"] =
+                    if matches!(spec.client, Client::ClaudeCode | Client::FactoryDroid) {
+                        json!(response.to_string())
+                    } else {
+                        json!({"isError":false,"structuredContent":response})
+                    };
                 let Event::Tool {
                     own_call: Some(call),
                 } = parse_input(spec.client, "tool", &input).unwrap().event
@@ -1030,15 +1124,19 @@ mod tests {
             ] {
                 for generation in [None, Some(7)] {
                     let mut input = native_for(spec.client, "PostToolUse");
-                    input["tool_name"] = json!("mcp__locust__locust_cancel_acknowledge");
+                    input["tool_name"] = json!(format!(
+                        "{}locust_cancel_acknowledge",
+                        spec.native_tool_prefix
+                    ));
                     input["tool_input"] = json!({"goal":GoalId([0x11;32]),"cancel":cancel,"generation":generation,"outcome":outcome});
                     let response =
                         json!({"ok":true,"result":Response::Recorded {event:EventId([5;32])}});
-                    input["tool_response"] = if spec.client == Client::ClaudeCode {
-                        json!(response.to_string())
-                    } else {
-                        json!({"isError":false,"structuredContent":response})
-                    };
+                    input["tool_response"] =
+                        if matches!(spec.client, Client::ClaudeCode | Client::FactoryDroid) {
+                            json!(response.to_string())
+                        } else {
+                            json!({"isError":false,"structuredContent":response})
+                        };
                     let Event::Tool {
                         own_call: Some(call),
                     } = parse_input(spec.client, "tool", &input).unwrap().event
@@ -1057,6 +1155,102 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn droid_configuration_and_envelope_goldens_are_native_unwrapped_json() {
+        let client = Client::FactoryDroid;
+        let registration = registration(client, Path::new("/tmp/lh.fixture/locust-cli")).unwrap();
+        let current = parse_configuration(client, None).unwrap();
+        let installed = install(&current, &registration).unwrap();
+        let bytes = render_configuration(client, &installed).unwrap().unwrap();
+        let native: Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(
+            native,
+            json!({
+                "SessionStart":[{"hooks":[{"type":"command","command":"'/tmp/lh.fixture/locust-cli' hook start --harness droid","timeout":300,"statusMessage":"Locust"}]}],
+                "Stop":[{"hooks":[{"type":"command","command":"'/tmp/lh.fixture/locust-cli' hook stop --harness droid","timeout":300,"statusMessage":"Locust"}]}],
+                "PostToolUse":[{"hooks":[{"type":"command","command":"'/tmp/lh.fixture/locust-cli' hook tool --harness droid","timeout":300,"statusMessage":"Locust"}]}],
+            })
+        );
+        assert!(native.get("hooks").is_none());
+        assert_eq!(
+            parse_configuration(client, Some(&bytes)).unwrap(),
+            installed
+        );
+        assert_eq!(
+            render_configuration(client, &json!({})).unwrap(),
+            Some(b"{}\n".to_vec())
+        );
+        assert!(parse_configuration(client, Some(b"{\"hooks\":{}}")).is_err());
+        let input = parse_input(client, "tool", &native_for(client, "PostToolUse")).unwrap();
+        assert_eq!(input.chat.session_id, "chat-1");
+        assert_eq!(
+            envelope(
+                &input,
+                &Outcome {
+                    line: Some("Locust: claim lost. Use locust_pending.".into()),
+                    ..Outcome::default()
+                }
+            )
+            .unwrap(),
+            Some(
+                json!({"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"Locust: claim lost. Use locust_pending."}})
+            )
+        );
+    }
+
+    #[test]
+    fn droid_logical_effect_identity_deduplicates_replays_and_distinguishes_typed_effects() {
+        let client = Client::FactoryDroid;
+        let mut report = native_for(client, "PostToolUse");
+        report["tool_name"] = json!("locust___locust_attempt_report");
+        report["tool_input"] = json!({"goal":GoalId([0x11;32]),"attempt":EventId([3;32]),"generation":1,"status":"progress","text":"original prose"});
+        let recorded =
+            |event| json!(json!({"ok":true,"result":Response::Recorded {event}}).to_string());
+        report["tool_response"] = recorded(EventId([5; 32]));
+        let identity = |value: &Value| {
+            let Event::Tool {
+                own_call: Some(call),
+            } = parse_input(client, "tool", value).unwrap().event
+            else {
+                panic!("validated Droid effect expected");
+            };
+            call.invocation_id
+        };
+        let first = identity(&report);
+        assert_eq!(first, identity(&report));
+        report["tool_input"]["text"] = json!("different prose, same typed authored event");
+        report["tool_use_id"] = json!("untrusted-native-id");
+        report["message_id"] = json!("another-native-message");
+        assert_eq!(first, identity(&report));
+        report["tool_response"] = recorded(EventId([6; 32]));
+        assert_ne!(first, identity(&report));
+        let mut claimed = native_for(client, "PostToolUse");
+        claimed["tool_name"] = json!("locust___locust_attempt_start");
+        let mut claim = Claim {
+            goal: GoalId([0x11; 32]),
+            task: TaskId::Authored(EventId([3; 32])),
+            attempt: EventId([4; 32]),
+            instance: InstanceId([5; 16]),
+            generation: 1,
+        };
+        claimed["tool_input"] = json!({"goal":claim.goal,"task":claim.task,"offer":null});
+        claimed["tool_response"] =
+            json!(json!({"ok":true,"result":Response::Claimed(claim)}).to_string());
+        let claim_id = identity(&claimed);
+        claim.generation = 2;
+        claimed["tool_response"] =
+            json!(json!({"ok":true,"result":Response::Claimed(claim)}).to_string());
+        assert_ne!(claim_id, identity(&claimed));
+        let mut acknowledgment = native_for(client, "PostToolUse");
+        acknowledgment["tool_name"] = json!("locust___locust_context_acknowledge");
+        acknowledgment["tool_input"] =
+            json!({"goal":claim.goal,"receipt":format!("ctx:{}","aa".repeat(32))});
+        acknowledgment["tool_response"]=json!(json!({"ok":true,"result":Response::ContextAcknowledged(ContextAcknowledgment {goal:claim.goal,principal:PublicKey([6;32]),session:claim.instance,entries:vec![]})}).to_string());
+        let receipt_id = identity(&acknowledgment);
+        acknowledgment["tool_input"]["receipt"] = json!(format!("ctx:{}", "bb".repeat(32)));
+        assert_ne!(receipt_id, identity(&acknowledgment));
     }
 
     #[test]

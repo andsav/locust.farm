@@ -11,7 +11,7 @@ in parentheses. Setup writes the files shown:
 - Codex (`codex`): `.codex/config.toml`, `.codex/hooks.json` and `.agents/skills/locust/`
 - Claude Code (`claude`): `.claude.json`, `.claude/settings.json` and `.claude/skills/locust/`
 - pi (`pi`): `.pi/agent/mcp.json` and `.pi/agent/skills/locust/`
-- Droid (`droid`): `.factory/mcp.json` and `.factory/skills/locust/`
+- Droid (`droid`): `.factory/mcp.json`, `.factory/hooks.json` and `.factory/skills/locust/`
 
 Any other agent that can run a shell uses `shell`.
 `client run` spells the names `codex`, `claude-code`, `factory-droid`, `kimi-code` and `pi`.
@@ -84,7 +84,7 @@ A stop request stays open until the worker reports an outcome
 
 ## Hooks
 
-Setup installs hooks by default for Codex and Claude Code. The default profile
+Setup installs hooks by default for Codex, Claude Code and Droid. The default profile
 is your own client profile; use `--profile-home` to select another one. Review
 native hook trust prompts and restart the client after setup. Installing the
 files alone does not prove the client has loaded them.

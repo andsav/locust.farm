@@ -211,7 +211,7 @@ class RealModelProfileTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "explicit hook"):
             self.configure("claude-code", hook_settings={"hooks": {"Stop": [group]}})
         with self.assertRaisesRegex(ValueError, "supported native adapter"):
-            self.configure("factory-droid", hooks=True)
+            self.configure("pi", hooks=True)
 
     def test_hook_settings_require_installed_entries_and_refuse_symlink_paths(self):
         with self.assertRaisesRegex(ValueError, "requires adapter settings"):
@@ -225,6 +225,65 @@ class RealModelProfileTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "symlinks"):
             self.configure("claude-code", hooks=True, hook_settings={"hooks": {"Stop": [self.hook_group()]}})
         self.assertEqual(sentinel.read_text(), '{"preserve":true}')
+
+    def test_droid_unwrapped_hooks_preserve_existing_groups_and_settings(self):
+        path=self.profile.home / ".factory/hooks.json"
+        path.parent.mkdir()
+        group=self.hook_group("'/tmp/lh.fixture/locust-cli' hook stop --harness droid")
+        original={"Stop":[{"hooks":[{"type":"command","command":"other-hook"}]}]}
+        path.write_text(json.dumps(original))
+        settings=path.with_name("settings.json")
+        byok={"model":"other-model","displayName":"Existing Model","baseUrl":"https://example.invalid","apiKey":"EXISTING-PRIVATE-KEY","provider":"openai"}
+        original_settings={"customModels":[byok],"unrelated":{"preserve":True},"hooks":{"Notification":[]}}
+        settings.write_text(json.dumps(original_settings))
+        result=self.configure("factory-droid",hooks=True,hook_settings={"Stop":[group]})
+        self.assertNotIn("LOCUST_HOOKS",result.environment)
+        self.assertEqual(result.environment["FACTORY_DROID_AUTO_UPDATE_ENABLED"],"false")
+        self.assertEqual(json.loads(path.read_text()),{"Stop":original["Stop"]+[group]})
+        merged=json.loads(settings.read_text())
+        self.assertEqual(merged["customModels"][0],byok)
+        self.assertEqual(merged["unrelated"],original_settings["unrelated"])
+        self.assertEqual(merged["hooks"],original_settings["hooks"])
+        self.assertEqual(result.metadata["custom_model_id"],"custom:Locust-Real-1")
+        argv=result.invocation("prompt",[])
+        self.assertEqual(argv[argv.index("--model")+1],"custom:Locust-Real-1")
+        before=(path.read_bytes(),settings.read_bytes())
+        repeated=self.configure("factory-droid",hooks=True,hook_settings={"Stop":[group]})
+        self.assertEqual((path.read_bytes(),settings.read_bytes()),before)
+        self.assertEqual(repeated.metadata["custom_model_id"],result.metadata["custom_model_id"])
+        self.assertNotIn("EXISTING-PRIVATE-KEY",json.dumps(result.metadata))
+
+    def test_droid_label_collision_adds_a_distinct_owned_entry_without_overwriting(self):
+        path=self.profile.home / ".factory/settings.json"
+        path.parent.mkdir()
+        existing={"model":"owner-model","displayName":"Locust Real","apiKey":"owner-private-key","provider":"openai","baseUrl":"https://example.invalid"}
+        path.write_text(json.dumps({"customModels":[existing],"unrelated":True}))
+        result=self.configure("factory-droid")
+        self.assertEqual(result.metadata["custom_model_id"],"custom:Locust-Real-2-1")
+        self.assertEqual(json.loads(path.read_text())["customModels"][0],existing)
+        before=path.read_bytes()
+        self.assertEqual(self.configure("factory-droid").metadata["custom_model_id"],result.metadata["custom_model_id"])
+        self.assertEqual(path.read_bytes(),before)
+
+    def test_droid_rejects_wrapped_hook_maps_conflicts_and_settings_symlinks(self):
+        path=self.profile.home / ".factory/hooks.json"
+        path.parent.mkdir()
+        group=self.hook_group("'/tmp/lh.fixture/locust-cli' hook stop --harness droid")
+        original=json.dumps({"Stop":[group]})
+        path.write_text(original)
+        changed=self.hook_group("'/tmp/lh.fixture/locust-cli' hook stop --harness droid")
+        changed["hooks"][0]["timeout"]=5
+        for supplied in ({"hooks":{"Stop":[group]}},{"Stop":[changed]}):
+            with self.assertRaises(ValueError):
+                self.configure("factory-droid",hooks=True,hook_settings=supplied)
+            self.assertEqual(path.read_text(),original)
+        settings=path.with_name("settings.json")
+        sentinel=self.profile.root / "sentinel.json"
+        sentinel.write_text('{"preserve":true}')
+        settings.symlink_to(sentinel)
+        with self.assertRaisesRegex(ValueError,"symlinks"):
+            self.configure("factory-droid")
+        self.assertEqual(sentinel.read_text(),'{"preserve":true}')
 
 
 if __name__ == "__main__":

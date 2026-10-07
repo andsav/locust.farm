@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import sys
@@ -29,7 +30,8 @@ SKILL_PATHS = {
     "pi": ".pi/agent/skills/locust/SKILL.md",
 }
 POLICIES = ("default", "deliberately-permissive")
-HOOK_SETTINGS = {"codex": ".codex/hooks.json", "claude-code": ".claude/settings.json"}
+HOOK_SETTINGS = {"codex": ".codex/hooks.json", "claude-code": ".claude/settings.json",
+                 "factory-droid": ".factory/hooks.json"}
 
 
 def _profile_path(profile, relative):
@@ -86,8 +88,11 @@ def _merge_settings(current, supplied, hooks=False):
 def _hook_settings(client, profile, supplied):
     path = _profile_path(profile, HOOK_SETTINGS[client])
     current = json.loads(path.read_text()) if path.exists() else {}
-    merged = _merge_settings(current, {} if supplied is None else supplied)
-    events = merged.get("hooks")
+    unwrapped = client == "factory-droid"
+    if unwrapped and ("hooks" in current or isinstance(supplied, dict) and "hooks" in supplied):
+        raise ValueError("Droid hooks.json must use the unwrapped event map")
+    merged = _merge_settings(current, {} if supplied is None else supplied, hooks=unwrapped)
+    events = merged if unwrapped else merged.get("hooks")
     if isinstance(events, dict) and any(not isinstance(groups, list) or
                                        any(not isinstance(group, dict) for group in groups)
                                        for groups in events.values()):
@@ -97,6 +102,35 @@ def _hook_settings(client, profile, supplied):
     if not path.exists() or current != merged:
         private_write(path, json.dumps(merged))
     return path
+
+
+def _droid_model_settings(profile, model, provider, name, base):
+    """Append or locate the qualification model without changing other BYOKs."""
+    path = _profile_path(profile, ".factory/settings.json")
+    current = json.loads(path.read_text()) if path.exists() else {}
+    if not isinstance(current, dict):
+        raise ValueError("Droid settings must be a JSON object")
+    rows = current.get("customModels", [])
+    if not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows):
+        raise ValueError("Droid customModels must be an array of objects")
+    desired = {"model": model, "baseUrl": base, "apiKey": "${" + name + "}", "provider": provider}
+    existing = next(((index, row) for index, row in enumerate(rows)
+                     if isinstance(row.get("displayName"), str)
+                     and re.fullmatch(r"Locust Real(?: [1-9][0-9]*)?", row["displayName"])
+                     and all(row.get(key) == value for key, value in desired.items())), None)
+    if existing is not None:
+        index, row = existing
+    else:
+        labels = {row.get("displayName") for row in rows if isinstance(row.get("displayName"), str)}
+        display, suffix = "Locust Real", 2
+        while display in labels:
+            display = "Locust Real " + str(suffix)
+            suffix += 1
+        row = dict(desired, displayName=display)
+        index = len(rows)
+        current["customModels"] = [*rows, row]
+        private_write(path, json.dumps(current))
+    return path, "custom:" + row["displayName"].replace(" ", "-") + "-" + str(index)
 
 
 CAPTURE = '''import os,selectors,subprocess,sys
@@ -227,7 +261,7 @@ class RealProvider:
             return [*argv, "--", prompt]
         if self.client == "factory-droid":
             argv = [self.binary, "exec", "--output-format", "stream-json",
-                    "--model", "custom:Locust-Real-0", *overlay]
+                    "--model", self.metadata["custom_model_id"], *overlay]
             if permissive:
                 argv += ["--skip-permissions-unsafe"]
             if resume:
@@ -273,6 +307,7 @@ def configure_real_provider(client, profile, binary, model, ambient=None, provid
     if hook_file:
         files.append(str(hook_file))
     provider_overrides = []
+    custom_model_id = None
     base = PROVIDERS[provider][1]
     if client == "codex":
         path = _profile_path(profile, ".codex/config.toml")
@@ -300,11 +335,9 @@ def configure_real_provider(client, profile, binary, model, ambient=None, provid
         env.update({"DISABLE_TELEMETRY": "1", "DISABLE_ERROR_REPORTING": "1",
                     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"})
     elif client == "factory-droid":
-        path = profile.home / ".factory/settings.json"
-        private_write(path, json.dumps({"customModels": [{"model": model,
-            "displayName": "Locust Real", "baseUrl": base, "apiKey": "${" + name + "}",
-            "provider": provider}]}))
+        path, custom_model_id = _droid_model_settings(profile, model, provider, name, base)
         files.append(str(path))
+        env["FACTORY_DROID_AUTO_UPDATE_ENABLED"] = "false"
     else:
         # Native provider catalog is used; no auth.json is copied or created.
         env["PI_TELEMETRY"] = "0"
@@ -319,6 +352,7 @@ def configure_real_provider(client, profile, binary, model, ambient=None, provid
                 "provider_overrides": provider_overrides,
                 "network_guard": "external network allowed for real provider; fixture guard disabled"}
     if client == "factory-droid":
+        metadata["custom_model_id"] = custom_model_id
         metadata["factory_authentication"] = "FACTORY_API_KEY excluded; BYOK-only readiness must be observed"
     if client == "claude-code":
         metadata["bare_mode"] = ("Disabled for explicit private hook settings; explicit API key, no copied account authentication"

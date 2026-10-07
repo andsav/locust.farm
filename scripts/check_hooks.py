@@ -30,7 +30,8 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 CLIENTS = {"codex": {"binary": "codex", "mcp": ".codex/config.toml", "hooks": ".codex/hooks.json", "provider": "openai", "key": "OPENAI_API_KEY", "real_client": "codex", "mcp_result":"call_tool_result"},
-           "claude": {"binary": "claude", "mcp": ".claude.json", "hooks": ".claude/settings.json", "provider": "anthropic", "key": "ANTHROPIC_API_KEY", "real_client": "claude-code", "mcp_result":"json_text"}}
+           "claude": {"binary": "claude", "mcp": ".claude.json", "hooks": ".claude/settings.json", "provider": "anthropic", "key": "ANTHROPIC_API_KEY", "real_client": "claude-code", "mcp_result":"json_text"},
+           "droid": {"binary": "droid", "mcp": ".factory/mcp.json", "hooks": ".factory/hooks.json", "provider": "openai", "key": "OPENAI_API_KEY", "real_client": "factory-droid", "mcp_result":"json_text", "tool_prefix":"locust___locust_"}}
 SAFE_PATH = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
 # Qualification instrumentation only: no payload text or values are persisted.
@@ -51,7 +52,7 @@ row={'event':event if event in {'SessionStart','Stop','PostToolUse','PostToolUse
  'payload_keys':sorted(payload),'session_id_present':bool(payload.get('session_id')),
  'agent_id_present':bool(payload.get('agent_id')),
  'agent_id_matches_session':bool(payload.get('agent_id')) and payload.get('agent_id')==payload.get('session_id'),
- 'tool_name':name if isinstance(name,str) and re.fullmatch(r'mcp__locust__locust_[a-z_]+',name) else 'other',
+ 'tool_name':name if isinstance(name,str) and re.fullmatch(r'(?:mcp__locust__|locust___)locust_[a-z_]+',name) else 'other',
  'response':shape(response),'input':shape(payload.get('tool_input')),
  'hooks_off':os.environ.get('LOCUST_HOOKS')=='off'}
 if isinstance(response,dict):
@@ -127,6 +128,7 @@ class Profile:
                 "XDG_DATA_HOME": str(self.home / "data"), "TMPDIR": str(self.tmp),
                 "PATH": str(Path(binary).parent) + ":" + SAFE_PATH,
                 "LANG": "en_US.UTF-8", "TERM": "dumb", "NO_COLOR": "1",
+                "FACTORY_DROID_AUTO_UPDATE_ENABLED": "false",
                 "LOCUST_RELAY": "none", "LOCUST_LOOKUP": "none", "LOCUST_BIND": "127.0.0.1:0"}
 
     def close(self):
@@ -213,9 +215,13 @@ def install_fixture(profile, binary, source_commit, timeout):
     return prefix, installed
 
 
+def hook_events(document, client):
+    return document if client == "droid" else document.get("hooks", {})
+
+
 def selected_hook(document, launcher, event, harness):
     matches = []
-    for native_event, groups in document.get("hooks", {}).items():
+    for native_event, groups in hook_events(document, harness).items():
         for group in groups:
             for handler in group.get("hooks", []):
                 if handler.get("statusMessage") != "Locust":
@@ -234,12 +240,15 @@ def invoke_hook(profile, command, native_event, timeout, *, client=None, chat="s
     if call is not None:
         operation, arguments, result, identifier = call
         envelope = {"ok": True, "result": result}
-        payload.update(tool_name="mcp__locust__locust_" + operation.replace(".", "_"),
+        prefix = CLIENTS.get(client, {}).get("tool_prefix", "mcp__locust__locust_")
+        payload.update(tool_name=prefix + operation.replace(".", "_"),
                        tool_use_id=identifier, tool_input=arguments,
                        tool_response={"isError": False, "structuredContent": envelope,
                                       "content": [{"type": "text", "text": json.dumps(envelope)}]})
         if client is not None and CLIENTS[client]["mcp_result"]=="json_text":
             payload["tool_response"]=json.dumps(envelope)
+        if client == "droid":
+            payload.pop("tool_use_id")
     code, output, errors = run(profile, command, timeout, input_value=payload)
     require(code == 0 and not errors, "hook did not fail open with a clean transport")
     if not output.strip():
@@ -322,7 +331,7 @@ def native_tool_projection(stdout):
         if not isinstance(event, dict):
             continue
         if event.get("type") == "system" and event.get("subtype") == "init":
-            declarations.update(name for name in event.get("tools", []) if isinstance(name,str) and re.fullmatch(r"mcp__locust__locust_[a-z_]+",name))
+            declarations.update(name for name in event.get("tools", []) if isinstance(name,str) and re.fullmatch(r"(?:mcp__locust__|locust___)locust_[a-z_]+",name))
             states.extend({"name":"locust","status":row.get("status") if row.get("status") in {"connected","failed","pending","needs-auth"} else "other"}
                           for row in event.get("mcp_servers",[]) if isinstance(row,dict) and row.get("name")=="locust")
         if event.get("type") == "assistant":
@@ -333,6 +342,15 @@ def native_tool_projection(stdout):
             for item in event.get("message",{}).get("content",[]):
                 if item.get("type")=="tool_result" and item.get("tool_use_id") in calls and item.get("is_error") is not True:
                     successful += 1
+        if event.get("type") == "tool_call" and event.get("toolName") == "locust___locust_wait":
+            calls[event.get("id")] = "wait"
+        if event.get("type") == "tool_result" and event.get("id") in calls and event.get("isError") is False:
+            try:
+                result = json.loads(event.get("value", ""))
+            except (ValueError, TypeError):
+                result = None
+            body = result.get("result") if isinstance(result, dict) else None
+            successful += int(isinstance(body, dict) and result.get("ok") is True and "waited" in body)
         if event.get("type")=="item.completed":
             item=event.get("item",{})
             if item.get("type")=="mcp_tool_call" and item.get("server")=="locust" and item.get("tool")=="locust_wait":
@@ -360,11 +378,18 @@ def real_check(profile, client, binary, home, goal, revision, timeout, model, am
     wrapper, shapes = profile.fixture / "hook-shapes.py", profile.fixture / "hook-shapes.jsonl"
     private_write(wrapper, SHAPE_WRAPPER)
     private_write(shapes, b"")
-    for groups in wrapped_hooks["hooks"].values():
+    for groups in hook_events(wrapped_hooks, client).values():
         for group in groups:
             for handler in group.get("hooks", []):
                 if handler.get("statusMessage") == "Locust":
                     handler["command"] = shlex.join([sys.executable, str(wrapper), str(shapes), *shlex.split(handler["command"])])
+    if client == "droid":
+        guard = profile.fixture / "read-only-guard.py"
+        private_write(guard, "import json,sys\npayload=json.load(sys.stdin)\n"
+                      "if payload.get('tool_name') not in {'ToolSearch','locust___locust_wait'}:\n"
+                      " print(json.dumps({'hookSpecificOutput':{'hookEventName':'PreToolUse','permissionDecision':'deny','permissionDecisionReason':'Synthetic qualification permits only the wait read and tool discovery'}}))\n")
+        hook_events(wrapped_hooks, client).setdefault("PreToolUse", []).append({"hooks":[{
+            "type":"command", "command":shlex.join([sys.executable, str(guard)]), "timeout":60}]})
     private_write(hook_path, json.dumps(wrapped_hooks))
     prompt = (f"Use the registered Locust MCP tool locust_wait exactly once with goal={goal}, seen={revision}, timeout_ms=0. "
               "Then finish your response. This synthetic test grants reads only: do not start, take over, report, publish, acknowledge, or change any work. "
@@ -383,6 +408,8 @@ def real_check(profile, client, binary, home, goal, revision, timeout, model, am
         require("locust" in servers,"private setup MCP entry missing")
         overlay = ["--mcp-config="+json.dumps({"mcpServers":{"locust":servers["locust"]}}),"--strict-mcp-config",
                    "--allowedTools=mcp__locust__locust_wait,ToolSearch"]
+    elif client == "droid":
+        overlay = ["--auto", "high", "--only-tools", "ToolSearch,MCP:locust/locust_wait"]
     invocation = provider.invocation(prompt, overlay)
     if trust_bypass:
         # Official one-off option, authorized for reviewed synthetic /tmp hooks.
@@ -395,7 +422,7 @@ def real_check(profile, client, binary, home, goal, revision, timeout, model, am
     finally:
         private_write(hook_path, original_hooks)
     document = json.loads(original_hooks)
-    own_commands = [handler["command"] for group in document["hooks"]["Stop"] for handler in group["hooks"] if handler.get("statusMessage") == "Locust"]
+    own_commands = [handler["command"] for group in hook_events(document, client)["Stop"] for handler in group["hooks"] if handler.get("statusMessage") == "Locust"]
     projection = native_hook_projection(Path(result["stdout"]).read_bytes(), own_commands[0])
     tools = native_tool_projection(Path(result["stdout"]).read_bytes())
     after = mark_projection(home)
@@ -420,8 +447,10 @@ def real_check(profile, client, binary, home, goal, revision, timeout, model, am
             "stdout_sha256": digest(Path(result["stdout"]).read_bytes()), "stderr_sha256": digest(Path(result["stderr"]).read_bytes()),
             "copied_login": False, "native_trust_bypassed": trust_bypass,
             "native_registration_overlay": client == "claude",
-            "native_tool_read_approvals": ["mcp__locust__locust_wait","ToolSearch"] if client=="claude" else [],
-            "qualification_overrides": "reviewed own /tmp hooks one-off trust bypass" if trust_bypass else "exact setup-owned private MCP entry explicit overlay; default native settings filtered; only wait and tool-search reads approved"}
+            "native_tool_read_approvals": ["mcp__locust__locust_wait","ToolSearch"] if client=="claude" else ["locust___locust_wait","ToolSearch"] if client=="droid" else [],
+            "qualification_overrides": ("reviewed own /tmp hooks one-off trust bypass" if trust_bypass else
+                "native high autonomy with exact wait/tool-search selection and a private read-only guard" if client=="droid" else
+                "exact setup-owned private MCP entry explicit overlay; default native settings filtered; only wait and tool-search reads approved")}
 
 
 def qualify(client, binary, source_commit, timeout, *, native_binary=None, real_model=False, model=None, ambient=None):
@@ -462,6 +491,8 @@ def qualify(client, binary, source_commit, timeout, *, native_binary=None, real_
         phase = "setup"
         spec = CLIENTS[client]
         baseline_hooks = b'{"description":"Preserved fixture hook config","hooks":{"Stop":[{"hooks":[{"type":"command","command":"true"}]}]}}\n'
+        if client == "droid":
+            baseline_hooks = b'{"Stop":[{"hooks":[{"type":"command","command":"true"}]}]}\n'
         baseline_mcp = b"# preserve comment\nmodel = 'chosen'\n" if client == "codex" else b'{"unrelated":"preserved"}\n'
         hook_path, mcp_path = profile.home / spec["hooks"], profile.home / spec["mcp"]
         private_write(hook_path, baseline_hooks)

@@ -199,3 +199,59 @@ Formatting and strict workspace Clippy also passed. That run includes H2 and the
 previously failing reconciliation test; the earlier failures above remain part
 of the qualification record. The renderer change lets an adapter remove an
 owned source file without leaving an invalid empty extension on disk.
+
+## H1b: Droid
+
+The Droid adapter uses `.factory/hooks.json`, whose document is the event map
+without a `hooks` wrapper. `SessionStart`, `Stop` and `PostToolUse` map to the
+same core events. The adapter normalizes only the native document and envelope;
+setup and the runtime do not branch on Droid. Stop has a 300-second native
+limit, leaving the shared 270-second wait. The other callbacks also explicitly
+set 300 seconds so the native timeout outlasts the generic runtime deadline. See the [Factory hook contract](https://docs.factory.com/harness/hooks).
+
+An isolated native probe of Droid 0.218.1 observed the tool name
+`locust___locust_*` (the preliminary fixture used the same server/tool separator)
+and a JSON-string Locust result envelope. Its tool hooks supplied no invocation
+ID, unlike the stream records. The adapter validates the typed request and
+response, then identifies the logical successful effect for replay suppression.
+Repeated identical effects can coalesce; this is not a fabricated unique native
+invocation ID. Each callback still polls for H2 notices.
+
+The native root probe ran with an ambient OpenAI key and BYOK `gpt-5.4-mini`,
+without a Factory key or copied login. Its root tool call succeeded. A separate
+child probe reached a healthy private Droid daemon but failed before any child
+callback because inherited-user authentication had no access token. Child hook
+routing remains unverified. The adapter uses the supplied nonempty session ID;
+it does not infer parentage or merge chat IDs. Automatic updates are disabled in
+qualification profiles. [Factory BYOK](https://docs.factory.com/model-independence/byok)
+and the [CLI reference](https://docs.factory.com/droid-cli/cli-reference) describe
+the native configuration and command controls.
+
+The Locust-native qualification then passed on Droid 0.218.1 with OpenAI
+`gpt-5.4-mini-2026-03-17`. The actual harness completed one registered
+`locust_wait`, received a native Stop block, continued, received empty output
+from the next Stop and exited 0 without a timeout. Shape-only instrumentation
+observed those callbacks while forwarding the generated command's input/output
+unchanged. No hook failure line appeared. The private home was removed.
+
+The same installed-command scenario also passed work waiting, one block,
+an ignored block, cancellation at stop and then once at a tool callback,
+compaction recovery, and no false claim loss after the chat's terminal
+acknowledgment. Setup removal restored the original hook and MCP bytes exactly.
+The synthetic signed candidate contains the uncommitted Droid adapter and
+carries the prior commit label `7a0a0cd`; this is not release provenance.
+The disposable report is `output/hooks-droid-qualification.json`.
+
+The native run used high autonomy with an exact wait/tool-search selector and
+a private qualification guard that denied all other tools. The tool catalog
+still advertised other registered Locust tools; the guard supplied an additional
+read restriction for this synthetic run. These are recorded qualification overrides;
+normal setup does not change native approval settings or install a guard.
+
+Droid's final required checks passed: formatting, strict workspace Clippy,
+the full workspace suite (1,239 passed, 14 ignored) and the docs checker.
+Focused coverage includes 42 adapter/core, 27 hook subprocess, 31 setup and
+27 Python hook/provider-profile tests. A first workspace run exposed a test
+fixture that sent a Codex payload directly to the Droid adapter on the missing
+daemon path; the fixture now normalizes native input consistently. Production
+behavior did not change after the successful native qualification.

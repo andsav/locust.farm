@@ -22,6 +22,7 @@ class HookQualificationTests(unittest.TestCase):
             env = self.profile.environment("/fixture/locust")
         self.assertEqual(env["HOME"], str(self.profile.home))
         self.assertEqual(env["CODEX_HOME"], str(self.profile.home / ".codex"))
+        self.assertEqual(env["FACTORY_DROID_AUTO_UPDATE_ENABLED"], "false")
         self.assertNotIn("OPENAI_API_KEY", env)
         self.assertNotIn("LOCUST_CREDENTIAL", env)
         self.assertNotIn("DO_NOT_RETAIN", json.dumps(env))
@@ -62,6 +63,28 @@ class HookQualificationTests(unittest.TestCase):
         response = run.call_args.kwargs["input_value"]["tool_response"]
         self.assertIsInstance(response,str)
         self.assertEqual(json.loads(response),{"ok":True,"result":{"waited":"no_event"}})
+
+    def test_droid_replay_uses_native_name_string_envelope_and_no_invented_id(self):
+        with patch.object(harness,"run",return_value=(0,b"",b"")) as run:
+            harness.invoke_hook(self.profile,["/fixture"],"PostToolUse",1,client="droid",
+                                call=("wait",{"goal":"g","seen":0,"timeout_ms":0},{"waited":"no_event"},"synthetic-id"))
+        payload = run.call_args.kwargs["input_value"]
+        self.assertEqual(payload["tool_name"],"locust___locust_wait")
+        self.assertNotIn("tool_use_id",payload)
+        self.assertEqual(json.loads(payload["tool_response"]),{"ok":True,"result":{"waited":"no_event"}})
+        launcher = self.profile.root / "launcher"
+        document = {"Stop":[{"hooks":[{"statusMessage":"Locust","command":f"'{launcher}' hook stop --harness droid"}]}]}
+        self.assertEqual(harness.selected_hook(document,launcher,"stop","droid")[0],"Stop")
+
+    def test_droid_proof_requires_a_matching_successful_typed_native_result(self):
+        call = {"type":"tool_call","id":"call-1","toolId":"native-tool","toolName":"locust___locust_wait"}
+        result = {"type":"tool_result","id":"call-1","toolId":"native-tool","isError":False,
+                  "value":json.dumps({"ok":True,"result":{"waited":"no_event"}})}
+        project = lambda rows: harness.native_tool_projection("\n".join(json.dumps(row) for row in rows))
+        self.assertEqual(project([call,result])["native_locust_wait_completed"],1)
+        for bad in (dict(result,id="another"),dict(result,isError=True),dict(result,value="assistant says success"),
+                    dict(result,value=json.dumps({"ok":False})),dict(result,value=json.dumps({"ok":True,"result":None})),dict(result,type="message")):
+            self.assertEqual(project([call,bad])["native_locust_wait_completed"],0)
 
     def test_no_key_and_missing_client_have_distinct_real_model_reasons(self):
         args = (self.profile,"codex",None,self.profile.root,"goal",0,1,None)

@@ -143,6 +143,25 @@ fn participant_tool(chat: &str, invocation: &str) -> Value {
     )
 }
 
+fn harness_input(harness: &str, input: &Value) -> Value {
+    let mut input = input.clone();
+    if harness == "droid" {
+        if let Some(name) = input["tool_name"]
+            .as_str()
+            .and_then(|name| name.strip_prefix("mcp__locust__"))
+        {
+            input["tool_name"] = json!(format!("locust___{name}"));
+        }
+        input.as_object_mut().unwrap().remove("tool_use_id");
+    }
+    if matches!(harness, "claude" | "droid")
+        && input["tool_response"]["structuredContent"].is_object()
+    {
+        input["tool_response"] = json!(input["tool_response"]["structuredContent"].to_string());
+    }
+    input
+}
+
 fn checked(output: &Output) -> Option<Value> {
     assert_eq!(
         output.status.code(),
@@ -301,10 +320,7 @@ impl Fixture {
     }
 
     fn hook(&self, harness: &str, event: &str, input: &Value) -> Option<Value> {
-        let mut input = input.clone();
-        if harness == "claude" && input["tool_response"]["structuredContent"].is_object() {
-            input["tool_response"] = json!(input["tool_response"]["structuredContent"].to_string());
-        }
+        let input = harness_input(harness, input);
         checked(&run(
             &mut command(self.sandbox.path(), &self.state_home, harness, event),
             &serde_json::to_vec(&input).unwrap(),
@@ -492,7 +508,7 @@ fn serve(mut stream: UnixStream, state: Arc<Mutex<ServerState>>, caller: Caller)
 #[test]
 fn every_adapter_blocks_once_alternating_work_and_external_tools_do_not_reset_it() {
     let mut outcomes = Vec::new();
-    for harness in ["codex", "claude"] {
+    for harness in ["codex", "claude", "droid"] {
         let fixture = Fixture::new(free_work(3));
         let chat = "same-chat";
         assert!(
@@ -794,7 +810,7 @@ fn malformed_input_and_missing_daemon_use_fixed_native_failure_envelopes() {
     fs::create_dir(&state).unwrap();
     secret(&state.join("agent.credential"), &CREDENTIAL.0);
     secret(&state.join("session.secret"), &SESSION.0);
-    for harness in ["codex", "claude"] {
+    for harness in ["codex", "claude", "droid"] {
         let malformed = checked(&run(
             &mut command(home.path(), &state, harness, "stop"),
             b"not json TITLE\n",
@@ -804,7 +820,8 @@ fn malformed_input_and_missing_daemon_use_fixed_native_failure_envelopes() {
         assert!(malformed.get("decision").is_none());
         let missing = checked(&run(
             &mut command(home.path(), &state, harness, "tool"),
-            &serde_json::to_vec(&worker_tool("missing", "wait-1")).unwrap(),
+            &serde_json::to_vec(&harness_input(harness, &worker_tool("missing", "wait-1")))
+                .unwrap(),
         ))
         .unwrap();
         assert_eq!(line(&missing), FAILURE_LINE);
@@ -918,7 +935,7 @@ fn start_restores_held_attempts_even_when_the_member_goal_is_halted() {
 
 #[test]
 fn two_chats_sharing_a_session_do_not_share_locust_participation() {
-    for harness in ["codex", "claude"] {
+    for harness in ["codex", "claude", "droid"] {
         let own = held(3, SESSION.instance());
         let fixture = Fixture::new(PendingWork {
             claimed: vec![own],
@@ -1021,7 +1038,7 @@ fn passive_chat_blocks_once_for_new_cancellation_of_its_current_attempt() {
 
 #[test]
 fn tool_polls_unchanged_goals_without_pending_and_preserves_disconnected_claims() {
-    for harness in ["codex", "claude"] {
+    for harness in ["codex", "claude", "droid"] {
         let own = held(3, SESSION.instance());
         let fixture = Fixture::new(PendingWork {
             claimed: vec![own],
@@ -1063,7 +1080,7 @@ fn tool_polls_unchanged_goals_without_pending_and_preserves_disconnected_claims(
 
 #[test]
 fn concurrent_tools_deliver_one_loss_notice_and_consume_work_without_pending() {
-    for harness in ["codex", "claude"] {
+    for harness in ["codex", "claude", "droid"] {
         let own = held(3, SESSION.instance());
         let fixture = Fixture::new(PendingWork {
             claimed: vec![own],
@@ -1119,7 +1136,7 @@ fn concurrent_tools_deliver_one_loss_notice_and_consume_work_without_pending() {
 
 #[test]
 fn multiple_cancellations_deliver_once_each_even_when_the_next_goal_snapshot_is_omitted() {
-    for harness in ["codex", "claude"] {
+    for harness in ["codex", "claude", "droid"] {
         let first = held(3, SESSION.instance());
         let second = held(4, SESSION.instance());
         let mut pending = PendingWork {
