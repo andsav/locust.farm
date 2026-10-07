@@ -1,0 +1,8 @@
+{
+  "files": {
+    "evidence.json": "cb3876820e7a0d36cb1a2345af722047121905b90068250a61b0ee988e6fa73d",
+    "analysis.json": "f7d779331109418c9a9803412dc39ab10b17809cac09cdb69a55213a6fd0ee16"
+  },
+  "source_output": "/Users/andrei/Projects26/locust/output/negotiation-pilot-2026-10-07",
+  "protocol_commit": "869e90d"
+}

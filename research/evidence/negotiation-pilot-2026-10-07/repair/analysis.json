@@ -1,0 +1,424 @@
+{
+  "arms": {
+    "homogeneous-a": {
+      "all_pass_tasks": 2,
+      "complete_tasks": 2,
+      "cost": 0.9043835,
+      "passed": 120,
+      "total": 120
+    },
+    "independent": {
+      "all_pass_tasks": 2,
+      "complete_tasks": 2,
+      "cost": 0.9867945,
+      "passed": 120,
+      "total": 120
+    },
+    "negotiation": {
+      "all_pass_tasks": 1,
+      "complete_tasks": 1,
+      "cost": 1.1663985000000001,
+      "passed": 60,
+      "total": 60
+    }
+  },
+  "batch_cost_upper_estimate": 3.0575765,
+  "cost_upper_estimate": 13.8380355,
+  "input_tokens": 920182,
+  "output_tokens": 157085,
+  "request_count": 212,
+  "rows": [
+    {
+      "arm": "homogeneous-a",
+      "budget_stops": [
+        "Phase dollar ceiling"
+      ],
+      "cost_upper_estimate": 0.41299199999999997,
+      "elapsed_seconds": 149.86195397377014,
+      "final_confidence": 0.99,
+      "final_sha256": "aac7d91ebe53ea25f574cdd6d8affc3744ad16b939edb1278460c9de48db06c2",
+      "final_summary": "Both candidates agree on all semantic rules. Accepted the peer's separate removed-ID set for clarity; it is equivalent to immediate discarding because removal does not affect eligibility or ancestry. No correctness fixes were proposed or rejected. Canonical grouping excludes equivocation, fixed-point admission excludes missing dependencies and cycles with their descendants, and ancestor sets enforce strict causal removal. The final candidate passes all 4 public fixtures. Additional probes verified canonical duplicates, array-order equivocation, transitive removal, concurrency, key mismatch, cycles, and eligibility of descendants of removed adds. No known uncertainties under the specified schema.",
+      "fixed_cases": [],
+      "initial_behavior_disagreements": [],
+      "initial_confidence": [
+        0.99,
+        0.99
+      ],
+      "initial_scores": [
+        60,
+        60
+      ],
+      "intermediate_scores": [
+        60,
+        60
+      ],
+      "passed": 60,
+      "phases": [
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "a",
+          "responses": 3
+        },
+        {
+          "allocation": 0.25,
+          "incomplete": 0,
+          "name": "critique-and-revise",
+          "provider": "a",
+          "responses": 1
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "resolution",
+          "provider": "a",
+          "responses": 2
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "a",
+          "responses": 3
+        },
+        {
+          "allocation": 0.25,
+          "incomplete": 1,
+          "name": "critique-and-revise",
+          "provider": "a",
+          "responses": 2
+        }
+      ],
+      "publication_count": 5,
+      "regressed_cases": [],
+      "requests": 11,
+      "source_changed_from_designated_initial": true,
+      "status": "complete",
+      "task": "replay",
+      "tools": {
+        "evaluate": 4,
+        "probe": 3,
+        "submit": 3
+      },
+      "total": 60
+    },
+    {
+      "arm": "independent",
+      "budget_stops": [
+        "Phase dollar ceiling"
+      ],
+      "cost_upper_estimate": 0.549821,
+      "elapsed_seconds": 97.84122109413147,
+      "final_confidence": 0.99,
+      "final_sha256": "819c885320f8dbd2a09d8e74332eb6110327c145114563bd4f394d9bb8ca3eca",
+      "final_summary": "Canonical JSON grouping collapses identical bodies and excludes equivocated IDs. A least-fixed-point traversal admits events only after all dependencies are eligible, excluding missing dependencies, cycles, and their descendants while computing strict ancestor sets. Eligible removes then delete only same-key targeted ancestor adds from the live set, without changing eligibility. Passed all 4 public fixtures and additional checks covering empty input, transitive removal, concurrency, key mismatch, descendants of removed adds, cycles, absent dependencies, object-key reordering, and array-order equivocation. No known specification uncertainties.",
+      "fixed_cases": [],
+      "initial_behavior_disagreements": [],
+      "initial_confidence": [
+        0.99,
+        0.9
+      ],
+      "initial_scores": [
+        60,
+        60
+      ],
+      "intermediate_scores": [
+        60,
+        60
+      ],
+      "passed": 60,
+      "phases": [
+        {
+          "allocation": 0.75,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "a",
+          "responses": 3
+        },
+        {
+          "allocation": 0.25,
+          "incomplete": 1,
+          "name": "self-review",
+          "provider": "a",
+          "responses": 2
+        },
+        {
+          "allocation": 0.75,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "b",
+          "responses": 3
+        },
+        {
+          "allocation": 0.25,
+          "incomplete": 0,
+          "name": "self-review",
+          "provider": "b",
+          "responses": 0
+        }
+      ],
+      "publication_count": 5,
+      "regressed_cases": [],
+      "requests": 8,
+      "source_changed_from_designated_initial": false,
+      "status": "complete",
+      "task": "replay",
+      "tools": {
+        "evaluate": 2,
+        "probe": 3,
+        "submit": 2
+      },
+      "total": 60
+    },
+    {
+      "arm": "negotiation",
+      "budget_stops": [
+        "Phase dollar ceiling",
+        "Phase dollar ceiling"
+      ],
+      "cost_upper_estimate": 0.6222505,
+      "elapsed_seconds": 113.03564882278442,
+      "final_confidence": 0.99,
+      "final_sha256": "984c47cf0e0aab6b1162b91897bcf964dce0fc58c18bd3be176d450fd7578d7f",
+      "final_summary": "Retained the fixed-point implementation. The peer agrees on canonical grouping, propagation of ineligibility, and same-key strict-ancestor removal; no concrete fixes were proposed. Its DFS and separate removed set are valid alternatives, but unnecessary replacements for the simpler combined eligibility/ancestor traversal. Tested the peer on a self-cycle with a descendant, transitive removal, a future target, and a wrong-key target; it produced the expected result. Final candidate again passes all 4 public fixtures, plus earlier targeted checks. Canonicalization preserves array order; missing or equivocated dependencies and cycles never enter the fixed point. Removal changes only live membership, not eligibility. No known remaining uncertainties under the specified schema.",
+      "fixed_cases": [],
+      "initial_behavior_disagreements": [],
+      "initial_confidence": [
+        0.99,
+        null
+      ],
+      "initial_scores": [
+        60,
+        60
+      ],
+      "intermediate_scores": [
+        60,
+        60
+      ],
+      "passed": 60,
+      "phases": [
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "a",
+          "responses": 3
+        },
+        {
+          "allocation": 0.25,
+          "incomplete": 0,
+          "name": "critique-and-revise",
+          "provider": "a",
+          "responses": 1
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "resolution",
+          "provider": "a",
+          "responses": 2
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 1,
+          "name": "initial",
+          "provider": "b",
+          "responses": 3
+        },
+        {
+          "allocation": 0.25,
+          "incomplete": 0,
+          "name": "critique-and-revise",
+          "provider": "b",
+          "responses": 0
+        }
+      ],
+      "publication_count": 5,
+      "regressed_cases": [],
+      "requests": 9,
+      "source_changed_from_designated_initial": true,
+      "status": "complete",
+      "task": "replay",
+      "tools": {
+        "evaluate": 3,
+        "probe": 3,
+        "submit": 3
+      },
+      "total": 60
+    },
+    {
+      "arm": "homogeneous-a",
+      "budget_stops": [],
+      "cost_upper_estimate": 0.4913915,
+      "elapsed_seconds": 181.8390929698944,
+      "final_confidence": 1.0,
+      "final_sha256": "6d1651d20b79d8cca6829528df18294f44badb1b468fbf9f8132df875530a9ca",
+      "final_summary": "Retained exact enumeration of all feasible ordered subsets, with dependency masks, merged blackouts, earliest-start scheduling, and comparison by (-value, completion, ID sequence). The peer agrees on all substantive behavior. Its shortened overlap condition is equivalent because the preceding break already excludes start + duration <= a; verified on 7,560 interval cases. Accepted that equivalence, but retained the explicit overlap condition for clarity. No correctness fixes were proposed or needed. Final candidate passes all 4 public fixtures; additional probes cover ties, missing dependencies, cycles, blackout endpoints, and setup during blackouts. At most 109,601 sequence prefixes exist for eight jobs. No known unresolved uncertainties.",
+      "fixed_cases": [],
+      "initial_behavior_disagreements": [],
+      "initial_confidence": [
+        0.999,
+        1.0
+      ],
+      "initial_scores": [
+        60,
+        60
+      ],
+      "intermediate_scores": [
+        60,
+        60
+      ],
+      "passed": 60,
+      "phases": [
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "a",
+          "responses": 2
+        },
+        {
+          "allocation": 0.25,
+          "incomplete": 1,
+          "name": "critique-and-revise",
+          "provider": "a",
+          "responses": 2
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "a",
+          "responses": 3
+        },
+        {
+          "allocation": 0.25,
+          "incomplete": 1,
+          "name": "critique-and-revise",
+          "provider": "a",
+          "responses": 2
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "resolution",
+          "provider": "a",
+          "responses": 3
+        }
+      ],
+      "publication_count": 5,
+      "regressed_cases": [],
+      "requests": 12,
+      "source_changed_from_designated_initial": true,
+      "status": "complete",
+      "task": "schedule",
+      "tools": {
+        "evaluate": 3,
+        "probe": 4,
+        "submit": 3
+      },
+      "total": 60
+    },
+    {
+      "arm": "independent",
+      "budget_stops": [
+        "Phase dollar ceiling"
+      ],
+      "cost_upper_estimate": 0.4369735,
+      "elapsed_seconds": 101.27797603607178,
+      "final_confidence": 0.93,
+      "final_sha256": "25ca28006bf3dd7544f808ce8e6119c01c2770e79900beb11e6913d867ef35e7",
+      "final_summary": "Exhaustive DFS over all feasible ordered subsequences (\u22648 jobs, ~1e5 sequences). Each extension checks deps are already in the prefix (missing/cyclic deps naturally never satisfied), computes earliest start = max(release, t+setup[f][fam]) pushed forward past any overlapping half-open blackout until stable, and prunes if completion > deadline (prefix infeasibility implies extension infeasibility since earlier jobs are unaffected). Every feasible sequence (including empty) is compared by key (-value, completion, id list), giving exact priority order. Passes all 4 public fixtures.",
+      "fixed_cases": [],
+      "initial_behavior_disagreements": [],
+      "initial_confidence": [
+        0.99,
+        0.93
+      ],
+      "initial_scores": [
+        60,
+        60
+      ],
+      "intermediate_scores": [
+        60,
+        60
+      ],
+      "passed": 60,
+      "phases": [
+        {
+          "allocation": 0.75,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "a",
+          "responses": 2
+        },
+        {
+          "allocation": 0.25,
+          "incomplete": 0,
+          "name": "self-review",
+          "provider": "a",
+          "responses": 2
+        },
+        {
+          "allocation": 0.75,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "b",
+          "responses": 2
+        },
+        {
+          "allocation": 0.25,
+          "incomplete": 0,
+          "name": "self-review",
+          "provider": "b",
+          "responses": 1
+        }
+      ],
+      "publication_count": 5,
+      "regressed_cases": [],
+      "requests": 7,
+      "source_changed_from_designated_initial": false,
+      "status": "complete",
+      "task": "schedule",
+      "tools": {
+        "evaluate": 2,
+        "probe": 2,
+        "submit": 3
+      },
+      "total": 60
+    },
+    {
+      "arm": "negotiation",
+      "budget_stops": [],
+      "cost_upper_estimate": 0.544148,
+      "elapsed_seconds": 78.07229614257812,
+      "error": "RuntimeError: Provider a HTTP 503: Our servers are currently overloaded. Please try again later.",
+      "phases": [
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "a",
+          "responses": 3
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "b",
+          "responses": 2
+        }
+      ],
+      "requests": 6,
+      "status": "error",
+      "task": "schedule",
+      "tools": {
+        "evaluate": 2,
+        "probe": 1,
+        "submit": 2
+      }
+    }
+  ],
+  "unresolved_reservations": 1
+}

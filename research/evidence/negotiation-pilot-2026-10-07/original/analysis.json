@@ -1,0 +1,1244 @@
+{
+  "arms": {
+    "homogeneous-a": {
+      "all_pass_tasks": 1,
+      "complete_tasks": 1,
+      "cost": 0.98919,
+      "passed": 60,
+      "total": 60
+    },
+    "homogeneous-b": {
+      "all_pass_tasks": 3,
+      "complete_tasks": 3,
+      "cost": 2.06989,
+      "passed": 180,
+      "total": 180
+    },
+    "independent": {
+      "all_pass_tasks": 1,
+      "complete_tasks": 1,
+      "cost": 1.2143325,
+      "passed": 60,
+      "total": 60
+    },
+    "negotiation": {
+      "all_pass_tasks": 1,
+      "complete_tasks": 1,
+      "cost": 1.366834,
+      "passed": 60,
+      "total": 60
+    },
+    "solo-a": {
+      "all_pass_tasks": 3,
+      "complete_tasks": 3,
+      "cost": 0.9057765,
+      "passed": 180,
+      "total": 180
+    },
+    "solo-b": {
+      "all_pass_tasks": 3,
+      "complete_tasks": 3,
+      "cost": 1.88144,
+      "passed": 180,
+      "total": 180
+    },
+    "synthesis": {
+      "all_pass_tasks": 3,
+      "complete_tasks": 3,
+      "cost": 1.6880865,
+      "passed": 180,
+      "total": 180
+    }
+  },
+  "batch_cost_upper_estimate": 10.1155495,
+  "cost_upper_estimate": 13.8380355,
+  "input_tokens": 920182,
+  "output_tokens": 157085,
+  "request_count": 212,
+  "rows": [
+    {
+      "arm": "homogeneous-a",
+      "budget_stops": [],
+      "cost_upper_estimate": 0.4800135,
+      "elapsed_seconds": 129.95003199577332,
+      "final_confidence": 0.99,
+      "final_sha256": "33d69cede3f37e4dc7eb68e724a92de1a95cd75c90c5c252dadfb07eb4bd1300",
+      "final_summary": "Retained exact meet-in-the-middle enumeration. Every assignment is represented by two halves; retaining the minimum (cost, suffix) per right-half balance preserves both optimal cost and complete-vector lexicographic tie-breaking. Accepted the peer's explicit vertex indexing and clarifying comment. No substantive fixes were proposed, and there were no correctness disagreements to reject. Independent evidence: 400 randomized comparisons against exhaustive enumeration passed in the preceding phase, and the final source again passed all 4 public fixtures. Circulations, disconnected components, loops, parallel edges, and empty edge sets are included directly. No correctness uncertainties identified; enumeration runtime depends on the finite edge-range sizes.",
+      "fixed_cases": [],
+      "initial_behavior_disagreements": [],
+      "initial_confidence": [
+        0.99,
+        1.0
+      ],
+      "initial_scores": [
+        60,
+        60
+      ],
+      "intermediate_scores": [
+        60,
+        60
+      ],
+      "passed": 60,
+      "phases": [
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "a",
+          "responses": 2
+        },
+        {
+          "allocation": 0.25,
+          "incomplete": 0,
+          "name": "critique-and-revise",
+          "provider": "a",
+          "responses": 2
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "resolution",
+          "provider": "a",
+          "responses": 2
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "a",
+          "responses": 3
+        },
+        {
+          "allocation": 0.25,
+          "incomplete": 0,
+          "name": "critique-and-revise",
+          "provider": "a",
+          "responses": 2
+        }
+      ],
+      "publication_count": 5,
+      "regressed_cases": [],
+      "requests": 11,
+      "source_changed_from_designated_initial": true,
+      "status": "complete",
+      "task": "flow",
+      "tools": {
+        "evaluate": 3,
+        "probe": 3,
+        "submit": 5
+      },
+      "total": 60
+    },
+    {
+      "arm": "homogeneous-b",
+      "budget_stops": [
+        "Phase dollar ceiling",
+        "Phase dollar ceiling",
+        "Phase dollar ceiling"
+      ],
+      "cost_upper_estimate": 0.67232,
+      "elapsed_seconds": 76.00553917884827,
+      "final_confidence": 0.95,
+      "final_sha256": "4ba8a9786a731a9b8f4df843a32ac61b61bcb32f4738f795f8fd1b492dfa9a5f",
+      "final_summary": "Exhaustive lexicographic DFS over all integer flow vectors (\u22644^9 combos) with per-vertex suffix-range pruning on balances. Enumeration in lex order with strict cost improvement guarantees the lexicographically smallest minimum-cost vector; returns None if no assignment satisfies all balances. Self loops contribute cost but not balance. Passes all public fixtures.",
+      "fixed_cases": [],
+      "initial_behavior_disagreements": [],
+      "initial_confidence": [
+        0.95,
+        0.97
+      ],
+      "initial_scores": [
+        60,
+        60
+      ],
+      "intermediate_scores": [
+        60,
+        60
+      ],
+      "passed": 60,
+      "phases": [
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "b",
+          "responses": 2
+        },
+        {
+          "allocation": 0.25,
+          "incomplete": 1,
+          "name": "critique-and-revise",
+          "provider": "b",
+          "responses": 1
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "resolution",
+          "provider": "b",
+          "responses": 1
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "b",
+          "responses": 2
+        },
+        {
+          "allocation": 0.25,
+          "incomplete": 0,
+          "name": "critique-and-revise",
+          "provider": "b",
+          "responses": 1
+        }
+      ],
+      "publication_count": 5,
+      "regressed_cases": [],
+      "requests": 7,
+      "source_changed_from_designated_initial": false,
+      "status": "complete",
+      "task": "flow",
+      "tools": {
+        "evaluate": 2,
+        "probe": 3,
+        "submit": 2
+      },
+      "total": 60
+    },
+    {
+      "arm": "independent",
+      "budget_stops": [
+        "Phase dollar ceiling"
+      ],
+      "cost_upper_estimate": 0.41922750000000003,
+      "elapsed_seconds": 88.80188226699829,
+      "final_confidence": 0.99,
+      "final_sha256": "cffceb6bf4287b23456b59a47b1904a1b4a438e8b74fdd72ea84b2f4568065b3",
+      "final_summary": "No repair was needed. Exhaustive half-enumeration retains the best cost and lexicographic flow for each net balance, then matches complementary balances. This includes all circulations and preserves the complete-vector tie-break. All four public fixtures passed previously, and randomized comparison covered 300 cases. Self-review additionally checked empty graphs, infeasible empty edges, a lexicographic tie across the split, and negative/zero-cost self-loops; all produced the expected results. No known correctness uncertainties for the specified inputs.",
+      "fixed_cases": [],
+      "initial_behavior_disagreements": [],
+      "initial_confidence": [
+        0.99,
+        0.97
+      ],
+      "initial_scores": [
+        60,
+        60
+      ],
+      "intermediate_scores": [
+        60,
+        60
+      ],
+      "passed": 60,
+      "phases": [
+        {
+          "allocation": 0.75,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "a",
+          "responses": 3
+        },
+        {
+          "allocation": 0.25,
+          "incomplete": 0,
+          "name": "self-review",
+          "provider": "a",
+          "responses": 2
+        },
+        {
+          "allocation": 0.75,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "b",
+          "responses": 2
+        },
+        {
+          "allocation": 0.25,
+          "incomplete": 0,
+          "name": "self-review",
+          "provider": "b",
+          "responses": 1
+        }
+      ],
+      "publication_count": 5,
+      "regressed_cases": [],
+      "requests": 8,
+      "source_changed_from_designated_initial": false,
+      "status": "complete",
+      "task": "flow",
+      "tools": {
+        "evaluate": 2,
+        "probe": 3,
+        "submit": 3
+      },
+      "total": 60
+    },
+    {
+      "arm": "negotiation",
+      "budget_stops": [
+        "Phase dollar ceiling",
+        "Phase dollar ceiling"
+      ],
+      "cost_upper_estimate": 0.6129815000000001,
+      "elapsed_seconds": 124.91075897216797,
+      "final_confidence": 0.99,
+      "final_sha256": "351b85c39e0f2c3ae19d602af531d62446ef74e0c97b59d3abd9dfc27ba122a3",
+      "final_summary": "Retained meet-in-the-middle balance-state dynamic programming: each state stores the minimum (cost, flow tuple), and complementary half-balances are joined. Identical balances have identical possible completions, so discarding inferior states preserves optimality and complete-vector lexicographic ties. Accepted the peer's observation that self-loops affect only cost, adding direct selection of upper for negative cost and lower otherwise. The peer's lexicographic DFS and feasibility pruning are also correct; no correctness disagreement or proposed repair was present. Did not replace the smaller half-state search with full DFS. Peer targeted tests passed for parallel-edge ties, a disconnected negative cycle, a zero-cost self-loop, and empty graphs. The final candidate passed all 4 public fixtures and 1,000 additional randomized comparisons with exhaustive enumeration. No known correctness uncertainties within the specification.",
+      "fixed_cases": [],
+      "initial_behavior_disagreements": [],
+      "initial_confidence": [
+        0.99,
+        0.97
+      ],
+      "initial_scores": [
+        60,
+        60
+      ],
+      "intermediate_scores": [
+        60,
+        60
+      ],
+      "passed": 60,
+      "phases": [
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "a",
+          "responses": 3
+        },
+        {
+          "allocation": 0.25,
+          "incomplete": 0,
+          "name": "critique-and-revise",
+          "provider": "a",
+          "responses": 2
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "resolution",
+          "provider": "a",
+          "responses": 2
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "b",
+          "responses": 2
+        },
+        {
+          "allocation": 0.25,
+          "incomplete": 1,
+          "name": "critique-and-revise",
+          "provider": "b",
+          "responses": 1
+        }
+      ],
+      "publication_count": 5,
+      "regressed_cases": [],
+      "requests": 10,
+      "source_changed_from_designated_initial": true,
+      "status": "complete",
+      "task": "flow",
+      "tools": {
+        "evaluate": 3,
+        "probe": 4,
+        "submit": 3
+      },
+      "total": 60
+    },
+    {
+      "arm": "solo-a",
+      "budget_stops": [],
+      "cost_upper_estimate": 0.2962925,
+      "elapsed_seconds": 94.03176808357239,
+      "final_confidence": 0.99,
+      "final_sha256": "eb09b146b25c6e2782a9d809a110dc5da79e5ea74c16f3744362333f3251935c",
+      "final_summary": "Final check confirmed outgoing-minus-incoming signs, self-loop cancellation, exact integer costs, complete-vector lexicographic ordering, and exhaustive feasibility coverage. Meet-in-the-middle enumeration retains the minimum (cost, prefix) for each first-half balance, then checks every complementary suffix. Negative cycles and disconnected circulations require no special cases. Evidence: all 4 public fixtures, 500 randomized exhaustive comparisons, and 6 targeted edge cases passed. No correctness issues found. Performance depends on range widths; arbitrarily large negative lower bounds would increase enumeration time.",
+      "fixed_cases": [],
+      "initial_confidence": [
+        0.99
+      ],
+      "initial_scores": [
+        60
+      ],
+      "intermediate_scores": [
+        60
+      ],
+      "passed": 60,
+      "phases": [
+        {
+          "allocation": 1.0,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "a",
+          "responses": 3
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "self-review",
+          "provider": "a",
+          "responses": 2
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "final",
+          "provider": "a",
+          "responses": 1
+        }
+      ],
+      "publication_count": 2,
+      "regressed_cases": [],
+      "requests": 6,
+      "source_changed_from_designated_initial": false,
+      "status": "complete",
+      "task": "flow",
+      "tools": {
+        "evaluate": 1,
+        "probe": 2,
+        "submit": 3
+      },
+      "total": 60
+    },
+    {
+      "arm": "solo-b",
+      "budget_stops": [
+        "Phase dollar ceiling"
+      ],
+      "cost_upper_estimate": 0.60846,
+      "elapsed_seconds": 68.18437004089355,
+      "final_confidence": 0.97,
+      "final_sha256": "89b01b3456bcf3a8d93afce52b4a66d2984423c1ec9da5278551bb35d14293f4",
+      "final_summary": "Exact exhaustive DFS over all integer flow vectors (\u22644^9) in lexicographic edge order, pruned by per-vertex suffix feasibility ranges and an optimistic cost lower bound (strict '>' so the lex-smallest optimum is retained on ties). Self-loops count toward cost but not balance; returns None when no assignment satisfies all balances. Verified against an independent brute force on 400 random instances (0 mismatches) and all public fixtures; worst-case unprunable instance runs in ~0.1s.",
+      "fixed_cases": [],
+      "initial_confidence": [
+        0.95
+      ],
+      "initial_scores": [
+        60
+      ],
+      "intermediate_scores": [
+        60
+      ],
+      "passed": 60,
+      "phases": [
+        {
+          "allocation": 1.0,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "b",
+          "responses": 2
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "self-review",
+          "provider": "b",
+          "responses": 2
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "final",
+          "provider": "b",
+          "responses": 1
+        }
+      ],
+      "publication_count": 2,
+      "regressed_cases": [],
+      "requests": 5,
+      "source_changed_from_designated_initial": false,
+      "status": "complete",
+      "task": "flow",
+      "tools": {
+        "evaluate": 1,
+        "probe": 2,
+        "submit": 2
+      },
+      "total": 60
+    },
+    {
+      "arm": "synthesis",
+      "budget_stops": [],
+      "cost_upper_estimate": 0.6902495,
+      "elapsed_seconds": 106.83910608291626,
+      "final_confidence": 0.99,
+      "final_sha256": "5c68cefbb235d636c7e80b3a8491da95d12e954eb4353f1f3fd826856e1afd60",
+      "final_summary": "Retained the exact meet-in-the-middle solution. Enumerate each half's bounded flows and net balances; retain the least (cost, prefix) for each first-half balance. Match complementary second-half balances and minimize (total cost, complete flow tuple). This explicitly includes circulations and self-loops and implements the complete lexicographic tie-break. Passed all four public fixtures; additional probes verified empty feasible/infeasible cases, parallel-edge ties, and a disconnected negative cycle with a zero-cost self-loop. No known correctness uncertainties; runtime depends on bound widths.",
+      "fixed_cases": [],
+      "initial_behavior_disagreements": [],
+      "initial_confidence": [
+        0.99,
+        0.97
+      ],
+      "initial_scores": [
+        60,
+        60
+      ],
+      "intermediate_scores": [],
+      "passed": 60,
+      "phases": [
+        {
+          "allocation": 0.75,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "a",
+          "responses": 2
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "synthesis",
+          "provider": "a",
+          "responses": 2
+        },
+        {
+          "allocation": 0.75,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "b",
+          "responses": 5
+        }
+      ],
+      "publication_count": 3,
+      "regressed_cases": [],
+      "requests": 9,
+      "source_changed_from_designated_initial": false,
+      "status": "complete",
+      "task": "flow",
+      "tools": {
+        "evaluate": 2,
+        "probe": 4,
+        "submit": 3
+      },
+      "total": 60
+    },
+    {
+      "arm": "homogeneous-a",
+      "budget_stops": [],
+      "cost_upper_estimate": 0.22996,
+      "elapsed_seconds": 70.32803392410278,
+      "error": "JSONDecodeError: Unterminated string starting at: line 1 column 11 (char 10)",
+      "phases": [
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "a",
+          "responses": 2
+        },
+        {
+          "allocation": 0.25,
+          "incomplete": 0,
+          "name": "critique-and-revise",
+          "provider": "a",
+          "responses": 1
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "a",
+          "responses": 3
+        }
+      ],
+      "requests": 7,
+      "status": "error",
+      "task": "replay",
+      "tools": {
+        "evaluate": 2,
+        "probe": 2,
+        "submit": 2
+      }
+    },
+    {
+      "arm": "homogeneous-b",
+      "budget_stops": [
+        "Phase dollar ceiling",
+        "Phase dollar ceiling",
+        "Phase dollar ceiling"
+      ],
+      "cost_upper_estimate": 0.66295,
+      "elapsed_seconds": 69.17836499214172,
+      "final_confidence": 0.9,
+      "final_sha256": "561a63589e2d1711d2f8ba02e720162318c9ba264822087f2e11e79bbae12463",
+      "final_summary": "Group events by ID using canonical JSON (sorted keys, compact separators) to dedupe; IDs with >1 distinct body are equivocated and excluded. Eligibility is the least fixed point: repeatedly admit unambiguous events whose deps all exist and are already eligible (this excludes missing deps, self-deps, cycles and their descendants). An eligible remove removes an eligible add with the same key that is named in targets and is a strict transitive dependency ancestor of the remove. Live = eligible adds not removed. Passes all 4 public fixtures. Minor uncertainty: handling of malformed fields (non-string ids/deps), which the spec doesn't define.",
+      "fixed_cases": [],
+      "initial_behavior_disagreements": [],
+      "initial_confidence": [
+        0.9,
+        0.9
+      ],
+      "initial_scores": [
+        60,
+        60
+      ],
+      "intermediate_scores": [
+        60,
+        60
+      ],
+      "passed": 60,
+      "phases": [
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "b",
+          "responses": 2
+        },
+        {
+          "allocation": 0.25,
+          "incomplete": 0,
+          "name": "critique-and-revise",
+          "provider": "b",
+          "responses": 0
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 1,
+          "name": "resolution",
+          "provider": "b",
+          "responses": 1
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "b",
+          "responses": 2
+        },
+        {
+          "allocation": 0.25,
+          "incomplete": 0,
+          "name": "critique-and-revise",
+          "provider": "b",
+          "responses": 0
+        }
+      ],
+      "publication_count": 5,
+      "regressed_cases": [],
+      "requests": 5,
+      "source_changed_from_designated_initial": false,
+      "status": "complete",
+      "task": "replay",
+      "tools": {
+        "evaluate": 2,
+        "probe": 1,
+        "submit": 2
+      },
+      "total": 60
+    },
+    {
+      "arm": "independent",
+      "budget_stops": [],
+      "cost_upper_estimate": 0.4319935,
+      "elapsed_seconds": 77.63724493980408,
+      "error": "JSONDecodeError: Unterminated string starting at: line 1 column 1348 (char 1347)",
+      "phases": [
+        {
+          "allocation": 0.75,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "a",
+          "responses": 3
+        },
+        {
+          "allocation": 0.25,
+          "incomplete": 0,
+          "name": "self-review",
+          "provider": "a",
+          "responses": 1
+        },
+        {
+          "allocation": 0.75,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "b",
+          "responses": 2
+        }
+      ],
+      "requests": 7,
+      "status": "error",
+      "task": "replay",
+      "tools": {
+        "evaluate": 2,
+        "probe": 2,
+        "submit": 2
+      }
+    },
+    {
+      "arm": "negotiation",
+      "budget_stops": [],
+      "cost_upper_estimate": 0.393453,
+      "elapsed_seconds": 138.34709787368774,
+      "error": "JSONDecodeError: Unterminated string starting at: line 1 column 11 (char 10)",
+      "phases": [
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "a",
+          "responses": 3
+        },
+        {
+          "allocation": 0.25,
+          "incomplete": 0,
+          "name": "critique-and-revise",
+          "provider": "a",
+          "responses": 1
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "b",
+          "responses": 2
+        }
+      ],
+      "requests": 7,
+      "status": "error",
+      "task": "replay",
+      "tools": {
+        "evaluate": 3,
+        "probe": 1,
+        "submit": 2
+      }
+    },
+    {
+      "arm": "solo-a",
+      "budget_stops": [],
+      "cost_upper_estimate": 0.3147725,
+      "elapsed_seconds": 83.93215298652649,
+      "final_confidence": 0.995,
+      "final_sha256": "c8c9eda263d62ff50ceb52400e862ea8c173841321d683c56da6489fe363e77f",
+      "final_summary": "Final check confirms that admission is the least fixed point of dependency eligibility: cycles, missing IDs, equivocation, and their descendants cannot enter. Ancestor sets are complete when each event enters, so removals apply exactly to eligible named ancestor adds sharing the key. Canonical JSON preserves array order and deduplicates reordered object keys. Input remains unchanged and outputs use Python sorting. Final evaluation passed all 4 public fixtures; earlier independent-oracle testing passed 1,500 randomized cases plus targeted edge cases. No known remaining uncertainties under the stated schema.",
+      "fixed_cases": [],
+      "initial_confidence": [
+        0.99
+      ],
+      "initial_scores": [
+        60
+      ],
+      "intermediate_scores": [
+        60
+      ],
+      "passed": 60,
+      "phases": [
+        {
+          "allocation": 1.0,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "a",
+          "responses": 3
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "self-review",
+          "provider": "a",
+          "responses": 2
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "final",
+          "provider": "a",
+          "responses": 2
+        }
+      ],
+      "publication_count": 2,
+      "regressed_cases": [],
+      "requests": 7,
+      "source_changed_from_designated_initial": true,
+      "status": "complete",
+      "task": "replay",
+      "tools": {
+        "evaluate": 2,
+        "probe": 2,
+        "submit": 3
+      },
+      "total": 60
+    },
+    {
+      "arm": "solo-b",
+      "budget_stops": [
+        "Phase dollar ceiling",
+        "Phase dollar ceiling"
+      ],
+      "cost_upper_estimate": 0.6871,
+      "elapsed_seconds": 65.1839952468872,
+      "final_confidence": null,
+      "final_sha256": "8928003bd023b57b37bc648fe4f2955f556ce9d0c207792f6027545638a62c0d",
+      "final_summary": "",
+      "fixed_cases": [],
+      "initial_confidence": [
+        0.9
+      ],
+      "initial_scores": [
+        60
+      ],
+      "intermediate_scores": [
+        60
+      ],
+      "passed": 60,
+      "phases": [
+        {
+          "allocation": 1.0,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "b",
+          "responses": 2
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 1,
+          "name": "self-review",
+          "provider": "b",
+          "responses": 2
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "final",
+          "provider": "b",
+          "responses": 1
+        }
+      ],
+      "publication_count": 2,
+      "regressed_cases": [],
+      "requests": 5,
+      "source_changed_from_designated_initial": true,
+      "status": "complete",
+      "task": "replay",
+      "tools": {
+        "evaluate": 2,
+        "probe": 1,
+        "submit": 2
+      },
+      "total": 60
+    },
+    {
+      "arm": "synthesis",
+      "budget_stops": [],
+      "cost_upper_estimate": 0.39175550000000003,
+      "elapsed_seconds": 73.79811835289001,
+      "final_confidence": 0.99,
+      "final_sha256": "5a0ba6c6c9cbfcf81e8bd49e8e286e64e5cd6908d6c6a5ebbb966363a84e9b13",
+      "final_summary": "Retained the tested dependency-first solution. Canonical serialization deduplicates complete bodies while preserving array order; equivocated IDs are excluded before eligibility is computed. Iterative admission excludes missing dependencies, cycles, and their descendants, and computes strict transitive ancestry. Removes then affect only eligible, targeted add ancestors sharing their key. The input is not mutated. Re-evaluation passed all 4 public fixtures; earlier custom tests also covered transitive removal, concurrent/future targets, key mismatch, duplicates, equivocation, missing dependencies, and empty input. No known uncertainties for the specified schema.",
+      "fixed_cases": [],
+      "initial_behavior_disagreements": [],
+      "initial_confidence": [
+        0.99,
+        0.9
+      ],
+      "initial_scores": [
+        60,
+        60
+      ],
+      "intermediate_scores": [],
+      "passed": 60,
+      "phases": [
+        {
+          "allocation": 0.75,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "a",
+          "responses": 3
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "synthesis",
+          "provider": "a",
+          "responses": 2
+        },
+        {
+          "allocation": 0.75,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "b",
+          "responses": 2
+        }
+      ],
+      "publication_count": 3,
+      "regressed_cases": [],
+      "requests": 7,
+      "source_changed_from_designated_initial": true,
+      "status": "complete",
+      "task": "replay",
+      "tools": {
+        "evaluate": 3,
+        "probe": 1,
+        "submit": 3
+      },
+      "total": 60
+    },
+    {
+      "arm": "homogeneous-a",
+      "budget_stops": [],
+      "cost_upper_estimate": 0.27921650000000003,
+      "elapsed_seconds": 82.08816576004028,
+      "error": "JSONDecodeError: Unterminated string starting at: line 1 column 1643 (char 1642)",
+      "phases": [
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "a",
+          "responses": 2
+        },
+        {
+          "allocation": 0.25,
+          "incomplete": 0,
+          "name": "critique-and-revise",
+          "provider": "a",
+          "responses": 1
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "a",
+          "responses": 3
+        }
+      ],
+      "requests": 7,
+      "status": "error",
+      "task": "schedule",
+      "tools": {
+        "evaluate": 2,
+        "probe": 2,
+        "submit": 2
+      }
+    },
+    {
+      "arm": "homogeneous-b",
+      "budget_stops": [
+        "Phase dollar ceiling",
+        "Phase dollar ceiling",
+        "Phase dollar ceiling"
+      ],
+      "cost_upper_estimate": 0.73462,
+      "elapsed_seconds": 75.09618878364563,
+      "final_confidence": 0.9,
+      "final_sha256": "984df19e6dbfac10804395aa7a237de76c1d9f116cdbfa1b73ce85f883f98c16",
+      "final_summary": "Exhaustive DFS over all feasible ordered subsequences (\u22648 jobs \u21d2 \u2264~110k sequences). Each extension computes the earliest start = max(release, prev_completion + setup[prev_family][family]), then repeatedly pushes past any overlapping half-open blackout until stable, and checks completion \u2264 deadline. Dependencies must already be in the sequence (missing/self deps make the job unselectable; cycles are naturally never satisfiable). Every prefix is a candidate; best chosen by key (-value, completion time, id list) so ties go to earliest completion then lexicographically smallest Python list. Passes all 4 public fixtures.",
+      "fixed_cases": [],
+      "initial_behavior_disagreements": [],
+      "initial_confidence": [
+        0.9,
+        0.9
+      ],
+      "initial_scores": [
+        60,
+        60
+      ],
+      "intermediate_scores": [
+        60,
+        60
+      ],
+      "passed": 60,
+      "phases": [
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "b",
+          "responses": 2
+        },
+        {
+          "allocation": 0.25,
+          "incomplete": 1,
+          "name": "critique-and-revise",
+          "provider": "b",
+          "responses": 1
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "b",
+          "responses": 2
+        },
+        {
+          "allocation": 0.25,
+          "incomplete": 1,
+          "name": "critique-and-revise",
+          "provider": "b",
+          "responses": 1
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "resolution",
+          "provider": "b",
+          "responses": 1
+        }
+      ],
+      "publication_count": 5,
+      "regressed_cases": [],
+      "requests": 7,
+      "source_changed_from_designated_initial": false,
+      "status": "complete",
+      "task": "schedule",
+      "tools": {
+        "evaluate": 2,
+        "probe": 3,
+        "submit": 2
+      },
+      "total": 60
+    },
+    {
+      "arm": "independent",
+      "budget_stops": [],
+      "cost_upper_estimate": 0.36311150000000003,
+      "elapsed_seconds": 89.34981608390808,
+      "error": "JSONDecodeError: Expecting ',' delimiter: line 1 column 2509 (char 2508)",
+      "phases": [
+        {
+          "allocation": 0.75,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "a",
+          "responses": 2
+        },
+        {
+          "allocation": 0.25,
+          "incomplete": 0,
+          "name": "self-review",
+          "provider": "a",
+          "responses": 1
+        },
+        {
+          "allocation": 0.75,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "b",
+          "responses": 2
+        }
+      ],
+      "requests": 6,
+      "status": "error",
+      "task": "schedule",
+      "tools": {
+        "evaluate": 2,
+        "probe": 1,
+        "submit": 2
+      }
+    },
+    {
+      "arm": "negotiation",
+      "budget_stops": [],
+      "cost_upper_estimate": 0.3603995,
+      "elapsed_seconds": 69.354896068573,
+      "error": "JSONDecodeError: Unterminated string starting at: line 1 column 11 (char 10)",
+      "phases": [
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "a",
+          "responses": 2
+        },
+        {
+          "allocation": 0.25,
+          "incomplete": 0,
+          "name": "critique-and-revise",
+          "provider": "a",
+          "responses": 1
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "b",
+          "responses": 2
+        }
+      ],
+      "requests": 6,
+      "status": "error",
+      "task": "schedule",
+      "tools": {
+        "evaluate": 2,
+        "probe": 1,
+        "submit": 2
+      }
+    },
+    {
+      "arm": "solo-a",
+      "budget_stops": [],
+      "cost_upper_estimate": 0.2947115,
+      "elapsed_seconds": 83.09639406204224,
+      "final_confidence": 0.995,
+      "final_sha256": "e4a7086c7b0921a332dc5cfe403b63c86528ceffd40341c6c457abc30d8ae37a",
+      "final_summary": "Exact enumeration of all feasible sequence prefixes, with dependency masks and earliest-start simulation over merged blackouts. Comparing (-value, completion time, ID tuple) implements every optimization priority, including the empty sequence. For eight jobs there are at most 109,601 prefixes. Evidence: all four public fixtures passed; 300 randomized cases matched an independent permutation and unit-time oracle; six final targeted checks passed, covering eight-job enumeration, initial setup, touching blackout endpoints, overlapping blackouts, and completion-time versus lexicographic tie-breaking. No known unresolved correctness issues.",
+      "fixed_cases": [],
+      "initial_confidence": [
+        0.99
+      ],
+      "initial_scores": [
+        60
+      ],
+      "intermediate_scores": [
+        60
+      ],
+      "passed": 60,
+      "phases": [
+        {
+          "allocation": 1.0,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "a",
+          "responses": 2
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "self-review",
+          "provider": "a",
+          "responses": 2
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "final",
+          "provider": "a",
+          "responses": 2
+        }
+      ],
+      "publication_count": 2,
+      "regressed_cases": [],
+      "requests": 6,
+      "source_changed_from_designated_initial": true,
+      "status": "complete",
+      "task": "schedule",
+      "tools": {
+        "evaluate": 1,
+        "probe": 2,
+        "submit": 3
+      },
+      "total": 60
+    },
+    {
+      "arm": "solo-b",
+      "budget_stops": [
+        "Phase dollar ceiling"
+      ],
+      "cost_upper_estimate": 0.58588,
+      "elapsed_seconds": 65.08556628227234,
+      "final_confidence": 0.92,
+      "final_sha256": "be4bfad95ebb0587176ce0ee74de4a201e4fd7e43324e0157bbcb8834f909361",
+      "final_summary": "Exhaustive DFS over all feasible ordered subsets (\u2264 ~110k sequences for 8 jobs, ~0.06s worst case). Each extension computes earliest start = max(release, prev_completion + setup[prev_family][family]) pushed forward past overlapping half-open blackouts to a fixpoint (unsorted/overlapping handled; empty [a,a) blackouts ignored), rejects if completion > deadline or deps not already selected (absent deps / self-deps / cycles make jobs unselectable). Every prefix including the empty sequence (completion 0) is a candidate; best is min of (-value, completion, id-list) under Python ordering. Passes all public fixtures and custom edge tests (cycles, timing).",
+      "fixed_cases": [],
+      "initial_confidence": [
+        0.9
+      ],
+      "initial_scores": [
+        60
+      ],
+      "intermediate_scores": [
+        60
+      ],
+      "passed": 60,
+      "phases": [
+        {
+          "allocation": 1.0,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "b",
+          "responses": 2
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "self-review",
+          "provider": "b",
+          "responses": 2
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "final",
+          "provider": "b",
+          "responses": 1
+        }
+      ],
+      "publication_count": 2,
+      "regressed_cases": [],
+      "requests": 5,
+      "source_changed_from_designated_initial": true,
+      "status": "complete",
+      "task": "schedule",
+      "tools": {
+        "evaluate": 1,
+        "probe": 2,
+        "submit": 2
+      },
+      "total": 60
+    },
+    {
+      "arm": "synthesis",
+      "budget_stops": [
+        "Phase dollar ceiling"
+      ],
+      "cost_upper_estimate": 0.6060814999999999,
+      "elapsed_seconds": 91.84555912017822,
+      "final_confidence": 0.9,
+      "final_sha256": "732e83067b436415e73d1895543f62d2ce310eb3235642d76a5342b1183b9aa1",
+      "final_summary": "Exhaustive DFS over all feasible ordered subsets (\u22648 jobs \u2192 ~110k sequences max). At each extension, the next job must have all deps already in the sequence (deps on missing/self IDs make a job unselectable; cycles are naturally unreachable). Start time = max(release, prev_completion + setup[prev_family][family]), then pushed forward past any overlapping half-open blackout until no overlap (iterated, since blackouts may be unsorted/overlapping); require completion \u2264 deadline. Every prefix is a candidate; best chosen by (max value, min final completion, lexicographically smallest ID list). Passes all 4 public fixtures.",
+      "fixed_cases": [],
+      "initial_behavior_disagreements": [],
+      "initial_confidence": [
+        0.99,
+        0.9
+      ],
+      "initial_scores": [
+        60,
+        60
+      ],
+      "intermediate_scores": [],
+      "passed": 60,
+      "phases": [
+        {
+          "allocation": 0.75,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "a",
+          "responses": 3
+        },
+        {
+          "allocation": 0.75,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "b",
+          "responses": 2
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 1,
+          "name": "synthesis",
+          "provider": "b",
+          "responses": 2
+        }
+      ],
+      "publication_count": 3,
+      "regressed_cases": [],
+      "requests": 7,
+      "source_changed_from_designated_initial": false,
+      "status": "complete",
+      "task": "schedule",
+      "tools": {
+        "evaluate": 2,
+        "probe": 2,
+        "submit": 3
+      },
+      "total": 60
+    }
+  ],
+  "unresolved_reservations": 1
+}

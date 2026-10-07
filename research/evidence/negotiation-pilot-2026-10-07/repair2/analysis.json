@@ -1,0 +1,94 @@
+{
+  "arms": {
+    "negotiation": {
+      "all_pass_tasks": 1,
+      "complete_tasks": 1,
+      "cost": 0.6308145,
+      "passed": 60,
+      "total": 60
+    }
+  },
+  "batch_cost_upper_estimate": 0.6308145,
+  "cost_upper_estimate": 13.8380355,
+  "input_tokens": 920182,
+  "output_tokens": 157085,
+  "request_count": 212,
+  "rows": [
+    {
+      "arm": "negotiation",
+      "budget_stops": [
+        "Phase dollar ceiling"
+      ],
+      "cost_upper_estimate": 0.6308145,
+      "elapsed_seconds": 105.2760648727417,
+      "final_confidence": 0.95,
+      "final_sha256": "f3a8778af6729a50921e49a7ac4010774112d3d4581b136fc4e47f13978169d4",
+      "final_summary": "Exhaustive DFS over all feasible job sequences (\u2264 ~110k prefixes for 8 jobs). Each extension checks deps already in prefix (absent/self deps make a job unselectable; cycles are naturally impossible), computes earliest start = max(release, t + setup[prev_fam][fam]) then pushes forward past overlapping half-open blackouts until no overlap, and enforces completion <= deadline. Every prefix is a candidate; best is chosen by (max value, min completion, lexicographically smallest ID list). Passes all 4 public fixtures. Minor uncertainty: interpretation of unusual inputs (e.g. duplicate IDs) which the spec rules out.",
+      "fixed_cases": [],
+      "initial_behavior_disagreements": [],
+      "initial_confidence": [
+        0.99,
+        0.95
+      ],
+      "initial_scores": [
+        60,
+        60
+      ],
+      "intermediate_scores": [
+        60,
+        60
+      ],
+      "passed": 60,
+      "phases": [
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "a",
+          "responses": 2
+        },
+        {
+          "allocation": 0.25,
+          "incomplete": 0,
+          "name": "critique-and-revise",
+          "provider": "a",
+          "responses": 2
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "initial",
+          "provider": "b",
+          "responses": 2
+        },
+        {
+          "allocation": 0.25,
+          "incomplete": 1,
+          "name": "critique-and-revise",
+          "provider": "b",
+          "responses": 1
+        },
+        {
+          "allocation": 0.5,
+          "incomplete": 0,
+          "name": "resolution",
+          "provider": "b",
+          "responses": 1
+        }
+      ],
+      "publication_count": 5,
+      "regressed_cases": [],
+      "requests": 8,
+      "source_changed_from_designated_initial": false,
+      "status": "complete",
+      "task": "schedule",
+      "tools": {
+        "evaluate": 2,
+        "probe": 3,
+        "submit": 3
+      },
+      "total": 60
+    }
+  ],
+  "unresolved_reservations": 1
+}

@@ -194,3 +194,11 @@ The first batch remains intact. Explicit technical reruns of failed trials use
 --ledger**. Their charges and results must be reported separately, alongside all
 original failures. These reruns are not fresh preregistered replications and must
 not silently replace failed trials in the original-batch denominator.
+
+
+## Recorded outcome
+
+See [the first pilot results](../../negotiation-pilot-results-2026-10-07.md) for
+the original batch, disclosed technical reruns, costs, evidence and limitations.
+[analyze.py](analyze.py) supports both runtime output and the tracked public
+evidence bundles; it makes no model calls.
