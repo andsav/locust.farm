@@ -1007,12 +1007,20 @@ fn check_size_and_version(bytes: &[u8]) -> Result<(), EventError> {
     }
 }
 
-/// Names signed into admissions are bounded, unpadded and free of control characters.
+/// Names signed into admissions are bounded, unpadded, free of control
+/// characters, and cannot pass for a key: a name that is 8 to 64 hex digits
+/// would read as a member's key, or its printed short form, in commands.
 pub fn is_member_name(name: &str) -> bool {
     !name.is_empty()
         && name.len() <= crate::limits::MAX_MEMBER_NAME_BYTES
         && name.trim() == name
         && !name.chars().any(char::is_control)
+        && !looks_like_key(name)
+}
+
+/// A key or the prefix of one, as commands accept them: 8 to 64 hex digits.
+pub fn looks_like_key(value: &str) -> bool {
+    (8..=64).contains(&value.len()) && value.bytes().all(|byte| byte.is_ascii_hexdigit())
 }
 
 #[cfg(test)]

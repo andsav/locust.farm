@@ -170,7 +170,7 @@ fn member_name(
     };
     if !locust_proto::event::is_member_name(&name) {
         return Err(Failure::invalid(
-            "a member's name must have 1 to 64 bytes, no outer spaces and no control characters",
+            "a member's name must have 1 to 64 bytes, no outer spaces and no control characters, and cannot look like a key (8 to 64 hex digits)",
         ));
     }
     Ok(name)
@@ -803,7 +803,9 @@ fn add_plan(
         .cloned()
         .unwrap_or_else(|| selected.name.clone());
     if !locust_proto::event::is_member_name(&name) {
-        return Err(Failure::invalid("invalid member name"));
+        return Err(Failure::invalid(
+            "a member's name must have 1 to 64 bytes, no outer spaces and no control characters, and cannot look like a key (8 to 64 hex digits)",
+        ));
     }
     let role = roles::selected_role(client, socket, args, &goal_status)?;
     let role_words = role
@@ -1296,13 +1298,13 @@ fn removal_plan(
         ));
     }
     let present = observed.members.iter().any(|entry| entry.member == member);
+    let label = presentation::member_label(member, &observed.members);
     Ok(confirm::Plan {
         command: "member remove",
         review: json!({"goal":goal,"title":observed.title,"host":observed.host,
-            "member":member,"member_present":present}),
+            "member":member,"member_present":present,"member_label":label}),
         human: format!(
-            "Remove member {} from \"{}\" ({}). Copies already received cannot be retracted.",
-            member.to_string().chars().take(8).collect::<String>(),
+            "Remove member {label} from \"{}\" ({}). Copies already received cannot be retracted.",
             presentation::safe(observed.title.as_deref().unwrap_or("this goal")),
             short_goal(goal)
         ),
@@ -1320,6 +1322,8 @@ fn member_remove(
 ) -> Result<Output, Failure> {
     let goal = resolve_goal(client, socket, value(args, "goal"), None)?;
     let member = selectors::resolve_member(client, socket, goal, value(args, "member"))?;
+    // The plan is read before the write, where the member's label still is;
+    // an agent's request goes to the daemon's own check without a plan.
     let plan = if owner {
         let plan = removal_plan(client, socket, goal, member)?;
         if let Some(output) = reviewed(matches, args, &plan, || {
@@ -1337,15 +1341,20 @@ fn member_remove(
         Request::MemberRemove { goal, member },
         idempotency(matches)?,
     )?;
-    let title = plan
-        .as_ref()
-        .and_then(|plan| plan.review["title"].as_str())
-        .unwrap_or("this goal");
+    let (label, title) = match &plan {
+        Some(plan) => (
+            plan.review["member_label"]
+                .as_str()
+                .unwrap_or_default()
+                .to_owned(),
+            plan.review["title"].as_str().unwrap_or("this goal"),
+        ),
+        None => (presentation::member_label(member, &[]), "this goal"),
+    };
     Ok(Output::success(
         json!(response),
         format!(
-            "Removed {} from \"{}\". Copies already received cannot be retracted.",
-            member.to_string().chars().take(8).collect::<String>(),
+            "Removed {label} from \"{}\". Copies already received cannot be retracted.",
             presentation::safe(title)
         ),
     ))

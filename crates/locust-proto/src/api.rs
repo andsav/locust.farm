@@ -1047,7 +1047,7 @@ impl Request {
             {
                 Err(ApiError::new(
                     ErrorCode::Invalid,
-                    "member name must contain 1 to 64 bytes with no outer spaces or control characters",
+                    "member name must contain 1 to 64 bytes with no outer spaces or control characters, and cannot look like a key (8 to 64 hex digits)",
                 ))
             }
             Self::GoalInvite {

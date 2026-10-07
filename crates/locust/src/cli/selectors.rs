@@ -20,7 +20,7 @@ const EVENT_FIELDS: &[&str] = &[
 ];
 
 pub(super) fn prefix(value: &str) -> bool {
-    (8..=64).contains(&value.len()) && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+    locust_proto::event::looks_like_key(value)
 }
 fn nonempty(value: &str, kind: &str) -> Result<(), Failure> {
     if value.trim().is_empty() {
@@ -395,13 +395,21 @@ mod tests {
                 .message
                 .contains("Juniper (01010101), Maple (02020202)")
         );
-        members[1].name = "01010101".into();
-        let error = member_from_views(&members, &local_names, "01010101").unwrap_err();
+        // A signed name cannot look like a key, but an enrolled local name
+        // is not checked; a key prefix and such a name are two candidates.
+        members[1].name = "Cedar".into();
+        members[1].local = true;
+        let with_hex_local = std::collections::BTreeMap::from([
+            (first, "Maple".to_owned()),
+            (second, "01010101".to_owned()),
+        ]);
+        let error = member_from_views(&members, &with_hex_local, "01010101").unwrap_err();
         assert!(
             error
                 .message
-                .contains("Juniper (01010101), 01010101 (02020202)")
+                .contains("Juniper (01010101), Cedar (02020202)")
         );
+        members[1].local = false;
         // A signed name and an enrolled name for the same member deduplicate.
         members[0].name = "Maple".into();
         assert_eq!(
@@ -418,7 +426,7 @@ mod tests {
         members[1].member = PublicKey(near);
         let error = member_from_views(&members, &local_names, "01010101").unwrap_err();
         assert!(error.message.contains("Maple (0101010101)"));
-        assert!(error.message.contains("01010101 (0101010102)"));
+        assert!(error.message.contains("Cedar (0101010102)"));
     }
 
     #[test]

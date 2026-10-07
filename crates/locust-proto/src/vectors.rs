@@ -336,6 +336,9 @@ fn an_admission_with_a_bad_name_is_not_an_event() {
         "member ".into(),
         "mem\nber".into(),
         "member\u{7f}".into(),
+        "0a1b2c3d".into(),
+        "0A1B2C3D".into(),
+        "ab".repeat(32),
     ] {
         let mut header = events[1].header().clone();
         let Body::MemberAdmitted { name: value, .. } = &mut header.body else {
@@ -375,4 +378,8 @@ fn an_admission_with_a_bad_name_is_not_an_event() {
     assert!(is_member_name("Juniper ; North"));
     assert!(is_member_name(&"é".repeat(32)));
     assert!(!is_member_name(&"é".repeat(33)));
+    // Hex that is shorter than a key prefix, or not all hex, is a name.
+    assert!(is_member_name("0a1b2c3"));
+    assert!(is_member_name("0a1b2c3d-maple"));
+    assert!(!is_member_name(&"ab".repeat(32)));
 }
