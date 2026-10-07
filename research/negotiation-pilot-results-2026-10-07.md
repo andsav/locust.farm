@@ -152,6 +152,11 @@ trial and reduce avoidable prompt/code retransmission before choosing small
 exchange allocations. Those are proposed follow-up design changes, not changes
 silently applied to this experiment.
 
+The [follow-up research note](merak4-tag-team-comparison-2026-10-07.md) records
+the bounded hypothesis, compares Merak4's historical tag-team and hypothesis
+swarm mechanisms, and adds shared-state handoffs and context-refresh controls
+to the proposed next experiment. It does not change the frozen pilot results.
+
 ## Reproducibility and verification
 
 The [analysis script](experiments/negotiation_pilot/analyze.py) regenerates scores,
