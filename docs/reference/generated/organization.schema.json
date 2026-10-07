@@ -1,7 +1,7 @@
 {
   "$defs": {
     "Authority": {
-      "description": "One scope-specific authority. A role used here must bind exactly one member.\nThis is separate from membership administration and from local execution.",
+      "description": "One scope-specific authority. A role used here must have exactly one\nholder; the workspace integrator is always a participant.\nThis is separate from membership administration and from local execution.",
       "oneOf": [
         {
           "additionalProperties": false,

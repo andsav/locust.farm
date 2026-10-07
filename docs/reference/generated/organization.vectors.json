@@ -1750,7 +1750,7 @@
         "diagnostics": [
           {
             "code": "invalid_participant",
-            "correction": "Use the authenticated participant public key, or a declared role slot for a reusable template.",
+            "correction": "Use the member's 64-character public key.",
             "message": "Participant identity must be a 32-byte public key encoded as 64 hex characters",
             "path": "/work/propose/key",
             "phase": "definition",
@@ -3698,15 +3698,6 @@
       "id": "workspace/unknown-role",
       "result": {
         "diagnostics": [
-          {
-            "code": "unknown_role",
-            "correction": "Declare the role in roles or reference an existing role.",
-            "message": "Role \"missing\" is not declared",
-            "path": "/workspace/integrator/name",
-            "phase": "definition",
-            "related_paths": [],
-            "severity": "error"
-          },
           {
             "code": "invalid_workspace_integrator",
             "correction": "Name a participant as the workspace integrator.",

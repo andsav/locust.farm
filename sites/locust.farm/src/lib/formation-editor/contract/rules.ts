@@ -73,7 +73,7 @@ class Validator {
 				'invalid_participant',
 				path,
 				'Participant identity must be a 32-byte public key encoded as 64 hex characters',
-				'Use the authenticated participant public key, or a declared role slot for a reusable template.'
+				"Use the member's 64-character public key."
 			);
 		}
 	}
@@ -243,7 +243,6 @@ class Validator {
 		this.work(value.work, '/work');
 		this.decisions(value.decisions, '/decisions');
 		if (value.workspace) {
-			this.authority(value.workspace.integrator, '/workspace/integrator');
 			if (value.workspace.integrator.kind === 'role') {
 				this.error(
 					'invalid_workspace_integrator',
@@ -251,6 +250,8 @@ class Validator {
 					'The member who accepts file changes must be named directly, not through a role',
 					'Name a participant as the workspace integrator.'
 				);
+			} else {
+				this.authority(value.workspace.integrator, '/workspace/integrator');
 			}
 			this.completion(value.workspace.completion, '/workspace/completion', false);
 		}

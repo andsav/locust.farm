@@ -44,7 +44,12 @@ impl Validator<'_> {
     }
     fn key(&mut self, key: &str, path: &str) {
         if key.parse::<PublicKey>().is_err() {
-            self.error("invalid_participant", path, "Participant identity must be a 32-byte public key encoded as 64 hex characters", "Use the authenticated participant public key, or a declared role slot for a reusable template.");
+            self.error(
+                "invalid_participant",
+                path,
+                "Participant identity must be a 32-byte public key encoded as 64 hex characters",
+                "Use the member's 64-character public key.",
+            );
         }
     }
     fn selector(&mut self, selector: &Selector, path: &str, task: bool, contribution: bool) {
@@ -214,9 +219,11 @@ impl Validator<'_> {
         self.work(&self.formation.work, "/work");
         self.decisions(&self.formation.decisions, "/decisions");
         if let Some(workspace) = &self.formation.workspace {
-            self.authority(&workspace.integrator, "/workspace/integrator");
+            // A role here draws one correction, not two pointing opposite ways.
             if matches!(workspace.integrator, Authority::Role { .. }) {
                 self.error("invalid_workspace_integrator", "/workspace/integrator", "The member who accepts file changes must be named directly, not through a role", "Name a participant as the workspace integrator.");
+            } else {
+                self.authority(&workspace.integrator, "/workspace/integrator");
             }
             self.completion(&workspace.completion, "/workspace/completion", false);
         }

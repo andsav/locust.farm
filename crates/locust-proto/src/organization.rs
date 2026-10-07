@@ -111,7 +111,8 @@ pub enum Selector {
     OnlyMember,
 }
 
-/// One scope-specific authority. A role used here must bind exactly one member.
+/// One scope-specific authority. A role used here must have exactly one
+/// holder; the workspace integrator is always a participant.
 /// This is separate from membership administration and from local execution.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]

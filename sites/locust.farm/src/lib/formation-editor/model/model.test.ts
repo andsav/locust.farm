@@ -514,17 +514,33 @@ test('workspace policy round-trips and role edits preserve its exact authorities
 	});
 	assert.ok(valid(renamed));
 	assert.deepEqual(document, original);
+	// A role is not allowed as the one who accepts file changes, so the
+	// page note for that place offers none.
+	const integratorNote = pageChecks(renamed.formation).find(
+		(check) => check.path === '/workspace/integrator'
+	);
+	assert.equal(integratorNote?.kind, 'specific-person');
+	assert.ok(!integratorNote?.message.includes('role'), integratorNote?.message);
 	const roleIntegrator = structuredClone(renamed);
 	roleIntegrator.formation.workspace!.integrator = { kind: 'role', name: 'check' };
 	const refused = inspectFormation(roleIntegrator.formation);
 	assert.equal(refused.valid, false);
-	assert.ok(
-		refused.diagnostics.some(
-			(diagnostic) =>
-				diagnostic.code === 'invalid_workspace_integrator' &&
-				diagnostic.path === '/workspace/integrator'
-		)
+	// One correction, even for an undeclared role: the role is the mistake.
+	roleIntegrator.formation.workspace!.integrator = { kind: 'role', name: 'missing' };
+	for (const formation of [refused, inspectFormation(roleIntegrator.formation)]) {
+		assert.deepEqual(
+			formation.diagnostics
+				.filter((diagnostic) => diagnostic.path.startsWith('/workspace/integrator'))
+				.map((diagnostic) => diagnostic.code),
+			['invalid_workspace_integrator']
+		);
+	}
+	const badKey = structuredClone(renamed);
+	badKey.formation.workspace!.integrator = { kind: 'participant', key: 'not a key' };
+	const keyProblem = inspectFormation(badKey.formation).diagnostics.find(
+		(diagnostic) => diagnostic.code === 'invalid_participant'
 	);
+	assert.equal(keyProblem?.correction, "Use the member's 64-character public key.");
 	const missingReviewer = removeRole(renamed, 'check');
 	assert.equal(valid(missingReviewer), false);
 	assert.deepEqual(missingReviewer.formation.workspace?.completion, {

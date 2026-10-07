@@ -72,7 +72,7 @@ function sentence(diagnostic: Diagnostic, where: Place | null): string {
 		case 'unknown_role':
 			return `A rule${inStage} names the role "${quoted(diagnostic.message)}", which is not in the list of roles. Add the role or choose another.`;
 		case 'invalid_participant':
-			return `A specific member's key${inStage} is not valid. Keys are 64 hexadecimal characters; a role is usually better.`;
+			return `A specific member's key${inStage} is not valid. Keys are 64 hexadecimal characters.`;
 		case 'selector_scope':
 			if (diagnostic.message.includes("host's computer")) {
 				return "A step's task is added by the host's computer. Name members, a role or a specific member in the rules for doing and completing its work.";

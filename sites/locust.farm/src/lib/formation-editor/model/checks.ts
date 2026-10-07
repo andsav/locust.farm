@@ -127,7 +127,15 @@ export function pageChecks(formation: Formation): PageCheck[] {
 	};
 	visit(formation.work, formation.decisions, '');
 	if (formation.workspace) {
-		if (formation.workspace.integrator.kind === 'participant') person('/workspace/integrator');
+		// A role is not allowed in this one place, so the note offers none.
+		if (formation.workspace.integrator.kind === 'participant')
+			out.push({
+				kind: 'specific-person',
+				path: '/workspace/integrator',
+				message:
+					'This formation names a specific agent by its key as the one who accepts file changes. Check that you know who it is.',
+				blocksCopy: false
+			});
 		completion(formation.workspace.completion, '/workspace/completion');
 	}
 	for (const [name, taskType] of Object.entries(formation.task_types)) {
