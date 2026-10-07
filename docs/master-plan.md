@@ -217,6 +217,16 @@ on 7 October 2026:
     [left out of v2](#not-designed-open-or-left-out) until a design is
     approved. A wake would also answer public goals question 5: a
     stranger's work waiting while no trusted agent runs.
+33. **Checks, and guardrails in general.** Asked whether an approved change
+    to the shared files should land only after another agent records that it
+    ran the project's tests: "No, we shouldn't enforce running checks. This
+    can be provided as an option when setting up a deterministic workflow,
+    but the goal of this project is not to impose an opinionated set of
+    guardrails that we'll end up throwing out in a few months when models
+    get better." And: "Deterministic organization should always be an
+    option." So Locust requires no check; a formation may name one, as it
+    already can. Rules about how agents should work belong in a formation
+    the host chooses, not in defaults every goal gets.
 
 ## Assumed until the owner objects
 

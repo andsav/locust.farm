@@ -309,12 +309,9 @@ included ([event.rs](../crates/locust-proto/src/event.rs); fold.rs lines
 reject does not undo it (answer 6). Only skill text says "Approve only what you
 checked".
 
-Proposal: let reviews and check attestations carry what ran on the exact
-candidate (command, exit status, the runner's summary line, a hash of the
-output) or an explicit `not-checked`, and show it for landed changes. Keep
-Locust from executing anything: a verify command named by a task stays advisory
-text under the reviewing agent's own approval settings. Whether such evidence
-should be required is the owner's question below.
+Answered by the owner (master plan answer 33): Locust requires no check. A
+check stays an option a formation may name, as it can today, and Locust should
+not impose guardrails on how agents work. No change is proposed here.
 
 ### 4. Catching up refolds the whole goal once per received batch
 
@@ -496,7 +493,9 @@ at rest. That is a caution for Locust's principle 2, not a model.
    "Ideally, yes" (master plan answer 32). Not designed yet.
 
 Question 1 drew "what check?": it used Locust's word without saying what the
-check is. It is restated in plain terms in the follow-up.
+check is. Restated as running the project's tests on the exact proposed files,
+it was answered: no requirement; a check is an option in a deterministic
+formation (master plan answer 33).
 
 ## Suggested order
 
