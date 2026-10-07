@@ -241,6 +241,10 @@ impl Goal {
     pub fn genesis(&self) -> Option<EventId> {
         self.chain.order.first().copied()
     }
+    /// Where a host-chain event sits in chain order.
+    pub fn position(&self, id: &EventId) -> Option<usize> {
+        self.chain.position(id)
+    }
     pub fn authors(&self) -> impl Iterator<Item = &PublicKey> {
         self.history.logs.keys()
     }

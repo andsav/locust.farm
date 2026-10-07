@@ -134,7 +134,9 @@ fn member_from_views(
     local_names: &std::collections::BTreeMap<PublicKey, String>,
     value: &str,
 ) -> Result<Option<PublicKey>, Failure> {
-    let candidates: BTreeSet<_> = members
+    // Members come in admission order, so a shared name lists the earlier
+    // member first and marks each later one.
+    let candidates: Vec<_> = members
         .iter()
         .filter(|member| {
             member.name == value
@@ -148,26 +150,21 @@ fn member_from_views(
                         .to_string()
                         .starts_with(&value.to_ascii_lowercase()))
         })
-        .map(|member| member.member)
         .collect();
-    match candidates.len() {
-        0 => Ok(None),
-        1 => Ok(candidates.first().copied()),
+    match candidates.as_slice() {
+        [] => Ok(None),
+        [member] => Ok(Some(member.member)),
         _ => Err(Failure::invalid(format!(
             "member selector {} is ambiguous; choose a key prefix: {}",
             super::presentation::safe(value),
             candidates
-                .into_iter()
-                .map(|key| format!(
-                    "{} ({})",
-                    super::presentation::safe(
-                        &members
-                            .iter()
-                            .find(|member| member.member == key)
-                            .expect("candidate member")
-                            .name
-                    ),
-                    member_key_prefix(members, key)
+                .iter()
+                .enumerate()
+                .map(|(index, member)| format!(
+                    "{} ({}{})",
+                    super::presentation::safe(&member.name),
+                    member_key_prefix(members, member.member),
+                    if index == 0 { "" } else { ", joined later" }
                 ))
                 .collect::<Vec<_>>()
                 .join(", ")
@@ -364,6 +361,7 @@ mod tests {
             name: "Maple".into(),
             endpoint: locust_proto::id::EndpointId([3; 32]),
             local: false,
+            admitted: 0,
         }];
         assert_eq!(
             member_from_views(&members, &Default::default(), "Maple").unwrap(),
@@ -373,16 +371,20 @@ mod tests {
             member_from_views(&members, &Default::default(), "Other").unwrap(),
             None
         );
+        // The list is in admission order; the later member is marked.
         members.push(locust_proto::api::MemberView {
             member: second,
             name: "Maple".into(),
             endpoint: locust_proto::id::EndpointId([4; 32]),
             local: false,
+            admitted: 1,
         });
         let error = member_from_views(&members, &Default::default(), "Maple").unwrap_err();
         assert_eq!(error.code, ErrorCode::Invalid);
         assert!(
-            error.message.contains("Maple (01010101), Maple (02020202)"),
+            error
+                .message
+                .contains("Maple (01010101), Maple (02020202, joined later)"),
             "{}",
             error.message
         );
@@ -393,7 +395,7 @@ mod tests {
         assert!(
             error
                 .message
-                .contains("Juniper (01010101), Maple (02020202)")
+                .contains("Juniper (01010101), Maple (02020202, joined later)")
         );
         // A signed name cannot look like a key, but an enrolled local name
         // is not checked; a key prefix and such a name are two candidates.
@@ -407,7 +409,7 @@ mod tests {
         assert!(
             error
                 .message
-                .contains("Juniper (01010101), Cedar (02020202)")
+                .contains("Juniper (01010101), Cedar (02020202, joined later)")
         );
         members[1].local = false;
         // A signed name and an enrolled name for the same member deduplicate.
@@ -426,7 +428,7 @@ mod tests {
         members[1].member = PublicKey(near);
         let error = member_from_views(&members, &local_names, "01010101").unwrap_err();
         assert!(error.message.contains("Maple (0101010101)"));
-        assert!(error.message.contains("Cedar (0101010102)"));
+        assert!(error.message.contains("Cedar (0101010102, joined later)"));
     }
 
     #[test]

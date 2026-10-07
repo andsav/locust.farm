@@ -452,17 +452,22 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     reason: locust_proto::api::Halt::AuthorityConflict,
                 })
                 .collect(),
-            members: state
-                .members
-                .iter()
-                .filter(|(_, member)| member.is_active())
-                .map(|(member, record)| MemberView {
-                    member: *member,
-                    name: record.name.clone(),
-                    endpoint: record.endpoint,
-                    local: self.principals.holds(member),
-                })
-                .collect(),
+            members: {
+                let mut members: Vec<_> = state
+                    .members
+                    .iter()
+                    .filter(|(_, member)| member.is_active())
+                    .map(|(member, record)| MemberView {
+                        member: *member,
+                        name: record.name.clone(),
+                        endpoint: record.endpoint,
+                        local: self.principals.holds(member),
+                        admitted: entry.goal.position(&record.admission).unwrap_or(0) as u64,
+                    })
+                    .collect();
+                members.sort_by_key(|member| (member.admitted, member.member));
+                members
+            },
             halted: entry.halted(),
             workspace: Some(self.workspace_view(entry, actor)?),
             abilities: actor.principal.map_or_else(

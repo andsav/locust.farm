@@ -722,7 +722,14 @@ pub(super) fn acting_agent(
                     .unwrap_or_else(|| goal.to_string());
                 Err(Failure::usage(format!(
                     "none of your agents is in {title}; add one with locust --owner goal add --goal {} --agent NAME",
-                    &goal.to_string()[..8]
+                    locust_proto::api::short(
+                        &goal.to_string(),
+                        &known
+                            .goals
+                            .iter()
+                            .map(|entry| entry.goal.to_string())
+                            .collect::<Vec<_>>()
+                    )
                 )))
             } else {
                 Err(Failure::usage(

@@ -14,7 +14,7 @@ use locust_proto::event::TaskId;
 use locust_proto::id::{BlobHash, EventId, GoalId, IdempotencyKey, PublicKey};
 use locust_proto::local;
 use locust_proto::organization::{Authority, Formation, WorkspacePolicy};
-use serde_json::{Value, json};
+use serde_json::json;
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -289,36 +289,35 @@ fn agent_abilities(status: &GoalStatus, agent: PublicKey) -> Result<&Abilities, 
 }
 
 /// A goal's identifier cut to its shortest unique prefix among the goals
-/// this daemon holds, so the printed line runs as printed.
-fn cut_goal(client: &mut LocalClient, socket: &Path, goal: GoalId) -> Result<String, Failure> {
-    let known = status(client, socket, None)?;
-    Ok(short(
-        &goal.to_string(),
-        &known
-            .goals
-            .iter()
-            .map(|summary| summary.goal.to_string())
-            .collect::<Vec<_>>(),
-    ))
+/// this daemon holds, so the printed line runs as printed. When the daemon
+/// cannot be read the whole identifier is printed, which always runs.
+pub(super) fn cut_goal(client: &mut LocalClient, socket: &Path, goal: GoalId) -> String {
+    match status(client, socket, None) {
+        Ok(known) => short(
+            &goal.to_string(),
+            &known
+                .goals
+                .iter()
+                .map(|summary| summary.goal.to_string())
+                .collect::<Vec<_>>(),
+        ),
+        Err(_) => goal.to_string(),
+    }
 }
 
-/// A task's identifier cut among the goal's tasks.
-fn cut_task(
-    client: &mut LocalClient,
-    socket: &Path,
-    goal: GoalId,
-    task: TaskId,
-) -> Result<String, Failure> {
-    let Response::Board(tasks) = call(client, socket, Request::Board { goal }, None)? else {
-        unreachable!("typed response")
-    };
-    Ok(short(
-        &task.to_string(),
-        &tasks
-            .iter()
-            .map(|view| view.task.to_string())
-            .collect::<Vec<_>>(),
-    ))
+/// A task's identifier cut among the goal's tasks, whole when they cannot
+/// be read.
+fn cut_task(client: &mut LocalClient, socket: &Path, goal: GoalId, task: TaskId) -> String {
+    match call(client, socket, Request::Board { goal }, None) {
+        Ok(Response::Board(tasks)) => short(
+            &task.to_string(),
+            &tasks
+                .iter()
+                .map(|view| view.task.to_string())
+                .collect::<Vec<_>>(),
+        ),
+        _ => task.to_string(),
+    }
 }
 
 fn level_set(
@@ -358,11 +357,13 @@ fn level_set(
     if after.level == Level::Auto && !after.hosted_here {
         human.push_str(", so tasks other members wrote run here unasked");
     }
-    if changed {
+    // The Undo line is for the person; under --json nothing prints it, so
+    // the read that cuts the identifier is skipped.
+    if changed && !matches.get_flag("json") {
         human.push_str(&format!(
             "\nUndo: {}",
             locust_proto::api::level_command(
-                &cut_goal(client, socket, goal)?,
+                &cut_goal(client, socket, goal),
                 &after.name,
                 level_word(old)
             )
@@ -422,24 +423,32 @@ fn task_allow(
     let task_title = presentation::safe(detail.view.title.as_deref().unwrap_or("this task"));
     let goal_title = presentation::safe(before.title.as_deref().unwrap_or("this goal"));
     let name = presentation::safe(&after.name);
+    // The printed lines are for the person; under --json nothing prints
+    // them, so the reads that cut the identifiers are skipped.
+    let human_wanted = !matches.get_flag("json");
+    let goal_cut = if human_wanted {
+        cut_goal(client, socket, goal)
+    } else {
+        String::new()
+    };
     let mut human = if revoke {
         format!("{name} may no longer take \"{task_title}\". A running attempt is not stopped.")
     } else if after.level == Level::Read {
         // The allowance is stored, but at read nothing lets the agent act on it.
         format!(
             "\"{task_title}\" is allowed for {name}, but at read it only reads. It takes the task once it is set to ask:\n  {}",
-            locust_proto::api::level_command(&cut_goal(client, socket, goal)?, &after.name, "ask")
+            locust_proto::api::level_command(&goal_cut, &after.name, "ask")
         )
     } else {
         format!("{name} may take \"{task_title}\" in \"{goal_title}\" until the host revises it.")
     };
     let takeable = !detail.view.closed && !detail.view.completed && detail.view.selected.is_none();
-    if changed && (!revoke || (was_allowed && visibly_allowed && takeable)) {
+    if human_wanted && changed && (!revoke || (was_allowed && visibly_allowed && takeable)) {
         human.push_str(&format!(
             "\nUndo: {}",
             locust_proto::api::allow_command(
-                &cut_goal(client, socket, goal)?,
-                &cut_task(client, socket, goal, task)?,
+                &goal_cut,
+                &cut_task(client, socket, goal, task),
                 &after.name,
                 !revoke
             )
@@ -595,8 +604,22 @@ fn chosen_formation(args: &ArgMatches) -> Result<(String, Option<String>, Format
     Ok(("peer-review".into(), None, preset.formation))
 }
 
-fn short_goal(goal: GoalId) -> String {
-    goal.to_string().chars().take(8).collect()
+/// A goal's identifier as a label beside its title, never as a command:
+/// eight characters, read from nothing.
+fn goal_label(goal: GoalId) -> String {
+    short(&goal.to_string(), &[])
+}
+
+/// The cut of `goal` among the goals a status read already listed.
+fn cut_goal_among(known: &DaemonStatus, goal: GoalId) -> String {
+    short(
+        &goal.to_string(),
+        &known
+            .goals
+            .iter()
+            .map(|summary| summary.goal.to_string())
+            .collect::<Vec<_>>(),
+    )
 }
 
 struct CreateSelection<'a> {
@@ -694,7 +717,7 @@ fn goal_create(
         format!(
             "Started \"{}\" ({}). Host: you. {}{}. The goal runs from this computer.",
             presentation::safe(title),
-            short_goal(goal),
+            goal_label(goal),
             presentation::safe(&name),
             if formation.roles.is_empty() {
                 " is at level auto"
@@ -741,12 +764,30 @@ fn already_member_output(
             .get(role)
             .is_some_and(|holders| holders.contains(&agent))
     {
-        human.push_str(&format!(
-            "\nGive the role: locust --owner role give --goal {} --member {} {}",
-            short_goal(goal),
-            selectors::member_key_prefix(&view.members, agent),
-            roles::quote_role(role)
-        ));
+        // Only the host's person gives roles; elsewhere the command would
+        // be refused, so say who acts instead.
+        if view.hosted_here && client.caller() == Caller::Owner {
+            human.push('\n');
+            human.push_str(&roles::role_command_line(
+                "Give the role",
+                "give",
+                &cut_goal_among(&known, goal),
+                &selectors::member_key_prefix(&view.members, agent),
+                role,
+            ));
+        } else {
+            human.push_str(&format!(
+                " It does not hold {}; {}",
+                presentation::safe(role),
+                match &view.host_name {
+                    Some(host) => format!(
+                        "the host, {}'s owner, gives roles.",
+                        presentation::chosen_name(host)
+                    ),
+                    None => "the host gives roles.".to_owned(),
+                }
+            ));
+        }
     }
     Ok(Output::success(
         json!({"goal":goal,"agent":agent,"name":member.name,
@@ -826,7 +867,7 @@ fn add_plan(
             "Add {} to \"{}\" ({}) as {}{}, at level {}. This shares the whole goal's history and content. Local files and private chats stay here. Level: read (reads and reports), ask (posts and asks before tasks), auto (takes tasks on its own) [selected: {}].",
             presentation::safe(&selected.name),
             presentation::safe(title),
-            short_goal(goal),
+            cut_goal_among(&known, goal),
             presentation::safe(&name),
             role_words,
             level_word(level),
@@ -995,7 +1036,7 @@ fn join_plan(
         human: format!(
             "Join \"{}\" ({}) as {}. This shares what this agent posts with the goal's members. {} Level: read (reads and reports), ask (posts and asks before tasks), auto (takes tasks on its own, so tasks other members wrote run here unasked) [selected: {}]. What a level allows also depends on the goal's rules, which arrive after admission.",
             presentation::safe(preview.goal_title.as_deref().unwrap_or("this goal")),
-            short_goal(preview.goal),
+            cut_goal_among(&known, preview.goal),
             presentation::safe(name),
             joining_facts,
             level_word(level)
@@ -1076,6 +1117,13 @@ fn goal_join(
     let title = presentation::safe(preview.goal_title.as_deref().unwrap_or("this goal"));
     let human = if membership == Membership::Member {
         format!("{name} joined \"{title}\" · {}.", level_word(joined_level))
+    } else if plan.review["standing"] == "joining" {
+        // A re-run of a waiting join: the host may have signed the earlier
+        // name already, and an admitted name stays.
+        format!(
+            "Joining \"{title}\" as {name} ({}), unless the host's computer already admitted it under the earlier name; an admitted name stays. Admission comes from the host's computer; locust --owner status shows it.",
+            level_word(joined_level)
+        )
     } else {
         format!(
             "Joining \"{title}\" as {name} ({}). Admission comes from the host's computer; locust --owner status shows it.",
@@ -1112,7 +1160,7 @@ fn leave_plan(
             "{} leaves \"{}\" ({}). Coming back needs a new invitation; copies already received stay with the goal.",
             name_for(&known, agent),
             presentation::safe(observed.title.as_deref().unwrap_or("this goal")),
-            short_goal(goal),
+            cut_goal_among(&known, goal),
         ),
         warning: None,
         again: String::new(),
@@ -1228,7 +1276,7 @@ fn invite_plan(
         human: format!(
             "Invite someone to \"{}\" ({}){}. The ticket shares this goal's history and content with whoever presents it. Expires after {}. Invitations issued: {issued}. Pending invitations: {pending}.",
             presentation::safe(observed.title.as_deref().unwrap_or("this goal")),
-            short_goal(goal),
+            goal_label(goal),
             role_words,
             typed_duration
         ),
@@ -1278,7 +1326,7 @@ fn goal_invite(
     let warning = format!(
         "Anyone who presents this ticket is admitted while this computer is on, until {}. Send it privately. Stop admission: locust --owner invitation revoke --goal {} --all",
         presentation::utc(expires_ms),
-        short_goal(goal)
+        cut_goal(client, socket, goal)
     );
     if !matches.get_flag("json") {
         print::stderr(format_args!("{warning}\n")).map_err(|error| {
@@ -1312,7 +1360,7 @@ fn removal_plan(
         human: format!(
             "Remove member {label} from \"{}\" ({}). Copies already received cannot be retracted.",
             presentation::safe(observed.title.as_deref().unwrap_or("this goal")),
-            short_goal(goal)
+            goal_label(goal)
         ),
         warning: None,
         again: String::new(),
@@ -1385,6 +1433,7 @@ fn rules_plan(
         .workspace
         .as_ref()
         .filter(|workspace| workspace.enabled);
+    let goal_cut = cut_goal(client, socket, goal);
     let mut file_lines = String::new();
     let mut file_changes = String::new();
     if let Some(workspace) = workspace {
@@ -1459,7 +1508,7 @@ fn rules_plan(
             )),
         }
         if stranded.iter().any(|proposal| proposal.parent.is_none()) {
-            file_changes.push_str(&format!("\nThe first files have not landed. Share them again with locust --owner workspace init --goal {} and the same seed options.", short_goal(goal)));
+            file_changes.push_str(&format!("\nThe first files have not landed. Share them again with locust --owner workspace init --goal {goal_cut} and the same seed options."));
         }
         file_lines.push_str(&file_changes);
     }
@@ -1480,21 +1529,35 @@ fn rules_plan(
             .filter(|member| !holders.contains(&member.member))
             .collect();
         if no_role {
-            let missing = roles::missing_reviewers(&formation, role, holders.len()).unwrap_or(0);
-            role_lines.push_str(&format!(
-                "\n{missing} more reviewers are needed. The role's holders stay as they are."
-            ));
+            // The bind creates an absent list as the host's agent alone.
+            let mut lists = observed.roles.clone();
+            lists.entry(role.clone()).or_insert_with(|| holders.clone());
+            let missing = roles::missing_reviewers(&formation, role, &lists)
+                .map(|missing| format!("{missing} more reviewers are needed. "))
+                .unwrap_or_default();
+            role_lines.push_str(&format!("\n{missing}The role's holders stay as they are."));
             for member in unheld {
-                role_lines.push_str(&format!(
-                    "\nGive the role: locust --owner role give --goal {} --member {} {}",
-                    short_goal(goal),
-                    selectors::member_key_prefix(&observed.members, member.member),
-                    roles::quote_role(role)
+                role_lines.push('\n');
+                role_lines.push_str(&roles::role_command_line(
+                    "Give the role",
+                    "give",
+                    &goal_cut,
+                    &selectors::member_key_prefix(&observed.members, member.member),
+                    role,
                 ));
             }
         } else if let Some(member) = unheld.first() {
-            role_lines.push_str(&format!("\nEveryone in the goal becomes a {}.\nUndo for one member: locust --owner role take --goal {} --member {} {}",
-                presentation::safe(role), short_goal(goal), selectors::member_key_prefix(&observed.members, member.member), roles::quote_role(role)));
+            role_lines.push_str(&format!(
+                "\nEveryone in the goal becomes a {}.\n{}",
+                presentation::safe(role),
+                roles::role_command_line(
+                    "Undo for one member",
+                    "take",
+                    &goal_cut,
+                    &selectors::member_key_prefix(&observed.members, member.member),
+                    role,
+                )
+            ));
         }
     }
     Ok(confirm::Plan {
@@ -1507,9 +1570,8 @@ fn rules_plan(
             "workspace_epoch":workspace.and_then(|workspace| workspace.epoch),
             "workspace_policy":workspace.and(formation.workspace.as_ref())}),
         human: format!(
-            "Bind \"{}\" ({}) to {}. Open tasks keep their old rules until revised.{}{}",
+            "Bind \"{}\" ({goal_cut}) to {}. Open tasks keep their old rules until revised.{}{}",
             presentation::safe(observed.title.as_deref().unwrap_or("this goal")),
-            short_goal(goal),
             presentation::safe(formation_name),
             file_lines,
             role_lines
@@ -1581,19 +1643,7 @@ fn rules_bind(
             inputs,
         },
         idempotency(matches)?,
-    )
-    .map_err(|mut error| {
-        if error.code == ErrorCode::Conflict
-            && let Some(details) = error
-                .details_json
-                .as_deref()
-                .and_then(|source| serde_json::from_str::<Value>(source).ok())
-            && let Some(role) = details.get("role").and_then(Value::as_str)
-        {
-            error.message = format!("{}: {}", presentation::safe(role), error.message);
-        }
-        error
-    })?;
+    )?;
     let title = plan
         .as_ref()
         .and_then(|plan| plan.review["title"].as_str())
@@ -1858,7 +1908,7 @@ fn invitation_revoke(
     if count > 0 {
         human.push_str(&format!(
             "\nInvite again: locust --owner goal invite --goal {}",
-            short_goal(goal)
+            cut_goal(client, socket, goal)
         ));
     }
     Ok(Output::success(json!(response), human))

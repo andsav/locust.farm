@@ -979,6 +979,10 @@ fn confirmed_adds_carry_the_counting_role_and_repeats_keep_the_signed_name() {
         "{joined}"
     );
     assert!(joined.contains("A name cannot change."));
+    assert!(
+        joined.contains("Give the role: locust --owner role give"),
+        "{joined}"
+    );
     assert!(!joined.contains("Proceed?"));
     let after = p.cli(&["--owner"], &["goal", "status", "--goal", goal]);
     assert_eq!(
@@ -1027,6 +1031,7 @@ fn a_real_member_daemon_reports_that_the_host_is_on_another_computer() {
         reply.result.unwrap()
     }
     let mut selected_goal = None;
+    let mut role_ticket = None;
     let participant = Participant::prepared(|member| {
         let store = MemStore::new();
         let mut host = Node::open(
@@ -1063,7 +1068,16 @@ fn a_real_member_daemon_reports_that_the_host_is_on_another_computer() {
                 name: "Maple".into(),
                 agent,
                 title: "Remote host".into(),
-                formation_json: None,
+                formation_json: Some(
+                    serde_json::to_string(
+                        &locust_proto::organization::presets()
+                            .into_iter()
+                            .find(|preset| preset.name == "review-panel")
+                            .unwrap()
+                            .formation,
+                    )
+                    .unwrap(),
+                ),
                 inputs: Default::default(),
             },
         ) else {
@@ -1134,17 +1148,43 @@ fn a_real_member_daemon_reports_that_the_host_is_on_another_computer() {
         };
         assert!(!status.hosted_here);
         assert_eq!(status.members.len(), 2);
+        // A later invitation carrying the role the rules count on; the
+        // ticket's expiry is read against the real clock by the command line.
+        let Response::Invited { ticket } = call(
+            &mut host,
+            Request::GoalInvite {
+                goal,
+                role: Some("reviewer".into()),
+                expires_ms: u64::MAX / 2,
+            },
+        ) else {
+            panic!()
+        };
+        role_ticket = Some(ticket);
         selected_goal = Some(goal);
     });
-    let text = participant.human(&[
-        "--owner",
-        "goal",
-        "status",
-        "--goal",
-        &selected_goal.unwrap().to_string(),
-    ]);
+    let goal = selected_goal.unwrap().to_string();
+    let text = participant.human(&["--owner", "goal", "status", "--goal", &goal]);
     assert!(text.contains("Host: on another computer · Maple"), "{text}");
     assert!(!text.contains("Host: you"), "{text}");
+    let ticket_file = participant.home.path().join("role.ticket");
+    fs::write(&ticket_file, role_ticket.unwrap().as_str()).unwrap();
+    fs::set_permissions(&ticket_file, fs::Permissions::from_mode(0o600)).unwrap();
+    let joined = participant.human(&[
+        "--owner",
+        "goal",
+        "join",
+        "--ticket-file",
+        ticket_file.to_str().unwrap(),
+        "--agent",
+        "juniper",
+        "--name",
+        "Oak",
+    ]);
+    assert_eq!(
+        joined.trim_end(),
+        "juniper is already in \"Remote host\" as Juniper · auto. A name cannot change. It does not hold reviewer; the host, Maple's owner, gives roles."
+    );
 }
 
 #[test]
@@ -1296,6 +1336,91 @@ fn binding_reviewer_rules_assigns_current_members_and_no_role_keeps_the_choice_e
             );
         }
     }
+
+    // A rule that lets either of two roles approve counts the holders of
+    // both; before anyone holds them, the plan and the status both say so.
+    let p = Participant::new();
+    for name in ["harbor", "maple", "juniper"] {
+        p.cli(&["--owner"], &["agent", "enroll", name]);
+    }
+    let created = p.approved_cli(
+        &["--owner", "--agent", "harbor"],
+        &[
+            "goal",
+            "create",
+            "--title",
+            "Either role",
+            "--formation",
+            "peer-review",
+        ],
+    );
+    let goal = created["goal_created"]["goal"].as_str().unwrap();
+    for name in ["maple", "juniper"] {
+        p.approved_cli(
+            &["--owner"],
+            &["goal", "add", "--goal", goal, "--agent", name],
+        );
+    }
+    let mut formation = locust_proto::organization::presets()
+        .into_iter()
+        .find(|preset| preset.name == "review-panel")
+        .unwrap()
+        .formation;
+    formation
+        .roles
+        .insert("senior".into(), locust_proto::organization::Role::default());
+    formation.decisions.completion = locust_proto::organization::CompletionRule::Reviews {
+        by: locust_proto::organization::Selector::Any {
+            selectors: vec![
+                locust_proto::organization::Selector::Role {
+                    name: "reviewer".into(),
+                },
+                locust_proto::organization::Selector::Role {
+                    name: "senior".into(),
+                },
+            ],
+        },
+        count: 2,
+        exclude_author: true,
+    };
+    let formation_json = serde_json::to_string(&formation).unwrap();
+    let plan = p.human(&[
+        "--owner",
+        "rules",
+        "bind",
+        "--goal",
+        goal,
+        "--formation-json",
+        &formation_json,
+        "--no-role",
+        "--plan",
+    ]);
+    assert!(plan.contains("2 more reviewers are needed."), "{plan}");
+    let id = plan
+        .lines()
+        .find_map(|line| line.strip_prefix("Plan id: "))
+        .unwrap();
+    p.human(&[
+        "--owner",
+        "rules",
+        "bind",
+        "--goal",
+        goal,
+        "--formation-json",
+        &formation_json,
+        "--no-role",
+        "--confirm",
+        id,
+    ]);
+    let status = p.human(&["--owner", "goal", "status", "--goal", goal]);
+    assert!(status.contains("2 more reviewers are needed."), "{status}");
+    assert_eq!(
+        status
+            .matches("Give the role: locust --owner role give")
+            .count(),
+        2,
+        "{status}"
+    );
 }
 
 #[test]

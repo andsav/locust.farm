@@ -14889,6 +14889,12 @@
       "MemberView": {
         "description": "One current member of a goal.",
         "properties": {
+          "admitted": {
+            "description": "Where the admission sits on the host's chain; a lower number joined\nearlier. The member list is in this order.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
           "endpoint": {
             "$ref": "#/$defs/EndpointId",
             "description": "The daemon its admission bound it to."
@@ -14909,7 +14915,8 @@
           "name",
           "member",
           "endpoint",
-          "local"
+          "local",
+          "admitted"
         ],
         "type": "object"
       },

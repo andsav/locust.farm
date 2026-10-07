@@ -1549,6 +1549,9 @@ pub struct MemberView {
     pub endpoint: EndpointId,
     /// True for principals this daemon holds keys for.
     pub local: bool,
+    /// Where the admission sits on the host's chain; a lower number joined
+    /// earlier. The member list is in this order.
+    pub admitted: u64,
 }
 
 /// What this daemon knows about reaching one peer of a goal.

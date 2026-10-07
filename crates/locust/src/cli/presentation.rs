@@ -256,9 +256,10 @@ pub(super) fn member_label(key: PublicKey, members: &[MemberView]) -> String {
 }
 
 /// A member's label with a note inside its parentheses, such as
-/// `Maple (02020202, the host's agent)`.
+/// `Maple (02020202, the host's agent)`. The key prefix grows past eight
+/// characters when another member's key shares them.
 pub(super) fn member_label_noting(key: PublicKey, members: &[MemberView], note: &str) -> String {
-    let prefix = &key.to_string()[..8];
+    let prefix = super::selectors::member_key_prefix(members, key);
     let note = if note.is_empty() {
         String::new()
     } else {
@@ -427,7 +428,7 @@ fn attempting_line(item: &WorkItem, reader: &Reader) -> String {
         if item.results == 1 { "" } else { "s" }
     );
     if item.attempting.is_empty() {
-        format!("  Nobody is attempting it · {results}")
+        format!("  No other member is attempting it · {results}")
     } else {
         format!(
             "  Attempting: {} · {results}",
@@ -908,31 +909,60 @@ pub(super) fn goal_status(
     if let Some(formation) = formation
         && let Some(role) = super::roles::counting_role(formation)
     {
-        let missing = super::roles::missing_reviewers(
-            formation,
-            &role,
-            view.roles.get(&role).map_or(0, Vec::len),
-        )
-        .unwrap_or(0);
+        let missing = super::roles::missing_reviewers(formation, &role, &view.roles).unwrap_or(0);
         if missing > 0 {
-            // Only the host adds or invites members; on another computer
-            // the sentence must not point the reader at a step it cannot take.
+            // Members already in the goal who lack the role come first: giving
+            // it to them is the step that makes results count. Only the host
+            // adds or invites members; on another computer the sentence must
+            // not point the reader at a step it cannot take.
+            let unheld: Vec<_> = if view.hosted_here {
+                view.members
+                    .iter()
+                    .filter(|member| {
+                        !view
+                            .roles
+                            .get(&role)
+                            .is_some_and(|holders| holders.contains(&member.member))
+                    })
+                    .collect()
+            } else {
+                Vec::new()
+            };
             let tail = match (view.hosted_here, reader.voice) {
+                (true, _) if unheld.len() >= missing => String::new(),
                 (true, Voice::Person) => {
-                    format!("members you add or invite become {}s.", safe(&role))
+                    format!(" members you add or invite become {}s.", safe(&role))
                 }
                 (true, Voice::Agent) => format!(
-                    "members {} adds or invites become {}s.",
+                    " members {} adds or invites become {}s.",
                     reader.owner(),
                     safe(&role)
                 ),
-                (false, _) => "the host adds or invites them.".to_owned(),
+                (false, _) => " the host adds or invites them.".to_owned(),
             };
             lines.push(format!(
-                "{missing} more {}{} needed; {tail}",
+                "{missing} more {}{} needed{}{tail}",
                 safe(&role),
                 if missing == 1 { " is" } else { "s are" },
+                if tail.is_empty() { "." } else { ";" }
             ));
+            for member in unheld {
+                let key = super::selectors::member_key_prefix(&view.members, member.member);
+                lines.push(match reader.voice {
+                    Voice::Person => super::roles::role_command_line(
+                        "Give the role",
+                        "give",
+                        &goal_id,
+                        &key,
+                        &role,
+                    ),
+                    Voice::Agent => format!(
+                        "{} can give it to {}.",
+                        reader.owner(),
+                        member_label(member.member, &view.members)
+                    ),
+                });
+            }
         }
     }
     if let Some(rules) = view.current_rules {
@@ -1292,6 +1322,7 @@ mod tests {
                 member: agent,
                 endpoint: EndpointId([3; 32]),
                 local: true,
+                admitted: 0,
             }],
             halted: Some(Halt::AuthorityConflict),
             workspace: None,
@@ -1513,6 +1544,84 @@ mod tests {
             text.contains("members your owner adds or invites become reviewers."),
             "{text}"
         );
+        // Members already in the goal who lack the role come first; the
+        // add-or-invite tail stays only while they do not cover the shortfall.
+        view.members.push(MemberView {
+            member: PublicKey([5; 32]),
+            name: "Maple".into(),
+            endpoint: locust_proto::id::EndpointId([3; 32]),
+            local: false,
+            admitted: 1,
+        });
+        let text = goal_status(&view, Some(&panel), &person());
+        assert!(
+            text.contains(
+                "2 more reviewers are needed; members you add or invite become reviewers.\nGive the role: locust --owner role give --goal 01010101 --member 05050505 reviewer\n"
+            ),
+            "{text}"
+        );
+        view.members.push(MemberView {
+            member: PublicKey([6; 32]),
+            name: "Juniper".into(),
+            endpoint: locust_proto::id::EndpointId([3; 32]),
+            local: false,
+            admitted: 2,
+        });
+        let text = goal_status(&view, Some(&panel), &person());
+        assert!(
+            text.contains(
+                "2 more reviewers are needed.\nGive the role: locust --owner role give --goal 01010101 --member 05050505 reviewer\nGive the role: locust --owner role give --goal 01010101 --member 06060606 reviewer\n"
+            ),
+            "{text}"
+        );
+        let text = goal_status(&view, Some(&panel), &agent(view.host.unwrap()));
+        assert!(
+            text.contains(
+                "2 more reviewers are needed.\nyour owner can give it to Maple (05050505).\nyour owner can give it to Juniper (06060606).\n"
+            ),
+            "{text}"
+        );
+        view.hosted_here = false;
+        let text = goal_status(&view, Some(&panel), &person());
+        assert!(
+            text.contains("2 more reviewers are needed; the host adds or invites them.\n"),
+            "{text}"
+        );
+        assert!(!text.contains("Give the role"), "{text}");
+        view.hosted_here = true;
+        // A role named inside an any-of choice counts the holders of every
+        // role the choice names.
+        let mut either = panel.clone();
+        either.roles.insert(
+            "senior".into(),
+            locust_proto::organization::Role {
+                description: "Senior reviewers.".into(),
+            },
+        );
+        either.decisions.completion = locust_proto::organization::CompletionRule::Reviews {
+            by: locust_proto::organization::Selector::Any {
+                selectors: vec![
+                    locust_proto::organization::Selector::Role {
+                        name: "reviewer".into(),
+                    },
+                    locust_proto::organization::Selector::Role {
+                        name: "senior".into(),
+                    },
+                ],
+            },
+            count: 2,
+            exclude_author: true,
+        };
+        view.roles.insert("senior".into(), vec![PublicKey([5; 32])]);
+        let text = goal_status(&view, Some(&either), &person());
+        assert!(
+            text.contains(
+                "1 more reviewer is needed.\nGive the role: locust --owner role give --goal 01010101 --member 05050505 reviewer\nGive the role: locust --owner role give --goal 01010101 --member 06060606 reviewer\n"
+            ),
+            "{text}"
+        );
+        view.members.truncate(1);
+        view.roles.remove("senior");
         let peer = locust_proto::organization::presets()
             .into_iter()
             .find(|preset| preset.name == "peer-review")
@@ -1543,6 +1652,7 @@ mod tests {
             name: "Maple".into(),
             endpoint: locust_proto::id::EndpointId([2; 32]),
             local: false,
+            admitted: 0,
         }];
         assert_eq!(member_label(key, &members), "Maple (01010101)");
         assert_eq!(
@@ -1558,6 +1668,31 @@ mod tests {
         assert_eq!(chosen_name("Ana Maria"), "Ana Maria");
         assert_eq!(chosen_name(" Ana"), "\" Ana\"");
         assert_eq!(chosen_name("Zed\u{202e}"), "\"Zed\\u{202e}\"");
+        // Two members whose keys share eight characters get longer prefixes,
+        // so a look-alike key under the same name never prints the same label.
+        let mut near = key.0;
+        near[4] = 2;
+        let members = [
+            MemberView {
+                member: key,
+                name: "Maple".into(),
+                endpoint: locust_proto::id::EndpointId([2; 32]),
+                local: false,
+                admitted: 0,
+            },
+            MemberView {
+                member: PublicKey(near),
+                name: "Maple".into(),
+                endpoint: locust_proto::id::EndpointId([2; 32]),
+                local: false,
+                admitted: 1,
+            },
+        ];
+        assert_eq!(member_label(key, &members), "Maple (0101010101)");
+        assert_eq!(
+            member_label(PublicKey(near), &members),
+            "Maple (0101010102)"
+        );
     }
 
     /// One of everything a view can ask its reader to do next.
@@ -1936,6 +2071,7 @@ Daemon 0.1.0 · endpoint 5c0e77aa";
             member: PublicKey([7; 32]),
             endpoint: EndpointId([3; 32]),
             local: false,
+            admitted: 0,
         }];
         let tasks = [TaskView {
             task: TaskId::Authored(locust_proto::id::EventId([4; 32])),
@@ -1961,7 +2097,7 @@ Daemon 0.1.0 · endpoint 5c0e77aa";
         };
         let text = render(&Response::Pending(work()), Some(GoalId([1; 32])), &reader).unwrap();
         assert!(
-            text.contains("Waits for you: Fix the parser (task:04040404)\n  Nobody is attempting it · 0 results\n  Allow this task: locust --owner allow --goal 01010101 --task task:04040404 --agent codex-maple-1a2b3c4d"),
+            text.contains("Waits for you: Fix the parser (task:04040404)\n  No other member is attempting it · 0 results\n  Allow this task: locust --owner allow --goal 01010101 --task task:04040404 --agent codex-maple-1a2b3c4d"),
             "{text}"
         );
         assert!(
@@ -2051,6 +2187,7 @@ Daemon 0.1.0 · endpoint 5c0e77aa";
                 member: agent_key,
                 endpoint: EndpointId([3; 32]),
                 local: true,
+                admitted: 0,
             }],
             halted: None,
             workspace: None,

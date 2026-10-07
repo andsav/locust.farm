@@ -8,6 +8,7 @@ use locust_proto::event::Body;
 use locust_proto::id::PublicKey;
 use locust_proto::organization::{CompletionRule, Formation, Selector};
 use serde_json::json;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 pub(super) fn command(name: &'static str) -> Command {
@@ -74,62 +75,125 @@ pub(super) fn selected_role(
     }
     Ok(current_formation(client, socket, view)?.and_then(|formation| counting_role(&formation)))
 }
-fn reviewer_requirement(rule: &CompletionRule, role: &str) -> Option<(u32, bool)> {
+/// The reviews part that names `role`, alone or inside an any-of choice: its
+/// count, whether it excludes the author, and every role the choice names.
+fn reviewer_requirement(rule: &CompletionRule, role: &str) -> Option<(u32, bool, Vec<String>)> {
+    fn roles_named(selector: &Selector, found: &mut Vec<String>) {
+        match selector {
+            Selector::Role { name } => found.push(name.clone()),
+            Selector::Any { selectors } => {
+                for selector in selectors {
+                    roles_named(selector, found);
+                }
+            }
+            _ => {}
+        }
+    }
     match rule {
         CompletionRule::Reviews {
-            by: Selector::Role { name },
+            by,
             count,
             exclude_author,
-        } if name == role => Some((*count, *exclude_author)),
+        } => {
+            let mut named = Vec::new();
+            roles_named(by, &mut named);
+            if named.iter().any(|name| name == role) {
+                Some((*count, *exclude_author, named))
+            } else {
+                None
+            }
+        }
         CompletionRule::All { rules } | CompletionRule::Any { rules } => rules
             .iter()
             .filter_map(|rule| reviewer_requirement(rule, role))
-            .max(),
+            .max_by_key(|(count, exclude, _)| (*count, *exclude)),
         _ => None,
     }
 }
+/// How many more members must hold one of the roles that count toward the
+/// review rule naming `role`, given the goal's role lists.
 pub(super) fn missing_reviewers(
     formation: &Formation,
     role: &str,
-    holders: usize,
+    roles: &BTreeMap<String, Vec<PublicKey>>,
 ) -> Option<usize> {
-    let (count, exclude) = reviewer_requirement(&formation.decisions.completion, role)?;
-    Some((count as usize + usize::from(exclude)).saturating_sub(holders))
+    let (count, exclude, named) = reviewer_requirement(&formation.decisions.completion, role)?;
+    let holders: BTreeSet<_> = named
+        .iter()
+        .filter_map(|name| roles.get(name))
+        .flatten()
+        .collect();
+    Some((count as usize + usize::from(exclude)).saturating_sub(holders.len()))
 }
 pub(super) fn initial_reviewers(formation: &Formation, host: PublicKey, name: &str) -> String {
     let Some(role) = counting_role(formation) else {
         return String::new();
     };
-    let missing = missing_reviewers(formation, &role, 1).unwrap_or(0);
+    let held = BTreeMap::from([(role.clone(), vec![host])]);
+    let missing = missing_reviewers(formation, &role, &held)
+        .map(|missing| format!(" {missing} more are needed;"))
+        .unwrap_or_default();
     format!(
-        "\nReviewers now: {} ({}, the host's agent). {missing} more are needed; members you add or invite become {}s.",
+        "\nReviewers now: {} ({}, the host's agent).{missing} members you add or invite become {}s.",
         presentation::safe(name),
         &host.to_string()[..8],
         presentation::safe(&role)
     )
 }
 
-pub(super) fn quote_role(role: &str) -> String {
-    if !role.is_empty()
+/// A role name as the last word of a printed command: bare when plain,
+/// else single-quoted, and after `--` when it starts with a dash so clap
+/// does not read it as a flag. None when the name holds characters the
+/// terminal would hide; the caller then prints no command for it.
+pub(super) fn quote_role(role: &str) -> Option<String> {
+    if presentation::safe(role) != role {
+        return None;
+    }
+    let word = if !role.is_empty()
         && role
             .bytes()
             .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
     {
-        role.into()
+        role.to_owned()
     } else {
         format!("'{}'", role.replace('\'', "'\\''"))
+    };
+    Some(if role.starts_with('-') {
+        format!("-- {word}")
+    } else {
+        word
+    })
+}
+/// `label: command` for a role change, or, when the role's name cannot be
+/// printed as a command word, a sentence that says what to type.
+pub(super) fn role_command_line(
+    label: &str,
+    verb: &str,
+    goal: &str,
+    member: &str,
+    role: &str,
+) -> String {
+    match quote_role(role) {
+        Some(word) => {
+            format!("{label}: locust --owner role {verb} --goal {goal} --member {member} {word}")
+        }
+        None => format!(
+            "{label} with role {verb} --goal {goal} --member {member} and the role's name; it holds hidden characters, so no line is printed for it."
+        ),
     }
 }
 fn unique_key(view: &GoalStatus, key: PublicKey) -> String {
     selectors::member_key_prefix(&view.members, key)
 }
-fn inverse(view: &GoalStatus, verb: &str, key: PublicKey, role: &str) -> String {
-    format!(
-        "locust --owner role {verb} --goal {} --member {} {}",
-        &view.goal.to_string()[..8],
-        unique_key(view, key),
-        quote_role(role)
-    )
+fn inverse(
+    view: &GoalStatus,
+    goal: &str,
+    label: &str,
+    verb: &str,
+    key: PublicKey,
+    role: &str,
+) -> String {
+    role_command_line(label, verb, goal, &unique_key(view, key), role)
 }
 fn duty_words(duty: RoleDuty) -> &'static str {
     match duty {
@@ -292,16 +356,27 @@ pub(super) fn run(
             .collect::<Vec<_>>()
             .join(", ")
     ));
+    let goal_cut = super::only_you::cut_goal(client, socket, goal);
     if !give && !deciding && expected.len() == 1 {
-        lines.push(format!(
-            "Give it back: {}",
-            inverse(&view, "give", member, role)
+        lines.push(inverse(
+            &view,
+            &goal_cut,
+            "Give it back",
+            "give",
+            member,
+            role,
         ));
         if let Some(host) = host {
-            lines.push(format!(
-                "The host's agent holds {} until you take it: {}",
-                presentation::safe(role),
-                inverse(&view, "take", host, role)
+            lines.push(inverse(
+                &view,
+                &goal_cut,
+                &format!(
+                    "The host's agent holds {} until you take it",
+                    presentation::safe(role)
+                ),
+                "take",
+                host,
+                role,
             ));
         }
     } else {
@@ -312,7 +387,7 @@ pub(super) fn run(
         } else {
             ("give", member)
         };
-        lines.push(format!("Undo: {}", inverse(&view, verb, undo_member, role)));
+        lines.push(inverse(&view, &goal_cut, "Undo", verb, undo_member, role));
     }
     Ok(Output::success(json!(response), lines.join("\n")))
 }
