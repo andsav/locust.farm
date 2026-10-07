@@ -11,17 +11,22 @@ R7's run text names no harnesses at this baseline, so H1a uses Codex and
 Claude Code, from different vendors. The
 [pure core](../crates/locust-adapter/src/hooks/core.rs) owns the three events,
 fixed ASCII lines shorter than 512 bytes, worker classification and cumulative
-stop marks. It contains no harness names or model decisions. Tests replay a
-fake harness. The [adapters](../crates/locust-adapter/src/hooks.rs) own native
-events, identity and successful tool-envelope parsing, output envelopes,
-timeouts, config paths and owned entry installation/removal.
+stop marks, and the one failure line. It contains no harness names or model
+decisions. Tests replay a fake harness. Each
+[adapter](../crates/locust-adapter/src/hooks.rs) is one row of data: native
+events, config path and shape, subagent fields, the payload's unattended
+signal, tool-result encoding, envelope kind, time limits and whether the
+harness reviews new hooks. The code serving the rows names no harness, so a new
+harness adds a row, a shim if it needs one, and goldens.
 
 The [runtime](../crates/locust/src/hook.rs) authenticates an agent and only
 reads status, pending, wait and cancellation events. [Private marks](../crates/locust/src/hook/marks.rs)
 are scoped by credential, execution session and a hash of native chat identity.
 They use private owned directories and files, reject symlinks, serialize chat
-updates and atomically replace their JSON. An unassociated native chat stays silent even when the shared profile session
-holds a claim. Successful tool evidence establishes that chat first; A4
+updates and atomically replace their JSON, only when it changed. An
+unassociated native chat stays silent even when the shared profile session
+holds a claim, and whatever fails; a subagent's callback is ignored without a
+word. Successful tool evidence establishes that chat first; A4
 instructions cover a new chat. One absolute invocation deadline also covers
 lock contention and slow fragmented socket reads. A separate nonblocking session lock
 allows one waiting chat. Each goal has its own parked connection; an answer
@@ -90,7 +95,7 @@ No reconciliation code was changed in this lane.
 
 ## Limits and follow-ups
 
-H3 needs G1 on main and a window without unmerged G2/E2 status changes.
+H3 needs a window without unmerged G2 or E2 status changes; G1 is built.
 Until then, start hooks can remind a chat of held attempts but do not reset
 acknowledgments or receipt caches. Status does not report chat presence or
 observed hooks. A4's instruction to start with `locust_status` remains the
@@ -206,8 +211,8 @@ The Droid adapter uses `.factory/hooks.json`, whose document is the event map
 without a `hooks` wrapper. `SessionStart`, `Stop` and `PostToolUse` map to the
 same core events. The adapter normalizes only the native document and envelope;
 setup and the runtime do not branch on Droid. Stop has a 300-second native
-limit, leaving the shared 270-second wait. The other callbacks also explicitly
-set 300 seconds so the native timeout outlasts the generic runtime deadline. See the [Factory hook contract](https://docs.factory.com/harness/hooks).
+limit, leaving the shared 270-second wait. The other callbacks set 30 seconds,
+which outlasts the runtime's 5-second limit for start and tool. See the [Factory hook contract](https://docs.factory.com/harness/hooks).
 
 An isolated native probe of Droid 0.218.1 observed the tool name
 `locust___locust_*` (the preliminary fixture used the same server/tool separator)
@@ -277,14 +282,16 @@ the exact server/tool metadata and both error layers before accepting an own cal
 Settlement preserves prior extension entries and their continuation request.
 Abort and error outcomes do not launch a stop hook. Abort, timeout and shutdown
 reap the owned process before returning; changed sessions discard late output.
-The shim uses the adapter's 300-second timeout and the shared 270-second wait.
+The shim uses the adapter's 30-second limit for start and tool and its
+300-second limit for stop, with the shared 270-second wait.
 
 Setup treats an existing empty source file as an occupied path. Modified owned
 source conflicts; a hand-deleted extension stays absent on reapply. Removal
 produces no file, including after a mode-only edit, because an empty `.ts` file
 is not a valid Pi extension factory. See the [native loader](https://github.com/earendil-works/pi/blob/2db5e359bf84c1c0be51d2c5c5c5c7cf27072c2b/packages/coding-agent/src/core/extensions/loader.ts).
-The generated shim receives the failure line from the core. It contains no
-Locust work decisions or model selection.
+The generated shim only relays the launcher's envelope: it prints no line of
+its own, so a failed, timed-out or removed launcher leaves the native event
+unchanged. It contains no Locust work decisions or model selection.
 
 Pi was not installed on this machine, so native harness and real-model checks
 are not run. Node 22.22.0 can strip the type-only imports and exercise the
@@ -336,3 +343,94 @@ The final rebased formatting and strict workspace clippy checks passed. The
 full workspace suite passed with 1,251 tests passed and 14 ignored, including
 the reconciliation case that had failed in the earlier H2 runs. The 35 Python
 hook/profile tests, 12 Node fake API tests and documentation check passed.
+
+## Fixes after the G1 review
+
+The [review](v2-phase-g1-review-2026-10-07.md) found sixteen defects in this
+branch (26 to 41). They are fixed in `cdefab6`, `589b534` and `a6b8166`, on
+main after `8319432`. What changed, as built:
+
+- **Silence** (26, 34, 39). A callback carrying an adapter's subagent field
+  (Codex `agent_id` or `agent_type`, Claude Code and Droid `agent_id`) is
+  ignored before anything is read: no output, no daemon contact, no marks.
+  A chat with no marks file hears nothing whatever fails: malformed input,
+  no daemon, an owner credential, missing secrets, a removed data
+  directory, a harness name this build does not know. The Pi shim only
+  relays the launcher's envelope, so a failed, timed-out or removed launcher
+  leaves the event unchanged. A chat that has used Locust hears the core's
+  failure line once; the marks remember the episode until a callback
+  reaches a decision again. The line exists once, in the core.
+- **Stop rule** (27). A context acknowledgment is not a write for the stop
+  rule, and a write keeps held claims shown until their generation changes,
+  so a progress note does not block its own turn end again.
+- **Sibling chats** (28). A chat's own terminal releases go to a session
+  record beside the chat marks, at most 256 claims; every chat of the
+  session reads it before reconciling. A terminal write made with the CLI in
+  a shell is still not seen, as agents.md says.
+- **One goal fails alone** (29, 30). A cancellation read that is pending or
+  fails is retried later for that goal only; one that is gone, excluded,
+  disputed or not a cancellation drops the pending release and the claim is
+  reported as it stands. A `wait` refused for a baseline ahead of the goal is
+  read again with `pending`.
+- **Deadlines** (31). Start, tool, and the reads before a stop decision end
+  within 5 seconds; the native limit for start and tool is 30 seconds. Only
+  a parked stop waits, at most 270 seconds within its 300.
+- **Typed prompts** (32). No hook parks where a person may type. A stop
+  parks only when `LOCUST_HOOKS=unattended` is in the harness environment or
+  the adapter's payload says so (pi's `print` and `json` modes, passed by
+  the shim). Elsewhere an idle worker gets one line naming `locust_wait`,
+  and its next turn end goes through.
+- **Marks** (33). Marks are written only when they change; at most 256
+  invocation IDs are kept, and a delivered notice is forgotten once its
+  claim generation is gone.
+- **Setup** (35, 36). Applying setup again updates the entries and the Pi
+  shim it installed, in place, and remembers events removed by hand so later
+  releases keep them out; status reports hooks not ready when they are from
+  an older release. A hook file setup cannot write safely, such as a
+  dotfile manager's link, turns hooks off for that client with one line in
+  the plan, the apply result and status; setup goes on.
+- **Shape** (38, 40). Each adapter is one row of data: events with a
+  success flag, config shape, subagent fields, unattended signal, response
+  encoding, envelope kind, time limits and trust review. Pi's row names its
+  shim template. The parsed and unused `compacted` and `stop_hook_active`
+  fields are gone.
+- **Rebase** (37, 41). The goal summary fixture carries G1's fields, and
+  the suite sees G1's signer-recovery halt. The runtime contract needed no
+  change. The master plan's H and A4 rows record what is built.
+
+### Typed prompts per harness
+
+Whether a waiting stop hook holds a prompt the person types could not be
+established for any harness: it needs an interactive terminal run, which was
+not made. What the payloads can tell:
+
+| Harness | Says no person types? | Typed-prompt behaviour |
+| --- | --- | --- |
+| Codex 0.153.4 | No. Its stop payload carries session, turn, cwd, transcript, model, permission mode, request metadata, `stop_hook_active` and the last message ([source](https://github.com/openai/codex/blob/rust-v0.153.4/codex-rs/hooks/src/events/stop.rs)). | Not established; never parked unless `LOCUST_HOOKS=unattended`. |
+| Claude Code 2.1.292 | No field in the documented hook input. | Not established; never parked unless `LOCUST_HOOKS=unattended`. |
+| Droid 0.218.1 | No field in the documented hook input. | Not established; never parked unless `LOCUST_HOOKS=unattended`. |
+| pi (pinned `2db5e359`) | Yes: `ctx.mode` is `tui`, `rpc`, `json` or `print` ([types](https://github.com/earendil-works/pi/blob/2db5e359bf84c1c0be51d2c5c5c5c7cf27072c2b/packages/coding-agent/src/core/extensions/types.ts)). | Print and JSON runs park; TUI and RPC never do. pi is not installed, so not run natively. |
+
+### Verification of the fixes
+
+On these commits rebased on main at `93e187e` (`8319432` after it changes
+only the master plan): formatting and strict
+workspace Clippy passed; the full workspace suite passed (1,346 passed, 14
+ignored); `check_formations.py --write` changed nothing and the check passed;
+335 Python script tests passed (3 skipped). The hook suite has 35 binary tests
+through all four adapters, 58 adapter and core tests, and 38 setup tests in
+the setup module. The 13 Node fake-API tests of the Pi shim passed in three
+runs; one earlier run under load failed one of its timing tests.
+
+`check_hooks.py` replayed the conformance scenario through every adapter's
+installed command against a real daemon (Pi through its generated extension
+and a fake API): waiting work blocks once, an ignored block passes, a chat
+that never used Locust hears nothing, a subagent's callback is silent
+(Codex, Claude Code, Droid), a cancellation reaches stop and then one tool
+callback, compaction restores the held attempt, an own terminal
+acknowledgment invents no loss, and `setup remove` restores the original
+bytes. All four passed. Native versions: Codex 0.153.4, Claude Code
+2.1.292, Droid 0.218.1; pi missing. Real-model runs were not run: no
+provider key was set in this environment. Native pi was not run: pi is not
+installed. The disposable report is `output/hooks-fix-qualification.json`.
+

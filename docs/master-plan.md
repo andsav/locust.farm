@@ -383,10 +383,10 @@ changes signed bytes, and it rides in J2's step.
 | A1 | Agent tools say what they return; a context page holds at most 32 items | Built (`60c22d1`) |
 | A2 | An agent starts a free task in one call | before R7, if ready |
 | A3 | The first compact page lists current findings | Built (`c8aa2c3`) |
-| A4 | `status` lists held tasks and how to resume | Recovery instructions landed (`c5623d7`); CLI claim lines wait for G1 and a window with no unmerged G2 or E2 status work |
+| A4 | `status` lists held tasks and how to resume | Recovery instructions landed (`c5623d7`); CLI claim lines wait for a window with no unmerged G2 or E2 status work |
 | A5 | One ID cutter; later, short IDs an agent was shown | before R7 (cutter); after R7 (bridge) |
 | S2 | A long goal's cost is measured | before R8 |
-| H | An agent with work waiting keeps working, in every harness Locust sets up, with any model | before R7 (H1a needed) |
+| H | An agent with work waiting keeps working, in every harness Locust sets up, with any model | H1a built (`36f1120`); H1b built for Codex, Claude Code and Droid (`c198ee3`) and for pi without a native pi run (`59d380a`); H2 built (`d664008`); review fixes `cdefab6`, `589b534`, `a6b8166`. H3 waits for a window with no unmerged G2 or E2 status work |
 | A6 | An agent can retire its own finding | right after J2, in J2's step |
 | S3 | No format change ships under a released number | the first published build |
 
