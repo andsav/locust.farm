@@ -674,7 +674,8 @@ fn cache_does_not_authorize_a_missing_manifest_or_replaced_key() {
         before.manifest_decodes
     );
     // A manifest whose event is held but whose object never arrived
-    // authorizes nothing until the object arrives.
+    // authorizes nothing until the object arrives, although the file it
+    // names is held here already.
     let later_data = put(&mut peers[0], goal, b"later");
     let later = manifest(&mut peers[0], goal, vec![file("b", later_data, 5)]);
     publish(&mut peers, goal, workspace_root(later));
@@ -682,6 +683,11 @@ fn cache_does_not_authorize_a_missing_manifest_or_replaced_key() {
         manifest_state(&peers[1], goal, later).unwrap(),
         ManifestState::Missing
     ));
+    let sealed = Blob::new(peers[0].store.blob(&later_data).unwrap().unwrap());
+    let mut tx = crate::node::commit::Tx::none();
+    tx.commit.blobs.push(sealed);
+    peers[1].node.land(tx).unwrap();
+    assert!(peers[1].store.blob_len(&later_data).unwrap().is_some());
     assert_eq!(
         get(&mut peers[1], goal, later_data).unwrap_err().code,
         ErrorCode::NotFound
@@ -692,8 +698,6 @@ fn cache_does_not_authorize_a_missing_manifest_or_replaced_key() {
         manifest_state(&peers[1], goal, later).unwrap(),
         ManifestState::Ready { .. }
     ));
-    let sealed = Blob::new(peers[0].store.blob(&later_data).unwrap().unwrap());
-    assert_eq!(stage(&mut peers[1], goal, &sealed), Staged::Complete);
     assert_eq!(get(&mut peers[1], goal, later_data).unwrap(), b"later");
     assert_eq!(get(&mut peers[1], goal, data).unwrap(), b"data");
     assert_eq!(
