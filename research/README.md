@@ -7,6 +7,8 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 
 ## Investigations and experiments
 
+- [Strong solo versus heterogeneous negotiation: pilot protocol](experiments/negotiation_pilot/README.md)
+
 - [OpenAI mathematics methodology and its relevance to Locust](openai-math-methodology-2026-10-07.md)
 - [Locust v2 R6: documents, site and scripts](v2-phase-r6-build-notes-2026-10-06.md)
 - [Locust v2 G1: a daemon knows what it signed](v2-phase-g1-build-notes-2026-10-07.md)
