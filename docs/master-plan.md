@@ -383,7 +383,7 @@ changes signed bytes, and it rides in J2's step.
 | A1 | Agent tools say what they return; a context page holds at most 32 items | Built (`60c22d1`) |
 | A2 | An agent starts a free task in one call | before R7, if ready |
 | A3 | The first compact page lists current findings | Built (`c8aa2c3`) |
-| A4 | `status` lists held tasks and how to resume | before R7, if ready |
+| A4 | `status` lists held tasks and how to resume | Recovery instructions landed (`c5623d7`); CLI claim lines wait for G1 and a window with no unmerged G2 or E2 status work |
 | A5 | One ID cutter; later, short IDs an agent was shown | before R7 (cutter); after R7 (bridge) |
 | S2 | A long goal's cost is measured | before R8 |
 | H | An agent with work waiting keeps working, in every harness Locust sets up, with any model | before R7 (H1a needed) |

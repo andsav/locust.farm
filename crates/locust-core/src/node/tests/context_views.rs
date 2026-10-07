@@ -622,6 +622,80 @@ fn work_view(d: &mut Daemon, agent: ConnId, goal: GoalId) -> locust_proto::api::
 }
 
 #[test]
+fn unattended_includes_own_attempts_in_another_session_and_without_a_claim() {
+    use locust_proto::event::{AttemptStatus, TaskId};
+    let (mut d, goal, _, agents) = collaboration_view_setup(Default::default());
+    let task = TaskId::Authored(event(d.ok(
+        agents[0],
+        Request::TaskOpen {
+            goal,
+            text: "Work".into(),
+            task_type: None,
+            inputs: Default::default(),
+            parent: None,
+        },
+    )));
+    assert!(work_view(&mut d, agents[1], goal).to_start[0].unattended);
+    let Response::Claimed(claim) = d.ok(
+        agents[1],
+        Request::AttemptStart {
+            goal,
+            task,
+            offer: None,
+        },
+    ) else {
+        panic!()
+    };
+    let other_chat = d.connect(credential(2), Some(session(99)));
+    let check = |d: &mut Daemon| {
+        let work = work_view(d, other_chat, goal);
+        let item = work.to_start.iter().find(|item| item.task == task).unwrap();
+        assert!(
+            item.attempting.is_empty(),
+            "other-attempt list omits own principal"
+        );
+        assert!(
+            !item.unattended,
+            "a running attempt still occupies the task"
+        );
+    };
+    check(&mut d);
+    let held = d
+        .node
+        .goals
+        .get_mut(&goal)
+        .unwrap()
+        .claims
+        .remove(&claim.attempt)
+        .unwrap();
+    check(&mut d);
+    d.node
+        .goals
+        .get_mut(&goal)
+        .unwrap()
+        .claims
+        .insert(claim.attempt, held);
+    d.ok(
+        agents[1],
+        Request::AttemptReport {
+            goal,
+            attempt: claim.attempt,
+            generation: claim.generation,
+            status: AttemptStatus::Failed,
+            text: "Stopped".into(),
+        },
+    );
+    assert!(
+        work_view(&mut d, other_chat, goal)
+            .to_start
+            .iter()
+            .find(|item| item.task == task)
+            .unwrap()
+            .unattended
+    );
+}
+
+#[test]
 fn to_start_shows_other_attempts_results_and_sorts_least_attended_first() {
     use locust_proto::event::{AttemptStatus, TaskId};
     let (mut d, goal, members, agents) = collaboration_view_setup(Default::default());
@@ -683,6 +757,9 @@ fn to_start_shows_other_attempts_results_and_sorts_least_attended_first() {
         tasks
     );
     assert!(work.to_start[0].attempting.is_empty());
+    assert!(work.to_start[0].unattended);
+    assert!(!work.to_start[1].unattended);
+    assert!(!work.to_start[2].unattended);
     assert_eq!(
         work.to_start[1].attempting,
         vec![locust_proto::api::Attempting {
@@ -719,6 +796,13 @@ fn to_start_shows_other_attempts_results_and_sorts_least_attended_first() {
             .is_empty()
     );
     assert_eq!(work.to_start.last().unwrap().task, tasks[2]);
+    assert!(
+        work.to_start
+            .iter()
+            .find(|item| item.task == tasks[1])
+            .unwrap()
+            .unattended
+    );
 }
 
 #[test]

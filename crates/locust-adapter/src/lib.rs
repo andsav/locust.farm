@@ -15,4 +15,5 @@
 pub mod config;
 
 pub mod delivery;
+pub mod hooks;
 pub mod managed;

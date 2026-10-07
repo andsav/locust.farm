@@ -329,7 +329,7 @@ fn result(output: &std::process::Output) -> Value {
 }
 const READY_CLIENT: &str = r#"
 import json,os,subprocess,sys,time
-assert not any(k.startswith('LOCUST_') for k in os.environ)
+assert {k: v for k, v in os.environ.items() if k.startswith('LOCUST_')} == {'LOCUST_HOOKS': 'off'}
 profile=os.environ['HOME']
 config=json.load(open(profile+'/.factory/mcp.json'))
 assert config['unrelated'] is True and 'other' in config['mcpServers']

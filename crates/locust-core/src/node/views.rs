@@ -426,6 +426,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     }
                     let item = WorkItem {
                         task: task.id,
+                        unattended: entry.goal.unattended(task.id),
                         offer,
                         attempting: round
                             .attempts

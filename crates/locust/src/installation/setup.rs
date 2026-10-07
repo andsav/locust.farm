@@ -1,8 +1,9 @@
-//! Persistent client setup owns one MCP entry, skill and bound CLI launcher.
+//! Persistent client setup owns one MCP entry, native hooks, skill and bound CLI launcher.
 //! A private journal makes interrupted writes resumable; client readiness is
 //! independently observed.
 use super::*;
 use locust_adapter::config::{self, BridgePaths, StdioServer};
+use locust_adapter::hooks::{self, HookRegistration};
 use std::io::Read;
 use toml_edit::{DocumentMut, Item};
 mod launcher;
@@ -53,6 +54,14 @@ struct Record {
     skill: Image,
     launcher: Image,
     entry: String,
+    hooks: Vec<HookOwnership>,
+}
+#[derive(Clone, Serialize, Deserialize)]
+struct HookOwnership {
+    path: PathBuf,
+    original: Image,
+    config: Image,
+    registration: HookRegistration,
 }
 #[derive(Clone, Serialize, Deserialize)]
 struct Change {
@@ -81,10 +90,34 @@ impl SetupPlan {
 }
 struct Paths {
     config: PathBuf,
+    hook: Option<PathBuf>,
     skill: PathBuf,
     launcher: PathBuf,
     record: PathBuf,
     intent: PathBuf,
+}
+impl Paths {
+    fn profile_files(&self) -> Vec<&PathBuf> {
+        [&self.config, &self.skill, &self.launcher]
+            .into_iter()
+            .chain(self.hook.as_ref())
+            .collect()
+    }
+    fn owned_files(&self) -> Vec<&PathBuf> {
+        self.profile_files()
+            .into_iter()
+            .chain(std::iter::once(&self.record))
+            .collect()
+    }
+}
+fn adapter_client(client: Client) -> Option<config::Client> {
+    match client {
+        Client::Codex => Some(config::Client::Codex),
+        Client::Claude => Some(config::Client::ClaudeCode),
+        Client::Pi => Some(config::Client::Pi),
+        Client::Droid => Some(config::Client::FactoryDroid),
+        Client::Shell => None,
+    }
 }
 fn normalize(spec: &SetupSpec) -> Result<SetupSpec, Failure> {
     let mut s = spec.clone();
@@ -136,6 +169,9 @@ fn paths(s: &SetupSpec) -> Result<Paths, Failure> {
     let id = package::sha256(&encode(&(s.client, &s.profile_home))?);
     Ok(Paths {
         config,
+        hook: adapter_client(s.client)
+            .and_then(hooks::adapter)
+            .map(|adapter| s.profile_home.join(adapter.relative_config_path)),
         skill,
         launcher,
         record: s.prefix.join("setup").join(format!("{id}.json")),
@@ -204,6 +240,11 @@ fn read_record(p: &Paths) -> Result<(Image, Option<Record>), Failure> {
         .bytes
         .as_ref()
         .map(|bytes| {
+            let value: Value = serde_json::from_slice(bytes)
+                .map_err(|_| corrupt("invalid setup ownership record"))?;
+            if value["format"] == "locust-setup-owner-v2" {
+                return Err(v2_recovery());
+            }
             serde_json::from_slice::<Record>(bytes)
                 .map_err(|_| corrupt("invalid setup ownership record"))
         })
@@ -217,7 +258,23 @@ fn read_record(p: &Paths) -> Result<(Image, Option<Record>), Failure> {
     Ok((image, record))
 }
 fn record_format(record: &Record) -> bool {
-    record.format == "locust-setup-owner-v2" && record.launcher.bytes.is_some()
+    record.format == "locust-setup-owner-v3" && record.launcher.bytes.is_some()
+}
+fn v2_recovery() -> Failure {
+    corrupt(
+        "v2 setup ownership and journals cannot be used by this release; restore the release that created the v2 setup, review and run setup remove with its original binding, then retry setup plan/apply with this release. Keep the ownership record and journal until that removal finishes",
+    )
+}
+fn validate_hooks(record: &Record, p: &Paths) -> Result<(), Failure> {
+    if record.hooks.len() > 1
+        || record
+            .hooks
+            .iter()
+            .any(|owned| Some(&owned.path) != p.hook.as_ref())
+    {
+        return Err(corrupt("setup hook ownership target mismatch"));
+    }
+    Ok(())
 }
 fn protected(path: &Path) -> Result<Value, Failure> {
     let file = package::regular(path)?;
@@ -373,6 +430,100 @@ fn merge(client: Client, before: &Image, desired: Option<&str>) -> Result<Image,
         mode: Some(before.mode.unwrap_or(0o600)),
     })
 }
+fn hook_error(error: impl std::fmt::Display) -> Failure {
+    conflict(&format!(
+        "client hook configuration: {error}; preserving user edits"
+    ))
+}
+fn hook_document(client: Client, image: &Image) -> Result<Value, Failure> {
+    hooks::parse_configuration(
+        adapter_client(client).expect("hook adapter client"),
+        image.bytes.as_deref(),
+    )
+    .map_err(hook_error)
+}
+fn hook_image(client: Client, before: &Image, value: &Value) -> Result<Image, Failure> {
+    if &hook_document(client, before)? == value {
+        return Ok(before.clone());
+    }
+    let bytes =
+        hooks::render_configuration(adapter_client(client).expect("hook adapter client"), value)
+            .map_err(hook_error)?;
+    Ok(Image {
+        bytes: Some(bytes),
+        mode: Some(before.mode.unwrap_or(0o600)),
+    })
+}
+fn restore_hooks(client: Client, owned: &HookOwnership, current: &Image) -> Result<Image, Failure> {
+    if current == &owned.config {
+        return Ok(owned.original.clone());
+    }
+    let value = hooks::remove(
+        &hook_document(client, current)?,
+        &owned.registration,
+        &hook_document(client, &owned.original)?,
+    )
+    .map_err(hook_error)?;
+    // A missing file or entry is an intentional edit, not a request to recreate it.
+    hook_image(client, current, &value)
+}
+fn prepare_hooks(
+    s: &SetupSpec,
+    p: &Paths,
+    record: Option<&Record>,
+    remove: bool,
+) -> Result<(Vec<Change>, Vec<HookOwnership>), Failure> {
+    let Some(path) = &p.hook else {
+        return Ok((vec![], vec![]));
+    };
+    let current = snapshot(path)?;
+    let owned = record.and_then(|r| r.hooks.iter().find(|owned| &owned.path == path));
+    if remove {
+        return Ok((
+            vec![Change {
+                path: path.clone(),
+                before: current.clone(),
+                after: owned
+                    .map(|owned| restore_hooks(s.client, owned, &current))
+                    .transpose()?
+                    .unwrap_or(current),
+            }],
+            vec![],
+        ));
+    }
+    let (registration, original, after) = if let Some(owned) = owned {
+        // Keep only groups that the person still has installed. Updating the
+        // binding changes the launcher in place; it does not reinsert deleted hooks.
+        let registration =
+            hooks::retain_present(&hook_document(s.client, &current)?, &owned.registration)
+                .map_err(hook_error)?;
+        let original = restore_hooks(s.client, owned, &current)?;
+        (registration, original, current.clone())
+    } else {
+        let registration = hooks::registration(
+            adapter_client(s.client).expect("hook adapter client"),
+            &p.launcher,
+        )
+        .map_err(hook_error)?;
+        let value = hooks::install(&hook_document(s.client, &current)?, &registration)
+            .map_err(hook_error)?;
+        let after = hook_image(s.client, &current, &value)?;
+        (registration, current.clone(), after)
+    };
+    Ok((
+        vec![Change {
+            path: path.clone(),
+            before: current,
+            after: after.clone(),
+        }],
+        vec![HookOwnership {
+            path: path.clone(),
+            original,
+            config: after,
+            registration,
+        }],
+    ))
+}
 fn json_nested_collision(value: &Value, root: bool) -> bool {
     match value {
         Value::Object(map) => map.iter().any(|(k, v)| {
@@ -468,15 +619,18 @@ fn pending(s: &SetupSpec, p: &Paths, remove: bool) -> Result<Option<Transaction>
     }
     let tx: Transaction =
         serde_json::from_slice(&bytes).map_err(|_| corrupt("invalid setup journal"))?;
+    if tx.plan.review["format"] == "locust-setup-plan-v2" {
+        return Err(v2_recovery());
+    }
+    if tx.plan.review["format"].as_str() != Some("locust-setup-plan-v3") {
+        return Err(corrupt("unknown setup journal plan format"));
+    }
     if tx.spec_hash != package::sha256(&encode(s)?) || (tx.remove && !remove) {
         return Err(conflict(
             "finish the pending setup operation with its original binding first",
         ));
     }
-    if tx.plan.review["format"].as_str() != Some("locust-setup-plan-v2") {
-        return Err(corrupt("unknown setup journal plan format"));
-    }
-    let owned_paths = [&p.config, &p.skill, &p.launcher, &p.record];
+    let owned_paths = p.owned_files();
     if tx.changes.len() != owned_paths.len()
         || owned_paths.iter().any(|path| {
             tx.changes
@@ -506,14 +660,18 @@ fn pending(s: &SetupSpec, p: &Paths, remove: bool) -> Result<Option<Transaction>
             .iter()
             .find(|c| c.path == p.record)
             .expect("validated paths");
-        let record: Record = serde_json::from_slice(
-            owned
-                .after
-                .bytes
-                .as_deref()
-                .ok_or_else(|| corrupt("pending apply has no intended ownership"))?,
-        )
-        .map_err(|_| corrupt("invalid pending setup ownership"))?;
+        let bytes = owned
+            .after
+            .bytes
+            .as_deref()
+            .ok_or_else(|| corrupt("pending apply has no intended ownership"))?;
+        let value: Value = serde_json::from_slice(bytes)
+            .map_err(|_| corrupt("invalid pending setup ownership"))?;
+        if value["format"] == "locust-setup-owner-v2" {
+            return Err(v2_recovery());
+        }
+        let record: Record = serde_json::from_slice(bytes)
+            .map_err(|_| corrupt("invalid pending setup ownership"))?;
         if !record_format(&record)
             || record.spec.client != s.client
             || record.spec.profile_home != s.profile_home
@@ -540,13 +698,25 @@ fn pending(s: &SetupSpec, p: &Paths, remove: bool) -> Result<Option<Transaction>
         {
             return Err(corrupt("pending apply ownership disagrees with journal"));
         }
+        validate_hooks(&record, p)?;
+        if record.hooks.len() != usize::from(p.hook.is_some())
+            || record.hooks.iter().any(|owned| {
+                tx.changes
+                    .iter()
+                    .find(|c| c.path == owned.path)
+                    .map(|c| &c.after)
+                    != Some(&owned.config)
+            })
+        {
+            return Err(corrupt("pending hook ownership disagrees with journal"));
+        }
         Some(record)
     } else {
         None
     };
     if remove && !tx.remove {
         let record = intended_record.expect("validated pending apply ownership");
-        let changes = vec![
+        let mut changes = vec![
             Change {
                 path: p.config.clone(),
                 before: snapshot(&p.config)?,
@@ -568,6 +738,14 @@ fn pending(s: &SetupSpec, p: &Paths, remove: bool) -> Result<Option<Transaction>
                 after: Image::absent(),
             },
         ];
+        for owned in record.hooks {
+            // Every current file was checked against the before/after images above.
+            changes.push(Change {
+                path: owned.path.clone(),
+                before: snapshot(&owned.path)?,
+                after: owned.original,
+            });
+        }
         let review = json!({"format":tx.plan.review["format"],"action":"remove","spec":s,
             "cleanup_pending_apply_sha256":tx.plan.digest()?,
             "files":changes.iter().map(|c|json!({"path":c.path,"before":c.before.summary(),"after":c.after.summary()})).collect::<Vec<_>>(),
@@ -601,7 +779,7 @@ fn prepare(s: &SetupSpec, remove: bool) -> Result<Transaction, Failure> {
     private_dir(&s.prefix, false)?;
     private_dir(&s.prefix.join("setup"), false)?;
     let p = paths(s)?;
-    for path in [&p.config, &p.skill, &p.launcher] {
+    for path in p.profile_files() {
         dirs(&s.profile_home, path.parent().expect("file parent"), false)?;
     }
     if let Some(tx) = pending(s, &p, remove)? {
@@ -612,6 +790,7 @@ fn prepare(s: &SetupSpec, remove: bool) -> Result<Transaction, Failure> {
     let launcher = snapshot(&p.launcher)?;
     let (record_image, record) = read_record(&p)?;
     if let Some(r) = &record {
+        validate_hooks(r, &p)?;
         if r.spec.client != s.client || r.spec.profile_home != s.profile_home {
             return Err(corrupt("setup ownership target mismatch"));
         }
@@ -634,6 +813,7 @@ fn prepare(s: &SetupSpec, remove: bool) -> Result<Transaction, Failure> {
     } else {
         json!({"credential":protected(&s.credential)?,"session":protected(&s.session)?})
     };
+    let (hook_changes, hook_ownership) = prepare_hooks(s, &p, record.as_ref(), remove)?;
     let (after_config, after_skill, after_launcher, after_record, source) = if remove {
         if let Some(r) = record {
             let restored = if config == r.config {
@@ -697,13 +877,14 @@ fn prepare(s: &SetupSpec, remove: bool) -> Result<Transaction, Failure> {
             None => config.clone(),
         };
         let r = Record {
-            format: "locust-setup-owner-v2".into(),
+            format: "locust-setup-owner-v3".into(),
             spec: s.clone(),
             original,
             config: new_config.clone(),
             skill: new_skill.clone(),
             launcher: new_launcher.clone(),
             entry,
+            hooks: hook_ownership,
         };
         let new_record = Image {
             bytes: Some(encode(&r)?),
@@ -717,7 +898,7 @@ fn prepare(s: &SetupSpec, remove: bool) -> Result<Transaction, Failure> {
             installed["manifest_sha256"].clone(),
         )
     };
-    let changes = vec![
+    let mut changes = vec![
         Change {
             path: p.config,
             before: config,
@@ -739,7 +920,11 @@ fn prepare(s: &SetupSpec, remove: bool) -> Result<Transaction, Failure> {
             after: after_record,
         },
     ];
-    let review = json!({"format":"locust-setup-plan-v2","action":if remove{"remove"}else{"apply"},"spec":s,"source_manifest_sha256":source,"files":changes.iter().map(|c|json!({"path":c.path,"before":c.before.summary(),"after":c.after.summary()})).collect::<Vec<_>>(),"collision_inputs":collision,"binding_fingerprints":binding,"server":if remove{None}else{Some(desired(s)?)},"launcher":p.launcher,"reload_required":true,"discovered":false,"api_ready":false,"binding_scope":"explicit profile/session"});
+    // Keep ownership last: an interrupted install always has a complete journal.
+    let record_change = changes.pop().expect("record change");
+    changes.extend(hook_changes);
+    changes.push(record_change);
+    let review = json!({"format":"locust-setup-plan-v3","action":if remove{"remove"}else{"apply"},"spec":s,"source_manifest_sha256":source,"files":changes.iter().map(|c|json!({"path":c.path,"before":c.before.summary(),"after":c.after.summary()})).collect::<Vec<_>>(),"collision_inputs":collision,"binding_fingerprints":binding,"server":if remove{None}else{Some(desired(s)?)},"launcher":p.launcher,"hook_config":p.hook,"hook_trust_review_required":s.client==Client::Codex && !remove,"reload_required":true,"discovered":false,"api_ready":false,"binding_scope":"explicit profile/session"});
     Ok(Transaction {
         spec_hash: package::sha256(&encode(s)?),
         remove,
@@ -757,7 +942,7 @@ pub fn preflight_new(spec: &SetupSpec) -> Result<Value, Failure> {
     private_dir(&s.prefix, false)?;
     private_dir(&s.prefix.join("setup"), false)?;
     let p = paths(&s)?;
-    for path in [&p.config, &p.skill, &p.launcher] {
+    for path in p.profile_files() {
         dirs(&s.profile_home, path.parent().expect("file parent"), false)?;
     }
     let config = snapshot(&p.config)?;
@@ -771,8 +956,18 @@ pub fn preflight_new(spec: &SetupSpec) -> Result<Value, Failure> {
             "this client profile already has Locust setup; preserve its binding and use setup status/remove before onboarding a different identity",
         ));
     }
+    if let Some(path) = &p.hook {
+        let registration = hooks::registration(
+            adapter_client(s.client).expect("hook adapter client"),
+            &p.launcher,
+        )
+        .map_err(hook_error)?;
+        // Read-only collision and shape validation before enrollment.
+        hooks::install(&hook_document(s.client, &snapshot(path)?)?, &registration)
+            .map_err(hook_error)?;
+    }
     Ok(
-        json!({"config":p.config,"config_file":config.summary(),"skill":p.skill,
+        json!({"config":p.config,"config_file":config.summary(),"hook_config":p.hook,"skill":p.skill,
         "launcher":p.launcher,"collision_inputs":collisions(&s, &p, &config)?}),
     )
 }
@@ -857,7 +1052,7 @@ fn execute(
             .iter()
             .any(|c| c.path == p.launcher && c.after.bytes.is_some());
     Ok(
-        json!({"changed":tx.changes.iter().any(|c|c.before!=c.after),"configured":launcher_ready,"removed":remove,"launcher":p.launcher,"launcher_ready":launcher_ready,"reload_required":true,"discovered":false,"api_ready":false,"plan_sha256":expected}),
+        json!({"changed":tx.changes.iter().any(|c|c.before!=c.after),"configured":launcher_ready,"removed":remove,"launcher":p.launcher,"launcher_ready":launcher_ready,"hook_config":p.hook,"hook_trust_review_required":s.client==Client::Codex && !remove,"reload_required":true,"discovered":false,"api_ready":false,"plan_sha256":expected}),
     )
 }
 pub fn apply(spec: &SetupSpec, expected: &str) -> Result<Value, Failure> {
@@ -871,10 +1066,13 @@ pub fn status(spec: &SetupSpec) -> Result<Value, Failure> {
     let p = paths(&s)?;
     private_dir(&s.prefix, false)?;
     private_dir(&s.prefix.join("setup"), false)?;
-    for path in [&p.config, &p.skill, &p.launcher] {
+    for path in p.profile_files() {
         dirs(&s.profile_home, path.parent().expect("parent"), false)?;
     }
     let (_, r) = read_record(&p)?;
+    if let Some(record) = &r {
+        validate_hooks(record, &p)?;
+    }
     let launcher_image = snapshot(&p.launcher)?;
     let launcher_ready = r
         .as_ref()
@@ -889,7 +1087,20 @@ pub fn status(spec: &SetupSpec) -> Result<Value, Failure> {
     } else {
         false
     };
-    let intact = mcp_ready && skill_ready && launcher_ready;
+    let hooks_ready = if let Some(record) = &r {
+        let mut ready = true;
+        for owned in &record.hooks {
+            ready &= hooks::installed(
+                &hook_document(s.client, &snapshot(&owned.path)?)?,
+                &owned.registration,
+            )
+            .unwrap_or(false);
+        }
+        ready
+    } else {
+        false
+    };
+    let intact = mcp_ready && skill_ready && launcher_ready && hooks_ready;
     let binding_matches = r.as_ref().is_some_and(|r| {
         r.spec.executable == s.executable
             && r.spec.daemon_home == s.daemon_home
@@ -899,7 +1110,7 @@ pub fn status(spec: &SetupSpec) -> Result<Value, Failure> {
             && r.spec.profile_home == s.profile_home
     });
     Ok(
-        json!({"owned":r.is_some(),"configured":intact,"binding_matches":binding_matches,"pending":exists(&p.intent)?,"client":s.client,"profile_home":s.profile_home,"launcher":p.launcher,"launcher_ready":launcher_ready,"mcp_ready":mcp_ready,"skill_ready":skill_ready,"reload_required":true,"discovered":false,"api_ready":false,"binding_scope":"explicit profile/session"}),
+        json!({"owned":r.is_some(),"configured":intact,"binding_matches":binding_matches,"pending":exists(&p.intent)?,"client":s.client,"profile_home":s.profile_home,"launcher":p.launcher,"launcher_ready":launcher_ready,"mcp_ready":mcp_ready,"skill_ready":skill_ready,"hook_config":p.hook,"hooks_ready":hooks_ready,"hook_trust_review_required":s.client==Client::Codex && r.is_some(),"reload_required":true,"discovered":false,"api_ready":false,"binding_scope":"explicit profile/session"}),
     )
 }
 #[cfg(test)]

@@ -2518,6 +2518,31 @@
           {
             "action": "Set",
             "help": null,
+            "long": null,
+            "name": "event",
+            "positional": true,
+            "required": true,
+            "short": null
+          },
+          {
+            "action": "Set",
+            "help": null,
+            "long": "harness",
+            "name": "harness",
+            "positional": false,
+            "required": true,
+            "short": null
+          }
+        ],
+        "commands": [],
+        "name": "hook",
+        "summary": "Read local work at a native chat hook; never sign or act"
+      },
+      {
+        "arguments": [
+          {
+            "action": "Set",
+            "help": null,
             "long": "lifecycle-receipt",
             "name": "lifecycle-receipt",
             "positional": false,
@@ -16614,10 +16639,15 @@
           },
           "task": {
             "$ref": "#/$defs/TaskId"
+          },
+          "unattended": {
+            "description": "No member has a running attempt in this task's current round, as heard here.",
+            "type": "boolean"
           }
         },
         "required": [
           "task",
+          "unattended",
           "attempting",
           "results"
         ],

@@ -221,7 +221,7 @@ fn plan_text(value: &Value) -> String {
             plan["action"].as_str().unwrap_or("review"),
             plan["unit_path"].as_str().unwrap_or("none")
         ),
-        Some("locust-setup-plan-v2") => {
+        Some("locust-setup-plan-v3") => {
             let files = plan["files"]
                 .as_array()
                 .map(|files| {

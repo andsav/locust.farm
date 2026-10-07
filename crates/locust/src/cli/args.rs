@@ -218,6 +218,7 @@ pub(super) fn command() -> Command {
         .subcommand(super::farm::commands())
         .subcommand(Command::new("contract").about("Export API, event and MCP contracts offline"))
         .subcommand(super::doctor::command())
+        .subcommand(super::hook::command())
         .subcommand(
             Command::new("mcp")
                 .about("Serve authenticated MCP tools")

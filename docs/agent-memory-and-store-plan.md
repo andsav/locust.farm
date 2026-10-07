@@ -612,6 +612,14 @@ stay the fallback and the only way an agent acts.
 
 **Depends on.** H1a: A4, for order. H1b, H2: H1a. H3: H1a, A4.
 
+**H1a harness choice, 7 October 2026.** R7's run text does not yet name
+harnesses. Its first adapters are Codex and Claude Code, from different
+vendors. Both wrap the same core events and output. The runtime receives the
+daemon's `WorkItem.unattended` fact from `Goal::unattended`, which checks every
+running attempt in the current round, including the caller's own principal.
+A2's future no-task selection must reuse that predicate; the other-members-only
+`attempting` list cannot establish it. No signed or synced record changes.
+
 **Changes, H1a** (the core, its adapter interface, and adapters for the
 harnesses R7's early run uses, named in R7's run text by P).
 - `locust hook start|stop|tool --harness NAME`, a new `hook.rs` dispatched

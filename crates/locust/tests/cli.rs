@@ -2836,6 +2836,7 @@ fn watch_names_a_task_and_a_member_that_appeared_while_it_waited() {
         Request::Wait { .. } => Ok(Response::Waited(WaitOutcome::Work(Box::new(PendingWork {
             revision: 2,
             to_start: vec![WorkItem {
+                unattended: false,
                 task,
                 offer: None,
                 attempting: vec![Attempting {

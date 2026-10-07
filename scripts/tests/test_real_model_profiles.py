@@ -16,9 +16,15 @@ from client_qualification.runtime import Profile
 
 class RealModelProfileTests(unittest.TestCase):
     def setUp(self):
-        self.output = tempfile.TemporaryDirectory()
+        self.output = tempfile.TemporaryDirectory(prefix="lh.", dir="/tmp")
         self.addCleanup(self.output.cleanup)
-        self.profile = Profile(self.output.name, "real-test")
+        mkdtemp = tempfile.mkdtemp
+        def private_tempdir(*args, **kwargs):
+            if kwargs.get("dir") == "/tmp":
+                kwargs["prefix"] = "lh."
+            return mkdtemp(*args, **kwargs)
+        with patch("client_qualification.runtime.tempfile.mkdtemp", side_effect=private_tempdir):
+            self.profile = Profile(self.output.name, "real-test")
         self.addCleanup(self.profile.close)
         self.ambient = {"OPENAI_API_KEY": "openai-test-secret", "ANTHROPIC_API_KEY": "anthropic-test-secret",
                         "FACTORY_API_KEY": "owner-factory-secret", "ANTHROPIC_AUTH_TOKEN": "owner-token",
@@ -32,6 +38,7 @@ class RealModelProfileTests(unittest.TestCase):
         for client, expected in (("codex", "OPENAI_API_KEY"), ("claude-code", "ANTHROPIC_API_KEY"),
                                  ("factory-droid", "OPENAI_API_KEY"), ("pi", "OPENAI_API_KEY")):
             result = self.configure(client)
+            self.assertEqual(result.environment["LOCUST_HOOKS"], "off")
             for key in self.ambient:
                 if key == "HOME":
                     self.assertEqual(result.environment[key], str(self.profile.home))
@@ -132,6 +139,92 @@ class RealModelProfileTests(unittest.TestCase):
             self.assertNotIn(env["OPENAI_API_KEY"], Path(path).read_text())
             self.assertIn("<redacted-provider-key>", Path(path).read_text())
         self.assertIn("outside this claim", run["capture_redaction"])
+
+    def hook_group(self, command="'/tmp/lh.fixture/locust-cli' hook stop --harness claude"):
+        return {"hooks": [{"type": "command", "command": command, "timeout": 300,
+                           "statusMessage": "Locust"}]}
+
+    def test_hook_opt_in_merges_existing_settings_without_duplicate_groups(self):
+        paths = {"codex": ".codex/hooks.json", "claude-code": ".claude/settings.json"}
+        for client, relative in paths.items():
+            path = self.profile.home / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            original = {"hooks": {"Stop": [{"hooks": [{"type": "command", "command": "existing-hook"}]}]},
+                        "unrelated": {"keep": True}}
+            path.write_text(json.dumps(original))
+            group = self.hook_group()
+            supplied = {"hooks": {"Stop": [group], "SessionStart": [self.hook_group("'/tmp/lh.fixture/locust-cli' hook start --harness claude")]}}
+            result = self.configure(client, hooks=True, hook_settings=supplied)
+            self.assertNotIn("LOCUST_HOOKS", result.environment)
+            settings = json.loads(path.read_text())
+            self.assertEqual(settings["unrelated"], original["unrelated"])
+            self.assertEqual(settings["hooks"]["Stop"], original["hooks"]["Stop"] + [group])
+            before = path.read_bytes()
+            self.configure(client, hooks=True, hook_settings=supplied)
+            self.assertEqual(path.read_bytes(), before)
+            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+            self.assertTrue(result.metadata["hook_execution"].startswith("not_run"))
+
+    def test_hook_opt_in_preserves_setup_settings_bytes_and_claude_loads_explicitly(self):
+        path = self.profile.home / ".claude/settings.json"
+        path.parent.mkdir()
+        original = json.dumps({"hooks": {"Stop": [self.hook_group()]}, "unrelated": True}, indent=4) + "\n"
+        path.write_text(original)
+        result = self.configure("claude-code", hooks=True)
+        self.assertEqual(path.read_text(), original)
+        argv = result.invocation("prompt", ["--mcp-config", "private"])
+        self.assertNotIn("--bare", argv)
+        self.assertEqual(argv[argv.index("--settings") + 1], str(path))
+        self.assertEqual(argv[argv.index("--setting-sources") + 1], "")
+        self.assertIn("--include-hook-events", argv)
+        default = self.configure("claude-code")
+        self.assertIn("--bare", default.invocation("prompt", []))
+        self.assertEqual(default.environment["LOCUST_HOOKS"], "off")
+
+    def test_existing_codex_toml_and_hook_opt_out_are_preserved_with_provider_overrides(self):
+        path = self.profile.home / ".codex/config.toml"
+        path.parent.mkdir()
+        original = b'# preserve comments\nmodel = "old"\n[features]\nhooks = false\n[mcp_servers.locust]\ncommand = "/private/launcher"\n'
+        path.write_bytes(original)
+        result = self.configure("codex")
+        self.assertEqual(path.read_bytes(), original)
+        argv = result.invocation("prompt", ["--overlay", "private"])
+        overrides = result.metadata["provider_overrides"]
+        self.assertEqual(argv[1:1+len(overrides)], overrides)
+        self.assertIn('model_provider="locust_real_openai"', overrides)
+        self.assertIn('model_providers.locust_real_openai.env_key="OPENAI_API_KEY"', overrides)
+        self.assertNotIn("features.hooks=true", overrides)
+
+    def test_hook_settings_conflicts_and_invalid_inputs_preserve_existing_bytes(self):
+        path = self.profile.home / ".claude/settings.json"
+        path.parent.mkdir()
+        group = self.hook_group()
+        original = json.dumps({"hooks": {"Stop": [group]}, "unrelated": True})
+        path.write_text(original)
+        changed = self.hook_group()
+        changed["hooks"][0]["timeout"] = 5
+        for supplied in ({"hooks": {"Stop": [changed]}}, {"unrelated": False},
+                         {"hooks": {"Stop": "bad"}}, {"hooks": {"Stop": [self.hook_group("${HOME}/locust")]}}):
+            with self.assertRaises(ValueError):
+                self.configure("claude-code", hooks=True, hook_settings=supplied)
+            self.assertEqual(path.read_text(), original)
+        with self.assertRaisesRegex(ValueError, "explicit hook"):
+            self.configure("claude-code", hook_settings={"hooks": {"Stop": [group]}})
+        with self.assertRaisesRegex(ValueError, "supported native adapter"):
+            self.configure("factory-droid", hooks=True)
+
+    def test_hook_settings_require_installed_entries_and_refuse_symlink_paths(self):
+        with self.assertRaisesRegex(ValueError, "requires adapter settings"):
+            self.configure("claude-code", hooks=True)
+        self.assertFalse((self.profile.home / ".claude/settings.json").exists())
+        path = self.profile.home / ".claude/settings.json"
+        path.parent.mkdir()
+        sentinel = self.profile.root / "sentinel.json"
+        sentinel.write_text('{"preserve":true}')
+        path.symlink_to(sentinel)
+        with self.assertRaisesRegex(ValueError, "symlinks"):
+            self.configure("claude-code", hooks=True, hook_settings={"hooks": {"Stop": [self.hook_group()]}})
+        self.assertEqual(sentinel.read_text(), '{"preserve":true}')
 
 
 if __name__ == "__main__":

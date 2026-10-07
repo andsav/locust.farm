@@ -8,6 +8,7 @@ mod connection;
 mod doctor;
 mod farm;
 mod formation;
+mod hook;
 mod install;
 mod invitations;
 mod onboarding;
@@ -58,6 +59,7 @@ impl Output {
 pub(super) fn run() -> u8 {
     let arguments: Vec<_> = std::env::args_os().collect();
     let mcp_mode = mcp_invocation(&arguments);
+    let hook_mode = command_invocation(&arguments, "hook");
     let json_mode = !mcp_mode && arguments.iter().any(|arg| arg == "--json");
     let matches = match args::command().try_get_matches_from(arguments) {
         Ok(matches) => matches,
@@ -84,6 +86,12 @@ pub(super) fn run() -> u8 {
             };
             return print::status(written, 0);
         }
+        Err(_) if hook_mode => {
+            if std::env::var_os("LOCUST_HOOKS").is_none_or(|value| value != "off") {
+                let _ = print::stdout(format_args!("Locust context was NOT injected\n"));
+            }
+            return 0;
+        }
         Err(error) => return print_failure(Failure::usage(error.to_string()), json_mode),
     };
     if let Some(("mcp", selected)) = matches.subcommand() {
@@ -91,6 +99,9 @@ pub(super) fn run() -> u8 {
             Ok(()) => 0,
             Err(error) => print_failure(error, false),
         };
+    }
+    if let Some(("hook", selected)) = matches.subcommand() {
+        return hook::run(&matches, selected);
     }
     match execute(&matches) {
         Ok(output) => {
@@ -116,6 +127,9 @@ pub(super) fn run() -> u8 {
 // named "mcp" with the transport subcommand. Successful parsing uses Clap's
 // actual selected subcommand for dispatch.
 fn mcp_invocation(arguments: &[std::ffi::OsString]) -> bool {
+    command_invocation(arguments, "mcp")
+}
+fn command_invocation(arguments: &[std::ffi::OsString], command: &str) -> bool {
     let mut arguments = arguments.iter().skip(1);
     while let Some(argument) = arguments.next() {
         let Some(argument) = argument.to_str() else {
@@ -127,9 +141,9 @@ fn mcp_invocation(arguments: &[std::ffi::OsString]) -> bool {
         ) {
             arguments.next();
         } else if argument == "--" {
-            return arguments.next().is_some_and(|argument| argument == "mcp");
+            return arguments.next().is_some_and(|argument| argument == command);
         } else if !argument.starts_with('-') {
-            return argument == "mcp";
+            return argument == command;
         }
     }
     false

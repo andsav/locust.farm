@@ -1650,6 +1650,8 @@ pub struct Claim {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct WorkItem {
     pub task: TaskId,
+    /// No member has a running attempt in this task's current round, as heard here.
+    pub unattended: bool,
     pub offer: Option<EventId>,
     pub attempting: Vec<Attempting>,
     pub results: u32,

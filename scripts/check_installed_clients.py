@@ -339,6 +339,7 @@ def qualify(client, binary, args):
     timeout = args.timeout_ms / 1000
     try:
         env = profile.environment(binary)
+        env["LOCUST_HOOKS"] = "off"
         # Default HOME discovery locations, not a separate custom Claude config root.
         env.pop("CLAUDE_CONFIG_DIR", None)
         (profile.home / ".pi/agent/sessions").mkdir(mode=0o700, parents=True, exist_ok=True)

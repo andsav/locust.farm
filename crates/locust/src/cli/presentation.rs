@@ -1728,6 +1728,7 @@ mod tests {
                 unavailable: 0,
             }),
             ask_first: vec![WorkItem {
+                unattended: false,
                 task,
                 offer: None,
                 attempting: vec![],
@@ -1735,6 +1736,7 @@ mod tests {
             }],
             to_start: vec![
                 WorkItem {
+                    unattended: false,
                     task,
                     offer: None,
                     attempting: vec![Attempting {
@@ -1744,6 +1746,7 @@ mod tests {
                     results: 1,
                 },
                 WorkItem {
+                    unattended: false,
                     task: TaskId::Derived(EffectId([6; 32])),
                     offer: Some(event),
                     attempting: vec![],

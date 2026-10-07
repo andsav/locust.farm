@@ -1,4 +1,4 @@
-//! Setup-owned shell entry point. Paths are quoted data; secret bytes are never embedded.
+//! Setup-owned CLI, MCP and hook entry point. Paths are quoted data; secret bytes are never embedded.
 use super::{Failure, Path, SetupSpec};
 
 fn quote(path: &Path) -> Result<String, Failure> {
@@ -12,6 +12,8 @@ fn quote(path: &Path) -> Result<String, Failure> {
 }
 
 pub(super) fn render(spec: &SetupSpec) -> Result<Vec<u8>, Failure> {
+    // Native hooks use this same agent binding; stdin and the adapter envelope
+    // pass through unchanged to `locust hook`.
     // Reserve these spellings even after `--`: another option can consume that
     // delimiter as its value. Literal text equal to a reserved flag can use stdin.
     Ok(format!(

@@ -1,7 +1,10 @@
 use super::*;
 use ed25519_dalek::{Signer, SigningKey};
 fn fixture(client: Client) -> (tempfile::TempDir, SetupSpec) {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempfile::Builder::new()
+        .prefix("lh.")
+        .tempdir_in("/tmp")
+        .unwrap();
     let base = dir.path();
     let prefix = base.join("software");
     let root = base.join("bundle");
@@ -157,7 +160,7 @@ fn remove_preserves_unrelated_edits_and_rejects_owned_edits() {
 }
 #[test]
 fn interrupted_writes_resume_original_review_and_reject_unknown_state() {
-    for stop in 0..4 {
+    for stop in 0..5 {
         let (_d, s) = fixture(Client::Codex);
         let a = plan(&s, false).unwrap();
         let digest = a.digest().unwrap();
@@ -359,7 +362,7 @@ fn status_separates_owned_integrity_from_requested_binding_match() {
 
 #[test]
 fn interrupted_apply_can_be_removed_after_uninstall_without_old_secrets() {
-    for stop in 0..4 {
+    for stop in 0..5 {
         let (_d, s) = fixture(Client::Claude);
         let p = paths(&s).unwrap();
         let baseline = b"{\"unrelated\":\"keep\"}";
@@ -500,7 +503,10 @@ fn launcher_is_owned_executable_and_skill_preserves_signed_frontmatter() {
         let source = fs::read(&s.skill_source).unwrap();
         let a = plan(&s, false).unwrap();
         assert_eq!(a.review["launcher"], p.launcher.to_str().unwrap());
-        assert_eq!(a.review["files"].as_array().unwrap().len(), 4);
+        assert_eq!(
+            a.review["files"].as_array().unwrap().len(),
+            4 + usize::from(p.hook.is_some())
+        );
         let result = apply(&s, &a.digest().unwrap()).unwrap();
         assert_eq!(result["launcher_ready"], true);
         assert_eq!(result["launcher"], p.launcher.to_str().unwrap());
@@ -677,6 +683,7 @@ fn setup_images(s: &SetupSpec) -> Vec<Image> {
         &s.skill_source,
     ]
     .into_iter()
+    .chain(p.hook.as_ref())
     .map(|path| snapshot(path).unwrap())
     .collect()
 }
@@ -690,7 +697,11 @@ fn unsupported_ownership_formats_refuse_every_operation_without_mutation() {
         Client::Droid,
         Client::Shell,
     ] {
-        for format in ["locust-setup-owner-v1", "unknown-setup-format"] {
+        for format in [
+            "locust-setup-owner-v1",
+            "locust-setup-owner-v2",
+            "unknown-setup-format",
+        ] {
             let (_d, s) = fixture(client);
             let initial = plan(&s, false).unwrap();
             apply(&s, &initial.digest().unwrap()).unwrap();
@@ -726,7 +737,7 @@ fn unsupported_pending_journal_formats_refuse_before_resuming_or_cleanup() {
         Client::Droid,
         Client::Shell,
     ] {
-        for applied_paths in 0..=4 {
+        for applied_paths in 0..=4 + usize::from(matches!(client, Client::Codex | Client::Claude)) {
             let (_d, s) = fixture(client);
             let p = paths(&s).unwrap();
             let mut tx = prepare(&s, false).unwrap();
@@ -861,5 +872,273 @@ fn droid_setup_refuses_ancestor_overrides_before_writing_its_profile() {
     assert_eq!(
         fs::read(&project).unwrap(),
         br#"{"mcpServers":{"locust":{"command":"other"}}}"#
+    );
+}
+
+#[test]
+fn native_hooks_roundtrip_exact_bytes_and_absent_files() {
+    for client in [Client::Codex, Client::Claude] {
+        for baseline in [
+            None,
+            Some(b"{ \"unrelated\": true, \"hooks\": { \"Stop\": [] } }\n".as_slice()),
+        ] {
+            let (_directory, spec) = fixture(client);
+            let p = paths(&spec).unwrap();
+            let hook = p.hook.as_ref().unwrap();
+            if let Some(bytes) = baseline {
+                put(hook, bytes);
+                fs::set_permissions(hook, fs::Permissions::from_mode(0o640)).unwrap();
+            }
+            let original = snapshot(hook).unwrap();
+            let reviewed = plan(&spec, false).unwrap();
+            assert_eq!(reviewed.review["format"], "locust-setup-plan-v3");
+            assert_eq!(reviewed.review["hook_config"], hook.to_str().unwrap());
+            apply(&spec, &reviewed.digest().unwrap()).unwrap();
+            let (_, record) = read_record(&p).unwrap();
+            let record = record.unwrap();
+            assert_eq!(record.format, "locust-setup-owner-v3");
+            assert_eq!(record.hooks.len(), 1);
+            assert!(
+                hooks::installed(
+                    &parse_json(&snapshot(hook).unwrap()).unwrap(),
+                    &record.hooks[0].registration
+                )
+                .unwrap()
+            );
+            assert_eq!(status(&spec).unwrap()["hooks_ready"], true);
+            let reviewed = plan(&spec, true).unwrap();
+            remove(&spec, &reviewed.digest().unwrap()).unwrap();
+            assert_eq!(snapshot(hook).unwrap(), original);
+        }
+    }
+}
+
+#[test]
+fn hook_removal_and_reapply_preserve_unrelated_entries() {
+    for client in [Client::Codex, Client::Claude] {
+        for reapply in [false, true] {
+            let (_directory, spec) = fixture(client);
+            let p = paths(&spec).unwrap();
+            let hook = p.hook.as_ref().unwrap();
+            let reviewed = plan(&spec, false).unwrap();
+            apply(&spec, &reviewed.digest().unwrap()).unwrap();
+            let mut config = parse_json(&snapshot(hook).unwrap()).unwrap();
+            let other = json!({"hooks":[{"type":"command","command":"other-agent-hook"}]});
+            config["hooks"]["Stop"]
+                .as_array_mut()
+                .unwrap()
+                .push(other.clone());
+            config["unrelated"] = json!({"keep":true});
+            put(hook, &encode(&config).unwrap());
+            if reapply {
+                let before = snapshot(hook).unwrap();
+                let reviewed = plan(&spec, false).unwrap();
+                apply(&spec, &reviewed.digest().unwrap()).unwrap();
+                assert_eq!(snapshot(hook).unwrap(), before);
+            }
+            let reviewed = plan(&spec, true).unwrap();
+            remove(&spec, &reviewed.digest().unwrap()).unwrap();
+            let after = parse_json(&snapshot(hook).unwrap()).unwrap();
+            assert_eq!(
+                after,
+                json!({"hooks":{"Stop":[other]},"unrelated":{"keep":true}})
+            );
+        }
+    }
+}
+
+#[test]
+fn hand_removed_hook_and_hook_file_stay_out_across_reapply_and_remove() {
+    for client in [Client::Codex, Client::Claude] {
+        for remove_file in [false, true] {
+            let (_directory, spec) = fixture(client);
+            let p = paths(&spec).unwrap();
+            let hook = p.hook.as_ref().unwrap();
+            let reviewed = plan(&spec, false).unwrap();
+            apply(&spec, &reviewed.digest().unwrap()).unwrap();
+            let (_, record) = read_record(&p).unwrap();
+            let removed = record.unwrap().hooks[0].registration.entries()[0].clone();
+            if remove_file {
+                fs::remove_file(hook).unwrap();
+            } else {
+                let mut value = parse_json(&snapshot(hook).unwrap()).unwrap();
+                value["hooks"]
+                    .as_object_mut()
+                    .unwrap()
+                    .remove(&removed.native_event);
+                put(hook, &encode(&value).unwrap());
+            }
+            assert_eq!(status(&spec).unwrap()["hooks_ready"], false);
+            let before = snapshot(hook).unwrap();
+            let reviewed = plan(&spec, false).unwrap();
+            apply(&spec, &reviewed.digest().unwrap()).unwrap();
+            assert_eq!(snapshot(hook).unwrap(), before);
+            let (_, record) = read_record(&p).unwrap();
+            let owned = record.unwrap().hooks.remove(0);
+            assert!(!owned.registration.entries().contains(&removed));
+            if remove_file {
+                assert!(owned.registration.entries().is_empty());
+            }
+            assert_eq!(status(&spec).unwrap()["hooks_ready"], true);
+            let reviewed = plan(&spec, true).unwrap();
+            remove(&spec, &reviewed.digest().unwrap()).unwrap();
+            assert!(!p.record.exists());
+            if remove_file {
+                assert!(!hook.exists());
+            } else {
+                let value = parse_json(&snapshot(hook).unwrap()).unwrap();
+                assert!(!value.to_string().contains("Locust"));
+            }
+        }
+    }
+}
+
+#[test]
+fn modified_owned_hooks_refuse_apply_remove_and_preserve_bytes() {
+    for client in [Client::Codex, Client::Claude] {
+        let (_directory, spec) = fixture(client);
+        let p = paths(&spec).unwrap();
+        let hook = p.hook.as_ref().unwrap();
+        let reviewed = plan(&spec, false).unwrap();
+        apply(&spec, &reviewed.digest().unwrap()).unwrap();
+        let mut value = parse_json(&snapshot(hook).unwrap()).unwrap();
+        value["hooks"]["Stop"][0]["hooks"][0]["command"] = json!("user-edited-hook");
+        put(hook, &encode(&value).unwrap());
+        let before = setup_images(&spec);
+        assert_eq!(status(&spec).unwrap()["hooks_ready"], false);
+        assert!(plan(&spec, false).is_err());
+        assert!(plan(&spec, true).is_err());
+        assert_eq!(setup_images(&spec), before);
+    }
+}
+
+#[test]
+fn unowned_hook_collisions_and_hook_symlinks_refuse_without_mutation() {
+    for client in [Client::Codex, Client::Claude] {
+        let (_directory, spec) = fixture(client);
+        let p = paths(&spec).unwrap();
+        let hook = p.hook.as_ref().unwrap();
+        let registration =
+            hooks::registration(adapter_client(client).unwrap(), &p.launcher).unwrap();
+        let existing = hooks::install(&json!({}), &registration).unwrap();
+        put(hook, &encode(&existing).unwrap());
+        let before = setup_images(&spec);
+        assert!(preflight_new(&spec).is_err());
+        assert!(plan(&spec, false).is_err());
+        assert_eq!(setup_images(&spec), before);
+        let reviewed = plan(&spec, true).unwrap();
+        remove(&spec, &reviewed.digest().unwrap()).unwrap();
+        assert_eq!(parse_json(&snapshot(hook).unwrap()).unwrap(), existing);
+        fs::remove_file(hook).unwrap();
+        std::os::unix::fs::symlink(&spec.session, hook).unwrap();
+        assert!(preflight_new(&spec).is_err());
+        assert!(plan(&spec, false).is_err());
+        assert!(plan(&spec, true).is_err());
+        assert_eq!(fs::read(&spec.session).unwrap(), vec![18; 32]);
+    }
+}
+
+#[test]
+fn hook_edits_invalidate_review_and_pending_unknown_state() {
+    for client in [Client::Codex, Client::Claude] {
+        let (_directory, spec) = fixture(client);
+        let p = paths(&spec).unwrap();
+        let hook = p.hook.as_ref().unwrap();
+        let reviewed = plan(&spec, false).unwrap();
+        put(hook, b"{\"unrelated\":true}");
+        let before = setup_images(&spec);
+        assert!(apply(&spec, &reviewed.digest().unwrap()).is_err());
+        assert_eq!(setup_images(&spec), before);
+        let reviewed = plan(&spec, false).unwrap();
+        assert!(
+            execute(&spec, &reviewed.digest().unwrap(), false, |_| Err(
+                Failure::internal("stop")
+            ))
+            .is_err()
+        );
+        put(hook, b"{\"unknown_state\":true}");
+        let before = setup_images(&spec);
+        assert!(plan(&spec, false).is_err());
+        assert!(plan(&spec, true).is_err());
+        assert_eq!(setup_images(&spec), before);
+    }
+}
+
+#[test]
+fn v2_ownership_and_journal_refusal_reports_recovery_without_legacy_reader() {
+    for journal in [false, true] {
+        let (_directory, spec) = fixture(Client::Claude);
+        let p = paths(&spec).unwrap();
+        let mut tx = prepare(&spec, false).unwrap();
+        private_dir(&spec.prefix.join("setup"), true).unwrap();
+        if journal {
+            tx.plan.review["format"] = json!("locust-setup-plan-v2");
+            atomic(&p.intent, &encode(&tx).unwrap()).unwrap();
+        } else {
+            let owned = tx
+                .changes
+                .iter()
+                .find(|change| change.path == p.record)
+                .unwrap();
+            let mut value: Value =
+                serde_json::from_slice(owned.after.bytes.as_ref().unwrap()).unwrap();
+            value["format"] = json!("locust-setup-owner-v2");
+            value.as_object_mut().unwrap().remove("hooks");
+            atomic(&p.record, &encode(&value).unwrap()).unwrap();
+        }
+        let before = setup_images(&spec);
+        for remove in [false, true] {
+            let error = plan(&spec, remove).err().unwrap();
+            assert_eq!(error.code, locust_proto::api::ErrorCode::Corrupted);
+            assert!(error.message.contains("restore the release"));
+            assert!(error.message.contains("original binding"));
+            assert!(error.message.contains("setup remove"));
+            assert_eq!(setup_images(&spec), before);
+        }
+    }
+}
+
+#[test]
+fn launcher_forwards_native_hook_stdin_and_bound_cli_arguments() {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+    let (_directory, mut spec) = fixture(Client::Claude);
+    let base = spec.profile_home.parent().unwrap();
+    spec.executable = base.join("hook-probe");
+    package::create_file(
+        &spec.executable,
+        b"#!/bin/sh\nprintf '%s\\0' \"$@\"\n/bin/cat\n",
+        0o700,
+    )
+    .unwrap();
+    let script = base.join("hook-launcher");
+    package::create_file(&script, &launcher::render(&spec).unwrap(), 0o700).unwrap();
+    let mut child = Command::new(&script)
+        .args(["hook", "stop", "--harness", "claude"])
+        .env_clear()
+        .env("HOME", base)
+        .env("PATH", "/unavailable")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let input = b"{\"hook_event_name\":\"Stop\",\"session_id\":\"native-chat\"}";
+    child.stdin.take().unwrap().write_all(input).unwrap();
+    let output = child.wait_with_output().unwrap();
+    assert!(output.status.success());
+    let pieces: Vec<_> = output.stdout.split(|byte| *byte == 0).collect();
+    assert_eq!(pieces.last().unwrap(), &input.as_slice());
+    let args: Vec<_> = pieces[..pieces.len() - 1]
+        .iter()
+        .map(|bytes| std::str::from_utf8(bytes).unwrap())
+        .collect();
+    let matches = crate::cli::command_for_test()
+        .try_get_matches_from(std::iter::once("locust").chain(args))
+        .unwrap();
+    assert_eq!(matches.subcommand_name(), Some("hook"));
+    assert_eq!(
+        matches.get_one::<String>("session").unwrap(),
+        spec.session.to_str().unwrap()
     );
 }

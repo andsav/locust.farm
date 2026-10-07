@@ -29,6 +29,74 @@ SKILL_PATHS = {
     "pi": ".pi/agent/skills/locust/SKILL.md",
 }
 POLICIES = ("default", "deliberately-permissive")
+HOOK_SETTINGS = {"codex": ".codex/hooks.json", "claude-code": ".claude/settings.json"}
+
+
+def _profile_path(profile, relative):
+    """Read and write only the caller's isolated, plain native profile paths."""
+    home = Path(profile.home)
+    if home.is_symlink() or not home.is_relative_to(Path(profile.root)):
+        raise ValueError("Native settings must stay inside the isolated profile")
+    path = home / relative
+    for component in (path, *path.parents):
+        if component.is_symlink():
+            raise ValueError("Native settings cannot follow profile symlinks")
+        if component == home:
+            break
+    if path.exists() and not path.is_file():
+        raise ValueError("Native settings must be regular files")
+    return path
+
+
+def _merge_settings(current, supplied, hooks=False):
+    """Merge adapter JSON without replacing existing hook groups or preferences."""
+    if not isinstance(current, dict) or not isinstance(supplied, dict):
+        raise ValueError("Native hook settings must be JSON objects")
+    result = json.loads(json.dumps(current))
+    for key, value in supplied.items():
+        if (hooks or key == "hooks") and isinstance(value, list):
+            existing = result.setdefault(key, [])
+            if not isinstance(existing, list) or any(not isinstance(group, dict) for group in value):
+                raise ValueError("Native hook events must contain group arrays")
+            for group in value:
+                handlers = group.get("hooks")
+                if not isinstance(handlers, list):
+                    raise ValueError("Native hook groups must contain handlers")
+                commands = []
+                for handler in handlers:
+                    command = handler.get("command") if isinstance(handler, dict) else None
+                    if not isinstance(command, str) or "${" in command or any(ord(char) < 32 for char in command):
+                        raise ValueError("Native hook commands must be literal adapter commands")
+                    commands.append(command)
+                if group in existing:
+                    continue
+                if any(handler.get("command") in commands for old in existing if isinstance(old, dict)
+                       for handler in old.get("hooks", []) if isinstance(handler, dict)):
+                    raise ValueError("Native hook command is already configured differently")
+                existing.append(group)
+        elif isinstance(value, dict):
+            result[key] = _merge_settings(result.get(key, {}), value, hooks=hooks or key == "hooks")
+        elif key in result and result[key] != value:
+            raise ValueError("Native settings conflict; preserving existing configuration")
+        else:
+            result[key] = value
+    return result
+
+
+def _hook_settings(client, profile, supplied):
+    path = _profile_path(profile, HOOK_SETTINGS[client])
+    current = json.loads(path.read_text()) if path.exists() else {}
+    merged = _merge_settings(current, {} if supplied is None else supplied)
+    events = merged.get("hooks")
+    if isinstance(events, dict) and any(not isinstance(groups, list) or
+                                       any(not isinstance(group, dict) for group in groups)
+                                       for groups in events.values()):
+        raise ValueError("Native hook events must contain group arrays")
+    if not isinstance(events, dict) or not any(isinstance(groups, list) and groups for groups in events.values()):
+        raise ValueError("Hook qualification requires adapter settings or setup-installed hooks")
+    if not path.exists() or current != merged:
+        private_write(path, json.dumps(merged))
+    return path
 
 
 CAPTURE = '''import os,selectors,subprocess,sys
@@ -140,7 +208,7 @@ class RealProvider:
             raise ValueError("Unknown qualification policy")
         permissive = policy == "deliberately-permissive"
         if self.client == "codex":
-            argv = [self.binary, *overlay]
+            argv = [self.binary, *self.metadata.get("provider_overrides", []), *overlay]
             if permissive:
                 argv += ["-a", "never", "-s", "danger-full-access"]
             argv += ["exec", "--skip-git-repo-check", "--json", "--model", self.model]
@@ -148,7 +216,9 @@ class RealProvider:
                 argv += ["resume", resume]
             return [*argv, "--", prompt]
         if self.client == "claude-code":
-            argv = [self.binary, "--bare", "-p", "--verbose", "--output-format", "stream-json",
+            native = (["--setting-sources", "", "--settings", self.metadata["hook_settings_file"],
+                       "--include-hook-events"] if self.metadata["hooks_enabled"] else ["--bare"])
+            argv = [self.binary, *native, "-p", "--verbose", "--output-format", "stream-json",
                     "--model", self.model, "--add-dir", str(self.profile.home), *overlay]
             if permissive:
                 argv += ["--dangerously-skip-permissions"]
@@ -169,15 +239,23 @@ class RealProvider:
         return [*argv, "--session", session, "--", prompt]
 
 
-def configure_real_provider(client, profile, binary, model, ambient=None, provider=None):
+def configure_real_provider(client, profile, binary, model, ambient=None, provider=None, *,
+                            hooks=False, hook_settings=None):
     """Use a clean Profile and exactly the selected provider's ambient API key.
 
     Apply config_probe's proposal independently with Profile.apply. Keys are
     referenced by name in config, not persisted. Factory account authentication
     remains unverified unless the caller observes a successful real request.
+    Hooks stay off except in an explicit hook qualification. Adapter JSON is
+    merged into the selected private native file; setup-installed entries can
+    be used as-is. Claude loads that file explicitly without bare mode.
     """
     if client not in SKILL_PATHS:
         raise ValueError("Unsupported qualification client")
+    if not isinstance(hooks, bool) or (hooks and client not in HOOK_SETTINGS):
+        raise ValueError("Hook qualification requires a supported native adapter")
+    if hook_settings is not None and not hooks:
+        raise ValueError("Native hook settings require explicit hook qualification")
     if not isinstance(model, str) or not model or any(char.isspace() for char in model):
         raise ValueError("An explicit provider model identifier is required")
     if not Path(binary).is_absolute():
@@ -188,15 +266,34 @@ def configure_real_provider(client, profile, binary, model, ambient=None, provid
     name, key = _key(provider, os.environ if ambient is None else ambient)
     env = profile.environment(binary)
     env[name] = key
+    if not hooks:
+        env["LOCUST_HOOKS"] = "off"
     files = []
+    hook_file = _hook_settings(client, profile, hook_settings) if hooks else None
+    if hook_file:
+        files.append(str(hook_file))
+    provider_overrides = []
     base = PROVIDERS[provider][1]
     if client == "codex":
-        path = profile.home / ".codex/config.toml"
-        private_write(path, '\n'.join([
-            'model = ' + json.dumps(model), 'model_provider = "locust_real_openai"',
-            '[model_providers.locust_real_openai]', 'name = "OpenAI direct qualification"',
-            'base_url = "https://api.openai.com/v1"', 'wire_api = "responses"',
-            'env_key = "OPENAI_API_KEY"', 'requires_openai_auth = false', '']))
+        path = _profile_path(profile, ".codex/config.toml")
+        if path.exists():
+            # CLI overrides preserve all existing TOML bytes, including hook
+            # feature opt-outs, trust settings, comments and MCP registration.
+            for key, value in {
+                "model_provider": "locust_real_openai",
+                "model_providers.locust_real_openai.name": "OpenAI direct qualification",
+                "model_providers.locust_real_openai.base_url": "https://api.openai.com/v1",
+                "model_providers.locust_real_openai.wire_api": "responses",
+                "model_providers.locust_real_openai.env_key": "OPENAI_API_KEY",
+                "model_providers.locust_real_openai.requires_openai_auth": False,
+            }.items():
+                provider_overrides += ["-c", key + "=" + json.dumps(value)]
+        else:
+            private_write(path, '\n'.join([
+                'model = ' + json.dumps(model), 'model_provider = "locust_real_openai"',
+                '[model_providers.locust_real_openai]', 'name = "OpenAI direct qualification"',
+                'base_url = "https://api.openai.com/v1"', 'wire_api = "responses"',
+                'env_key = "OPENAI_API_KEY"', 'requires_openai_auth = false', '']))
         files.append(str(path))
         env["CODEX_DISABLE_UPDATE_CHECK"] = "1"
     elif client == "claude-code":
@@ -217,11 +314,15 @@ def configure_real_provider(client, profile, binary, model, ambient=None, provid
                 "copied_account_authentication": False, "configuration_files": files,
                 "client_environment_keys": sorted(env), "node": node,
                 "policy_modes": list(POLICIES),
+                "hooks_enabled": hooks, "hook_settings_file": str(hook_file) if hook_file else None,
+                "hook_execution": "not_run; native delivery and trust require observation",
+                "provider_overrides": provider_overrides,
                 "network_guard": "external network allowed for real provider; fixture guard disabled"}
     if client == "factory-droid":
         metadata["factory_authentication"] = "FACTORY_API_KEY excluded; BYOK-only readiness must be observed"
     if client == "claude-code":
-        metadata["bare_mode"] = "Explicit API key; no keychain/OAuth discovery; private HOME explicitly added for skills"
+        metadata["bare_mode"] = ("Disabled for explicit private hook settings; explicit API key, no copied account authentication"
+                                 if hooks else "Explicit API key; no keychain/OAuth discovery; private HOME explicitly added for skills")
     if client == "pi":
         # Pi migrates agent-root *.jsonl files on startup. A nested native path
         # survives the first explicit resume instead of creating a new session.

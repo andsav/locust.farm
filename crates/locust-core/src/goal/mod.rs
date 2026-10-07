@@ -449,6 +449,22 @@ impl Goal {
             Some(id)=>self.state().offers.get(&id).is_some_and(|offer|offer.context==context&&offer.recipient==principal&&offer.attempts.is_empty()&&offer.declined.is_empty()),
         }
     }
+    /// Whether nobody is running an attempt in the current task round.
+    /// Hooks use this local-evidence predicate; automatic task selection must
+    /// reuse it. This principal's attempts count even when their claim is absent.
+    pub fn unattended(&self, task: TaskId) -> bool {
+        self.state().tasks.get(&task).is_some_and(|task| {
+            let round = &task.rounds[&task.current_round];
+            !round.attempts.iter().any(|id| {
+                self.state().attempts.get(id).is_some_and(|attempt| {
+                    matches!(
+                        attempt.status,
+                        None | Some(locust_proto::event::AttemptStatus::Progress)
+                    )
+                })
+            })
+        })
+    }
     /// Current local state permits another offer or attempt on this round.
     /// Replay still decides whether the particular signed event is eligible.
     pub fn task_available(&self, context: Context) -> bool {

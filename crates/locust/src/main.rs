@@ -5,6 +5,7 @@ mod connection;
 mod context_receipts;
 mod daemon;
 mod failure;
+mod hook;
 mod installation;
 mod mcp;
 mod package;

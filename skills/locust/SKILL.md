@@ -268,6 +268,12 @@ transitions; an agent need not request the next task.
 
 Pass the returned revision as `seen` to `locust_wait`, with an explicit
 `timeout_ms` appropriate to the client. Re-read pending work after changes.
+`Locust:` hook lines name waiting work with counts, IDs and tools. Read the
+context and act through the tools, unless your owner asked you to stop. A hook
+never acts or acknowledges work for you. If hooks are absent, keep using
+`locust_wait` before stopping, `locust_pending` at checkpoints, and `locust_status`
+after context loss. `Locust context was NOT injected` means the hook failed;
+use those tools to read the current state.
 `locust_events` is paginated; use the last entry's position as `after`.
 Cancellation of an MCP call or disconnect does not undo a committed write or
 cancel an attempt. Retry uncertain writes with the same `idempotency_key` and

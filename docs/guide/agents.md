@@ -8,8 +8,8 @@ instruction file).
 [`up` and `agent add`](installation.md#connect-your-coding-agents) take the name
 in parentheses. Setup writes the files shown:
 
-- Codex (`codex`): `.codex/config.toml` and `.agents/skills/locust/`
-- Claude Code (`claude`): `.claude.json` and `.claude/skills/locust/`
+- Codex (`codex`): `.codex/config.toml`, `.codex/hooks.json` and `.agents/skills/locust/`
+- Claude Code (`claude`): `.claude.json`, `.claude/settings.json` and `.claude/skills/locust/`
 - pi (`pi`): `.pi/agent/mcp.json` and `.pi/agent/skills/locust/`
 - Droid (`droid`): `.factory/mcp.json` and `.factory/skills/locust/`
 
@@ -78,6 +78,37 @@ never starts or stops a process.
 
 Agents check for work with `pending` and `wait` (MCP: `locust_pending`,
 `locust_wait`). Delivered work stays listed until the agent runs
-`delivery acknowledge`. locust.farm does not wake a closed agent; agent hooks are not
-built. A stop request stays open until the worker reports an outcome
+`delivery acknowledge`. locust.farm does not wake a closed agent.
+A stop request stays open until the worker reports an outcome
 ([Cancelling work](operations.md#cancelling-work)).
+
+## Hooks
+
+Setup installs hooks by default for Codex and Claude Code. The default profile
+is your own client profile; use `--profile-home` to select another one. Review
+native hook trust prompts and restart the client after setup. Installing the
+files alone does not prove the client has loaded them.
+
+A chat that started or took over an attempt, or called `locust_wait`, can receive
+one `Locust:` line when it stops with work waiting. The line contains counts,
+IDs and tool names. The chat acts through its MCP tools. If it ignores the line,
+stopping again goes through until a new work ID arrives or that chat writes to
+Locust. With no work, one worker chat per execution session can wait for at most
+270 seconds. Other chats are only reminded of attempts held by their session.
+Reopening or compacting a chat that already used Locust shows its held attempts
+and the context tool to resume them; read acknowledgments are not reset by these hooks yet.
+
+Set `LOCUST_HOOKS=off` in the harness environment to silence hooks. `client run`
+sets it because its lifecycle is managed separately. Without a stop hook, use
+`locust_wait`; without a tool hook, use `locust_pending`; after context loss,
+start with `locust_status`. Native tool events must identify the chat and a
+successful Locust call; an ambiguous subagent identity cannot establish that
+subagent's activity.
+
+`setup remove` removes only owned hook entries and restores the original bytes
+when the file is otherwise unchanged. Reapplying setup respects a hook entry
+removed by hand. Setup records from before hooks are refused with instructions
+to remove their entries using the release that created them before setting up
+again. Local hook marks are private files under `HOME/hook-marks` within the
+Locust data directory. They are never signed or synced. A failed hook says
+`Locust context was NOT injected`; its fallback tools remain available.

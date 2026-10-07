@@ -336,6 +336,7 @@ pub(super) fn run(
     let mut environment: BTreeMap<_, _> = std::env::vars_os()
         .filter(|(k, _)| !k.to_string_lossy().starts_with("LOCUST_"))
         .collect();
+    environment.insert("LOCUST_HOOKS".into(), "off".into());
     environment.insert("HOME".into(), profile_path.as_os_str().into());
     environment.insert(
         "CODEX_HOME".into(),
