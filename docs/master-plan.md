@@ -201,6 +201,23 @@ on 6 October 2026:
     plan's phases stand under [Build order](#build-order), alongside the
     fifteen.
 
+On the [second Common Fabric assessment](../research/common-fabric-second-assessment-2026-10-07.md),
+on 7 October 2026:
+
+31. **The person's own agent.** Asked whether the few acts that make a
+    stranger trusted or lift a safety hold should need the person present,
+    for example by Touch ID: "No, I wouldn't want to enforce anything like
+    that, this is beyond the scope of locust". So Locust does not guard the
+    owner's commands against the person's own agent. An agent with a shell
+    can run them; Locust says so plainly and enforces nothing more.
+32. **Waking an agent.** Asked whether Locust should wake the person's own
+    agent when work is waiting for it: "Ideally, yes". So waking is wanted.
+    It is not designed yet and has no place in the build order, so
+    "starting or waking an agent" stays under
+    [left out of v2](#not-designed-open-or-left-out) until a design is
+    approved. A wake would also answer public goals question 5: a
+    stranger's work waiting while no trusted agent runs.
+
 ## Assumed until the owner objects
 
 Each of these is the plan author's choice and is written into a plan. The

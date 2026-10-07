@@ -286,17 +286,16 @@ credential and every signing seed are files of one OS user. Locust's gain over
 CF is attribution that honest daemons check and an MCP surface that refuses the
 owner credential, not containment.
 
-Proposals, to settle in the public-goals plan before the door ships: accept a
-one-page threat model in `docs/`; state plainly in the agents and concepts
-guides that an unattended agent usually runs with approvals off; classify
-harness instruction paths in proposals and show them in review and `workspace
-update` output, refusing them from door members; keep peer text out of
-everything Locust writes into a prompt (fixed words, IDs and counts only); and
-weigh an optional user-presence step (Touch ID through the daemon) for the few
-trust-raising owner acts: `role give` to a door member, `goal continue`,
-invitations and opening the door. A presence check in the CLI alone would not
-help: the agent can talk to the socket directly. The governance key must still
-sign unattended, so it cannot be presence-gated.
+The owner has since ruled that guarding owner commands against the person's
+own agent is out of Locust's scope (master plan answer 31). No presence check
+or other local enforcement is proposed. What remains are proposals that
+enforce nothing against the person, to settle in the public-goals plan before
+the door ships: accept a one-page threat model in `docs/`; state plainly in
+the agents and concepts guides that owner commands are not a boundary against
+an agent with a shell, and that an unattended agent usually runs with
+approvals off; show harness instruction paths in review and `workspace update`
+output; and keep peer text out of everything Locust writes into a prompt
+(fixed words, IDs and counts only).
 
 ### 3. Approvals carry no evidence that a check ran
 
@@ -490,18 +489,24 @@ at rest. That is a caution for Locust's principle 2, not a model.
 2. Before strangers can join, should the few acts that make a stranger trusted
    or lift a safety hold (giving a stranger a role, continuing after a restore,
    opening the door) need you present, for example by Touch ID? Or should Locust
-   only state the risk?
+   only state the risk? Answered: no enforcement; it is beyond Locust's scope
+   (master plan answer 31).
 3. Should Locust wake your own agent when work is waiting for it? CF's connector
-   shows how to run such a turn safely, but not when to start one.
+   shows how to run such a turn safely, but not when to start one. Answered:
+   "Ideally, yes" (master plan answer 32). Not designed yet.
+
+Question 1 drew "what check?": it used Locust's word without saying what the
+check is. It is restated in plain terms in the follow-up.
 
 ## Suggested order
 
 - Before R9: the API layout check (risk 1).
-- Before the door: the threat model and the door items of risk 2, the farm
-  request binding, and the answer to question 2.
+- Before the door: the threat model and the door items of risk 2, and the farm
+  request binding.
 - Cheap now: the replacement parent, the flaky test and its restart race,
   `status.md`, the union merge driver, retired words in daemon strings.
 - With S2 and S3: the catch-up mode and the fold digest (risks 4 and 6).
 - With G1's follow-ups: the twin hold (risk 5).
-- If question 3 is answered yes: a research note on ACP and the Codex app server
-  as launch routes, using CF's connector as the reference.
+- Next for the wake (answer 32): a design note covering when to wake, which
+  sessions may be woken, and ACP and the Codex app server as launch routes,
+  with CF's connector as the reference for running a woken turn.
