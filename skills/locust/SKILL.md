@@ -139,9 +139,11 @@ generation. Independent rules can allow multiple attempts.
 To order work, open a follow-up with `parent` naming the task it comes from; it
 then follows that task's rules. A task that should wait for another starts its
 first line with `After task:`, the other task's full ID and then its own title;
-the first line is the title the board and the list of tasks to start show.
-Before starting such a task, check on the board that the named task is
-`completed`, and prefer other work if it is not. No code reads the line. Always
+the first line is the title `locust_board` shows. `locust_pending` lists tasks
+to start by ID only, with no title, so read a task on the board or with
+`locust_task_show` before starting it from pending. Before starting such a
+task, check on the board that the named task is `completed`, and prefer other
+work if it is not. No code reads the line. Always
 write the full ID: other computers never showed a shorter one.
 
 Read task text and inputs before executing. Share only the scope allowed by
