@@ -2025,8 +2025,8 @@ result has and needs.
   the permission line and the pointer to `inbox`; what it prints of the new
   `WorkItem` and `ReviewItem` fields is from Phase 5. The `GoalStatus` arm
   prints, once per entry of `abilities`, the agent, its level and
-  `standing_line`; then a line per wanted task, with its title and its
-  `allow` command, and per `stalled` entry, in place of the grant rows. Names
+  `standing_line`; then per wanted task a sentence with its title and, on a
+  line of its own under it, its `allow` command, and per `stalled` entry, in place of the grant rows. Names
   and roles on that arm's member lines are from Phase 4, and plain `status`
   is from Phase 5. An event with `by_owner` prints "by you" for the owner and
   "by your owner" for an agent. Titles on these lines pass through `safe`,
@@ -2350,7 +2350,8 @@ the host agent's own changes included.
   `Body::RoleHolders { role: String, holders: Vec<PublicKey> }` (index 25,
   kind `role_holders`, governance), the whole holder list of one role. New
   `is_member_name` (1 to 64 bytes, new `MAX_MEMBER_NAME_BYTES` in limits.rs;
-  no outer spaces or control characters); `Header::check` returns the new
+  no outer spaces or control characters, and not 8 to 64 hexadecimal digits,
+  so that no name reads as a key or as the start of one); `Header::check` returns the new
   `EventError::BadName` for an admission whose name fails it or whose `role`
   fails `is_role_name`, and for a `RoleHolders` whose `role` fails
   `is_role_name`.
@@ -2449,10 +2450,12 @@ the host agent's own changes included.
   `workspace_epoch` in goal/workspace.rs. `desired_effects` looks ahead and
   passes the head; `project` in projection.rs passes the anchor of the
   decision it projects.
-  `rules::resolve` and `resolve_binding` take the roles to use and the
-  members at the same anchor, from the chain's snapshot there, and set
-  `only_member` when it holds exactly one; a caller that looks ahead
-  passes the head's. So the only-member part is judged at the result's
+  `rules::resolve` and `resolve_binding` take no roles or members and
+  return none. `Verifier::resolve`, `task_binding` and `stage_template` in
+  flow.rs fill `roles` and `only_member` from the chain's snapshot at the
+  anchor, `only_member` when it holds exactly one, and
+  `Goal::effective_rules` and `Goal::selected_rules` fill them from the
+  head's state. So the only-member part is judged at the result's
   anchor: a result anchored before a second admission keeps counting, one
   anchored after it needs the approval, and one anchored after the last
   other member's removal counts when posted again.
@@ -2485,7 +2488,10 @@ the host agent's own changes included.
   whose task is open, so giving a role or admitting a member does not sign
   one request per past result. It wants an automatic offer only for a stage
   task that is open in the same sense (not closed, not finished, nothing
-  picked), so neither signs one offer per past stage task. A result that
+  picked), so neither signs one offer per past stage task. Where a
+  result's author has left or been removed, `desired_effects` passes the
+  result's own anchor in place of the head, so adding a member does not ask
+  that author's agent to sign a request it never can. A result that
   stops counting because an
   approver's latest review is a reject is again one that does not yet
   count; a reviewer who already has a request for it gets no second one,
@@ -2725,32 +2731,51 @@ the host agent's own changes included.
   member, and the plan and the result say `Everyone in the goal becomes a
   ROLE.` with the `role take` that undoes it for one member. `rules bind`
   gains `--no-role`, which leaves the list as it is; the plan then says how
-  many reviewers are missing and prints the `role give` for each member.
+  many reviewers are missing and prints the `role give` for each member. It
+  does the same, with no flag, when rules bound earlier already let one
+  holder of that role do something alone, such as approve a result with one
+  approval and the author not left out: giving the role to everyone would
+  remove the review from tasks still open under those rules, so the plan
+  says what the role does there and prints the `role give` lines.
   [selectors.rs](../crates/locust/src/cli/selectors.rs): `resolve_member`
   from Phase 2 also matches a name, after key and key prefix. A name is a
   member's signed name or the enrolled name of one of the person's own
   agents in the goal, taken together: one member under that name resolves,
   the same agent matching both ways is one member, and two different members
-  are refused as `invalid` with each listed by name and key prefix. A value
-  that is both a key prefix and another member's name is refused the same
-  way, so nobody picks a member by naming an agent after its key.
+  are refused as `invalid` with each listed by name and key prefix, in the
+  order they joined, every one after the first marked as joined later. A
+  full key is taken as given. No name can be a key or a key prefix, because
+  `is_member_name` refuses one that looks like either, so nobody picks a
+  member by naming an agent after a key. `member remove` shows the member
+  through `member_label` in its plan and its result.
   [presentation.rs](../crates/locust/src/cli/presentation.rs): new
-  `member_label`, which always prints the member's name with the first eight
-  characters of its key, through `safe`. A record the governance key signed
+  `member_label`, which always prints the member's name with the shortest
+  prefix of its key, at least eight characters, that no other member's key
+  starts with, through `safe`. `goal status` lists members in the order they
+  joined, which `MemberView` carries from the host's chain, so two members
+  under one name can be told apart. A record the governance key signed
   (`by_host`, from K1) prints `host` with no key. The `Response::GoalStatus`
   arm adds the host's name to `Host:` and prints `Member:` with name and
   roles, and `Roles:` when the goal has a list, with `(earlier rules)` after
   the name
   of each role the current rules do not declare, as in `Roles: lead (earlier
   rules) Harbor (51c2e9aa)`, and the missing-reviewers line when the current
-  rules declare a role. The standing line it prints per agent is from
+  rules declare a role. On the host's computer that line is followed by one
+  `role give` line for each member already in the goal who does not hold
+  the role, and it says that members added or invited become reviewers only
+  when those members do not cover what is missing. The standing line it prints per agent is from
   Phase 3.
   [workspace.rs](../crates/locust/src/cli/workspace.rs): `workspace init`
   loses `--integrator`, which Phase 2 left in place. Accepting file changes
-  is not a role: `initial_epoch` always writes the host's agent as the key
-  that records them, as it does today when the option is absent, and
-  `verify_pinned_initial_policy` compares the pinned key with the host's
-  agent. Phase 9 removes the setting and the accept command. Without
+  is not a role. `initial_epoch` keeps a formation's own `workspace` part as
+  written, the member it names included, as `rules bind` does; where the
+  formation has none it writes the host's agent as the key that records
+  them. A named member who is no longer in the goal is replaced by the
+  host's agent, and the plan the person confirms shows it. `--completion`
+  replaces only the part's completion rule, and
+  `verify_pinned_initial_policy` compares the completion rule. The daemon
+  refuses the epoch as `conflict` when the rules it names are no longer the
+  current ones. Phase 9 removes the setting and the accept command. Without
   `--completion`, `initial_epoch`
   gives the shared tree the goal's completion rule, in place of
   `CompletionRule::default()`, the author's own declaration. The first
@@ -3362,9 +3387,18 @@ and how many approvals a result has.
   `now_ms` and fills the new fields. New `Node::waiting_for(principal:
   Option<PublicKey>) -> Vec<WaitingForYou>`: one `AllowTask` per `WantedTask`
   in the `wanted_tasks` of an agent's `Abilities` (from Phase 3) while its
-  level is below auto, oldest first by `since_ms`, with its `title` as
+  level is ask, oldest first by `since_ms`, with its `title` as
   `task_title` and `command` from `allow_command`, the goal cut by `short`
-  among the goals this daemon holds and the task among the goal's tasks. It
+  among the goals this daemon holds and the task among the goal's tasks. At
+  level read an allow would settle nothing, so the entry is of a kind of
+  its own: it says the agent wants the task and is set to read, and its
+  `command` is `level_command` to ask; `task allow` at read says the same in
+  place of "may take", and `pending` puts a task under "Ask first" only at
+  ask. A title is the first line of the task's text, here and in a
+  refusal's `task_title`, and one printer writes every title, cut and with
+  `"` and `\` escaped. An entry is listed only while its agent is connected
+  and can still take the task. Every printed command, in every view and
+  result line, cuts a goal by `short` among the goals this daemon holds. It
   lists nothing for an agent awaiting admission or for a halted goal.
   `Node::status` in
   [daemon.rs](../crates/locust-core/src/node/requests/daemon.rs) takes `now_ms`
