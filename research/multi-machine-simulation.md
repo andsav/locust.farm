@@ -32,7 +32,13 @@ python3 scripts/simulate_machines/run.py --binary target/release/locust
 
 The quick suite and full suite cover different cases. A successful run requires
 its actual scenario assertions, not process startup alone. Inspect the selected
-network configuration and report it with the candidate identity.
+network configuration and report it with the candidate identity. The default
+`lan` profile has no relay, so members find each other only by multicast
+lookup: each `lan` scenario first checks that the run may use local-network
+multicast and records the result as `transport.local_multicast`
+([simlib.py](../scripts/simulate_machines/simlib.py)). A run started from an
+app that macOS denies Local Network access fails there, as the environment's
+fault ([investigation](lan-sync-host-offline-2026-10-07.md)).
 
 ## Evidence boundary
 

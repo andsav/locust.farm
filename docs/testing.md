@@ -123,6 +123,14 @@ with real models cost money.
 | [check_performance_cost.py](../scripts/check_performance_cost.py) | CLI and MCP time and bytes for two release binaries | `--before`, `--after`, `--samples`, `--output` |
 | [check_transport_probe.py](../scripts/check_transport_probe.py) | Two `transport_probe` processes on loopback | `--binary` |
 
+The relay-free local runs (`check_t1.py --network local`,
+`check_operations.py --network local` and `simulate_machines/run.py` with its
+default `lan` profile) find members only by local-network multicast. They
+check first that they can use it and otherwise stop at once with an
+`environment:` failure, before any daemon starts. On macOS the permission is
+the Local Network setting of the app that started the run; see
+[the investigation](../research/lan-sync-host-offline-2026-10-07.md).
+
 [build_release.py](../scripts/build_release.py) builds an unsigned package from
 the committed `HEAD` into `output/release/`. The install checks take that
 extracted package as `--bundle` and a locally built binary as `--bootstrap`.
