@@ -19,6 +19,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 - [Locust v2 R6: documents, site and scripts](v2-phase-r6-build-notes-2026-10-06.md)
 - [Locust v2 G1: a daemon knows what it signed](v2-phase-g1-build-notes-2026-10-07.md)
 - [Review of phase G1 as built, of S1a, A1 and the E1/E2 models, and of the hooks branch](v2-phase-g1-review-2026-10-07.md)
+- [Locust v2 phase G1 review fixes](v2-phase-g1-review-fixes-2026-10-07.md)
 - [Members not syncing on the local-network profile while the host is away](lan-sync-host-offline-2026-10-07.md)
 
 - [A2A and Locust](a2a-assessment.md)

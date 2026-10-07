@@ -321,7 +321,7 @@ on the fork, and reported four of these as failures (765, 7125, 8333, 8340).
 - `cargo fmt --all --check`: clean.
 - `cargo clippy --locked --workspace --all-targets -- -D warnings`: clean.
 - `cargo test --locked --workspace`: 38 suites, 1,205 passed, 0 failed.
-- `python3 scripts/check_formations.py`: the regenerated contract verifies.
+- `python3 scripts/check_formations.py`: the regenerated contract verifies. That contract was regenerated from a tree without A1's operation summaries, so main failed this check until `0c62207` regenerated it again (G1 review 23).
 - `python3 scripts/check_docs.py`: passes with these notes and their index
   entry staged.
 - `python3 scripts/check_documentation.py --binary target/debug/locust

@@ -327,8 +327,10 @@ answer. Naming a task works as today.
   tasks to start, call `locust_attempt_start` with the goal and no task. If
   this session holds a claim, you get it back: finish and report it first.
   Otherwise it starts the first task nobody attempts. It does not read
-  'After task:' lines; if the list shows one whose named task is not
-  completed, name another task. `pending` means every task you may start is
+  'After task:' lines, and `locust_pending` lists tasks to start by ID
+  only: if `locust_board` shows a task to start whose title begins 'After
+  task:' and the named task is not completed, start another task by name.
+  `pending` means every task you may start is
   attempted; if the rules allow several attempts, start one by name. The
   pick sees only this computer, so a member elsewhere may start the same
   task before the next sync." [concepts.md](guide/concepts.md) 53-54 gains
