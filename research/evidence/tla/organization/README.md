@@ -153,3 +153,28 @@ The registry now pins all 42 Organization cases to implementation commit
 the final run were compared with that committed tree and match. This pin
 changes metadata only; the model, configurations, expected outcomes and
 retained run are unchanged. Other model suites keep their existing baselines.
+
+
+### Review corrections, 2026-10-06
+
+The review fix changes only the header comment in `Organization.tla` to name
+its Phase 4 protocol/API 7 subset. This changes the file hash; the retained
+Phase 4 runs above still describe the earlier, semantically identical file.
+The [property map](../../../tla/organization.md) now names the current Rust
+tests and explicitly lists the unmodeled role-start, cardinality, validity and
+close/reopen behavior. No formal coverage is added by these wording changes.
+
+The [R4 fix verification](r4-fixes.json), run
+`output/r4-rules-verification/output/tla/runs/20261007T002238Z-56bb2d91`,
+completed with checker exit 0. All **42 cases matched**: 21 safety checks,
+12 reachability witnesses and nine deliberate mutations. There were no
+timeouts and `source_changed_during_run` is false.
+
+This run used an isolated source snapshot while R5 was being edited in the
+primary checkout. Its metadata records the primary checkout's then-current
+`a9992d8` and dirty status; the recorded hashes describe the actual snapshot.
+All 100 source hashes were independently compared with the completed R4
+source commit `ec1e07882c237d95069ff1ace5b0015154cf8468` and match. The model
+semantics, configurations and case registry are unchanged; the new model hash
+includes the corrected header comment. The registry's Phase 4 baseline remains
+`8c086c1` and is not a claim that it includes these later Rust fixes.

@@ -2,7 +2,7 @@
 EXTENDS Naturals, Sequences, FiniteSets, TLC
 
 (***************************************************************************
-Current organization protocol subset at c88e3bc. Immutable authenticated events
+Phase 4 role-holder subset, protocol 7 / API 7. Immutable authenticated events
 and definition hashes are abstract identifiers. Each finite scenario chooses a
 signed transcript; TLC explores every delivery order and duplicate/stutter from
 an already verified founding prefix. This is not arbitrary message generation,
