@@ -46,6 +46,7 @@ use std::path::{Path, PathBuf};
 use locust_proto::crypto::content_hash;
 use locust_proto::event::AuthorPoint;
 use locust_proto::id::{EventId, GoalId, PublicKey};
+use locust_proto::local::owner_only;
 use locust_proto::store::{FileId, Mark, MarkWrite, StoreError};
 
 use crate::error::file;
@@ -177,16 +178,9 @@ impl MarksFile {
 }
 
 /// Refuses a marks directory or file whose `mode` lets anyone but its owner
-/// in, naming the `chmod` that fixes it.
+/// in, by the rule the state directory follows.
 fn private(path: &Path, what: &str, mode: u32, wanted: u32) -> Result<(), StoreError> {
-    let mode = mode & 0o777;
-    if mode & 0o077 == 0 {
-        return Ok(());
-    }
-    Err(StoreError::Failed(format!(
-        "marks {what} {path} has mode {mode:04o}; it must be {wanted:04o}: chmod {wanted:o} {path}",
-        path = path.display()
-    )))
+    owner_only(&format!("marks {what}"), path, mode, wanted).map_err(StoreError::Failed)
 }
 
 /// A new, empty marks file at `path` whose header names its own identity.

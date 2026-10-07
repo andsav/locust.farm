@@ -117,14 +117,13 @@ fn check_private(home: &Path) -> Result<(), Failure> {
             home.display()
         )));
     }
-    let mode = metadata.permissions().mode() & 0o777;
-    if mode & 0o077 != 0 {
-        return Err(Failure::invalid(format!(
-            "state directory {home} has mode {mode:04o}; it must be {HOME_MODE:04o}: chmod 700 {home}",
-            home = home.display()
-        )));
-    }
-    Ok(())
+    local::owner_only(
+        "state directory",
+        home,
+        metadata.permissions().mode(),
+        HOME_MODE,
+    )
+    .map_err(Failure::invalid)
 }
 
 /// Takes the daemon lock, or reports that another daemon runs here.

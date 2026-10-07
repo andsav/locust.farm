@@ -224,6 +224,21 @@ pub fn marks_dir(home: &Path) -> Result<PathBuf, LocalError> {
     }
 }
 
+/// The rule for every directory and file only its owner may read: the state
+/// directory, the marks directory and the marks file. Refuses a `mode` with
+/// any group or other bit, in words that name `what` is at `path` and the
+/// `chmod` that sets `wanted`.
+pub fn owner_only(what: &str, path: &Path, mode: u32, wanted: u32) -> Result<(), String> {
+    let mode = mode & 0o777;
+    if mode & 0o077 == 0 {
+        return Ok(());
+    }
+    Err(format!(
+        "{what} {path} has mode {mode:04o}; it must be {wanted:04o}: chmod {wanted:o} {path}",
+        path = path.display()
+    ))
+}
+
 /// The owner's credential file inside `home`. A client uses it only when the
 /// person at the keyboard asks to act as the owner.
 pub fn owner_credential_path(home: &Path) -> PathBuf {
@@ -347,6 +362,24 @@ mod tests {
                 "/Users/ada/.locust/agents/worker-2.credential"
             ))
         );
+    }
+
+    #[test]
+    fn only_modes_without_group_or_other_bits_are_owner_only() {
+        let path = Path::new("/srv/locust");
+        for mode in [0o700, 0o600, 0o500, 0o40700, 0o100600] {
+            assert_eq!(owner_only("state directory", path, mode, HOME_MODE), Ok(()));
+        }
+        for mode in [0o755, 0o710, 0o701, 0o640, 0o604, 0o40750] {
+            let refused = owner_only("marks file", path, mode, SECRET_FILE_MODE).unwrap_err();
+            assert_eq!(
+                refused,
+                format!(
+                    "marks file /srv/locust has mode {:04o}; it must be 0600: chmod 600 /srv/locust",
+                    mode & 0o777
+                )
+            );
+        }
     }
 
     #[test]
