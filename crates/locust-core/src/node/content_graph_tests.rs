@@ -635,7 +635,7 @@ fn growing_workspace_history_does_not_redecode_or_rescan_on_unrelated_work() {
 }
 
 #[test]
-fn cache_does_not_authorize_dropped_manifest_or_replaced_key() {
+fn cache_does_not_authorize_a_missing_manifest_or_replaced_key() {
     let mut peers = [Peer::new(1), Peer::new(2)];
     let goal = found(&mut peers);
     let data = put(&mut peers[0], goal, b"data");
@@ -673,24 +673,32 @@ fn cache_does_not_authorize_dropped_manifest_or_replaced_key() {
         peers[1].node.blob_index.stats(&goal).manifest_decodes,
         before.manifest_decodes
     );
-    let mut tx = crate::node::commit::Tx::none();
-    tx.commit.drop_blobs.push(snapshot);
-    tx.touch(goal);
-    peers[1].node.land(tx).unwrap();
+    // A manifest whose event is held but whose object never arrived
+    // authorizes nothing until the object arrives.
+    let later_data = put(&mut peers[0], goal, b"later");
+    let later = manifest(&mut peers[0], goal, vec![file("b", later_data, 5)]);
+    publish(&mut peers, goal, workspace_root(later));
     assert!(matches!(
-        manifest_state(&peers[1], goal, snapshot).unwrap(),
+        manifest_state(&peers[1], goal, later).unwrap(),
         ManifestState::Missing
     ));
     assert_eq!(
-        get(&mut peers[1], goal, data).unwrap_err().code,
+        get(&mut peers[1], goal, later_data).unwrap_err().code,
         ErrorCode::NotFound
     );
-    let sealed = Blob::new(peers[0].store.blob(&snapshot).unwrap().unwrap());
+    let sealed = Blob::new(peers[0].store.blob(&later).unwrap().unwrap());
     assert_eq!(stage(&mut peers[1], goal, &sealed), Staged::Complete);
+    assert!(matches!(
+        manifest_state(&peers[1], goal, later).unwrap(),
+        ManifestState::Ready { .. }
+    ));
+    let sealed = Blob::new(peers[0].store.blob(&later_data).unwrap().unwrap());
+    assert_eq!(stage(&mut peers[1], goal, &sealed), Staged::Complete);
+    assert_eq!(get(&mut peers[1], goal, later_data).unwrap(), b"later");
     assert_eq!(get(&mut peers[1], goal, data).unwrap(), b"data");
     assert_eq!(
         peers[1].node.blob_index.stats(&goal).manifest_decodes,
-        before.manifest_decodes
+        before.manifest_decodes + 1
     );
 }
 
@@ -730,26 +738,33 @@ fn ordinary_content_and_local_updates_do_not_refold_signed_history() {
 }
 
 #[test]
-fn referenced_definition_loss_and_streamed_rearrival_refold_the_goal() {
+fn a_definition_arriving_after_its_binding_refolds_the_goal() {
     let mut peers = [Peer::new(1), Peer::new(2)];
     let goal = found(&mut peers);
-    let rules = peers[1].node.goals[&goal].state().current_rules.unwrap();
-    let Body::RulesBound { binding, .. } = &peers[1].node.goals[&goal]
-        .goal
-        .event(&rules)
-        .unwrap()
-        .header()
-        .body
-    else {
+    let expected = peers[0].node.goals[&goal].state().current_rules.unwrap();
+    let Response::Recorded { event: rules } = peers[0].call(Request::RulesBind {
+        no_role: false,
+        goal,
+        expected,
+        formation_json: r#"{"schema_version":2,"context":{"inputs":{"later":{"kind":"artifact","required":false}}}}"#.into(),
+        inputs: BTreeMap::new(),
+    }) else {
+        panic!("rules bound");
+    };
+    let binding = peers[0].store.event(&rules).unwrap().unwrap();
+    let Body::RulesBound { binding: bound, .. } = &binding.header().body else {
         panic!("rules binding");
     };
-    let hash = binding.definition.object.hash;
+    let hash = bound.definition.object.hash;
     let sealed = Blob::new(peers[0].store.blob(&hash).unwrap().unwrap());
     let before = peers[1].node.goals[&goal].goal.refold_count();
-    let mut tx = crate::node::commit::Tx::none();
-    tx.commit.drop_blobs.push(hash);
-    tx.touch(goal);
-    peers[1].node.land(tx).unwrap();
+    assert_eq!(
+        Host::replica(&mut peers[1].node, &goal)
+            .unwrap()
+            .receive(vec![binding.to_wire()]),
+        Ok(1)
+    );
+    assert!(peers[1].store.blob_len(&hash).unwrap().is_none());
     assert!(matches!(
         peers[1].node.goals[&goal].goal.standing(&rules),
         Some(crate::goal::Standing::Pending(_))
@@ -832,13 +847,13 @@ fn workspace_file_cache_rechecks_keys_and_object_existence() {
     let snapshot = manifest(&mut peers[0], goal, vec![file("a", hash, 6)]);
     publish(&mut peers, goal, workspace_root(snapshot));
     rounds(&mut peers);
-    let file_state = |peer: &Peer| {
+    let file_state = |peer: &Peer, hash: BlobHash| {
         peer.node
             .workspace_file(&peer.node.goals[&goal], hash, None)
             .unwrap()
     };
     assert!(matches!(
-        file_state(&peers[1]),
+        file_state(&peers[1], hash),
         FileState::Ready { size: 6 }
     ));
     let key = peers[1].node.goals[&goal].keys[&0];
@@ -850,24 +865,29 @@ fn workspace_file_cache_rechecks_keys_and_object_existence() {
     ))
     .touch(goal);
     peers[1].node.land(tx).unwrap();
-    assert!(matches!(file_state(&peers[1]), FileState::Invalid { .. }));
+    assert!(matches!(
+        file_state(&peers[1], hash),
+        FileState::Invalid { .. }
+    ));
     let mut tx = crate::node::commit::Tx::none();
     tx.local(crate::node::entry::key_write(&goal, 0, &key))
         .touch(goal);
     peers[1].node.land(tx).unwrap();
     assert!(matches!(
-        file_state(&peers[1]),
+        file_state(&peers[1], hash),
         FileState::Ready { size: 6 }
     ));
-    let mut tx = crate::node::commit::Tx::none();
-    tx.commit.drop_blobs.push(hash);
-    tx.touch(goal);
-    peers[1].node.land(tx).unwrap();
-    assert!(matches!(file_state(&peers[1]), FileState::Missing));
-    let sealed = Blob::new(peers[0].store.blob(&hash).unwrap().unwrap());
+    // A file whose manifest arrived but whose object never did.
+    let later = put(&mut peers[0], goal, b"later!");
+    let later_snapshot = manifest(&mut peers[0], goal, vec![file("b", later, 6)]);
+    publish(&mut peers, goal, workspace_root(later_snapshot));
+    let sealed = Blob::new(peers[0].store.blob(&later_snapshot).unwrap().unwrap());
+    assert_eq!(stage(&mut peers[1], goal, &sealed), Staged::Complete);
+    assert!(matches!(file_state(&peers[1], later), FileState::Missing));
+    let sealed = Blob::new(peers[0].store.blob(&later).unwrap().unwrap());
     assert_eq!(stage(&mut peers[1], goal, &sealed), Staged::Complete);
     assert!(matches!(
-        file_state(&peers[1]),
+        file_state(&peers[1], later),
         FileState::Ready { size: 6 }
     ));
 }

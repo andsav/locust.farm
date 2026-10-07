@@ -34,7 +34,6 @@ const LEN: &str = "SELECT len FROM blobs WHERE hash = ?1";
 const READ: &str = "SELECT len, bytes FROM blobs WHERE hash = ?1";
 const INSERT: &str =
     "INSERT INTO blobs (hash, len, bytes) VALUES (?1, ?2, ?3) ON CONFLICT (hash) DO NOTHING";
-const DELETE: &str = "DELETE FROM blobs WHERE hash = ?1 RETURNING len";
 
 /// Whether an object of this many bytes is a file.
 pub(crate) fn is_file(len: u64) -> bool {
@@ -100,25 +99,6 @@ pub(crate) fn insert_file(tx: &Connection, hash: &BlobHash, len: u64) -> Result<
         .execute(params![hash.as_bytes(), int(len)?, None::<&[u8]>])
         .map_err(sql)?;
     Ok(())
-}
-
-/// Deletes the rows of `hashes` inside the caller's transaction and returns
-/// the objects that were files, to remove once the transaction commits.
-pub(crate) fn delete(tx: &Connection, hashes: &[BlobHash]) -> Result<Vec<BlobHash>, StoreError> {
-    if hashes.is_empty() {
-        return Ok(Vec::new());
-    }
-    let mut delete = tx.prepare_cached(DELETE).map_err(sql)?;
-    let mut removed = Vec::new();
-    for hash in hashes {
-        let mut rows = delete.query([hash.as_bytes()]).map_err(sql)?;
-        if let Some(row) = rows.next().map_err(sql)?
-            && is_file(count(row, 0)?)
-        {
-            removed.push(*hash);
-        }
-    }
-    Ok(removed)
 }
 
 /// The whole object.

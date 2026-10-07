@@ -45,9 +45,10 @@ store conformance suite. Other crates enable it only in `[dev-dependencies]`.
 `locust-net` has its own `testkit` feature for an in-memory connection pair.
 
 Tests in [vectors.rs](../crates/locust-proto/src/vectors.rs) freeze the byte
-encoding of signed events. If a change breaks them, the wire format changed:
-raise `PROTOCOL_VERSION` in `locust-proto` and update the vectors. This is a
-convention.
+encoding of signed events. Before the first release of version 7, signed
+bytes may change inside 7 if the vectors change in the same commit
+([master plan](master-plan.md) 353-363). After a release, a change raises
+`PROTOCOL_VERSION`. Until the release gate exists, this is a convention.
 
 ## Adding a dependency
 

@@ -144,9 +144,7 @@ fn commit_durably(tx: Transaction<'_>, broken: &mut bool) -> Result<(), StoreErr
 impl Store for SqliteStore {
     /// Installs the commit's new large objects as files first; then one
     /// transaction appends the events, adds the objects' rows (small objects
-    /// inline), applies the local writes in order and deletes the dropped
-    /// objects' rows; the files of dropped objects are removed after it
-    /// commits.
+    /// inline) and applies the local writes in order.
     fn commit(&mut self, commit: &Commit) -> Result<(), StoreError> {
         self.usable()?;
         objects::install(&self.conn, &self.files, &commit.blobs)?;
@@ -154,12 +152,7 @@ impl Store for SqliteStore {
         events::append(&tx, &commit.events)?;
         objects::insert(&tx, &commit.blobs)?;
         local::apply(&tx, &commit.local)?;
-        let removed = objects::delete(&tx, &commit.drop_blobs)?;
-        commit_durably(tx, &mut self.broken)?;
-        for hash in &removed {
-            self.files.remove(hash);
-        }
-        Ok(())
+        commit_durably(tx, &mut self.broken)
     }
 
     fn event(&self, id: &EventId) -> Result<Option<Event>, StoreError> {

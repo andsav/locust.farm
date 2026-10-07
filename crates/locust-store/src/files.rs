@@ -125,12 +125,6 @@ impl Files {
         Ok(bytes)
     }
 
-    /// Removes an object's file. A failure leaves an orphan that the next
-    /// open collects, so it is not reported.
-    pub(crate) fn remove(&self, hash: &BlobHash) {
-        let _ = fs::remove_file(self.path(hash, ""));
-    }
-
     /// The number of bytes staged for `hash`.
     pub(crate) fn staged_len(&self, hash: &BlobHash) -> Result<u64, StoreError> {
         let path = self.path(hash, STAGED);

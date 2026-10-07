@@ -42,7 +42,6 @@ fn recovery_child() {
         store
             .commit(&Commit {
                 events: vec![genesis.clone()],
-                blobs: vec![blob()],
                 ..Commit::default()
             })
             .unwrap();
@@ -62,7 +61,7 @@ fn recovery_child() {
         fs::write(&arm, b"armed").unwrap();
         let _ = store.commit(&Commit {
             events: vec![note],
-            drop_blobs: vec![blob().hash()],
+            blobs: vec![blob()],
             ..Commit::default()
         });
         panic!("writer kill injection never fired");
@@ -93,9 +92,12 @@ fn recovery_child() {
             .header()
             .goal;
         assert_eq!(store.log(&goal, 0, 10).unwrap().len(), 2);
-        assert_eq!(store.blob_len(&blob().hash()), Ok(None));
+        assert_eq!(
+            store.blob_len(&blob().hash()),
+            Ok(Some(INLINE_MAX_BYTES as u64 + 1))
+        );
         assert!(
-            !Path::new(&dir)
+            Path::new(&dir)
                 .join("blobs")
                 .join(blob().hash().to_string())
                 .exists()
@@ -184,9 +186,11 @@ fn recovery_flushes_before_exposure_and_refuses_a_failed_barrier() {
         .lines()
         .position(|line| line == "[recovery-test] open returned")
         .unwrap();
-    let collected = stderr
-        .lines()
-        .position(|line| line.contains("unlink") && line.contains(&blob().hash().to_string()))
-        .expect("the recovered deletion must collect the old object");
-    assert!(flush < collected && collected < returned, "{stderr}");
+    assert!(flush < returned, "{stderr}");
+    assert!(
+        !stderr
+            .lines()
+            .any(|line| line.contains("unlink") && line.contains(&blob().hash().to_string())),
+        "the recovered row must keep its object file: {stderr}"
+    );
 }

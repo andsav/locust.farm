@@ -80,10 +80,7 @@ impl Tx {
 
     fn is_empty(&self) -> bool {
         let commit = &self.commit;
-        commit.events.is_empty()
-            && commit.blobs.is_empty()
-            && commit.local.is_empty()
-            && commit.drop_blobs.is_empty()
+        commit.events.is_empty() && commit.blobs.is_empty() && commit.local.is_empty()
     }
 }
 

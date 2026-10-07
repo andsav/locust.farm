@@ -238,7 +238,6 @@ fn a_commit_that_fails_part_way_leaves_nothing() {
             put(Space::Goal, b"first", b"1"),
             put(Space::Goal, b"refuse", b""),
         ],
-        drop_blobs: Vec::new(),
     };
 
     assert!(matches!(store.commit(&failing), Err(StoreError::Failed(_))));
@@ -393,7 +392,6 @@ fn objects_above_the_inline_limit_are_files_served_by_range() {
     let at_limit = object(INLINE_MAX_BYTES);
     let above = object(INLINE_MAX_BYTES + 1);
     let large = object(3 * BLOB_CHUNK_BYTES + 5);
-    let transient = object(INLINE_MAX_BYTES + 3);
     store
         .commit(&Commit {
             blobs: vec![
@@ -401,14 +399,12 @@ fn objects_above_the_inline_limit_are_files_served_by_range() {
                 above.clone(),
                 large.clone(),
                 above.clone(),
-                transient.clone(),
             ],
-            drop_blobs: vec![transient.hash()],
             ..Commit::default()
         })
         .unwrap();
 
-    // Only the objects above the limit are files; the dropped one is gone.
+    // Only the objects above the limit are files.
     assert_eq!(
         object_files(dir.path()),
         sorted(vec![above.hash().to_string(), large.hash().to_string()])
@@ -420,7 +416,6 @@ fn objects_above_the_inline_limit_are_files_served_by_range() {
             Ok(Some(blob.bytes().len() as u64))
         );
     }
-    assert_eq!(store.blob_len(&transient.hash()), Ok(None));
 
     let bytes = large.bytes();
     let len = bytes.len();
@@ -448,22 +443,12 @@ fn objects_above_the_inline_limit_are_files_served_by_range() {
         Ok(Some(at_limit.bytes()[INLINE_MAX_BYTES - 1..].to_vec()))
     );
 
-    // Dropping a file object removes its file, and the rest survives reopen.
-    store
-        .commit(&Commit {
-            drop_blobs: vec![large.hash()],
-            ..Commit::default()
-        })
-        .unwrap();
-    assert_eq!(store.blob(&large.hash()), Ok(None));
-    assert_eq!(object_files(dir.path()), [above.hash().to_string()]);
+    // Every object survives reopen.
     drop(store);
     let store = reopen(&dir);
-    assert_eq!(store.blob(&above.hash()), Ok(Some(above.bytes().to_vec())));
-    assert_eq!(
-        store.blob(&at_limit.hash()),
-        Ok(Some(at_limit.bytes().to_vec()))
-    );
+    for blob in [&at_limit, &above, &large] {
+        assert_eq!(store.blob(&blob.hash()), Ok(Some(blob.bytes().to_vec())));
+    }
 }
 
 #[test]
@@ -995,7 +980,6 @@ fn incompatible_event_protocol_refuses_open_before_collecting_or_rewriting_state
                 key: b"sentinel".to_vec(),
                 value: b"identity".to_vec(),
             }],
-            ..Commit::default()
         })
         .unwrap();
     store

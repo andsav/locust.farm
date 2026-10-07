@@ -103,7 +103,6 @@ impl History {
                 key: Self::record(n),
                 value: n.to_le_bytes().to_vec(),
             }],
-            drop_blobs: Vec::new(),
         }
     }
 }

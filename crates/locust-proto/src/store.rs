@@ -1,8 +1,8 @@
 //! The storage seam between the state machine and durable storage.
 //!
-//! The state machine computes a [`Commit`]: the events, content objects, local
-//! records and content removals that one operation produces. A store applies a
-//! commit entirely or not at all. That single rule is what keeps an event, the
+//! The state machine computes a [`Commit`]: the events, content objects and
+//! local records that one operation produces. A store applies a commit
+//! entirely or not at all. That single rule is what keeps an event, the
 //! local state derived from it and the record that makes a retried request
 //! idempotent from ever disagreeing after a crash.
 //!
@@ -118,7 +118,7 @@ pub enum LocalWrite {
 }
 
 /// Everything one operation makes durable, applied as one step. Within it,
-/// local writes take effect in order and removals take effect last.
+/// local writes take effect in order.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Commit {
     /// Structurally valid events the caller has decided to retain. Those not
@@ -128,9 +128,6 @@ pub struct Commit {
     pub blobs: Vec<Blob>,
     /// Applied in order after the events and blobs.
     pub local: Vec<LocalWrite>,
-    /// Content objects to stop holding, applied last; absent objects are
-    /// ignored. Events that name them are kept.
-    pub drop_blobs: Vec<BlobHash>,
 }
 
 /// Why a store could not answer.
@@ -339,9 +336,6 @@ impl Store for MemStore {
                     state.local.remove(&(*space, key.clone()));
                 }
             }
-        }
-        for hash in &commit.drop_blobs {
-            state.blobs.remove(hash);
         }
         Ok(())
     }
@@ -561,7 +555,6 @@ pub mod conformance {
         local_records_are_scoped_and_ordered(empty());
         local_keys_are_opaque_bytes_and_values_may_be_empty(empty());
         several_blobs_commit_together(empty());
-        dropped_blobs_go_last_and_leave_events_alone(empty());
         held_blobs_are_served_by_range(empty());
         staging_resumes_and_promotes_only_matching_bytes(empty());
     }
@@ -585,7 +578,6 @@ pub mod conformance {
             events: [first.clone(), other.clone()].concat(),
             blobs: vec![blob.clone()],
             local: vec![put(Space::Key, &[0x00, 0xff], b"")],
-            drop_blobs: Vec::new(),
         };
 
         {
@@ -678,7 +670,6 @@ pub mod conformance {
                 events: vec![genesis.clone()],
                 blobs: vec![blob.clone()],
                 local: vec![put(Space::Goal, b"g", b"settings")],
-                drop_blobs: Vec::new(),
             })
             .unwrap();
 
@@ -1047,65 +1038,6 @@ pub mod conformance {
                 Ok(Some(blob.bytes().len() as u64))
             );
         }
-    }
-
-    fn dropped_blobs_go_last_and_leave_events_alone<S: Store>(mut store: S) {
-        let kept = Blob::new(b"kept".to_vec());
-        let dropped = Blob::new(b"dropped".to_vec());
-        let transient = Blob::new(b"transient".to_vec());
-        let mut owner = Author::new(1);
-        let genesis = owner.genesis(testkit::keypair(9).public());
-        let goal = genesis.header().goal;
-        let task = owner.event(
-            goal,
-            Some(genesis.id()),
-            Body::ContributionPublished {
-                context: Context {
-                    scope: Scope::Goal,
-                    round: genesis.id(),
-                },
-                attempt: None,
-                sources: Vec::new(),
-                artifacts: vec![dropped.hash()],
-            },
-        );
-        store
-            .commit(&Commit {
-                events: vec![genesis, task.clone()],
-                blobs: vec![kept.clone(), dropped.clone()],
-                ..Commit::default()
-            })
-            .unwrap();
-
-        store
-            .commit(&Commit {
-                drop_blobs: vec![dropped.hash(), BlobHash([9; 32])],
-                ..Commit::default()
-            })
-            .unwrap();
-        assert_eq!(store.blob(&dropped.hash()), Ok(None));
-        assert_eq!(store.blob_len(&dropped.hash()), Ok(None));
-        assert_eq!(store.blob(&kept.hash()), Ok(Some(b"kept".to_vec())));
-        assert_eq!(store.event(&task.id()), Ok(Some(task)));
-
-        // Removal is applied after the commit's own content.
-        store
-            .commit(&Commit {
-                blobs: vec![transient.clone()],
-                drop_blobs: vec![transient.hash()],
-                ..Commit::default()
-            })
-            .unwrap();
-        assert_eq!(store.blob_len(&transient.hash()), Ok(None));
-
-        // A dropped object can be held again.
-        store
-            .commit(&Commit {
-                blobs: vec![dropped.clone()],
-                ..Commit::default()
-            })
-            .unwrap();
-        assert_eq!(store.blob(&dropped.hash()), Ok(Some(b"dropped".to_vec())));
     }
 
     fn held_blobs_are_served_by_range<S: Store>(mut store: S) {

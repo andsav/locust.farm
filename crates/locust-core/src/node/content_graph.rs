@@ -574,13 +574,6 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 }
             }
         }
-        for hash in &commit.drop_blobs {
-            for (goal, graph) in &self.blob_index.0 {
-                if graph.references.contains_key(hash) {
-                    rebuild.insert(*goal);
-                }
-            }
-        }
         for goal in &rebuild {
             self.rebuild_content_goal(*goal)?;
         }

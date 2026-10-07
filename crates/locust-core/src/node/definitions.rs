@@ -71,7 +71,6 @@ impl Definitions {
         Ok(pending.events.iter().any(|event| {
             event.header().goal == goal && matches!(event.header().body, Body::RulesBound { .. })
         }) || pending.blobs.iter().any(|blob| self.names(&blob.hash()))
-            || pending.drop_blobs.iter().any(|hash| self.names(hash))
             || arrived.iter().any(|hash| self.names(hash)))
     }
 
@@ -134,9 +133,6 @@ impl Definitions {
         let Some(key) = keys.get(&reference.object.key_epoch) else {
             return Ok(None);
         };
-        if pending.drop_blobs.contains(&reference.object.hash) {
-            return Ok(None);
-        }
         let blob = if let Some(blob) = pending
             .blobs
             .iter()

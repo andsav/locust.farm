@@ -1,6 +1,8 @@
 //! Complete receipt delivery, independent sessions, and observation-only reads.
 
-use super::lifecycle::{authorize, event, finding, offered, progress, setup};
+use super::lifecycle::{
+    authorize, event, finding, finding_without_payload, offered, progress, setup,
+};
 use super::*;
 use locust_proto::api::{
     ContextCursor, ContextReceipt, ContextSnapshot, ContextSummary, ContextView,
@@ -14,7 +16,7 @@ fn full(view: &ContextView) -> &ContextSnapshot {
 }
 use locust_proto::event::{Doc, ReviewVerdict, TaskId};
 use locust_proto::id::{EventId, GoalId};
-use locust_proto::store::{Blob, Space, Store};
+use locust_proto::store::{Space, Store};
 
 fn read(
     goal: GoalId,
@@ -156,24 +158,18 @@ fn preview_and_unavailable_payload_cannot_acknowledge_text_and_late_payload_is_n
         acknowledge(&mut d, agent, receipt);
     }
     assert!(contains(&context(&mut d, agent, goal, None, true), finding));
-    let hash = d.node.goals[&goal]
-        .goal
-        .event(&finding)
-        .unwrap()
-        .header()
-        .payload
-        .unwrap()
-        .hash;
-    let bytes = d.store.blob(&hash).unwrap().unwrap();
-    let mut drop = crate::node::commit::Tx::none();
-    drop.commit.drop_blobs.push(hash);
-    drop.touch(goal);
-    d.node.land(drop).unwrap();
+    let (member, _) = super::authorization::join_local(&mut d, agent, goal, 2);
+    let (late, payload) = finding_without_payload(
+        &mut d,
+        goal,
+        member,
+        "A member's évidence that arrives late",
+    );
     let unavailable = context(&mut d, agent, goal, None, true);
     let item = unavailable
         .items
         .iter()
-        .find(|item| item.event.view.event == finding)
+        .find(|item| item.event.view.event == late)
         .unwrap();
     assert_eq!(item.event.text, None);
     assert!(!item.text_complete);
@@ -181,7 +177,7 @@ fn preview_and_unavailable_payload_cannot_acknowledge_text_and_late_payload_is_n
         unavailable
             .receipt
             .as_ref()
-            .is_none_or(|receipt| receipt.entries.iter().all(|entry| entry.event != finding))
+            .is_none_or(|receipt| receipt.entries.iter().all(|entry| entry.event != late))
     );
     assert!(full(&unavailable).pending.context_news.unwrap().unavailable > 0);
     if let Some(receipt) = unavailable.receipt {
@@ -190,25 +186,24 @@ fn preview_and_unavailable_payload_cannot_acknowledge_text_and_late_payload_is_n
     d.restart();
     let agent = d.connect(credential(1), Some(session(1)));
     let mut arrive = crate::node::commit::Tx::none();
-    arrive.commit.blobs.push(Blob::new(bytes));
+    arrive.commit.blobs.push(payload);
     arrive.touch(goal);
     d.node.land(arrive).unwrap();
     let arrived = context(&mut d, agent, goal, None, true);
     let item = arrived
         .items
         .iter()
-        .find(|item| item.event.view.event == finding)
+        .find(|item| item.event.view.event == late)
         .unwrap();
     assert!(item.text_complete);
     assert_eq!(
         item.event.text.as_deref(),
-        Some("évidence in full, never silently truncated")
+        Some("A member's évidence that arrives late")
     );
     acknowledge(&mut d, agent, arrived.receipt.unwrap());
-    assert!(!contains(
-        &context(&mut d, agent, goal, None, true),
-        finding
-    ));
+    let after = context(&mut d, agent, goal, None, true);
+    assert!(!contains(&after, finding));
+    assert!(!contains(&after, late));
 }
 
 #[test]

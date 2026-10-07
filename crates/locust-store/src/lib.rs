@@ -20,13 +20,12 @@
 //! its new large objects first: each to a temporary name, synced, renamed to
 //! its hash, then the directory synced once. Then one SQLite transaction
 //! appends the events with their positions, adds the object rows (small
-//! objects inline), applies the local writes in order and deletes the rows
-//! of dropped objects. When that transaction commits, the whole commit is
-//! durable; the files of dropped objects are removed afterwards. A crash
-//! before the transaction commits leaves only object files that no row
-//! names, which the next open removes. A failure while the transaction
-//! commits (a failed sync) has an unknown outcome, so the store then refuses
-//! every call until it is reopened and reads the outcome back.
+//! objects inline) and applies the local writes in order. When that
+//! transaction commits, the whole commit is durable. A crash before the
+//! transaction commits leaves only object files that no row names, which the
+//! next open removes. A failure while the transaction commits (a failed
+//! sync) has an unknown outcome, so the store then refuses every call until
+//! it is reopened and reads the outcome back.
 //!
 //! Staging appends, discards and promotion can also fail after changing the
 //! filesystem. Those failures fence the handle until reopen. Opening runs a

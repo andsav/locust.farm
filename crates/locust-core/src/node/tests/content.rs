@@ -1,5 +1,5 @@
 //! Public content requests and invitation issuance.
-use super::lifecycle::{event, setup};
+use super::lifecycle::{event, receive_payload, setup};
 use super::*;
 use locust_proto::api::{BlobState, Membership};
 use locust_proto::engine::{PeerEngine, PeerInput};
@@ -525,52 +525,6 @@ fn sealed_bytes_without_their_key_are_not_reported_readable() {
         panic!()
     };
     assert_ne!(states[0].state, BlobState::Held);
-}
-
-/// Accept an authentic peer event while its content is already held locally.
-fn receive_payload(
-    daemon: &mut Daemon,
-    goal: locust_proto::id::GoalId,
-    author: PublicKey,
-    payload: locust_proto::event::PayloadRef,
-    mut body: locust_proto::event::Body,
-) -> locust_proto::id::EventId {
-    use crate::sync::Host;
-    use locust_proto::event::{Event, Header};
-    let entry = &daemon.node.goals[&goal];
-    match &mut body {
-        locust_proto::event::Body::TaskOpened { binding } => {
-            binding.rules = entry.state().current_rules.unwrap()
-        }
-        locust_proto::event::Body::ContributionPublished { context, .. } => {
-            context.round = entry.state().current_rules.unwrap()
-        }
-        _ => (),
-    }
-    let next = entry.goal.next(&author).unwrap();
-    let event = Event::sign(
-        Header {
-            version: locust_proto::PROTOCOL_VERSION,
-            goal,
-            author,
-            seq: next.seq,
-            prev: next.prev,
-            anchor: Some(next.anchor),
-            parents: vec![],
-            at_ms: 1000,
-            payload: Some(payload),
-            body,
-        },
-        daemon.node.signer(&author).unwrap(),
-    )
-    .unwrap();
-    assert_eq!(
-        Host::replica(&mut daemon.node, &goal)
-            .unwrap()
-            .receive(vec![event.to_wire()]),
-        Ok(1)
-    );
-    event.id()
 }
 
 #[test]

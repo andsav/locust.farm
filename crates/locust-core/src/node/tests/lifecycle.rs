@@ -73,6 +73,89 @@ pub(super) fn finding(goal: GoalId, text: &str) -> Request {
         artifacts: vec![],
     }
 }
+/// Accepts an authentic event of `author` as a peer delivers it. Only the
+/// event is delivered, not its payload object.
+pub(super) fn receive_payload(
+    daemon: &mut Daemon,
+    goal: locust_proto::id::GoalId,
+    author: PublicKey,
+    payload: locust_proto::event::PayloadRef,
+    mut body: locust_proto::event::Body,
+) -> locust_proto::id::EventId {
+    use crate::sync::Host;
+    use locust_proto::event::{Event, Header};
+    let entry = &daemon.node.goals[&goal];
+    match &mut body {
+        locust_proto::event::Body::TaskOpened { binding } => {
+            binding.rules = entry.state().current_rules.unwrap()
+        }
+        locust_proto::event::Body::ContributionPublished { context, .. } => {
+            context.round = entry.state().current_rules.unwrap()
+        }
+        _ => (),
+    }
+    let next = entry.goal.next(&author).unwrap();
+    let event = Event::sign(
+        Header {
+            version: locust_proto::PROTOCOL_VERSION,
+            goal,
+            author,
+            seq: next.seq,
+            prev: next.prev,
+            anchor: Some(next.anchor),
+            parents: vec![],
+            at_ms: 1000,
+            payload: Some(payload),
+            body,
+        },
+        daemon.node.signer(&author).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        Host::replica(&mut daemon.node, &goal)
+            .unwrap()
+            .receive(vec![event.to_wire()]),
+        Ok(1)
+    );
+    event.id()
+}
+
+/// Delivers `author`'s finding of `text` as a peer would, without its
+/// payload: the event is held and its payload has not arrived. Returns the
+/// event and the sealed payload, to deliver later.
+pub(super) fn finding_without_payload(
+    daemon: &mut Daemon,
+    goal: GoalId,
+    author: PublicKey,
+    text: &str,
+) -> (EventId, locust_proto::store::Blob) {
+    use locust_proto::event::{Body, Context, PayloadRef, Scope};
+    let (epoch, key) = daemon.node.goals[&goal].keys.last_key_value().unwrap();
+    let blob = locust_proto::store::Blob::new(
+        locust_proto::seal::seal(&goal, *epoch, key, text.as_bytes()).unwrap(),
+    );
+    let payload = PayloadRef {
+        hash: blob.hash(),
+        len: blob.bytes().len() as u32,
+        key_epoch: *epoch,
+    };
+    let event = receive_payload(
+        daemon,
+        goal,
+        author,
+        payload,
+        Body::ContributionPublished {
+            context: Context {
+                scope: Scope::Goal,
+                round: EventId([0; 32]),
+            },
+            attempt: None,
+            sources: Vec::new(),
+            artifacts: vec![],
+        },
+    );
+    (event, blob)
+}
 fn pending(daemon: &mut Daemon, conn: ConnId, goal: GoalId) -> PendingWork {
     let Response::Pending(work) = daemon.ok(conn, Request::Pending { goal }) else {
         panic!()
