@@ -275,6 +275,15 @@ fails without the change. The commit before G1 writes no marks, so its row is
 unaffected; `check_t1.py` keeps its homes, and their marks, inside one
 temporary directory.
 
+**Resolved later on 7 October** (`a0dff5e`, recorded under "Follow-up
+defects" in the [G1 review fixes](v2-phase-g1-review-fixes-2026-10-07.md)).
+The pending dependency was the goal's rules. A new member's records arrive
+before the content they name, and its admission hold ended once it heard the
+host's computer through an exchange the host opened, which brings no content.
+The kill was incidental: without it, 2 of 6 runs were refused too. The hold
+now also waits for the rules and the current content key, and the simulation
+waits for the new member's `guard` to clear before its first post.
+
 ## Verification of this change
 
 The harness changes are `0f557a7` (the multicast precondition) and `163f08e`

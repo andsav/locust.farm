@@ -316,6 +316,64 @@ agent's halt and on records standing on its reused ones. A first version of
 the narrower rule left out acknowledgements of deliveries whose effects stood
 on the fork, and reported four of these as failures (765, 7125, 8333, 8340).
 
+Three defects found after the review fixes were fixed on 7 October
+([follow-up defects](v2-phase-g1-review-fixes-2026-10-07.md#follow-up-defects)):
+
+- **A fork after a second restore is a limit, not a guard bug (`3ae5cae`).**
+  A member restored with its marks lost writes them again from the copy. If
+  its hold then ends by hearing the host's computer alone, and that computer
+  never had the agent's last record while another member's did, the agent
+  signs over it: the first way of risk (5). The same happens when, before
+  the agent signs, the data directory alone is put back again with the
+  marks kept. The marks never named the record, so that start finds nothing
+  missing. Nothing on the computer remembers the record, so the guard
+  could hold it only by waiting for every member's computer after every copy
+  of unknown age, which the second table does not ask. The guard is
+  unchanged. The plan states the case under risk (5). The simulator's
+  marks-lost exclusion now carries past a later marks-kept restore for a
+  position the marks have not reached since, through `lost_with_the_marks`
+  in [check.rs](../crates/locust-core/src/node/sim/check.rs). That one
+  rule replaces the clause added for review finding 11, which it covers.
+  `Restore::marked` now keeps each mark's position. The kept run
+  `a_member_restored_with_its_marks_lost_and_then_kept_signs_again_what_only_another_member_holds`
+  ends in the reused position. Before the change it failed with that
+  position inside the claims.
+  `a_record_that_came_back_after_the_marks_were_lost_leaves_the_claim_standing`
+  checks that a record which came back and raised the mark stays inside the
+  claims. The guard test
+  `a_record_lost_with_the_marks_is_signed_over_after_a_later_restore_with_the_marks_kept`
+  pins the guard's behaviour.
+- **A new member's admission hold ended before it could read the rules
+  (`a0dff5e`).** The guard's `admitted` hold ended on hearing the host's
+  computer. That hearing can come from an exchange the host opened, which
+  brings no content. Meanwhile the member's own exchange was still fetching,
+  one object at a time, the content its records name, the rules definition
+  among them. With the guard empty, every candidate came out pending and was
+  refused as `conflict`: "the candidate cannot be applied yet … Nothing to
+  change". The hold now also waits until the goal's current rules are
+  readable and its current content key is held (`ready` in
+  [guard.rs](../crates/locust-core/src/node/guard.rs)). `guard_admissions`,
+  run by every landing, ends the hold once that content lands after the
+  hearing. The restore-guard model carries no content, and this condition
+  only lengthens a hold. The plan's `Admitted` row says so.
+  `a_key_just_admitted_waits_for_the_goals_rules_as_well_as_the_hosts_computer`
+  steps the test network one input at a time (`Network::step`). Without the
+  change it fails with the guard empty.
+- **One owner-only mode rule (`79ce9cb`).** `locust_proto::local::owner_only`
+  holds the rule and its message. The marks directory and file
+  ([marks.rs](../crates/locust-store/src/marks.rs)) and the state directory
+  ([home.rs](../crates/locust/src/daemon/home.rs)) call it.
+
+The 10,000-seed release sweep, rerun after each of the first two and again
+once they were rebased on main `ed75324`: no failure; 30 positions signed
+again outside the claims and none inside, across the same 14 residual runs.
+On the rebased tree `run.py --quick` passed all three scenarios and
+`check_t1.py --network local` passed its 21 checkpoints. Before the second
+fix the new member's first post was refused in 4 of 7 `crash` runs with the
+kill and 2 of 6 without it. With the simulation's new wait and the old
+daemon, five of five runs failed with `conflict`. With the fix, nine of nine
+passed, one of them after the rebase.
+
 ## Verification
 
 - `cargo fmt --all --check`: clean.
