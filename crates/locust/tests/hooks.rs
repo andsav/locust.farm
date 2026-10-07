@@ -270,6 +270,8 @@ fn summary(goal: GoalId) -> GoalSummary {
             wanted_tasks: vec![],
             claims: vec![],
         },
+        guard: vec![],
+        restored: None,
     }
 }
 
@@ -1358,7 +1360,7 @@ fn takeover_seen_by_stop_is_still_reported_by_the_next_tool() {
 
 #[test]
 fn filtered_goals_preserve_baseline_until_an_authoritative_active_snapshot_reports_loss() {
-    for filter in ["absent", "joining", "halted"] {
+    for filter in ["absent", "joining", "halted", "signer-recovery"] {
         let own = held(3, SESSION.instance());
         let fixture = Fixture::new(PendingWork {
             claimed: vec![own],
@@ -1376,6 +1378,8 @@ fn filtered_goals_preserve_baseline_until_an_authoritative_active_snapshot_repor
                 "absent" => state.goals.clear(),
                 "joining" => state.goals[0].membership = Membership::Joining,
                 "halted" => state.goals[0].halted = Some(Halt::AuthorityConflict),
+                // G1 holds this agent's own key after a restore.
+                "signer-recovery" => state.goals[0].halted = Some(Halt::SignerRecovery),
                 _ => unreachable!(),
             }
         }
