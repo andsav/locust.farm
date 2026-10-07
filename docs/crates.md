@@ -47,7 +47,7 @@ store conformance suite. Other crates enable it only in `[dev-dependencies]`.
 Tests in [vectors.rs](../crates/locust-proto/src/vectors.rs) freeze the byte
 encoding of signed events. Before the first release of version 7, signed
 bytes may change inside 7 if the vectors change in the same commit
-([master plan](master-plan.md) 353-363). After a release, a change raises
+([master plan](master-plan.md) 406-417). After a release, a change raises
 `PROTOCOL_VERSION`. Until the release gate exists, this is a convention.
 
 ## Adding a dependency
