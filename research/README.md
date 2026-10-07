@@ -10,6 +10,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 - [c11: UX lessons for Locust](c11-ux-lessons-2026-10-07.md)
 - [Common Fabric and Locust: implementation comparison](common-fabric-assessment-2026-10-07.md)
 - [Common Fabric and Locust: second, independent assessment](common-fabric-second-assessment-2026-10-07.md)
+- [Rules on how agents work that Locust imposes: an audit after answer 33](imposed-method-audit-2026-10-07.md)
 - [Waking the person's own agent: a design](agent-wake-design-2026-10-07.md)
 - [Self-organizing agents: literature and reuse decisions](self-organizing-agents-literature-2026-10-07.md)
 - [Merak10 and Locust: organization, support and authority](merak10-locust-organization-2026-10-07.md)
