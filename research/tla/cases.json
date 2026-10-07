@@ -4705,7 +4705,8 @@
         "ScopedProofSurvivesFork",
         "DoubleSuccessorHalts",
         "ReplayMatchesHeld",
-        "EndIsTerminal"
+        "EndIsTerminal",
+        "ScenarioOutcome"
       ],
       "model_baseline": {
         "source_commit": "8c086c1eb72ffa5ad0572777c8944d8d66b5c7ee",
@@ -4737,7 +4738,8 @@
         "ScopedProofSurvivesFork",
         "DoubleSuccessorHalts",
         "ReplayMatchesHeld",
-        "EndIsTerminal"
+        "EndIsTerminal",
+        "ScenarioOutcome"
       ],
       "model_baseline": {
         "source_commit": "8c086c1eb72ffa5ad0572777c8944d8d66b5c7ee",
@@ -4769,7 +4771,8 @@
         "ScopedProofSurvivesFork",
         "DoubleSuccessorHalts",
         "ReplayMatchesHeld",
-        "EndIsTerminal"
+        "EndIsTerminal",
+        "ScenarioOutcome"
       ],
       "model_baseline": {
         "source_commit": "8c086c1eb72ffa5ad0572777c8944d8d66b5c7ee",
@@ -4801,7 +4804,8 @@
         "ScopedProofSurvivesFork",
         "DoubleSuccessorHalts",
         "ReplayMatchesHeld",
-        "EndIsTerminal"
+        "EndIsTerminal",
+        "ScenarioOutcome"
       ],
       "model_baseline": {
         "source_commit": "8c086c1eb72ffa5ad0572777c8944d8d66b5c7ee",
@@ -4833,7 +4837,8 @@
         "ScopedProofSurvivesFork",
         "DoubleSuccessorHalts",
         "ReplayMatchesHeld",
-        "EndIsTerminal"
+        "EndIsTerminal",
+        "ScenarioOutcome"
       ],
       "model_baseline": {
         "source_commit": "8c086c1eb72ffa5ad0572777c8944d8d66b5c7ee",
@@ -4865,7 +4870,8 @@
         "ScopedProofSurvivesFork",
         "DoubleSuccessorHalts",
         "ReplayMatchesHeld",
-        "EndIsTerminal"
+        "EndIsTerminal",
+        "ScenarioOutcome"
       ],
       "model_baseline": {
         "source_commit": "8c086c1eb72ffa5ad0572777c8944d8d66b5c7ee",
@@ -4898,6 +4904,7 @@
         "DoubleSuccessorHalts",
         "ReplayMatchesHeld",
         "EndIsTerminal",
+        "ScenarioOutcome",
         "NeverWitness"
       ],
       "violation": "NeverWitness",
@@ -4936,7 +4943,48 @@
         "ScopedProofSurvivesFork",
         "DoubleSuccessorHalts",
         "ReplayMatchesHeld",
-        "EndIsTerminal"
+        "EndIsTerminal",
+        "ScenarioOutcome"
+      ],
+      "model_baseline": {
+        "source_commit": "8c086c1eb72ffa5ad0572777c8944d8d66b5c7ee",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "current-organization-role-holder-subset"
+      }
+    },
+    {
+      "id": "organization-leave-removal-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-leave-removal-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "properties": [
+        "TypeOK",
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld",
+        "EndIsTerminal",
+        "ScenarioOutcome",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
       ],
       "model_baseline": {
         "source_commit": "8c086c1eb72ffa5ad0572777c8944d8d66b5c7ee",
@@ -4968,7 +5016,48 @@
         "ScopedProofSurvivesFork",
         "DoubleSuccessorHalts",
         "ReplayMatchesHeld",
-        "EndIsTerminal"
+        "EndIsTerminal",
+        "ScenarioOutcome"
+      ],
+      "model_baseline": {
+        "source_commit": "8c086c1eb72ffa5ad0572777c8944d8d66b5c7ee",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "current-organization-role-holder-subset"
+      }
+    },
+    {
+      "id": "organization-leave-fork-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-leave-fork-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "properties": [
+        "TypeOK",
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld",
+        "EndIsTerminal",
+        "ScenarioOutcome",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
       ],
       "model_baseline": {
         "source_commit": "8c086c1eb72ffa5ad0572777c8944d8d66b5c7ee",
@@ -5000,7 +5089,48 @@
         "ScopedProofSurvivesFork",
         "DoubleSuccessorHalts",
         "ReplayMatchesHeld",
-        "EndIsTerminal"
+        "EndIsTerminal",
+        "ScenarioOutcome"
+      ],
+      "model_baseline": {
+        "source_commit": "8c086c1eb72ffa5ad0572777c8944d8d66b5c7ee",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "current-organization-role-holder-subset"
+      }
+    },
+    {
+      "id": "organization-leave-readmission-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-leave-readmission-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "properties": [
+        "TypeOK",
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld",
+        "EndIsTerminal",
+        "ScenarioOutcome",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
       ],
       "model_baseline": {
         "source_commit": "8c086c1eb72ffa5ad0572777c8944d8d66b5c7ee",
@@ -5032,7 +5162,48 @@
         "ScopedProofSurvivesFork",
         "DoubleSuccessorHalts",
         "ReplayMatchesHeld",
-        "EndIsTerminal"
+        "EndIsTerminal",
+        "ScenarioOutcome"
+      ],
+      "model_baseline": {
+        "source_commit": "8c086c1eb72ffa5ad0572777c8944d8d66b5c7ee",
+        "protocol_version": 7,
+        "api_version": 7,
+        "status": "current-organization-role-holder-subset"
+      }
+    },
+    {
+      "id": "organization-leave-host-agent-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "organization"
+      ],
+      "module": "Organization.tla",
+      "config": "configs/organization-leave-host-agent-witness.cfg",
+      "expect": "violation",
+      "kind": "reachability-witness",
+      "properties": [
+        "TypeOK",
+        "GovernanceAuthority",
+        "NamedAuthority",
+        "ExactScope",
+        "DistinctPinnedQuorum",
+        "NoGlobalForkAuthority",
+        "CutoffFencesEvidence",
+        "MissingDefinitionWaits",
+        "ScopedProofSurvivesFork",
+        "DoubleSuccessorHalts",
+        "ReplayMatchesHeld",
+        "EndIsTerminal",
+        "ScenarioOutcome",
+        "NeverWitness"
+      ],
+      "violation": "NeverWitness",
+      "trace_require": [
+        {
+          "witnessReached": "TRUE"
+        }
       ],
       "model_baseline": {
         "source_commit": "8c086c1eb72ffa5ad0572777c8944d8d66b5c7ee",

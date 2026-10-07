@@ -57,6 +57,8 @@ ForkReview == E(14,2,0,0,7,"review",8,8,9,{},0,0,0,0,7)
 Remove(cutoff) == E(15,0,9,7,7,"remove",0,0,0,{},0,2,4,cutoff,0)
 Readmit == E(16,0,10,15,15,"admit",0,0,0,{},0,2,0,0,0)
 EndRecord == E(14,0,9,7,7,"end",0,0,0,{},0,0,0,0,0)
+(* Identity 2's leave names its admission, record 4, as the Rust leave does. *)
+Leave2 == E(14,2,1,10,7,"leave",0,0,0,{},0,0,4,0,0)
 OtherBranch == <<ForkTask,
  E(15,1,1,14,7,"contribution",14,14,0,{},0,0,0,0,7),
  E(16,2,0,0,7,"review",14,14,15,{},0,0,0,0,7),
@@ -122,23 +124,18 @@ Work == CASE Scenario = "taskless" -> <<
       E(8,1,0,0,14,"contribution",0,7,0,{},0,0,0,0,7)>>
  [] Scenario = "end-after-readmission" -> Base \o <<ForkReview, Remove(10), Readmit,
       E(17,0,11,16,16,"end",0,0,0,{},0,0,0,0,0)>>
- [] Scenario = "leave-removal" -> <<Task, Candidate, ReviewA,
-      E(14,2,1,10,7,"leave",0,0,0,{},0,0,0,0,0),
-      E(15,0,9,7,7,"remove",0,0,0,{},0,2,4,14,0),
+ [] Scenario = "leave-removal" -> <<Task, Candidate, ReviewA, Leave2,
+      Remove(14),
       E(16,2,2,14,7,"review",8,8,9,{},0,0,0,0,7),
       E(17,2,3,16,15,"review",8,8,9,{},0,0,0,0,7)>>
- [] Scenario = "leave-fork" -> <<Task, Candidate, ReviewA,
-      E(14,2,1,10,7,"leave",0,0,0,{},0,0,0,0,0),
-      E(15,2,1,10,7,"leave",0,0,0,{},0,0,0,0,0),
-      E(16,0,9,7,7,"remove",0,0,0,{},0,2,4,14,0),
-      E(17,0,9,7,7,"remove",0,0,0,{},0,2,4,15,0)>>
- [] Scenario = "leave-readmission" -> <<Task, Candidate, ReviewA,
-      E(14,2,1,10,7,"leave",0,0,0,{},0,0,0,0,0),
-      E(15,0,9,7,7,"remove",0,0,0,{},0,2,4,14,0),
-      E(16,0,10,15,15,"admit",0,0,0,{},0,6,0,0,0),
-      E(17,6,0,0,16,"contribution",0,7,0,{},0,0,0,0,7)>>
+ [] Scenario = "leave-fork" -> <<Task, Candidate, ReviewA, Leave2, Remove(14),
+      E(16,2,0,0,7,"review",8,8,9,{},0,0,0,0,7)>>
+ [] Scenario = "leave-readmission" -> <<Task, Candidate, ReviewA, Leave2,
+      Remove(14), Readmit,
+      E(17,2,2,14,16,"contribution",0,7,0,{},0,0,0,0,7)>>
  [] Scenario = "leave-host-agent" -> Base \o <<
-      E(14,5,0,0,7,"leave",0,0,0,{},0,0,0,0,0)>>
+      E(14,5,0,0,7,"leave",0,0,0,{},0,0,2,0,0),
+      E(15,5,1,14,7,"contribution",0,7,0,{},0,0,0,0,7)>>
  [] OTHER -> Base
 
 Transcript == Founding \o Work
@@ -207,7 +204,6 @@ Eligible(H,id) == /\ id \in H /\ AuthorChain(H,id)
  /\ ByID[ByID[id].anchor].kind # "end"
  /\ AnchorsMonotonic(H,id)
  /\ (~CheckCutoff \/ CutoffAllows(H,id))
- /\ (~\E a \in Ancestors(H,id) \ {id} : ByID[a].kind = "leave")
 Authorized(H,id,pins) == Eligible(H,id) /\
  (Usable(H,id) \/ RetainedByCutoff(H,id) \/
   (EnablePins /\ id \in pins /\ ByID[id].kind # "select"))
@@ -269,7 +265,12 @@ Valid(H,D,id,pins) ==
               /\ Valid(H,D,e.round,pins) /\ Valid(H,D,e.subject,pins)
               /\ ByID[e.subject].kind = "contribution"
               /\ e.scope = ByID[e.subject].scope /\ e.round = ByID[e.subject].round
-         [] e.kind = "leave" -> e.author # 5
+         (* As fold.rs checks a leave, and as E2 adds for the host's agent:
+            it names its author's admission at its anchor and is not signed
+            by the host's agent. A leave excludes nothing by itself: later
+            work stops counting only through the removal's cutoff. *)
+         [] e.kind = "leave" ->
+              e.author # 5 /\ e.admission \in Admission(H,e.author,e.anchor)
          [] OTHER -> FALSE
 
 Selected(H,D) == {d \in H : ByID[d].kind = "select" /\ Decision(H,D,d)}
@@ -303,9 +304,9 @@ Witness(H,D,V) == CASE Scenario = "taskless" -> {8,9} \subseteq V.ordinary /\ V.
  [] Scenario = "role-removal" -> 14 \in H /\ 15 \in V.selected /\ RolesAt(H,14).lead = {5}
  [] Scenario = "end-late-record" -> 14 \in H /\ {9,10} \subseteq V.ordinary
  [] Scenario = "leave-removal" -> {14,15,16,17} \subseteq H /\ {10,14} \subseteq V.ordinary /\ {16,17} \cap V.ordinary = {}
- [] Scenario = "leave-fork" -> {14,15,16,17} \subseteq H /\ {14,15} \cap V.ordinary = {} /\ {16,17} \cap V.governance = {}
+ [] Scenario = "leave-fork" -> {14,15,16} \subseteq H /\ {10,14} \subseteq V.ordinary /\ 16 \notin V.ordinary
  [] Scenario = "leave-readmission" -> {14,15,16,17} \subseteq H /\ {10,14,17} \subseteq V.ordinary /\ 16 \in V.governance
- [] Scenario = "leave-host-agent" -> 14 \in H /\ 14 \notin V.ordinary /\ 12 \in V.selected
+ [] Scenario = "leave-host-agent" -> {14,15} \subseteq H /\ 14 \notin V.ordinary /\ 15 \in V.ordinary /\ 12 \in V.selected
  [] OTHER -> 12 \in V.selected
 Fault(H,D) == CASE Scenario \in {"role-change","lead-change","role-removal"} -> 14 \in H
  [] Scenario = "missing-definition" -> 7 \notin D
@@ -365,5 +366,45 @@ EndIsTerminal ==
   /\ \A r \in view.ordinary \cup view.selected :
        ByID[r].anchor = 0 \/ ByID[ByID[r].anchor].seq < ByID[e].seq
 ReplayMatchesHeld == view = Projection(held,definitions)
+(* The outcome each E1 and E2 case is named for, in every reachable state.
+   Every held subset of a transcript is reachable, so no antecedent is empty. *)
+ScenarioOutcome ==
+ LET O == view.ordinary G == view.governance S == view.selected IN
+ CASE Scenario = "end-late-record" ->
+      /\ (14 \in held => 14 \in G)
+      /\ ({8,9,10} \subseteq held => {8,9,10} \subseteq O)
+   [] Scenario = "end-later-governance" ->
+      /\ (14 \in held => 14 \in G)
+      /\ {15,16} \cap G = {}
+   [] Scenario = "end-fork-at-or-before" ->
+      /\ (14 \in G <=> (14 \in held /\ 15 \notin held /\ 16 \notin held))
+      /\ (16 \in held => {7,14,15,16} \cap G = {})
+   [] Scenario = "end-fork-above" ->
+      /\ 7 \in G /\ (14 \in held => 14 \in G)
+      /\ {15,16} \cap G = {}
+   [] Scenario = "end-anchored-at-end" ->
+      /\ (14 \in held => 14 \in G)
+      /\ 8 \notin O
+   [] Scenario = "end-after-readmission" ->
+      /\ ({15,16,17} \subseteq held => 17 \in G)
+      /\ ({8,9,10,15} \subseteq held => 10 \in O)
+      /\ (15 \in held => 14 \notin O)
+      /\ ({8,9,10,11,12,15} \subseteq held => 12 \in S)
+   [] Scenario = "leave-removal" ->
+      /\ ({8,9,10,14} \subseteq held => {10,14} \subseteq O)
+      /\ (15 \in held => {16,17} \cap O = {})
+      /\ ({8,9,10,14,16} \subseteq held /\ 15 \notin held => 16 \in O)
+   [] Scenario = "leave-fork" ->
+      /\ ({8,9,10,14,15} \subseteq held => {10,14} \subseteq O)
+      /\ (15 \in held => 16 \notin O)
+   [] Scenario = "leave-readmission" ->
+      /\ ({8,9,10,14,15} \subseteq held => {10,14} \subseteq O)
+      /\ ({15,16} \subseteq held => 16 \in G)
+      /\ ({10,14,15,16,17} \subseteq held => 17 \in O)
+   [] Scenario = "leave-host-agent" ->
+      /\ 14 \notin O
+      /\ ({14,15} \subseteq held => 15 \in O)
+      /\ \A a \in G : ByID[a].seq >= 1 => MemberAt(held,5,a)
+   [] OTHER -> TRUE
 NeverWitness == ~witnessReached
 =============================================================================
