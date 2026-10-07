@@ -673,6 +673,56 @@ fn goal_create(
     ))
 }
 
+fn already_member_output(
+    client: &mut LocalClient,
+    socket: &Path,
+    goal: GoalId,
+    agent: PublicKey,
+    requested_name: Option<&str>,
+    role: Option<&str>,
+) -> Result<Output, Failure> {
+    let known = status(client, socket, None)?;
+    let view = observed(client, socket, goal)?;
+    let member = view
+        .members
+        .iter()
+        .find(|member| member.member == agent)
+        .ok_or_else(|| Failure::unavailable("the member's admission has not arrived"))?;
+    let level = view
+        .abilities
+        .iter()
+        .find(|ability| ability.agent == agent)
+        .map_or(Level::Auto, |ability| ability.level);
+    let mut human = format!(
+        "{} is already in \"{}\" as {} · {}.",
+        name_for(&known, agent),
+        presentation::safe(view.title.as_deref().unwrap_or("this goal")),
+        presentation::safe(&member.name),
+        level_word(level)
+    );
+    if requested_name.is_some_and(|name| name != member.name) {
+        human.push_str(" A name cannot change.");
+    }
+    if let Some(role) = role
+        && !view
+            .roles
+            .get(role)
+            .is_some_and(|holders| holders.contains(&agent))
+    {
+        human.push_str(&format!(
+            "\nGive the role: locust --owner role give --goal {} --member {} {}",
+            short_goal(goal),
+            selectors::member_key_prefix(&view.members, agent),
+            roles::quote_role(role)
+        ));
+    }
+    Ok(Output::success(
+        json!({"goal":goal,"agent":agent,"name":member.name,
+        "membership":"member","level":level,"changed":false}),
+        human,
+    ))
+}
+
 fn add_plan(
     client: &mut LocalClient,
     socket: &Path,
@@ -786,6 +836,16 @@ fn goal_add(
     let agent = acting_agent(client, socket, matches, None)?;
     let level = selected_level(args);
     let plan = add_plan(client, socket, goal, agent, level, args)?;
+    if plan.review["already_member"] == true {
+        return already_member_output(
+            client,
+            socket,
+            goal,
+            agent,
+            args.get_one::<String>("name").map(String::as_str),
+            plan.review["role"].as_str(),
+        );
+    }
     if let Some(output) = reviewed(matches, args, &plan, || {
         add_plan(client, socket, goal, agent, level, args)
     })? {
@@ -795,18 +855,6 @@ fn goal_add(
     let role: Option<String> = serde_json::from_value(plan.review["role"].clone())
         .map_err(|error| Failure::internal(error.to_string()))?;
     let title = plan.review["title"].as_str().unwrap_or("this goal");
-    if plan.review["already_member"] == true {
-        let current_level = plan.review["current_level"].as_str().unwrap_or("read");
-        return Ok(Output::success(
-            json!({"goal":goal,"agent":agent,"membership":"member","level":current_level,"changed":false}),
-            format!(
-                "{} is already a member of \"{}\" · {}.",
-                presentation::safe(name),
-                presentation::safe(title),
-                current_level
-            ),
-        ));
-    }
     let goal_status = observed(client, socket, goal)?;
     let now = now_ms()?;
     let expires_ms = (now / 86_400_000 + 2) * 86_400_000;
@@ -945,8 +993,18 @@ fn goal_join(
     };
     let level = selected_level(args);
     let name = member_name(client, socket, args, agent)?;
+    let plan = join_plan(client, socket, &preview, agent, level, &name)?;
+    if plan.review["standing"] == "member" {
+        return already_member_output(
+            client,
+            socket,
+            preview.goal,
+            agent,
+            args.get_one::<String>("name").map(String::as_str),
+            preview.role.as_deref(),
+        );
+    }
     if owner {
-        let plan = join_plan(client, socket, &preview, agent, level, &name)?;
         if args
             .get_one::<String>("ticket")
             .is_some_and(|source| source == "-")

@@ -239,6 +239,87 @@ fn found(peers: &mut [Peer]) -> GoalId {
 }
 
 #[test]
+fn a_waiting_name_can_change_and_the_admitted_name_and_role_cross_both_restarts() {
+    use crate::sync::Host;
+    use locust_proto::api::{Level, Membership};
+    use locust_proto::invite::{Invitation, JoinRequest};
+    let mut peers = [Peer::new(1), Peer::new(2)];
+    let host = peers[0].principal;
+    let member = peers[1].principal;
+    let formation = locust_proto::organization::presets()
+        .into_iter()
+        .find(|preset| preset.name == "review-panel")
+        .unwrap()
+        .formation;
+    let Response::GoalCreated { goal } = peers[0].call(Request::GoalCreate {
+        agent: host,
+        name: "Harbor".into(),
+        title: "Names across computers".into(),
+        formation_json: Some(serde_json::to_string(&formation).unwrap()),
+        inputs: Default::default(),
+    }) else {
+        panic!()
+    };
+    let Response::Invited { ticket } = peers[0].call(Request::GoalInvite {
+        goal,
+        role: Some("reviewer".into()),
+        expires_ms: 1_000_000,
+    }) else {
+        panic!()
+    };
+    let invitation = Invitation::from_ticket(ticket.as_str()).unwrap();
+    assert_eq!(invitation.host_name, "Harbor");
+    for name in ["Maple", "Juniper"] {
+        assert!(matches!(
+            peers[1].call(Request::GoalJoin {
+                agent: member,
+                name: name.into(),
+                ticket: ticket.clone(),
+                level: Level::Ask,
+            }),
+            Response::Joined {
+                membership: Membership::Joining,
+                ..
+            }
+        ));
+    }
+    peers[1].restart();
+    assert_eq!(peers[1].node.joins()[0].request.name, "Juniper");
+    reconcile(&mut peers, 1000);
+    reconcile(&mut peers, 2000);
+    for peer in &mut peers {
+        peer.restart();
+        assert_eq!(
+            peer.node.goals[&goal].state().members[&member].name,
+            "Juniper"
+        );
+        assert_eq!(peer.node.goals[&goal].state().members[&host].name, "Harbor");
+        assert!(peer.node.goals[&goal].state().roles["reviewer"].contains(&member));
+    }
+    let before = peers[0].store.log(&goal, 0, usize::MAX).unwrap();
+    let endpoint = peers[1].endpoint;
+    for name in ["Juniper", "Maple"] {
+        let request = JoinRequest::sign(
+            goal,
+            endpoint,
+            name.into(),
+            invitation.secret,
+            peers[1].node.signer(&member).unwrap(),
+        );
+        // A retry can race admission under the previous waiting name.
+        assert_eq!(
+            Host::join(&mut peers[0].node, &endpoint, &request, 3000),
+            Ok(())
+        );
+    }
+    assert_eq!(peers[0].store.log(&goal, 0, usize::MAX).unwrap(), before);
+    assert_eq!(
+        peers[0].node.goals[&goal].state().members[&member].name,
+        "Juniper"
+    );
+}
+
+#[test]
 fn host_operations_refuse_a_daemon_that_does_not_hold_the_host_key() {
     use locust_proto::api::ErrorCode;
     use locust_proto::event::{TaskId, WorkspaceCheckpoint};

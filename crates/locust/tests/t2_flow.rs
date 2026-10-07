@@ -863,15 +863,10 @@ fn reviewed_local_membership_uses_names_and_defaults_to_auto_without_tickets() {
         ])
         .output()
         .unwrap();
-    assert_eq!(repeated.status.code(), Some(7));
+    assert!(repeated.status.success());
     let repeated: Value = serde_json::from_slice(&repeated.stdout).unwrap();
-    assert_eq!(repeated["error"]["code"], "conflict");
-    assert!(
-        repeated["error"]["message"]
-            .as_str()
-            .unwrap()
-            .contains("the plan changed")
-    );
+    assert_eq!(repeated["result"]["changed"], false);
+    assert_eq!(repeated["result"]["name"], "bob");
     assert_eq!(inventory, invites());
     let goal_status = participant.cli(&["--owner"], &["goal", "status", "--goal", goal]);
     assert!(
@@ -903,6 +898,96 @@ fn reviewed_local_membership_uses_names_and_defaults_to_auto_without_tickets() {
     assert_ne!(
         alice["agent_enrolled"]["agent"],
         bob["agent_enrolled"]["agent"]
+    );
+}
+
+#[test]
+fn confirmed_adds_carry_the_counting_role_and_repeats_keep_the_signed_name() {
+    let p = Participant::new();
+    for name in ["harbor", "maple", "juniper", "cedar"] {
+        p.cli(&["--owner"], &["agent", "enroll", name]);
+    }
+    let created = p.approved_cli(
+        &["--owner", "--agent", "harbor"],
+        &[
+            "goal",
+            "create",
+            "--title",
+            "Panel",
+            "--formation",
+            "review-panel",
+        ],
+    );
+    let goal = created["goal_created"]["goal"].as_str().unwrap();
+    for (agent, name, no_role) in [
+        ("maple", "Maple", false),
+        ("juniper", "Juniper", false),
+        ("cedar", "Cedar", true),
+    ] {
+        let mut args = vec![
+            "goal", "add", "--goal", goal, "--agent", agent, "--name", name,
+        ];
+        if no_role {
+            args.push("--no-role");
+        }
+        assert_eq!(p.approved_cli(&["--owner"], &args)["changed"], true);
+    }
+    let before = p.cli(&["--owner"], &["goal", "status", "--goal", goal]);
+    let members = before["goal_status"]["members"].as_array().unwrap();
+    let key = |name: &str| {
+        members
+            .iter()
+            .find(|member| member["name"] == name)
+            .unwrap()["member"]
+            .as_str()
+            .unwrap()
+    };
+    let reviewers = before["goal_status"]["roles"]["reviewer"]
+        .as_array()
+        .unwrap();
+    assert_eq!(reviewers.len(), 3);
+    assert!(reviewers.contains(&json!(key("Maple"))));
+    assert!(reviewers.contains(&json!(key("Juniper"))));
+    assert!(!reviewers.contains(&json!(key("Cedar"))));
+    let add = p.human(&[
+        "--owner", "goal", "add", "--goal", goal, "--agent", "cedar", "--name", "Oak",
+    ]);
+    assert!(
+        add.contains("cedar is already in \"Panel\" as Cedar · auto."),
+        "{add}"
+    );
+    assert!(add.contains("A name cannot change."));
+    assert!(add.contains("Give the role: locust --owner role give"));
+    assert!(!add.contains("Proceed?"));
+    let invited = p.approved_cli(&["--owner"], &["goal", "invite", "--goal", goal]);
+    let ticket_file = p.home.path().join("repeat.ticket");
+    fs::write(&ticket_file, invited["invited"]["ticket"].as_str().unwrap()).unwrap();
+    fs::set_permissions(&ticket_file, fs::Permissions::from_mode(0o600)).unwrap();
+    let joined = p.human(&[
+        "--owner",
+        "goal",
+        "join",
+        "--ticket-file",
+        ticket_file.to_str().unwrap(),
+        "--agent",
+        "cedar",
+        "--name",
+        "Oak",
+    ]);
+    assert!(
+        joined.contains("cedar is already in \"Panel\" as Cedar · auto."),
+        "{joined}"
+    );
+    assert!(joined.contains("A name cannot change."));
+    assert!(!joined.contains("Proceed?"));
+    let after = p.cli(&["--owner"], &["goal", "status", "--goal", goal]);
+    assert_eq!(
+        after["goal_status"]["members"],
+        before["goal_status"]["members"]
+    );
+    assert_eq!(
+        after["goal_status"]["roles"],
+        before["goal_status"]["roles"]
     );
 }
 

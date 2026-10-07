@@ -94,50 +94,27 @@ pub(super) fn resolve_member(
     else {
         unreachable!("typed client checks response kind")
     };
-    if prefix(value) {
-        let matches: Vec<_> = observed
-            .members
-            .iter()
-            .filter(|member| {
-                member
-                    .member
-                    .to_string()
-                    .starts_with(&value.to_ascii_lowercase())
-            })
-            .map(|member| member.member)
-            .collect();
-        if !matches.is_empty() {
-            return unique("member", value, matches);
-        }
-    }
-    if let Some(member) = member_by_name(&observed.members, value)? {
-        return Ok(member);
-    }
-    let local = status(client, socket, None)?;
-    let candidates = observed
-        .members
-        .iter()
-        .filter(|member| {
-            member.local
-                && local
-                    .agents
-                    .iter()
-                    .any(|agent| agent.agent == member.member && agent.name == value)
-        })
-        .map(|member| member.member)
-        .collect::<BTreeSet<_>>();
-    match candidates.len() {
-        0 => Err(Failure::new(
+    let local_names = if observed.members.iter().any(|member| member.local) {
+        status(client, socket, None)?
+            .agents
+            .into_iter()
+            .map(|agent| (agent.agent, agent.name))
+            .collect()
+    } else {
+        Default::default()
+    };
+    member_from_views(&observed.members, &local_names, value)?.ok_or_else(|| {
+        Failure::new(
             ErrorCode::NotFound,
             format!(
                 "no member of {} is named {}",
                 &goal.to_string()[..8],
                 super::presentation::safe(value)
             ),
-        )),
-        _ => unique("member", value, candidates),
-    }
+        )
+    })
 }
+
 pub(super) fn member_key_prefix(
     members: &[locust_proto::api::MemberView],
     key: PublicKey,
@@ -152,26 +129,44 @@ pub(super) fn member_key_prefix(
         .expect("distinct full keys");
     full[..length].into()
 }
-fn member_by_name(
+fn member_from_views(
     members: &[locust_proto::api::MemberView],
+    local_names: &std::collections::BTreeMap<PublicKey, String>,
     value: &str,
 ) -> Result<Option<PublicKey>, Failure> {
     let candidates: BTreeSet<_> = members
         .iter()
-        .filter(|member| member.name == value)
+        .filter(|member| {
+            member.name == value
+                || (member.local
+                    && local_names
+                        .get(&member.member)
+                        .is_some_and(|name| name == value))
+                || (prefix(value)
+                    && member
+                        .member
+                        .to_string()
+                        .starts_with(&value.to_ascii_lowercase()))
+        })
         .map(|member| member.member)
         .collect();
     match candidates.len() {
         0 => Ok(None),
         1 => Ok(candidates.first().copied()),
         _ => Err(Failure::invalid(format!(
-            "member name {} is shared; choose a key prefix: {}",
+            "member selector {} is ambiguous; choose a key prefix: {}",
             super::presentation::safe(value),
             candidates
                 .into_iter()
                 .map(|key| format!(
                     "{} ({})",
-                    super::presentation::safe(value),
+                    super::presentation::safe(
+                        &members
+                            .iter()
+                            .find(|member| member.member == key)
+                            .expect("candidate member")
+                            .name
+                    ),
                     member_key_prefix(members, key)
                 ))
                 .collect::<Vec<_>>()
@@ -370,21 +365,60 @@ mod tests {
             endpoint: locust_proto::id::EndpointId([3; 32]),
             local: false,
         }];
-        assert_eq!(member_by_name(&members, "Maple").unwrap(), Some(first));
-        assert_eq!(member_by_name(&members, "Other").unwrap(), None);
+        assert_eq!(
+            member_from_views(&members, &Default::default(), "Maple").unwrap(),
+            Some(first)
+        );
+        assert_eq!(
+            member_from_views(&members, &Default::default(), "Other").unwrap(),
+            None
+        );
         members.push(locust_proto::api::MemberView {
             member: second,
             name: "Maple".into(),
             endpoint: locust_proto::id::EndpointId([4; 32]),
             local: false,
         });
-        let error = member_by_name(&members, "Maple").unwrap_err();
+        let error = member_from_views(&members, &Default::default(), "Maple").unwrap_err();
         assert_eq!(error.code, ErrorCode::Invalid);
         assert!(
             error.message.contains("Maple (01010101), Maple (02020202)"),
             "{}",
             error.message
         );
+        members[0].local = true;
+        members[0].name = "Juniper".into();
+        let local_names = std::collections::BTreeMap::from([(first, "Maple".into())]);
+        let error = member_from_views(&members, &local_names, "Maple").unwrap_err();
+        assert!(
+            error
+                .message
+                .contains("Juniper (01010101), Maple (02020202)")
+        );
+        members[1].name = "01010101".into();
+        let error = member_from_views(&members, &local_names, "01010101").unwrap_err();
+        assert!(
+            error
+                .message
+                .contains("Juniper (01010101), 01010101 (02020202)")
+        );
+        // A signed name and an enrolled name for the same member deduplicate.
+        members[0].name = "Maple".into();
+        assert_eq!(
+            member_from_views(&members, &local_names, "Maple").unwrap(),
+            Some(first)
+        );
+        assert_eq!(
+            member_from_views(&members, &local_names, "02020202").unwrap(),
+            Some(second)
+        );
+        // Candidate labels expand beyond eight characters when needed.
+        let mut near = first.0;
+        near[4] = 2;
+        members[1].member = PublicKey(near);
+        let error = member_from_views(&members, &local_names, "01010101").unwrap_err();
+        assert!(error.message.contains("Maple (0101010101)"));
+        assert!(error.message.contains("01010101 (0101010102)"));
     }
 
     #[test]

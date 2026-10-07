@@ -23,7 +23,6 @@ pub(in crate::node) struct InviteRecord {
     pub goal: GoalId,
     pub goal_title: Option<String>,
     pub governance: PublicKey,
-    pub host_name: String,
     pub role: Option<String>,
     pub created_ms: u64,
     pub expires_ms: Option<u64>,
@@ -209,7 +208,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             own.hints.iter().take(MAX_HINTS).cloned().collect(),
             secret,
             Some(expires_ms),
-            host_name.clone(),
+            host_name,
             role.clone(),
             signer,
         )
@@ -234,7 +233,6 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 goal,
                 goal_title,
                 governance,
-                host_name,
                 role,
                 created_ms: now_ms,
                 expires_ms: Some(expires_ms),
@@ -314,11 +312,6 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 let same = join.secret == invitation.secret
                     && join.endpoint == invitation.endpoint
                     && join.governance == invitation.governance;
-                if same && join.name != name {
-                    return Err(conflict(
-                        "the pending admission already has a different name",
-                    ));
-                }
                 if same && join.refused {
                     return Err(denied(
                         "the inviter refused this invitation; request a fresh invitation from the host",
@@ -326,7 +319,10 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 }
                 if same {
                     let mut tx = Tx::none();
-                    tx.local(local::level_write(&goal, &principal, &level))
+                    let mut join = join.clone();
+                    join.name = name;
+                    tx.local(local::join_write(&goal, &principal, &join))
+                        .local(local::level_write(&goal, &principal, &level))
                         .touch(goal);
                     return Ok(Planned {
                         response: Response::Joined {

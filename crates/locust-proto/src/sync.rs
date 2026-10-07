@@ -23,7 +23,8 @@
 //! - `Hello` is not answered when accepted. A `Hello` of another version is
 //!   answered with `Refused(UnsupportedVersion)` and ends the exchange.
 //! - `Join` is answered with the responder's `Frontier` once the key is
-//!   admitted, also when the same key repeats it, and otherwise with
+//!   admitted, also when the same key repeats it from the same endpoint
+//!   (the signed admission keeps its name), and otherwise with
 //!   `Refused(InvitationRefused)`.
 //! - `Frontier(mine)` is answered with zero or more `Events` and `Inventory`
 //!   frames, chosen by the reconciliation rule below for every author either

@@ -476,6 +476,41 @@ fn joining_daemon(seed: u8) -> Daemon {
 }
 
 #[test]
+fn a_refused_waiting_join_reports_the_refusal_before_a_changed_name() {
+    let (mut host, _, _, agent, goal) = setup();
+    let ticket = issue(&mut host, agent, goal, None);
+    let invitation = Invitation::from_ticket(ticket.as_str()).unwrap();
+    let mut joining = joining_daemon(22);
+    let member = joining.enroll("maple", 2);
+    let owner = joining.owner();
+    joining.ok(owner, reviewed(ticket.clone(), member));
+    Host::exchange_ended(
+        &mut joining.node,
+        crate::sync::Report {
+            goal,
+            endpoint: invitation.endpoint,
+            joining_member: Some(member),
+            join: true,
+            dialed: true,
+            ended: crate::sync::Ended::Refused(Refusal::InvitationRefused),
+            at_ms: 1000,
+        },
+    );
+    let mut request = reviewed(ticket, member);
+    let Request::GoalJoin { name, .. } = &mut request else {
+        unreachable!()
+    };
+    *name = "Juniper".into();
+    let error = joining.call(owner, request).unwrap_err();
+    assert_eq!(error.code, ErrorCode::Denied);
+    assert!(error.message.contains("refused this invitation"));
+    assert_eq!(
+        joining.node.goals[&goal].local.joins[&member].name,
+        "member"
+    );
+}
+
+#[test]
 fn a_ticket_names_the_governance_key_and_the_first_record_must_agree() {
     let (mut daemon, host, owner, agent, goal) = setup();
     let governance = governance_key(&daemon, goal).public();

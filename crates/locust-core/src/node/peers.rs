@@ -330,9 +330,12 @@ impl<S: Store, E: Entropy> Node<S, E> {
         if let Some((member, endpoint)) = invite.redeemed {
             return if member == request.member
                 && endpoint == *remote
-                && entry.state().members.get(&member).is_some_and(|member| {
-                    member.is_active() && member.endpoint == *remote && member.name == request.name
-                }) {
+                && entry
+                    .state()
+                    .members
+                    .get(&member)
+                    .is_some_and(|member| member.is_active() && member.endpoint == *remote)
+            {
                 Ok(Tx::none())
             } else {
                 Err(refused)

@@ -354,6 +354,24 @@ fn an_admission_with_a_bad_name_is_not_an_event() {
             Err(EventError::BadName)
         );
     }
+    for role in ["", "  ", "a\nb"] {
+        let mut header = events[1].header().clone();
+        let Body::MemberAdmitted { role: value, .. } = &mut header.body else {
+            panic!("admission")
+        };
+        *value = Some(role.into());
+        assert_eq!(
+            Event::sign(header.clone(), &testkit::keypair(1)),
+            Err(EventError::BadName)
+        );
+        assert_eq!(
+            Event::decode(
+                &crate::codec::encode(&header).unwrap(),
+                events[1].signature()
+            ),
+            Err(EventError::BadName)
+        );
+    }
     assert!(is_member_name("Juniper ; North"));
     assert!(is_member_name(&"é".repeat(32)));
     assert!(!is_member_name(&"é".repeat(33)));

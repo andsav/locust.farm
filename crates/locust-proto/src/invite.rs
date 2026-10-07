@@ -116,6 +116,7 @@ pub struct Invitation {
     /// in JSON, never printed; checked against the genesis record
     /// once it arrives.
     pub governance: PublicKey,
+    /// The host agent's signed name, as advertised by the ticket.
     pub host_name: String,
     /// The daemon that redeems the invitation.
     pub endpoint: EndpointId,
@@ -130,9 +131,10 @@ pub struct Invitation {
     pub sharing: InvitationSharing,
     /// Publication policy advertised at issuance and reconciled against shared history.
     pub publication: Option<InvitationPublication>,
+    /// The role carried by admission, signed by the host.
+    pub role: Option<String>,
     /// Host signature over every preceding field, including the
     /// capability digest. Verified before any preview or join intent.
-    pub role: Option<String>,
     pub signature: Signature,
 }
 
@@ -309,7 +311,7 @@ impl Invitation {
             sharing_facts: InvitationPreview::sharing_facts(),
         })
     }
-    /// Checks the version and the contact hints. Runs when a ticket is
+    /// Checks the names, version, publication and contact hints. Runs when a ticket is
     /// written and again when one is read.
     fn check(&self) -> Result<(), InviteError> {
         if !crate::event::is_member_name(&self.host_name)
@@ -394,6 +396,7 @@ const INVITATION_REVIEW: &str = "locust invitation review";
 /// proves the joiner holds the key that the invitation will be bound to.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct JoinRequest {
+    /// The member name requested for the signed admission.
     pub name: String,
     /// The goal to join.
     pub goal: GoalId,
@@ -403,7 +406,7 @@ pub struct JoinRequest {
     pub endpoint: EndpointId,
     /// The invitation's capability.
     pub secret: InviteSecret,
-    /// By `member`, over the goal, member, endpoint and the secret's digest.
+    /// By `member`, over the goal, member, endpoint, name and the secret's digest.
     pub signature: Signature,
 }
 
@@ -429,7 +432,8 @@ impl JoinRequest {
         }
     }
 
-    /// True if `member` signed this goal, endpoint and secret together.
+    /// True if `member` signed this goal, endpoint, name and secret together,
+    /// and the requested name is usable.
     ///
     /// This proves key possession only. The caller must also require
     /// `endpoint` to equal the authenticated remote endpoint of the link the
@@ -760,6 +764,46 @@ mod tests {
         assert!(with_hints(&[relay; MAX_HINTS]).to_ticket().is_ok());
         // Printable text of an unknown form is carried; consumers skip it.
         assert!(with_hints(&["café relay ü"]).to_ticket().is_ok());
+    }
+
+    #[test]
+    fn unusable_host_names_are_refused_even_with_valid_signatures() {
+        for name in [
+            String::new(),
+            "h".repeat(65),
+            " padded".into(),
+            "a\nb".into(),
+        ] {
+            let mut ticket = invitation();
+            ticket.host_name = name;
+            ticket.sign(&testkit::keypair(1)).unwrap();
+            assert_eq!(ticket.verify(), Err(InviteError::BadName));
+            assert_eq!(ticket.to_ticket(), Err(InviteError::BadName));
+            let bytes = codec::encode(&ticket).unwrap();
+            assert_eq!(
+                Invitation::from_ticket(&format!("{TICKET_PREFIX}{}", Hex(&bytes))),
+                Err(InviteError::BadName)
+            );
+        }
+    }
+
+    #[test]
+    fn a_signed_join_with_an_unusable_name_does_not_verify() {
+        for name in [
+            String::new(),
+            "m".repeat(65),
+            " padded".into(),
+            "a\nb".into(),
+        ] {
+            let request = JoinRequest::sign(
+                GoalId([1; 32]),
+                EndpointId([2; 32]),
+                name,
+                InviteSecret([3; 32]),
+                &testkit::keypair(4),
+            );
+            assert!(!request.verify());
+        }
     }
 
     #[test]

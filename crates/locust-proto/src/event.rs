@@ -1007,7 +1007,7 @@ fn check_size_and_version(bytes: &[u8]) -> Result<(), EventError> {
     }
 }
 
-/// Names signed into admissions are bounded, visible, and unpadded.
+/// Names signed into admissions are bounded, unpadded and free of control characters.
 pub fn is_member_name(name: &str) -> bool {
     !name.is_empty()
         && name.len() <= crate::limits::MAX_MEMBER_NAME_BYTES
