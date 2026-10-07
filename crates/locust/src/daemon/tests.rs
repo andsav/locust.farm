@@ -126,6 +126,7 @@ impl Engine for Scripted {
                 daemon_version: "scripted".to_string(),
                 endpoint: None,
                 agents: Vec::new(),
+                waiting: Vec::new(),
                 goals: Vec::new(),
             })),
             Request::Shutdown => {

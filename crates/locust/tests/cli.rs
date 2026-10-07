@@ -80,6 +80,7 @@ fn status(goals: Vec<GoalSummary>) -> Response {
     Response::Status(DaemonStatus {
         daemon_version: "stub".into(),
         endpoint: None,
+        waiting: vec![],
         agents: vec![],
         goals,
     })
@@ -104,6 +105,7 @@ fn status_agents(agents: Vec<AgentView>) -> Response {
     Response::Status(DaemonStatus {
         daemon_version: "stub".into(),
         endpoint: None,
+        waiting: vec![],
         agents,
         goals: vec![],
     })
@@ -177,6 +179,7 @@ fn level_and_allow_apply_in_one_run_and_print_an_undo_that_names_the_agent() {
             Request::Status => Ok(Response::Status(DaemonStatus {
                 daemon_version: "stub".into(),
                 endpoint: None,
+                waiting: vec![],
                 agents: vec![AgentView {
                     agent,
                     name: "worker".into(),
@@ -188,6 +191,10 @@ fn level_and_allow_apply_in_one_run_and_print_an_undo_that_names_the_agent() {
                     title: Some("Goal title".into()),
                     member: agent,
                     membership: Membership::Member,
+                    name: "agent".into(),
+                    host_name: None,
+                    invitations_open: 0,
+                    invitations_expire_ms: None,
                     halted: None,
                     abilities: current(level, allowed),
                 }],
@@ -335,7 +342,10 @@ fn level_and_allow_apply_in_one_run_and_print_an_undo_that_names_the_agent() {
             "worker may take \"Task title\" in \"Goal title\" until the host revises it."
         )
     );
-    assert!(changed.contains("--task task:cdcdcdcd --revoke"));
+    assert!(
+        changed.contains("Undo: locust --owner allow --goal abababab --task task:cdcdcdcd --agent worker --revoke"),
+        "{changed}"
+    );
     run_undo(&changed);
     let unchanged = run(&[
         "--owner",
@@ -756,6 +766,10 @@ fn goal_prefixes_are_resolved_uniquely_and_duplicate_memberships_are_one_goal() 
         title: None,
         member: PublicKey([2; 32]),
         membership: Membership::Member,
+        name: "agent".into(),
+        host_name: None,
+        invitations_open: 0,
+        invitations_expire_ms: None,
         halted: None,
         abilities: abilities(goal, PublicKey([2; 32])),
     };
@@ -790,6 +804,10 @@ fn ambiguous_goal_prefix_is_invalid_and_does_not_send_the_operation() {
                     title: None,
                     member: PublicKey([2; 32]),
                     membership: Membership::Member,
+                    name: "agent".into(),
+                    host_name: None,
+                    invitations_open: 0,
+                    invitations_expire_ms: None,
                     halted: None,
                     abilities: abilities(goal, PublicKey([2; 32])),
                 })
@@ -816,6 +834,7 @@ fn named_principal_is_resolved_via_status_before_impersonation() {
             Ok(Response::Status(DaemonStatus {
                 daemon_version: "stub".into(),
                 endpoint: None,
+                waiting: vec![],
                 agents: vec![locust_proto::api::AgentView {
                     agent: PublicKey([2; 32]),
                     name: "worker".into(),
@@ -1350,6 +1369,7 @@ fn agent_revoke_applies_at_once_and_prints_the_command_that_undoes_it() {
         Request::Status => Ok(Response::Status(DaemonStatus {
             daemon_version: "stub".into(),
             endpoint: None,
+            waiting: vec![],
             agents: vec![AgentView {
                 agent,
                 name: "worker".into(),
@@ -1361,6 +1381,10 @@ fn agent_revoke_applies_at_once_and_prints_the_command_that_undoes_it() {
                 title: Some("Demo".into()),
                 member: agent,
                 membership: Membership::Member,
+                name: "agent".into(),
+                host_name: None,
+                invitations_open: 0,
+                invitations_expire_ms: None,
                 halted: None,
                 abilities: abilities(goal, agent),
             }],
@@ -2098,24 +2122,57 @@ fn human_status_names_membership_and_halt_with_stable_tags() {
     let home = scratch();
     write_secret(&home.path().join("owner.credential"), &[1; 32]);
     let handle = server(home.path(), 1, |_| {
-        Ok(status(vec![
+        let Response::Status(mut view) = status(vec![
             GoalSummary {
                 goal: GoalId([3; 32]),
                 member: PublicKey([4; 32]),
                 title: Some("a goal".into()),
                 membership: Membership::Refused,
+                name: "worker".into(),
+                host_name: None,
+                invitations_open: 0,
+                invitations_expire_ms: None,
                 halted: Some(locust_proto::api::Halt::AuthorityConflict),
-                abilities: abilities(GoalId([3; 32]), PublicKey([4; 32])),
+                abilities: Abilities {
+                    name: "worker".into(),
+                    ..abilities(GoalId([3; 32]), PublicKey([4; 32]))
+                },
             },
             GoalSummary {
                 goal: GoalId([5; 32]),
                 member: PublicKey([4; 32]),
                 title: None,
                 membership: Membership::Joining,
+                name: "worker".into(),
+                host_name: Some("Harbor".into()),
+                invitations_open: 0,
+                invitations_expire_ms: None,
                 halted: None,
-                abilities: abilities(GoalId([5; 32]), PublicKey([4; 32])),
+                abilities: Abilities {
+                    name: "worker".into(),
+                    host: None,
+                    hosted_here: false,
+                    ..abilities(GoalId([5; 32]), PublicKey([4; 32]))
+                },
             },
-        ]))
+        ]) else {
+            unreachable!("status fixture")
+        };
+        view.agents = vec![
+            AgentView {
+                agent: PublicKey([4; 32]),
+                name: "worker".into(),
+                author_only: false,
+                revoked: false,
+            },
+            AgentView {
+                agent: PublicKey([6; 32]),
+                name: "idle".into(),
+                author_only: false,
+                revoked: false,
+            },
+        ];
+        Ok(Response::Status(view))
     });
     let output = Command::new(env!("CARGO_BIN_EXE_locust"))
         .env_remove("LOCUST_CREDENTIAL")
@@ -2127,13 +2184,88 @@ fn human_status_names_membership_and_halt_with_stable_tags() {
         .unwrap();
     assert!(output.status.success());
     let text = String::from_utf8(output.stdout).unwrap();
-    assert!(text.contains(&format!("Goal a goal ({})", GoalId([3; 32]))));
-    assert!(text.contains(&format!("{} · refused", PublicKey([4; 32]))));
-    assert!(text.contains("Blocked: conflicting authority history"));
-    assert!(text.contains("decisions cannot advance"));
-    assert!(text.contains("fresh invitation, inspect it, and join again"));
-    assert!(text.contains(&format!("Title unavailable ({})", GoalId([5; 32]))));
-    assert!(text.contains("Admission has not arrived. Check connectivity to the issuer"));
+    assert!(text.starts_with("Nothing is waiting for you.\n"), "{text}");
+    // The halted goal and the joining agent show under their goals only.
+    assert!(
+        text.contains(
+            "a goal (03030303) · host: you · halted\n  Blocked: conflicting authority history."
+        ),
+        "{text}"
+    );
+    assert_eq!(text.matches("decisions cannot advance").count(), 1);
+    assert!(
+        text.contains("  worker · refused\n      The invitation was refused. Ask the goal host for a fresh invitation, inspect it, and join again."),
+        "{text}"
+    );
+    assert!(
+        text.contains("Title unavailable (05050505) · host: on another computer · the ticket names Harbor; not confirmed until admission arrives"),
+        "{text}"
+    );
+    assert_eq!(
+        text.matches("Admission has not arrived. It comes from the host's computer when that computer is on; nothing here waits for you.").count(),
+        1,
+        "{text}"
+    );
+    assert!(!text.contains("Waiting for you"), "{text}");
+    assert!(
+        text.contains("\nidle is connected and in no goal.\nDaemon stub"),
+        "{text}"
+    );
+    handle.join().unwrap();
+}
+
+#[test]
+fn a_role_refusal_names_the_role_and_the_goals_roles_for_the_person() {
+    let home = scratch();
+    write_secret(&home.path().join("owner.credential"), &[1; 32]);
+    let goal = GoalId([4; 32]);
+    let host = PublicKey([2; 32]);
+    let handle = server(home.path(), 1, move |frame| match frame.request {
+        Request::Status => Ok(status(vec![GoalSummary {
+            goal,
+            title: Some("Demo".into()),
+            member: host,
+            membership: Membership::Member,
+            name: "agent".into(),
+            host_name: None,
+            invitations_open: 0,
+            invitations_expire_ms: None,
+            halted: None,
+            abilities: abilities(goal, host),
+        }])),
+        Request::GoalStatus { .. } => {
+            Ok(Response::GoalStatus(hosted_goal_status(goal, host, true)))
+        }
+        Request::RoleGive { .. } => Err(ApiError {
+            code: ErrorCode::NotFound,
+            message: "this goal has no such role".into(),
+            details_json: Some(
+                json!({"role": "reviewers\u{202e}", "roles": ["lead", "reviewer"]}).to_string(),
+            ),
+        }),
+        request => panic!("unexpected {request:?}"),
+    });
+    let output = plain()
+        .arg("--home")
+        .arg(home.path())
+        .args([
+            "--owner",
+            "role",
+            "give",
+            "--goal",
+            &goal.to_string(),
+            "--member",
+            &host.to_string(),
+            "reviewers",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(5));
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert_eq!(
+        stderr.trim_end(),
+        "locust: not_found: this goal has no such role Role: reviewers\\u{202e} Roles here: lead, reviewer"
+    );
     handle.join().unwrap();
 }
 
@@ -2290,6 +2422,13 @@ fn watch_stops_observing_when_nobody_can_read_it() {
     let handle = server(home.path(), 1, |frame| match frame.request {
         Request::Status => Ok(status(vec![])),
         Request::Pending { .. } => Ok(Response::Pending(Default::default())),
+        // Names and tasks for the view, read before the first print.
+        Request::GoalStatus { goal } => Ok(Response::GoalStatus(hosted_goal_status(
+            goal,
+            PublicKey([2; 32]),
+            true,
+        ))),
+        Request::Board { .. } => Ok(Response::Board(vec![])),
         other => panic!("watch sent {other:?} with nobody reading"),
     });
     let (status, stderr) = closed_reader(
@@ -2321,6 +2460,10 @@ fn human_goal_and_task_titles_resolve_to_exact_authorized_write() {
             title: Some("Demo".into()),
             member: agent,
             membership: Membership::Member,
+            name: "agent".into(),
+            host_name: None,
+            invitations_open: 0,
+            invitations_expire_ms: None,
             halted: None,
             abilities: abilities(goal, agent),
         }])),
@@ -2388,6 +2531,10 @@ fn duplicate_goal_titles_refuse_writes_instead_of_guessing() {
                     title: Some("Demo".into()),
                     member: PublicKey([3; 32]),
                     membership: Membership::Member,
+                    name: "agent".into(),
+                    host_name: None,
+                    invitations_open: 0,
+                    invitations_expire_ms: None,
                     halted: None,
                     abilities: abilities(GoalId([n; 32]), PublicKey([3; 32])),
                 })
@@ -2599,6 +2746,10 @@ fn role_undo_lines_put_the_holders_back_and_name_the_member_by_key() {
             title: Some("Demo".into()),
             member: host,
             membership: Membership::Member,
+            name: "agent".into(),
+            host_name: None,
+            invitations_open: 0,
+            invitations_expire_ms: None,
             halted: None,
             abilities: abilities(goal, host),
         }])),
@@ -3176,6 +3327,7 @@ fn disconnected_members_are_offered_reconnect_in_status_and_owner_commands() {
         Request::Status => Ok(Response::Status(DaemonStatus {
             daemon_version: "stub".into(),
             endpoint: None,
+            waiting: vec![],
             agents: vec![AgentView {
                 agent,
                 name: "worker".into(),
@@ -3187,6 +3339,10 @@ fn disconnected_members_are_offered_reconnect_in_status_and_owner_commands() {
                 title: Some("Demo".into()),
                 member: agent,
                 membership: Membership::Member,
+                name: "agent".into(),
+                host_name: None,
+                invitations_open: 0,
+                invitations_expire_ms: None,
                 halted: None,
                 abilities: abilities(goal, agent),
             }],
@@ -3236,7 +3392,7 @@ fn disconnected_members_are_offered_reconnect_in_status_and_owner_commands() {
         .unwrap();
     assert!(output.status.success());
     let text = String::from_utf8(output.stdout).unwrap();
-    assert!(text.contains("credential disconnected"), "{text}");
+    assert!(text.contains("\nworker is disconnected."), "{text}");
     assert!(text.contains("agent reconnect --agent"), "{text}");
     handle.join().unwrap();
 }
@@ -3271,6 +3427,10 @@ fn a_leads_undo_restores_its_previous_holder_and_role_duties_are_explained() {
             title: Some("Demo".into()),
             member: host,
             membership: Membership::Member,
+            name: "Harbor".into(),
+            host_name: Some("Harbor".into()),
+            invitations_open: 0,
+            invitations_expire_ms: None,
             halted: None,
             abilities: abilities(goal, host),
         }])),

@@ -1,22 +1,27 @@
 //! What reads answer with: the API's views, rendered from a goal's state and
 //! this daemon's records about it.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use locust_proto::api::{
-    self, Attempting, BlobState, BlobStatus, CancelItem, ContextNews, DeliveryItem, EventDetail,
-    EventView, GoalSummary, Membership, PendingWork, ReviewItem, TaskDetail, TaskView, Verdict,
-    WorkItem,
+    self, ApiError, Attempting, BlobState, BlobStatus, CancelItem, ContextNews, DeliveryItem,
+    EventDetail, EventView, GoalSummary, Level, Membership, PendingWork, ReviewItem, TaskDetail,
+    TaskView, Verdict, WaitingForYou, WaitingKind, WorkItem, allow_command, short,
 };
 use locust_proto::engine::Entropy;
-use locust_proto::event::{AttemptStatus, Body, Event, ReviewVerdict, Scope};
-use locust_proto::id::{BlobHash, PublicKey};
+use locust_proto::event::{
+    AttemptStatus, Body, Context, DecisionAction, DecisionPurpose, Event, ReviewVerdict, Scope,
+    ScopeKey,
+};
+use locust_proto::id::{BlobHash, GoalId, PublicKey};
 use locust_proto::organization::CompletionRule;
-use locust_proto::store::Store;
+use locust_proto::store::{Space, Store};
 
 use super::Node;
 use super::callers::Actor;
 use super::entry::Entry;
+use super::records;
+use super::requests::invitations::InviteRecord;
 use crate::goal::{Standing, Task};
 
 impl Entry {
@@ -93,13 +98,38 @@ impl<S: Store, E: Entropy> Node<S, E> {
         })
     }
 
-    /// One entry per goal and local principal in it: only `principal`'s own
-    /// when one is named.
-    pub(super) fn goal_summaries(&self, principal: Option<PublicKey>) -> Vec<GoalSummary> {
+    /// One entry per goal and local agent in it: only `principal`'s own when
+    /// one is named. Open invitations are counted in one scan, for the owner
+    /// and for the goals this daemon hosts.
+    pub(super) fn goal_summaries(
+        &self,
+        principal: Option<PublicKey>,
+        now_ms: u64,
+    ) -> Result<Vec<GoalSummary>, ApiError> {
+        let mut invitations: BTreeMap<GoalId, (u32, Option<u64>)> = BTreeMap::new();
+        if principal.is_none() {
+            for (_, bytes) in self.store.scan(Space::Invite, &[])? {
+                let record: InviteRecord = records::read(&bytes)?;
+                let open = record.redeemed.is_none()
+                    && record.revoked_ms.is_none()
+                    && record.expires_ms.is_none_or(|expires| expires > now_ms);
+                if !open {
+                    continue;
+                }
+                let open = invitations.entry(record.goal).or_default();
+                open.0 += 1;
+                open.1 = open.1.max(record.expires_ms);
+            }
+        }
         let mut summaries = Vec::new();
         for (goal, entry) in &self.goals {
             let local = &entry.local;
             let members: BTreeSet<_> = local.joins.keys().chain(local.part.keys()).collect();
+            let (invitations_open, invitations_expire_ms) = if self.hosts(entry) {
+                invitations.get(goal).copied().unwrap_or_default()
+            } else {
+                (0, None)
+            };
             for member in members
                 .into_iter()
                 .filter(|member| principal.is_none_or(|own| own == **member))
@@ -107,17 +137,77 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 let Some(membership) = entry.membership(member) else {
                     continue;
                 };
+                let abilities = self.abilities(entry, *member);
                 summaries.push(GoalSummary {
                     goal: *goal,
                     title: self.title(entry, principal.as_ref()),
                     member: *member,
+                    name: entry
+                        .state()
+                        .members
+                        .get(member)
+                        .map(|found| found.name.clone())
+                        .unwrap_or_else(|| abilities.name.clone()),
                     membership,
+                    host_name: Self::host_name(entry),
+                    invitations_open,
+                    invitations_expire_ms,
                     halted: entry.halted(),
-                    abilities: self.abilities(entry, *member),
+                    abilities,
                 });
             }
         }
-        summaries
+        Ok(summaries)
+    }
+
+    /// What a command of the person settles: one `AllowTask` per task an
+    /// agent wanted while its level is below auto, oldest first. A joining
+    /// agent waits for the host's computer and a halted goal for nobody, so
+    /// neither gives an entry.
+    pub(super) fn waiting_for(&self, summaries: &[GoalSummary]) -> Vec<WaitingForYou> {
+        let goals: Vec<String> = self.goals.keys().map(ToString::to_string).collect();
+        let mut waiting = Vec::new();
+        for summary in summaries {
+            if summary.membership != Membership::Member
+                || summary.halted.is_some()
+                || summary.abilities.level >= Level::Auto
+            {
+                continue;
+            }
+            let Some(entry) = self.goals.get(&summary.goal) else {
+                continue;
+            };
+            let tasks: Vec<String> = entry
+                .state()
+                .tasks
+                .keys()
+                .map(ToString::to_string)
+                .collect();
+            let goal = short(&summary.goal.to_string(), &goals);
+            for wanted in &summary.abilities.wanted_tasks {
+                waiting.push((
+                    wanted.since_ms,
+                    WaitingForYou {
+                        goal: summary.goal,
+                        title: summary.title.clone(),
+                        agent: Some(summary.member),
+                        agent_name: Some(summary.name.clone()),
+                        kind: WaitingKind::AllowTask {
+                            task: wanted.task,
+                            task_title: wanted.title.clone(),
+                        },
+                        command: allow_command(
+                            &goal,
+                            &short(&wanted.task.to_string(), &tasks),
+                            &summary.abilities.name,
+                            false,
+                        ),
+                    },
+                ));
+            }
+        }
+        waiting.sort_by_key(|(since, _)| *since);
+        waiting.into_iter().map(|(_, entry)| entry).collect()
     }
 
     /// Whether the daemon can serve one content object of a goal.
@@ -417,7 +507,12 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     .map(|proposal| (proposal.id, proposal.context, proposal.approved)),
             );
             let candidates: Vec<_> = reviewable
-                .filter(|(subject, _, approved)| {
+                .filter(|(subject, context, approved)| {
+                    // Nothing asks for a review on a round that is over:
+                    // the engine signs no request there, so the view lists none.
+                    if *approved || !wants_review(entry, *context) {
+                        return false;
+                    }
                     let can_review = !own_reviewed.contains(subject)
                         && entry
                             .goal
@@ -431,9 +526,11 @@ impl<S: Store, E: Entropy> Node<S, E> {
                         .selections
                         .values()
                         .any(|selection| selection.subject.id() == *subject);
-                    !approved && !selected && (can_review || can_attest)
+                    !selected && (can_review || can_attest)
                 })
                 .collect();
+            let subjects: Vec<_> = candidates.iter().map(|(subject, ..)| *subject).collect();
+            let mut latest = entry.goal.latest_reviews(&subjects, &entry.definitions);
             for (subject, context, _) in candidates {
                 let rules = entry.goal.effective_rules(context, &entry.definitions);
                 let needed = rules
@@ -443,9 +540,9 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 let opinion = rules.as_ref().is_some_and(|rules| {
                     !crate::goal::asks_for_review(&rules.decisions.completion)
                 });
-                let verdicts: Vec<_> = entry
-                    .goal
-                    .latest_reviews(subject, &entry.definitions)
+                let verdicts: Vec<_> = latest
+                    .remove(&subject)
+                    .unwrap_or_default()
                     .into_iter()
                     .filter_map(|(member, id)| {
                         let event = entry.goal.event(&id)?;
@@ -493,6 +590,32 @@ impl<S: Store, E: Entropy> Node<S, E> {
         work.to_start
             .sort_by_key(|item| (item.attempting.len(), item.results, item.task));
         work
+    }
+}
+
+/// Whether a result in `context` can still be asked about: its round is the
+/// current one and nothing has picked or closed it.
+fn wants_review(entry: &Entry, context: Context) -> bool {
+    if entry.goal.current_context(context.scope) != Some(context) {
+        return false;
+    }
+    match context.scope {
+        Scope::Task(_) => entry
+            .state()
+            .task_round(context)
+            .is_some_and(|round| !round.closed && round.selected.is_none()),
+        Scope::Goal | Scope::Document(_) | Scope::Workspace => {
+            let closed = entry
+                .state()
+                .decisions
+                .get(&ScopeKey {
+                    context,
+                    purpose: DecisionPurpose::Closure,
+                })
+                .and_then(|decisions| decisions.last())
+                .is_some_and(|decision| decision.action == DecisionAction::Close);
+            !closed
+        }
     }
 }
 

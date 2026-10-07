@@ -8,7 +8,7 @@ use crate::failure::Failure;
 use clap::{Arg, ArgAction, ArgMatches, Command};
 use locust_proto::api::{
     Abilities, Caller, DaemonStatus, ErrorCode, GoalStatus, InvitationState, Level, Membership,
-    Request, Response,
+    Request, Response, Voice, shell_word, short,
 };
 use locust_proto::event::TaskId;
 use locust_proto::id::{BlobHash, EventId, GoalId, IdempotencyKey, PublicKey};
@@ -288,22 +288,37 @@ fn agent_abilities(status: &GoalStatus, agent: PublicKey) -> Result<&Abilities, 
         })
 }
 
-fn short_task(task: TaskId) -> String {
-    let full = task.to_string();
-    let (kind, id) = full.split_once(':').expect("typed task id");
-    format!("{kind}:{}", &id[..8])
+/// A goal's identifier cut to its shortest unique prefix among the goals
+/// this daemon holds, so the printed line runs as printed.
+fn cut_goal(client: &mut LocalClient, socket: &Path, goal: GoalId) -> Result<String, Failure> {
+    let known = status(client, socket, None)?;
+    Ok(short(
+        &goal.to_string(),
+        &known
+            .goals
+            .iter()
+            .map(|summary| summary.goal.to_string())
+            .collect::<Vec<_>>(),
+    ))
 }
 
-fn undo_agent(name: &str) -> String {
-    // Local names can contain spaces; use single-quote shell syntax for a runnable line.
-    if name
-        .bytes()
-        .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.'))
-    {
-        name.to_owned()
-    } else {
-        format!("'{}'", name.replace('\'', "'\\''"))
-    }
+/// A task's identifier cut among the goal's tasks.
+fn cut_task(
+    client: &mut LocalClient,
+    socket: &Path,
+    goal: GoalId,
+    task: TaskId,
+) -> Result<String, Failure> {
+    let Response::Board(tasks) = call(client, socket, Request::Board { goal }, None)? else {
+        unreachable!("typed response")
+    };
+    Ok(short(
+        &task.to_string(),
+        &tasks
+            .iter()
+            .map(|view| view.task.to_string())
+            .collect::<Vec<_>>(),
+    ))
 }
 
 fn level_set(
@@ -338,17 +353,19 @@ fn level_set(
     let mut human = format!(
         "{name} in \"{title}\": {}.\n{}",
         level_word(after.level),
-        presentation::standing_line(&after)
+        presentation::standing_line(&after, Voice::Person)
     );
     if after.level == Level::Auto && !after.hosted_here {
         human.push_str(", so tasks other members wrote run here unasked");
     }
     if changed {
         human.push_str(&format!(
-            "\nUndo: locust --owner --agent {} level --goal {} {}",
-            undo_agent(&after.name),
-            short_goal(goal),
-            level_word(old)
+            "\nUndo: {}",
+            locust_proto::api::level_command(
+                &cut_goal(client, socket, goal)?,
+                &after.name,
+                level_word(old)
+            )
         ));
     }
     Ok(Output::success(
@@ -412,12 +429,14 @@ fn task_allow(
     };
     let takeable = !detail.view.closed && !detail.view.completed && detail.view.selected.is_none();
     if changed && (!revoke || (was_allowed && visibly_allowed && takeable)) {
-        let reversal = if revoke { "" } else { " --revoke" };
         human.push_str(&format!(
-            "\nUndo: locust --owner --agent {} allow --goal {} --task {}{reversal}",
-            undo_agent(&after.name),
-            short_goal(goal),
-            short_task(task)
+            "\nUndo: {}",
+            locust_proto::api::allow_command(
+                &cut_goal(client, socket, goal)?,
+                &cut_task(client, socket, goal, task)?,
+                &after.name,
+                !revoke
+            )
         ));
     }
     Ok(Output::success(
@@ -1735,7 +1754,7 @@ fn agent_revoke(
             "hosted_goals":hosted}),
         format!(
             "{name} is disconnected. The name stays taken.\nUndo: locust --owner agent reconnect --agent {}",
-            undo_agent(&selected.name)
+            shell_word(&selected.name)
         ),
     ))
 }
@@ -1764,7 +1783,7 @@ fn agent_reconnect(
         )?;
         format!(
             "{name} is connected again.\nUndo: locust --owner agent revoke --agent {}",
-            undo_agent(&selected.name)
+            shell_word(&selected.name)
         )
     } else {
         format!("{name} is not disconnected. Nothing changed.")

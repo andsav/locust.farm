@@ -63,6 +63,7 @@ impl State {
             Request::Status => Ok(Response::Status(DaemonStatus {
                 daemon_version: "fixture".into(),
                 endpoint: None,
+                waiting: vec![],
                 agents: vec![AgentView {
                     agent: KEY,
                     name: "worker".into(),
@@ -74,6 +75,10 @@ impl State {
                     title: None,
                     member: KEY,
                     membership: Membership::Member,
+                    name: "agent".into(),
+                    host_name: None,
+                    invitations_open: 0,
+                    invitations_expire_ms: None,
                     halted: None,
                     abilities: Self::abilities(),
                 }],

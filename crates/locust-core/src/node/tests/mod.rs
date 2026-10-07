@@ -137,12 +137,25 @@ impl Daemon {
         match self.step(conn, frame, 1_000) {
             Step::Reply(reply) => {
                 assert_eq!(reply.id, id);
-                if let Ok(response) = &reply.result {
-                    assert!(
+                match &reply.result {
+                    Ok(response) => assert!(
                         request.is_answered_by(response),
                         "{} answered by {response:?}",
                         request.name()
-                    );
+                    ),
+                    // Every refusal the daemon sends is the agent's voice of
+                    // its own details.
+                    Err(error) => {
+                        if let Some(refused) = error.refused() {
+                            assert_eq!(
+                                error.message,
+                                locust_proto::api::render(
+                                    &refused,
+                                    locust_proto::api::Voice::Agent
+                                )
+                            );
+                        }
+                    }
                 }
                 reply.result
             }

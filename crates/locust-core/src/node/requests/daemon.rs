@@ -12,9 +12,9 @@ use crate::node::commit::Tx;
 use crate::node::identity::{PrincipalRecord, Principals};
 
 impl<S: Store, E: Entropy> Node<S, E> {
-    /// `status`: the daemon, and as much of its principals and goals as the
-    /// caller may see.
-    pub(super) fn status(&self, actor: &Actor) -> Plan {
+    /// `status`: what waits for the person, then the daemon, and as much of
+    /// its principals and goals as the caller may see.
+    pub(super) fn status(&self, actor: &Actor, now_ms: u64) -> Plan {
         let agents = match actor.principal {
             None => self.principals.iter().map(|found| found.view()).collect(),
             Some(key) => self
@@ -24,6 +24,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 .into_iter()
                 .collect(),
         };
+        let goals = self.goal_summaries(actor.principal, now_ms)?;
         answer(Response::Status(DaemonStatus {
             daemon_version: self.daemon_version.clone(),
             endpoint: self
@@ -32,7 +33,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 .as_ref()
                 .map(|record| record.endpoint),
             agents,
-            goals: self.goal_summaries(actor.principal),
+            waiting: self.waiting_for(&goals),
+            goals,
         }))
     }
 

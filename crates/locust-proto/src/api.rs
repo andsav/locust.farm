@@ -848,7 +848,7 @@ operations! {
     FarmShow { .. } => ("farm.show", true, true, Owner, false, "Preview public farm data and consent"),
     FarmStatus => ("farm.status", true, false, Owner, false, "Show farm publication status"),
     FarmConsent { .. } => ("farm.consent", false, true, Owner, false, "Approve a local public profile"),
-    Status => ("status", true, false, Agent, true, "status"),
+    Status => ("status", true, false, Agent, true, "Shows what waits for the person, each with the command that settles it, then every goal with each agent's name, roles, level and standing. An agent reads its own entries, worded about its owner."),
     Shutdown => ("daemon.stop", false, false, Owner, false, "daemon stop"),
     AgentEnroll { .. } => ("agent.enroll", false, false, Owner, false, "agent enroll"),
     AuthorEnroll { .. } => ("author.enroll", false, false, Owner, false, "author enroll"),
@@ -865,7 +865,7 @@ operations! {
     LevelSet { .. } => ("level.set", false, true, Owner, false, "Set this agent's local level in a goal"),
     TaskAllow { .. } => ("task.allow", false, true, Owner, false, "Allow this agent to take one task in its current round"),
     TaskDisallow { .. } => ("task.disallow", false, true, Owner, false, "Remove this agent's task allowance or request"),
-    GoalStatus { .. } => ("goal.status", true, true, Agent, true, "goal status"),
+    GoalStatus { .. } => ("goal.status", true, true, Agent, true, "Shows one goal: its host, members, roles, rules, shared files and each local agent's standing in it."),
     MemberRemove { .. } => ("member.remove", false, true, Host, false, "member remove"),
     RoleGive { .. } => ("role.give", false, true, Host, false, "role give"),
     RoleTake { .. } => ("role.take", false, true, Host, false, "role take"),
@@ -894,8 +894,8 @@ operations! {
     TaskOpen { .. } => ("task.open", false, true, Agent, true, "task open"),
     TaskRevise { .. } => ("task.revise", false, true, Host, false, "task revise"),
     WorkOffer { .. } => ("work.offer", false, true, Agent, true, "work offer"),
-    AttemptStart { .. } => ("attempt.start", false, true, Agent, true, "Start eligible unfinished work or recover this session's active claim for the same task and offer"),
-    AttemptTakeover { .. } => ("attempt.takeover", false, true, Agent, true, "attempt takeover"),
+    AttemptStart { .. } => ("attempt.start", false, true, Agent, true, "Takes a task: starts an attempt on it, or recovers this session's claim on the same task and offer. The goal's rules and the agent's level decide whether it may."),
+    AttemptTakeover { .. } => ("attempt.takeover", false, true, Agent, true, "Takes over an attempt another session of this agent holds, after that session's work was checked. A held claim does not prove a process is running."),
     WorkDecline { .. } => ("work.decline", false, true, Agent, true, "work decline"),
     AttemptCancel { .. } => ("attempt.cancel", false, true, Agent, true, "attempt cancel"),
     AttemptReport { .. } => ("attempt.report", false, true, Agent, true, "Report progress or end an attempt; completed requires a published contribution naming the attempt, not review or workspace integration"),
@@ -903,7 +903,7 @@ operations! {
     Contributions { .. } => ("contributions", true, true, Agent, true, "contributions"),
     ContributionInspect { .. } => ("contribution.inspect", true, true, Agent, true, "Inspect a contribution, its author-declared sources and exact attempt/task chain; declarations are not proof of model use"),
     CompletionDeclare { .. } => ("completion.declare", false, true, Agent, true, "completion declare"),
-    ReviewRecord { .. } => ("review.record", false, true, Agent, true, "review record"),
+    ReviewRecord { .. } => ("review.record", false, true, Agent, true, "Records an approval or a reject of one exact result. A member's latest review of a result is the one that counts. A pick, a plan text or a file change already recorded on an earlier approval is not undone. Where the rule asks for no review, a review is an opinion and changes nothing about counting."),
     CheckAttest { .. } => ("check.attest", false, true, Agent, true, "check attest"),
     ScopeSelect { .. } => ("scope.select", false, true, Agent, true, "scope select"),
     ScopeClose { .. } => ("scope.close", false, true, Agent, true, "scope close"),
@@ -911,8 +911,8 @@ operations! {
     DeliveryAcknowledge { .. } => ("delivery.acknowledge", false, true, Agent, true, "delivery acknowledge"),
     CancelAcknowledge { .. } => ("cancel.acknowledge", false, true, Agent, true, "Acknowledge cancellation after checking local execution: stopped ends the attempt, completed requires its published result, uncertain keeps work fenced but permits ending"),
     PendingPage { .. } => ("pending.page", true, true, Agent, true, "Read a page of pending work, with complete category counts and revision-bound continuation"),
-    Pending { .. } => ("pending", true, true, Agent, true, "pending"),
-    Wait { .. } => ("wait", true, true, Agent, true, "wait"),
+    Pending { .. } => ("pending", true, true, Agent, true, "Lists what the caller can do next in a goal: tasks to start, results to review, claims, cancellations and deliveries. Tasks to start come least-attended first, each with the members already attempting it; results to review carry the approvals so far and the number needed."),
+    Wait { .. } => ("wait", true, true, Agent, true, "Waits until the goal changes or the timeout passes, then answers as pending does. Tasks to start come least-attended first, each with the members already attempting it; results to review carry the approvals so far and the number needed."),
     Events { .. } => ("events", true, true, Agent, true, "events"),
     DocRead { .. } => ("doc.read", true, true, Agent, true, "doc read"),
     DocRevise { .. } => ("doc.revise", false, true, Agent, true, "doc revise"),
@@ -1251,6 +1251,7 @@ pub fn contract() -> serde_json::Value {
         "event_schema": schema_for!(crate::event::Body),
         "farm_snapshot": crate::farm::snapshot_schema(),
         "error_schema": schema_for!(ApiError),
+        "refusal_schema": schema_for!(Refused),
     })
 }
 /// What a request answers with when it succeeds; which variant answers which
@@ -1386,8 +1387,9 @@ pub enum Response {
     },
 }
 
-/// What `status` shows: the daemon, and as much of its principals and goals
-/// as the caller may see.
+/// The one view: what waits for the person, each goal with each agent's
+/// standing in it, and the agents. The owner sees everything; an agent sees
+/// its own entries, worded about its owner.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct DaemonStatus {
     /// The daemon's own version, for people.
@@ -1397,9 +1399,37 @@ pub struct DaemonStatus {
     /// Every enrolled principal for the owner; only the calling principal
     /// for an agent.
     pub agents: Vec<AgentView>,
-    /// One entry per goal and local principal in it: all of them for the
-    /// owner, only the calling principal's own for an agent.
+    /// What a command of the person settles, oldest first, each with that
+    /// command. Nothing that waits for another computer or for nobody.
+    pub waiting: Vec<WaitingForYou>,
+    /// One entry per goal and local agent in it: all of them for the
+    /// owner, only the calling agent's own for an agent.
     pub goals: Vec<GoalSummary>,
+}
+
+/// One thing only the person can settle, with the line that settles it.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct WaitingForYou {
+    pub goal: GoalId,
+    pub title: Option<String>,
+    /// The agent that waits, when one does.
+    pub agent: Option<PublicKey>,
+    /// Its name in the goal, else its local name.
+    pub agent_name: Option<String>,
+    pub kind: WaitingKind,
+    /// Complete: it runs as printed.
+    pub command: String,
+}
+
+/// Externally tagged, as `{"allow_task": {..}}`: binary frames carry it too.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum WaitingKind {
+    /// The agent tried to take a task and its level refused.
+    AllowTask {
+        task: TaskId,
+        task_title: Option<String>,
+    },
 }
 
 /// One enrolled principal.
@@ -1434,17 +1464,27 @@ pub enum Membership {
     Refused,
 }
 
-/// One local principal's part in one goal, as `status` lists it.
+/// One local agent in one goal, as `status` lists it: its name there, its
+/// standing, the host, and what the person may still have to do about the
+/// goal's invitations.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct GoalSummary {
     /// The goal this entry is about.
     pub goal: GoalId,
     /// Absent until the goal's founding text is held locally.
     pub title: Option<String>,
-    /// The local principal this entry is about.
+    /// The local agent this entry is about.
     pub member: PublicKey,
-    /// How that principal stands in the goal.
+    /// The agent's name in the goal; its local name until admitted.
+    pub name: String,
+    /// How that agent stands in the goal.
     pub membership: Membership,
+    /// The name of the host's agent in the goal, once its record is held.
+    pub host_name: Option<String>,
+    /// Open invitations: only for the owner, on a goal this daemon hosts.
+    pub invitations_open: u32,
+    /// When the latest open invitation expires, in ms since the Unix epoch.
+    pub invitations_expire_ms: Option<u64>,
     /// Set while the goal's decisions cannot advance here.
     pub halted: Option<Halt>,
     pub abilities: Abilities,

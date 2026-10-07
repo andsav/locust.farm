@@ -40,7 +40,8 @@ fn tool(operation: &Operation) -> Value {
         input["properties"]["idempotency_key"] = json!({"type":["string","null"],"pattern":"^[0-9a-fA-F]{32}$","description":"Optional caller-owned retry key; reuse only for identical requests."});
     }
     // These are additive records or acknowledgments. The hints describe effects;
-    // daemon authorization and the client's approval policy still govern every write.
+    // the agent's level, the goal's rules and the client's approval policy
+    // still govern every write.
     let additive = matches!(
         operation.name,
         "task.open"

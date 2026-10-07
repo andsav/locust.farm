@@ -166,6 +166,191 @@ fn status_shows_the_owner_every_principal_and_an_agent_only_itself() {
     assert_eq!(status.agents[0].agent, mira);
     assert_eq!(status.agents[0].name, "mira");
     assert!(!status.agents[0].author_only);
+    assert!(status.waiting.is_empty());
+    assert!(status.goals.is_empty());
+
+    // A hosted goal with one open invitation: the owner sees its count and
+    // expiry, the agent none, and both see the agent's name in the goal.
+    let (mut d, principal, owner, agent, goal) = super::lifecycle::setup();
+    d.ok(
+        owner,
+        Request::GoalInvite {
+            role: None,
+            goal,
+            expires_ms: 604_801_000,
+        },
+    );
+    let Response::Status(status) = d.ok(owner, Request::Status) else {
+        unreachable!()
+    };
+    assert_eq!(status.goals.len(), 1);
+    assert_eq!(status.goals[0].member, principal);
+    assert_eq!(status.goals[0].name, "host");
+    assert_eq!(status.goals[0].host_name.as_deref(), Some("host"));
+    assert_eq!(status.goals[0].invitations_open, 1);
+    assert_eq!(status.goals[0].invitations_expire_ms, Some(604_801_000));
+    assert!(status.waiting.is_empty());
+    let Response::Status(status) = d.ok(agent, Request::Status) else {
+        unreachable!()
+    };
+    assert_eq!(status.goals.len(), 1);
+    assert_eq!(status.goals[0].invitations_open, 0);
+    assert_eq!(status.goals[0].invitations_expire_ms, None);
+    d.ok(
+        owner,
+        Request::InvitationRevoke {
+            goal,
+            invitation: None,
+        },
+    );
+    let Response::Status(status) = d.ok(owner, Request::Status) else {
+        unreachable!()
+    };
+    assert_eq!(status.goals[0].invitations_open, 0);
+}
+
+#[test]
+fn status_lists_what_waits_for_the_owner_with_a_ready_command() {
+    use locust_proto::api::{Level, WaitingKind};
+    let (mut d, principal, owner, agent, goal) = super::lifecycle::setup();
+    let (task, offer) = super::lifecycle::offered(&mut d, agent, goal, principal);
+    let set_level = |d: &mut Daemon, level| {
+        d.ok(
+            owner,
+            Request::LevelSet {
+                goal,
+                agent: principal,
+                level,
+            },
+        );
+    };
+    let start = |d: &mut Daemon| {
+        d.call(
+            agent,
+            Request::AttemptStart {
+                goal,
+                task,
+                offer: Some(offer),
+            },
+        )
+    };
+    let waiting = |d: &mut Daemon, conn| {
+        let Response::Status(status) = d.ok(conn, Request::Status) else {
+            unreachable!()
+        };
+        status.waiting
+    };
+    set_level(&mut d, Level::Ask);
+    assert_eq!(start(&mut d).unwrap_err().code, ErrorCode::LevelRequired);
+
+    let entries = waiting(&mut d, owner);
+    assert_eq!(entries.len(), 1);
+    let entry = &entries[0];
+    assert_eq!(entry.goal, goal);
+    assert_eq!(entry.title.as_deref(), Some("A test goal"));
+    assert_eq!(entry.agent, Some(principal));
+    assert_eq!(entry.agent_name.as_deref(), Some("host"));
+    let WaitingKind::AllowTask {
+        task: wanted,
+        task_title,
+    } = &entry.kind;
+    assert_eq!(*wanted, task);
+    assert!(
+        task_title
+            .as_deref()
+            .unwrap()
+            .starts_with("Read and implement")
+    );
+    let goal_prefix = &goal.to_string()[..8];
+    let task_prefix = &task.to_string()[..13];
+    assert_eq!(
+        entry.command,
+        format!("locust --owner allow --goal {goal_prefix} --task {task_prefix} --agent host")
+    );
+    // The agent gets its own entry too.
+    assert_eq!(waiting(&mut d, agent), entries);
+
+    // Allowing settles it; the start then goes through.
+    d.ok(
+        owner,
+        Request::TaskAllow {
+            goal,
+            agent: principal,
+            task,
+        },
+    );
+    assert!(waiting(&mut d, owner).is_empty());
+    assert!(matches!(start(&mut d), Ok(Response::Claimed(_))));
+
+    // So does a disallow, a finished task and the level auto.
+    let (other, other_offer) = super::lifecycle::offered(&mut d, agent, goal, principal);
+    let start_other = |d: &mut Daemon| {
+        d.call(
+            agent,
+            Request::AttemptStart {
+                goal,
+                task: other,
+                offer: Some(other_offer),
+            },
+        )
+    };
+    assert_eq!(
+        start_other(&mut d).unwrap_err().code,
+        ErrorCode::LevelRequired
+    );
+    assert_eq!(waiting(&mut d, owner).len(), 1);
+    d.ok(
+        owner,
+        Request::TaskDisallow {
+            goal,
+            agent: principal,
+            task: other,
+        },
+    );
+    assert!(waiting(&mut d, owner).is_empty());
+    assert_eq!(
+        start_other(&mut d).unwrap_err().code,
+        ErrorCode::LevelRequired
+    );
+    assert_eq!(waiting(&mut d, owner).len(), 1);
+    set_level(&mut d, Level::Auto);
+    assert!(waiting(&mut d, owner).is_empty());
+    set_level(&mut d, Level::Ask);
+    assert_eq!(waiting(&mut d, owner).len(), 1);
+    d.ok(
+        agent,
+        Request::ScopeClose {
+            goal,
+            scope: locust_proto::event::Scope::Task(other),
+            expected: None,
+        },
+    );
+    assert!(waiting(&mut d, owner).is_empty());
+
+    // A halted goal and a joining agent give no entry: each shows under its
+    // goal instead.
+    assert_eq!(start_other(&mut d).unwrap_err().code, ErrorCode::Conflict);
+    let (third, third_offer) = super::lifecycle::offered(&mut d, agent, goal, principal);
+    assert_eq!(
+        d.call(
+            agent,
+            Request::AttemptStart {
+                goal,
+                task: third,
+                offer: Some(third_offer),
+            },
+        )
+        .unwrap_err()
+        .code,
+        ErrorCode::LevelRequired
+    );
+    let mut summaries = d.node.goal_summaries(None, 1_000).unwrap();
+    assert_eq!(d.node.waiting_for(&summaries).len(), 1);
+    summaries[0].halted = Some(locust_proto::api::Halt::AuthorityConflict);
+    assert!(d.node.waiting_for(&summaries).is_empty());
+    summaries[0].halted = None;
+    summaries[0].membership = locust_proto::api::Membership::Joining;
+    assert!(d.node.waiting_for(&summaries).is_empty());
 }
 
 #[test]

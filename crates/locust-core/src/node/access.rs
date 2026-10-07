@@ -5,7 +5,7 @@
 //! make is `Denied`. The owner acting on a principal's behalf skips only
 //! the local level, never the shared rule.
 
-use locust_proto::api::{Act, ApiError, ErrorCode, Level, Membership, Refused, Why};
+use locust_proto::api::{Act, ApiError, ErrorCode, Level, Membership, Refused, Voice, Why, render};
 use locust_proto::engine::Entropy;
 use locust_proto::event::{Body, DecisionAction, Event, Scope, TaskId};
 use locust_proto::id::{GoalId, PublicKey};
@@ -177,14 +177,6 @@ impl<S: Store, E: Entropy> Node<S, E> {
             Why::State { .. } => ErrorCode::Conflict,
             Why::OnlyYou { .. } => ErrorCode::Denied,
         };
-        let message = match &why {
-            Why::YourSetting { .. } => {
-                format!("{agent_name} needs a higher local level for this action")
-            }
-            Why::Rules { .. } => format!("{agent_name} is not eligible under this goal's rules"),
-            Why::State { .. } => format!("{agent_name} cannot act in this goal's current state"),
-            Why::OnlyYou { .. } => format!("this is {agent_name}'s owner's command"),
-        };
         let refused = Refused {
             agent,
             agent_name,
@@ -200,7 +192,9 @@ impl<S: Store, E: Entropy> Node<S, E> {
             task_title,
             why,
         };
-        ApiError::new(code, message)
+        // The agent's voice quotes nothing another member wrote; the titles
+        // and names travel only in the details.
+        ApiError::new(code, render(&refused, Voice::Agent))
             .with_details(serde_json::to_value(refused).expect("refusal serializes"))
     }
 

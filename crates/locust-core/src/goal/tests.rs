@@ -2624,7 +2624,7 @@ fn a_members_latest_review_counts_and_a_later_reject_withdraws_only_its_own_appr
         assert!(!goal.state().contributions[&subject].approved);
         assert!(!goal.state().task_round(context).unwrap().completed);
         assert_eq!(
-            goal.latest_reviews(subject, &f.definitions)[&f.workers[1].key.public()],
+            goal.latest_reviews(&[subject], &f.definitions)[&subject][&f.workers[1].key.public()],
             rejected
         );
     }

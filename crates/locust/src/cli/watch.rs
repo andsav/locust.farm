@@ -63,16 +63,28 @@ pub(super) fn run(matches: &ArgMatches, selected: &ArgMatches) -> Result<Output,
     let timeout_ms = *selected
         .get_one::<u32>("timeout-ms")
         .expect("default timeout");
+    // Names and tasks for the view; none of this is read under --json.
+    let (members, tasks) = if matches.get_flag("json") {
+        (Vec::new(), Vec::new())
+    } else {
+        (
+            super::members(&mut client, goal, on_behalf),
+            super::board(&mut client, goal, on_behalf),
+        )
+    };
+    let goals: Vec<_> = known.goals.iter().map(|summary| summary.goal).collect();
+    let reader = presentation::Reader {
+        goals: &goals,
+        members: &members,
+        tasks: &tasks,
+        now_ms: super::now_ms(),
+        ..presentation::Reader::new(super::voice(matches), display_principal, &known.agents)
+    };
     if !matches.get_flag("json")
         && let Err(error) = print::stdout(format_args!(
             "{}\nObserving for up to {timeout_ms} ms without acknowledgment…\n",
-            presentation::render(
-                &Response::Pending(initial.clone()),
-                &known.agents,
-                Some(goal),
-                display_principal
-            )
-            .expect("pending renderer")
+            presentation::render(&Response::Pending(initial.clone()), Some(goal), &reader)
+                .expect("pending renderer")
         ))
     {
         return Ok(Output {
@@ -91,8 +103,7 @@ pub(super) fn run(matches: &ArgMatches, selected: &ArgMatches) -> Result<Output,
             on_behalf,
         )
         .map_err(|error| connection::client_error(error, &socket))?;
-    let human = presentation::render(&response, &known.agents, Some(goal), display_principal)
-        .expect("wait renderer");
+    let human = presentation::render(&response, Some(goal), &reader).expect("wait renderer");
     let human = format!("{human}\nObservation only: no work or context was acknowledged.");
     Ok(Output::success(
         json!({"goal":goal,"initial":initial,"result":response}),

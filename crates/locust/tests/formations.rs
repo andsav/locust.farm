@@ -234,6 +234,9 @@ fn runtime_contract_discovers_requests_responses_events_and_cli_without_state() 
     );
     assert!(contract["response_schema"]["$defs"]["Draft"].is_object());
     assert!(contract["event_schema"]["$defs"]["Effect"].is_object());
+    // A refusal's details are published as data a tool can act on.
+    assert_eq!(contract["refusal_schema"]["title"], "Refused");
+    assert!(contract["refusal_schema"]["$defs"]["Why"].is_object());
     assert!(
         contract["cli"]["commands"]
             .as_array()

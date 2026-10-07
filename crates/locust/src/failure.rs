@@ -8,7 +8,7 @@
 
 use std::fmt;
 
-use locust_proto::api::{ApiError, ErrorCode};
+use locust_proto::api::{ApiError, ErrorCode, Refused, Voice, render};
 use locust_proto::local::LocalError;
 
 /// Exit status of a usage error: bad arguments, or a missing option.
@@ -88,6 +88,21 @@ impl Failure {
             exit_status(self.code)
         }
     }
+
+    /// A refusal reworded for the person who owns the agent: the daemon's
+    /// message names the agent by its local name and quotes nothing another
+    /// member wrote; the person reads the names and titles from `details`.
+    /// Any other failure is unchanged.
+    pub fn for_person(mut self) -> Self {
+        if let Some(refused) = self
+            .details_json
+            .as_deref()
+            .and_then(|text| serde_json::from_str::<Refused>(text).ok())
+        {
+            self.message = render(&refused, Voice::Person);
+        }
+        self
+    }
 }
 
 impl fmt::Display for Failure {
@@ -144,5 +159,49 @@ mod tests {
         }
         assert_eq!(Failure::usage("x").exit_status(), USAGE);
         assert_eq!(Failure::usage("x").code, ErrorCode::Invalid);
+    }
+
+    #[test]
+    fn a_refusal_is_reworded_for_the_person_only_with_owner() {
+        use locust_proto::api::{Act, Level, Why};
+        use locust_proto::id::{GoalId, PublicKey};
+        let refused = Refused {
+            agent: PublicKey([2; 32]),
+            agent_name: "codex-maple-1a2b3c4d".into(),
+            member_name: Some("Maple".into()),
+            goal: Some(GoalId([1; 32])),
+            goal_title: Some("Static site search".into()),
+            act: Act::Post,
+            task: None,
+            task_title: None,
+            why: Why::YourSetting {
+                level: Level::Read,
+                needs: Level::Ask,
+            },
+        };
+        let from_daemon = Failure::from(ApiError {
+            code: ErrorCode::LevelRequired,
+            message: render(&refused, Voice::Agent),
+            details_json: Some(serde_json::to_string(&refused).unwrap()),
+        });
+        // Under --json the answer is printed as it came: `for_person` is not
+        // applied, so the message stays the daemon's.
+        assert!(
+            from_daemon.message.contains("this goal"),
+            "{}",
+            from_daemon.message
+        );
+        let for_person = from_daemon.clone().for_person();
+        assert_eq!(for_person.message, render(&refused, Voice::Person));
+        assert!(for_person.message.contains("\"Static site search\""));
+        assert_eq!(for_person.code, from_daemon.code);
+        assert_eq!(for_person.details_json, from_daemon.details_json);
+        // Details that are not a refusal leave the message alone.
+        let other = Failure {
+            details_json: Some(r#"{"role":"lead"}"#.into()),
+            ..Failure::new(ErrorCode::Conflict, "this role clashes")
+        };
+        assert_eq!(other.clone().for_person(), other);
+        assert_eq!(Failure::usage("x").for_person(), Failure::usage("x"));
     }
 }

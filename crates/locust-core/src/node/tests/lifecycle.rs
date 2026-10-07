@@ -234,6 +234,99 @@ fn complete_transcript_keeps_contribution_review_and_selection_separate_after_re
 }
 
 #[test]
+fn results_on_a_closed_picked_or_revised_task_are_in_nobodys_review_list() {
+    let (mut d, p, owner, a, goal) = setup();
+    let (task, offer) = offered(&mut d, a, goal, p);
+    authorize(&mut d, owner, goal, task, p);
+    let Response::Claimed(claim) = d.ok(
+        a,
+        Request::AttemptStart {
+            goal,
+            task,
+            offer: Some(offer),
+        },
+    ) else {
+        panic!()
+    };
+    let first = event(d.ok(a, publish(goal, claim.attempt, 1)));
+    let second = event(d.ok(a, publish(goal, claim.attempt, 1)));
+    let listed = |d: &mut Daemon, conn, subject| {
+        pending(d, conn, goal)
+            .to_review
+            .iter()
+            .any(|item| item.subject == subject)
+    };
+    assert!(listed(&mut d, a, first) && listed(&mut d, a, second));
+    // Closed: neither is asked about; reopened: both are again.
+    let closed = event(d.ok(
+        a,
+        Request::ScopeClose {
+            goal,
+            scope: locust_proto::event::Scope::Task(task),
+            expected: None,
+        },
+    ));
+    assert!(!listed(&mut d, a, first) && !listed(&mut d, a, second));
+    d.ok(
+        a,
+        Request::ScopeReopen {
+            goal,
+            scope: locust_proto::event::Scope::Task(task),
+            expected: Some(closed),
+        },
+    );
+    assert!(listed(&mut d, a, first) && listed(&mut d, a, second));
+    // Picked: the result that lost leaves every list, a later reviewer's too.
+    d.ok(
+        a,
+        Request::ReviewRecord {
+            goal,
+            subject: first,
+            verdict: ReviewVerdict::Approve,
+            text: "reviewed".into(),
+        },
+    );
+    d.ok(
+        a,
+        Request::ScopeSelect {
+            goal,
+            subject: first,
+            expected: None,
+        },
+    );
+    assert!(!listed(&mut d, a, second));
+    let (_, reviewer) = super::authorization::join_local(&mut d, a, goal, 2);
+    assert!(!listed(&mut d, reviewer, second));
+    // Revised: the old round's results feed nothing current.
+    let (other, other_offer) = offered(&mut d, a, goal, p);
+    authorize(&mut d, owner, goal, other, p);
+    let Response::Claimed(claim) = d.ok(
+        a,
+        Request::AttemptStart {
+            goal,
+            task: other,
+            offer: Some(other_offer),
+        },
+    ) else {
+        panic!()
+    };
+    let third = event(d.ok(a, publish(goal, claim.attempt, 1)));
+    assert!(listed(&mut d, a, third));
+    let expected_round = d.node.goals[&goal].state().tasks[&other].current_round;
+    d.ok(
+        owner,
+        Request::TaskRevise {
+            goal,
+            task: other,
+            expected_round,
+            task_type: None,
+        },
+    );
+    assert!(!listed(&mut d, a, third));
+    assert!(!listed(&mut d, reviewer, third));
+}
+
+#[test]
 fn takeover_a_b_a_fences_old_generation_even_when_secret_returns() {
     let (mut d, p, owner, a, goal) = setup();
     let (task, offer) = offered(&mut d, a, goal, p);

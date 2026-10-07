@@ -332,9 +332,6 @@ impl Goal {
                 }),
         }
     }
-    pub fn role_holders(&self) -> &BTreeMap<String, Vec<PublicKey>> {
-        &self.state().roles
-    }
     fn only_member(&self) -> Option<PublicKey> {
         let mut members = self
             .state()
@@ -344,27 +341,34 @@ impl Goal {
         let first = members.next()?.principal;
         members.next().is_none().then_some(first)
     }
+    /// Each member's latest effective review of each of `subjects`, from one
+    /// verifier and one memo for the whole call.
     pub fn latest_reviews<D: DefinitionLookup + ?Sized>(
         &self,
-        subject: EventId,
+        subjects: &[EventId],
         definitions: &D,
-    ) -> BTreeMap<PublicKey, EventId> {
+    ) -> BTreeMap<EventId, BTreeMap<PublicKey, EventId>> {
+        if subjects.is_empty() {
+            return BTreeMap::new();
+        }
         let verifier = fold::Verifier::new(
             &self.history,
             &self.chain,
             definitions,
             self.closure_index.clone(),
         );
-        self.history
-            .events
+        subjects
             .iter()
-            .map(|event| event.header().author)
-            .collect::<BTreeSet<_>>()
-            .into_iter()
-            .filter_map(|member| {
-                verifier
-                    .latest_review(subject, member, None)
-                    .map(|id| (member, id))
+            .map(|subject| {
+                let reviews = self
+                    .authors()
+                    .filter_map(|member| {
+                        verifier
+                            .latest_review(*subject, *member, None)
+                            .map(|id| (*member, id))
+                    })
+                    .collect();
+                (*subject, reviews)
             })
             .collect()
     }

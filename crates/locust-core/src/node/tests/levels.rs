@@ -335,6 +335,26 @@ fn owner_only_commands_report_why_and_do_not_use_operation_names_in_messages() {
             true,
             locust_proto::api::Act::Invite,
         ),
+        (
+            Request::RoleGive {
+                goal,
+                role: "reviewer".into(),
+                member: principal,
+                expected: vec![],
+            },
+            true,
+            locust_proto::api::Act::GiveRole,
+        ),
+        (
+            Request::RoleTake {
+                goal,
+                role: "reviewer".into(),
+                member: principal,
+                expected: vec![],
+            },
+            true,
+            locust_proto::api::Act::GiveRole,
+        ),
     ] {
         let error = d.call(agent, request).unwrap_err();
         assert_eq!(error.code, ErrorCode::Denied);

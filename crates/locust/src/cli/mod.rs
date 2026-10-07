@@ -26,7 +26,7 @@ use crate::{daemon, failure::Failure, secret};
 use clap::{ArgMatches, error::ErrorKind};
 use locust_proto::api::{
     Audience, Credential, DaemonStatus, ErrorCode, Membership, OPERATIONS, Request, Response,
-    SessionSecret, WaitOutcome,
+    SessionSecret, Voice, WaitOutcome,
 };
 use locust_proto::client::Client;
 use locust_proto::id::{GoalId, IdempotencyKey, PublicKey};
@@ -106,6 +106,9 @@ pub(super) fn run() -> u8 {
             };
             print::status(written, output.status)
         }
+        Err(error) if matches.get_flag("owner") && !matches.get_flag("json") => {
+            print_failure(error.for_person(), false)
+        }
         Err(error) => print_failure(error, matches.get_flag("json")),
     }
 }
@@ -160,9 +163,35 @@ fn print_failure(error: Failure, json_mode: bool) -> u8 {
             json!({"ok": false, "error": {"code": error.code.as_str(), "message": error.message, "details": error.details_json.as_deref().and_then(|text| serde_json::from_str::<Value>(text).ok())}})
         ))
     } else {
-        print::stderr(format_args!("locust: {error}\n"))
+        print::stderr(format_args!("locust: {error}{}\n", role_details(&error)))
     };
     print::status(written, error.exit_status())
+}
+/// The role a refusal is about, and the roles the goal has, which the daemon
+/// carries only as details: a person reads them after the sentence.
+fn role_details(error: &Failure) -> String {
+    let Some(details) = error
+        .details_json
+        .as_deref()
+        .and_then(|text| serde_json::from_str::<Value>(text).ok())
+    else {
+        return String::new();
+    };
+    let mut tail = String::new();
+    if let Some(role) = details.get("role").and_then(Value::as_str) {
+        tail.push_str(&format!(" Role: {}", presentation::safe(role)));
+    }
+    if let Some(roles) = details.get("roles").and_then(Value::as_array) {
+        let roles: Vec<_> = roles
+            .iter()
+            .filter_map(Value::as_str)
+            .map(presentation::safe)
+            .collect();
+        if !roles.is_empty() {
+            tail.push_str(&format!(" Roles here: {}", roles.join(", ")));
+        }
+    }
+    tail
 }
 fn stdin_text() -> Result<String, Failure> {
     let mut text = String::new();
@@ -450,14 +479,46 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
         locust_proto::api::Caller::Agent(key) | locust_proto::api::Caller::Author(key) => Some(key),
         locust_proto::api::Caller::Owner => None,
     });
-    let names = if matches.get_flag("json") {
-        Vec::new()
+    let known = if matches.get_flag("json") {
+        None
     } else if let Response::Status(status) = &response {
-        status.agents.clone()
+        Some(status.clone())
     } else {
-        status(&mut client, &socket, on_behalf)
-            .map(|status| status.agents)
-            .unwrap_or_default()
+        status(&mut client, &socket, on_behalf).ok()
+    };
+    let (members, tasks) = match (&known, &response) {
+        (None, _) => (Vec::new(), Vec::new()),
+        (Some(_), Response::Pending(_) | Response::Waited(WaitOutcome::Work(_))) => {
+            match response_goal {
+                Some(goal) => (
+                    members(&mut client, goal, on_behalf),
+                    board(&mut client, goal, on_behalf),
+                ),
+                None => (Vec::new(), Vec::new()),
+            }
+        }
+        (Some(_), Response::GoalStatus(view)) => {
+            (Vec::new(), board(&mut client, view.goal, on_behalf))
+        }
+        _ => (Vec::new(), Vec::new()),
+    };
+    let goals = known
+        .as_ref()
+        .map(|known| {
+            known
+                .goals
+                .iter()
+                .map(|summary| summary.goal)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let names = known.map(|known| known.agents).unwrap_or_default();
+    let reader = presentation::Reader {
+        goals: &goals,
+        members: &members,
+        tasks: &tasks,
+        now_ms: now_ms(),
+        ..presentation::Reader::new(voice(matches), response_principal, &names)
     };
     let mut result = match receipts {
         Some(cache) => cache.present(&response)?,
@@ -471,11 +532,11 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
         let formation = roles::current_formation(&mut client, &socket, view)
             .ok()
             .flatten();
-        presentation::goal_status(view, &names, formation.as_ref(), response_principal)
+        presentation::goal_status(view, formation.as_ref(), &reader)
     } else if matches!(response, Response::Context(_)) && !generic_call {
         serde_json::to_string_pretty(&result).expect("response encodes")
     } else {
-        presentation::render(&response, &names, response_goal, response_principal)
+        presentation::render(&response, response_goal, &reader)
             .unwrap_or_else(|| human(&response, credential_path.as_deref()))
     };
     if let Some(path) = credential_path {
@@ -536,6 +597,42 @@ fn status(
     {
         Response::Status(status) => Ok(status),
         _ => unreachable!("Client checks response kinds"),
+    }
+}
+/// Whose words a view is in: the person's with `--owner`, else the agent's.
+pub(super) fn voice(matches: &ArgMatches) -> Voice {
+    if matches.get_flag("owner") {
+        Voice::Person
+    } else {
+        Voice::Agent
+    }
+}
+pub(super) fn now_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |elapsed| elapsed.as_millis() as u64)
+}
+/// The goal's members, for their names in it; none when the read fails,
+/// since a view never fails for want of a name.
+pub(super) fn members(
+    client: &mut LocalClient,
+    goal: GoalId,
+    on_behalf: Option<PublicKey>,
+) -> Vec<locust_proto::api::MemberView> {
+    match client.call_with(Request::GoalStatus { goal }, None, on_behalf) {
+        Ok(Response::GoalStatus(view)) => view.members,
+        _ => Vec::new(),
+    }
+}
+/// The goal's tasks, so that a task's prefix is unique among them.
+pub(super) fn board(
+    client: &mut LocalClient,
+    goal: GoalId,
+    on_behalf: Option<PublicKey>,
+) -> Vec<locust_proto::api::TaskView> {
+    match client.call_with(Request::Board { goal }, None, on_behalf) {
+        Ok(Response::Board(tasks)) => tasks,
+        _ => Vec::new(),
     }
 }
 pub(super) fn acting_agent(
@@ -696,34 +793,6 @@ fn human(response: &Response, credential_path: Option<&Path>) -> String {
             "attempt {}\ngeneration {}\ninstance {}",
             claim.attempt, claim.generation, claim.instance
         ),
-        Response::Status(status) => {
-            let mut lines = vec![format!("daemon {}", status.daemon_version)];
-            if let Some(endpoint) = status.endpoint {
-                lines.push(format!("endpoint {endpoint}"));
-            }
-            lines.extend(status.agents.iter().map(|agent| {
-                format!(
-                    "agent {} {}{}",
-                    agent.name,
-                    agent.agent,
-                    if agent.revoked { " disconnected" } else { "" }
-                )
-            }));
-            lines.extend(status.goals.iter().map(|goal| {
-                format!(
-                    "goal {} member {} {} {}{}",
-                    goal.goal,
-                    goal.member,
-                    stable_name(&goal.membership),
-                    goal.title.as_deref().unwrap_or(""),
-                    goal.halted
-                        .as_ref()
-                        .map(|halt| format!(" halted {}", stable_name(halt)))
-                        .unwrap_or_default()
-                )
-            }));
-            lines.join("\n")
-        }
         _ => serde_json::to_string_pretty(response).expect("response JSON is serializable"),
     }
 }

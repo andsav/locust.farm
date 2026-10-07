@@ -6,7 +6,7 @@
 //! those of `locust_proto::api` ("Who is asking").
 
 use locust_proto::api::{
-    Act, ApiError, Audience, Caller, ErrorCode, Refused, Request, RequestFrame, Why,
+    Act, ApiError, Audience, Caller, ErrorCode, Refused, Request, RequestFrame, Voice, Why, render,
 };
 use locust_proto::id::{GoalId, InstanceId, PublicKey};
 
@@ -92,6 +92,7 @@ fn only_you(
         Request::TaskRevise { .. } => Act::Revise,
         Request::WorkspaceConnect { .. } => Act::ConnectFolder,
         Request::FarmOn { .. } => Act::Publish,
+        Request::RoleGive { .. } | Request::RoleTake { .. } => Act::GiveRole,
         _ => Act::PersonCommand,
     };
     let refused = Refused {
@@ -108,7 +109,7 @@ fn only_you(
             host,
         },
     };
-    denied("this request is the owner's to make")
+    ApiError::new(ErrorCode::Denied, render(&refused, Voice::Agent))
         .with_details(serde_json::to_value(refused).expect("refusal serializes"))
 }
 

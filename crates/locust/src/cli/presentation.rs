@@ -1,12 +1,90 @@
 //! Human views of authoritative API responses. Labels never act as identity.
 
+pub(super) use locust_proto::api::safe;
 use locust_proto::api::{
-    Abilities, AgentView, GoalStatus, Halt, Level, MemberView, Membership, PendingWork, Response,
-    Rule, SessionState, SessionView, TaskView, WaitOutcome,
+    Abilities, AgentView, DaemonStatus, GoalStatus, GoalSummary, Halt, Level, MemberView,
+    Membership, PendingWork, Response, Rule, SessionState, SessionView, TaskView, Voice,
+    WaitOutcome, WaitingForYou, WaitingKind, WorkItem, allow_command, level_command, short,
 };
 use locust_proto::event::{Body, Scope, TaskId};
 use locust_proto::id::{GoalId, PublicKey};
 use locust_proto::organization::{CompletionRule, Formation, Selector};
+
+/// Who reads a view, and what the daemon already told them so that names
+/// print as the reader knows them and identifiers print short and complete.
+#[derive(Clone, Copy)]
+pub(super) struct Reader<'a> {
+    pub voice: Voice,
+    /// The agent whose view it is: the caller, or the one named with --agent.
+    pub principal: Option<PublicKey>,
+    /// Every enrolled agent, for local names.
+    pub names: &'a [AgentView],
+    /// Every goal this daemon holds, to cut a goal's identifier.
+    pub goals: &'a [GoalId],
+    /// The goal's members, for their names in it.
+    pub members: &'a [MemberView],
+    /// The goal's tasks, to cut a task's identifier and name its title.
+    pub tasks: &'a [TaskView],
+    pub now_ms: u64,
+}
+
+impl<'a> Reader<'a> {
+    pub(super) fn new(voice: Voice, principal: Option<PublicKey>, names: &'a [AgentView]) -> Self {
+        Self {
+            voice,
+            principal,
+            names,
+            goals: &[],
+            members: &[],
+            tasks: &[],
+            now_ms: 0,
+        }
+    }
+
+    /// The local name of the agent whose view this is.
+    fn local_name(&self) -> Option<&'a str> {
+        let principal = self.principal?;
+        self.names
+            .iter()
+            .find(|agent| agent.agent == principal)
+            .map(|agent| agent.name.as_str())
+    }
+
+    /// "you" for the person; "NAME's owner" for an agent.
+    fn owner(&self) -> String {
+        owner_words(self.voice, self.local_name())
+    }
+
+    fn goal_id(&self, goal: GoalId) -> String {
+        short(
+            &goal.to_string(),
+            &self
+                .goals
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>(),
+        )
+    }
+
+    fn task_id(&self, task: TaskId) -> String {
+        short(
+            &task.to_string(),
+            &self
+                .tasks
+                .iter()
+                .map(|task| task.task.to_string())
+                .collect::<Vec<_>>(),
+        )
+    }
+}
+
+fn owner_words(voice: Voice, local_name: Option<&str>) -> String {
+    match (voice, local_name) {
+        (Voice::Person, _) => "you".into(),
+        (Voice::Agent, Some(name)) => format!("{}'s owner", safe(name)),
+        (Voice::Agent, None) => "your owner".into(),
+    }
+}
 
 pub(super) fn utc(ms: u64) -> String {
     let seconds = ms / 1_000;
@@ -78,20 +156,25 @@ fn counts_clause(rule: &CompletionRule) -> String {
         CompletionRule::Check { name, .. } => {
             format!("the check \"{}\" is reported as passed", safe(name))
         }
+        // An "or" inside an "and" is bracketed, as the website prints it.
         CompletionRule::All { rules } => rules
             .iter()
-            .map(counts_clause)
+            .map(|rule| match rule {
+                CompletionRule::Any { .. } => format!("({})", counts_clause(rule)),
+                _ => counts_clause(rule),
+            })
             .collect::<Vec<_>>()
             .join(" and "),
         CompletionRule::Any { rules }
-            if rules.iter().any(|rule| {
-                matches!(
-                    rule,
-                    CompletionRule::Contribution {
-                        by: Selector::OnlyMember
-                    }
-                )
-            }) =>
+            if rules.len() == 2
+                && rules.iter().any(|rule| {
+                    matches!(
+                        rule,
+                        CompletionRule::Contribution {
+                            by: Selector::OnlyMember
+                        }
+                    )
+                }) =>
         {
             format!(
                 "{}, or the goal's only member posts it",
@@ -139,20 +222,6 @@ fn selector_words(selector: &Selector) -> String {
     }
 }
 
-/// Render untrusted text on one terminal line without terminal controls or bidi
-/// overrides. No content is silently removed or shortened.
-pub(super) fn safe(text: &str) -> String {
-    text.chars().flat_map(|character| {
-        if character.is_control()
-            || matches!(character, '\u{061c}' | '\u{200b}'..='\u{200f}' | '\u{2028}'..='\u{202e}' | '\u{2060}'..='\u{206f}' | '\u{feff}')
-        {
-            character.escape_unicode().collect::<Vec<_>>()
-        } else {
-            vec![character]
-        }
-    }).collect()
-}
-
 fn label(key: PublicKey, names: &[AgentView]) -> String {
     names
         .iter()
@@ -161,13 +230,45 @@ fn label(key: PublicKey, names: &[AgentView]) -> String {
         .unwrap_or_else(|| key.to_string())
 }
 
+/// A name another member chose, as it prints: bare when it is plain, else in
+/// double quotes with `"` and `\` escaped, so that a name cannot imitate the
+/// separators of a line and seem to hold a role.
+pub(super) fn chosen_name(name: &str) -> String {
+    let plain = !name.is_empty()
+        && !name.starts_with(' ')
+        && !name.ends_with(' ')
+        && !name.contains("  ")
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, ' ' | '-' | '_' | '.'));
+    if plain {
+        name.to_owned()
+    } else {
+        format!(
+            "\"{}\"",
+            safe(&name.replace('\\', "\\\\").replace('"', "\\\""))
+        )
+    }
+}
+
 pub(super) fn member_label(key: PublicKey, members: &[MemberView]) -> String {
+    member_label_noting(key, members, "")
+}
+
+/// A member's label with a note inside its parentheses, such as
+/// `Maple (02020202, the host's agent)`.
+pub(super) fn member_label_noting(key: PublicKey, members: &[MemberView], note: &str) -> String {
     let prefix = &key.to_string()[..8];
+    let note = if note.is_empty() {
+        String::new()
+    } else {
+        format!(", {note}")
+    };
     members
         .iter()
         .find(|member| member.member == key)
-        .map(|member| format!("{} ({prefix})", safe(&member.name)))
-        .unwrap_or_else(|| prefix.to_owned())
+        .map(|member| format!("{} ({prefix}{note})", chosen_name(&member.name)))
+        .unwrap_or_else(|| format!("{prefix}{note}"))
 }
 
 /// A record's signer: the host's computer prints as `host` with no key.
@@ -179,27 +280,27 @@ fn signer(by_host: bool, key: PublicKey, names: &[AgentView]) -> String {
     }
 }
 
-/// The `Host:` line of a goal: this computer, the host's agent, or nothing
-/// yet before the first record is held.
-fn host_line(view: &GoalStatus, principal: Option<PublicKey>) -> String {
-    let host = view
-        .host
-        .map(|key| member_label(key, &view.members))
-        .or_else(|| view.host_name.as_ref().map(|name| safe(name)));
+/// The `Host:` line of a goal: this computer, the host's agent once its
+/// record is held, or until then the name the ticket gave, marked as the
+/// ticket's word.
+fn host_line(view: &GoalStatus, reader: &Reader) -> String {
+    let host = view.host.map(|key| member_label(key, &view.members));
     if view.hosted_here {
         format!(
             "Host: {}{}",
-            if principal.is_some() {
-                "your owner"
-            } else {
-                "you"
-            },
+            reader.owner(),
             host.map(|name| format!(" · {name}")).unwrap_or_default()
         )
     } else {
         format!(
             "Host: on another computer · {}",
-            host.unwrap_or_else(|| "name has not arrived".into())
+            host.unwrap_or_else(|| match &view.host_name {
+                Some(name) => format!(
+                    "the ticket names {}; not confirmed until admission arrives",
+                    chosen_name(name)
+                ),
+                None => "name has not arrived".into(),
+            })
         )
     }
 }
@@ -232,25 +333,28 @@ fn halt(reason: Halt) -> &'static str {
     }
 }
 
-fn membership_action(membership: Membership) -> Option<&'static str> {
+/// What an agent that is not a member of a goal can do about it; `owner` is
+/// "you" or "NAME's owner".
+fn membership_action(membership: Membership, owner: &str) -> Option<String> {
     match membership {
-        Membership::Joining => Some(
-            "Admission has not arrived. Check connectivity to the issuer and ask the goal host if admission remains pending.",
-        ),
+        Membership::Joining => Some(format!(
+            "Admission has not arrived. It comes from the host's computer when that computer is on; nothing here waits for {owner}."
+        )),
         Membership::Refused => Some(
-            "The invitation was refused. Ask the goal host for a fresh invitation, inspect it, and join again.",
+            "The invitation was refused. Ask the goal host for a fresh invitation, inspect it, and join again.".into(),
         ),
         Membership::Removed => Some(
-            "This participant was removed. Ask the goal host about readmission; changing local permissions does not restore membership.",
+            "This participant was removed. Ask the goal host about readmission; changing local permissions does not restore membership.".into(),
         ),
         Membership::Left => Some(
-            "This participant left. To participate again, obtain and inspect a fresh invitation, then join again.",
+            "This participant left. To participate again, obtain and inspect a fresh invitation, then join again.".into(),
         ),
         Membership::Member => None,
     }
 }
 
-pub(super) fn standing_line(abilities: &Abilities) -> String {
+/// What an agent does in a goal at its level, and who is waited for at ask.
+pub(super) fn standing_line(abilities: &Abilities, voice: Voice) -> String {
     if abilities.level == Level::Read {
         return "reads only; reports on or drops what it holds".into();
     }
@@ -269,15 +373,15 @@ pub(super) fn standing_line(abilities: &Abilities) -> String {
     {
         actions.push("decides");
     }
-    format!(
-        "{}; {}",
-        actions.join(", "),
-        if abilities.level == Level::Ask {
-            "asks before each task"
-        } else {
-            "takes tasks on its own"
-        }
-    )
+    let follows = match (abilities.level, voice) {
+        (Level::Ask, Voice::Person) => "waits for your yes before each task".to_owned(),
+        (Level::Ask, Voice::Agent) => format!(
+            "waits for {} before each task",
+            owner_words(voice, Some(&abilities.name))
+        ),
+        _ => "takes tasks on its own".to_owned(),
+    };
+    format!("{}; {follows}", actions.join(", "))
 }
 
 fn task_state(task: &TaskView) -> String {
@@ -297,79 +401,79 @@ fn task_state(task: &TaskView) -> String {
     states.join(", ")
 }
 
-fn task_label(task: TaskId, tasks: &[TaskView]) -> String {
-    tasks
+fn task_label(task: TaskId, reader: &Reader) -> String {
+    let id = reader.task_id(task);
+    reader
+        .tasks
         .iter()
         .find(|view| view.task == task)
         .and_then(|view| view.title.as_deref())
-        .map(|title| format!("{} ({task})", safe(title)))
-        .unwrap_or_else(|| task.to_string())
+        .map(|title| format!("{} ({id})", safe(title)))
+        .unwrap_or(id)
+}
+
+fn quoted(title: &str) -> String {
+    format!("\"{}\"", safe(title))
 }
 
 // Every command a view prints is complete: its reader runs it as printed, with
 // only their own connection flags or environment. A view that cannot name a
 // value prints a command that can, never a placeholder. The test
 // `every_printed_command_parses_as_printed` feeds each one to the parser.
-fn command_context(goal: GoalId) -> String {
+fn command_context(goal: &str) -> String {
     format!("locust {{operation}} --goal {goal}")
 }
 
-fn pending(
-    work: &PendingWork,
-    goal: GoalId,
-    principal: Option<PublicKey>,
-    tasks: &[TaskView],
-) -> Vec<String> {
+fn attempting_line(item: &WorkItem, reader: &Reader) -> String {
+    let results = format!(
+        "{} result{}",
+        item.results,
+        if item.results == 1 { "" } else { "s" }
+    );
+    if item.attempting.is_empty() {
+        format!("  Nobody is attempting it · {results}")
+    } else {
+        format!(
+            "  Attempting: {} · {results}",
+            item.attempting
+                .iter()
+                .map(|attempt| member_label(attempt.member, reader.members))
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
+    }
+}
+
+fn pending(work: &PendingWork, goal: GoalId, reader: &Reader) -> Vec<String> {
     let mut lines = vec![format!("Observed revision {}", work.revision)];
-    let context = command_context(goal);
+    let goal_id = reader.goal_id(goal);
+    let context = command_context(&goal_id);
+    let owner = reader.owner();
     for item in &work.ask_first {
-        lines.push(format!("Ask first: {}", task_label(item.task, tasks)));
         lines.push(format!(
-            "  {} attempting · {} results",
-            item.attempting.len(),
-            item.results
+            "Waits for {owner}: {}",
+            task_label(item.task, reader)
         ));
-        for attempt in &item.attempting {
-            lines.push(format!(
-                "  Attempting: {} · {}",
-                attempt.member,
-                attempt
-                    .status
-                    .as_ref()
-                    .map(tag)
-                    .unwrap_or_else(|| "no report".into())
-            ));
-        }
-        lines.push(match principal {
-            Some(agent) => format!(
-                "  Allow this task: locust --owner --agent {agent} allow --goal {goal} --task {}",
-                item.task
+        lines.push(attempting_line(item, reader));
+        lines.push(match (reader.voice, reader.local_name()) {
+            (Voice::Person, Some(agent)) => format!(
+                "  Allow this task: {}",
+                allow_command(&goal_id, &reader.task_id(item.task), agent, false)
             ),
-            None => "  Select an agent with --agent to see its task allowance command.".into(),
+            (Voice::Agent, Some(agent)) => format!(
+                "  {owner} can allow it: {}",
+                allow_command(&goal_id, &reader.task_id(item.task), agent, false)
+            ),
+            (_, None) => "  Select an agent with --agent to see its task allowance command.".into(),
         });
     }
     for item in &work.to_start {
-        lines.push(format!("Ready to start: {}", task_label(item.task, tasks)));
-        lines.push(format!(
-            "  {} attempting · {} results",
-            item.attempting.len(),
-            item.results
-        ));
-        for attempt in &item.attempting {
-            lines.push(format!(
-                "  Attempting: {} · {}",
-                attempt.member,
-                attempt
-                    .status
-                    .as_ref()
-                    .map(tag)
-                    .unwrap_or_else(|| "no report".into())
-            ));
-        }
+        lines.push(format!("Ready to start: {}", task_label(item.task, reader)));
+        lines.push(attempting_line(item, reader));
         lines.push(format!(
             "  Participant action (requires its --session file): {} --task {}{}",
             context.replace("{operation}", "attempt start"),
-            item.task,
+            reader.task_id(item.task),
             item.offer
                 .map(|offer| format!(" --offer {offer}"))
                 .unwrap_or_default()
@@ -378,7 +482,7 @@ fn pending(
     for claim in &work.claimed {
         lines.push(format!(
             "Claim held here: {} · attempt {} · generation {}",
-            task_label(claim.task, tasks),
+            task_label(claim.task, reader),
             claim.attempt,
             claim.generation
         ));
@@ -387,7 +491,7 @@ fn pending(
         lines.push(format!(
             "Claim held by session {}: {} · attempt {} · generation {}",
             claim.instance,
-            task_label(claim.task, tasks),
+            task_label(claim.task, reader),
             claim.attempt,
             claim.generation
         ));
@@ -396,7 +500,7 @@ fn pending(
     for item in &work.to_acknowledge {
         lines.push(format!(
             "Cancellation needs an outcome: {} · attempt {} · cancellation {}",
-            task_label(item.task, tasks),
+            task_label(item.task, reader),
             item.attempt,
             item.cancel
         ));
@@ -413,7 +517,7 @@ fn pending(
         for verdict in &item.verdicts {
             lines.push(format!(
                 "  {}: {} ({})",
-                verdict.member,
+                member_label(verdict.member, reader.members),
                 match (verdict.opinion, verdict.approve) {
                     (true, true) => "opinion: approve",
                     (true, false) => "opinion: reject",
@@ -538,19 +642,197 @@ fn session(view: &SessionView, names: &[AgentView]) -> Vec<String> {
     lines
 }
 
+/// One sentence for what waits for the person.
+fn waiting_sentence(item: &WaitingForYou, goals: &[String]) -> String {
+    let who = item
+        .agent_name
+        .as_deref()
+        .map(safe)
+        .unwrap_or_else(|| "An agent".into());
+    let goal = item
+        .title
+        .as_deref()
+        .map(quoted)
+        .unwrap_or_else(|| short(&item.goal.to_string(), goals));
+    match &item.kind {
+        WaitingKind::AllowTask { task, task_title } => format!(
+            "{who} wants to take {} in {goal}",
+            task_title
+                .as_deref()
+                .map(quoted)
+                .unwrap_or_else(|| short(&task.to_string(), &[]))
+        ),
+    }
+}
+
+/// The heading of one goal in the status view: its title, its cut identifier
+/// and who hosts it.
+fn goal_heading(summary: &GoalSummary, goal_id: &str, voice: Voice) -> String {
+    let host = if summary.abilities.hosted_here {
+        format!(
+            "host: {}",
+            owner_words(voice, Some(&summary.abilities.name))
+        )
+    } else {
+        match (summary.abilities.host, &summary.host_name) {
+            (Some(_), Some(name)) => {
+                format!("host: {}'s owner, on another computer", chosen_name(name))
+            }
+            (None, Some(name)) => format!(
+                "host: on another computer · the ticket names {}; not confirmed until admission arrives",
+                chosen_name(name)
+            ),
+            (_, None) => "host: on another computer".into(),
+        }
+    };
+    format!(
+        "{} ({goal_id}) · {host}{}",
+        safe(summary.title.as_deref().unwrap_or("Title unavailable")),
+        if summary.halted.is_some() {
+            " · halted"
+        } else {
+            ""
+        }
+    )
+}
+
+/// One local agent under its goal: its name there with its local name, its
+/// roles and level over its standing, or its membership over what to do.
+fn agent_lines(summary: &GoalSummary, voice: Voice) -> Vec<String> {
+    let local = &summary.abilities.name;
+    let label = if summary.name == *local {
+        safe(local)
+    } else {
+        format!("{} ({})", chosen_name(&summary.name), safe(local))
+    };
+    match summary.membership {
+        Membership::Member => {
+            let roles = if summary.abilities.roles.is_empty() {
+                "member".to_owned()
+            } else {
+                summary
+                    .abilities
+                    .roles
+                    .iter()
+                    .map(|role| safe(role))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            };
+            vec![
+                format!("  {label} · {roles} · {}", tag(&summary.abilities.level)),
+                format!("      {}", standing_line(&summary.abilities, voice)),
+            ]
+        }
+        other => {
+            let mut lines = vec![format!("  {label} · {}", tag(&other))];
+            if let Some(sentence) = membership_action(other, &owner_words(voice, Some(local))) {
+                lines.push(format!("      {sentence}"));
+            }
+            lines
+        }
+    }
+}
+
+/// Mockup P5-1: what waits for the reader, each goal with its agents, the
+/// agents in no goal, and the daemon.
+fn status(status: &DaemonStatus, reader: &Reader) -> Vec<String> {
+    let goal_ids: Vec<String> = status
+        .goals
+        .iter()
+        .map(|summary| summary.goal.to_string())
+        .collect();
+    let owner = reader.owner();
+    let mut lines = if status.waiting.is_empty() {
+        vec![format!("Nothing is waiting for {owner}.")]
+    } else {
+        let mut lines = vec![format!("Waiting for {owner}")];
+        for item in &status.waiting {
+            lines.push(format!("  {}", waiting_sentence(item, &goal_ids)));
+            lines.push(format!("    {}", item.command));
+        }
+        lines
+    };
+    let mut seen = Vec::new();
+    for summary in &status.goals {
+        if seen.contains(&summary.goal) {
+            continue;
+        }
+        seen.push(summary.goal);
+        let goal_id = short(&summary.goal.to_string(), &goal_ids);
+        lines.push(String::new());
+        lines.push(goal_heading(summary, &goal_id, reader.voice));
+        if let Some(reason) = summary.halted {
+            lines.push(format!("  {}", halt(reason)));
+        }
+        for entry in status
+            .goals
+            .iter()
+            .filter(|entry| entry.goal == summary.goal)
+        {
+            lines.extend(agent_lines(entry, reader.voice));
+        }
+        if summary.invitations_open > 0 {
+            let count = summary.invitations_open;
+            lines.push(format!(
+                "  {count} invitation{} open{}",
+                if count == 1 { "" } else { "s" },
+                match (count, summary.invitations_expire_ms) {
+                    (1, Some(at)) => format!(", expires {}", expires_in(at, reader.now_ms)),
+                    (_, Some(at)) =>
+                        format!(", the latest expires {}", expires_in(at, reader.now_ms)),
+                    (_, None) => String::new(),
+                }
+            ));
+            lines.push(format!(
+                "    locust --owner invitation revoke --goal {goal_id} --all"
+            ));
+        }
+    }
+    let idle: Vec<String> = status
+        .agents
+        .iter()
+        .map(|agent| {
+            if agent.revoked {
+                super::disconnected_agent(agent)
+            } else if status.goals.iter().any(|entry| entry.member == agent.agent) {
+                String::new()
+            } else {
+                format!("{} is connected and in no goal.", safe(&agent.name))
+            }
+        })
+        .filter(|line| !line.is_empty())
+        .collect();
+    if !idle.is_empty() {
+        lines.push(String::new());
+        lines.extend(idle);
+    }
+    lines.push(format!(
+        "Daemon {}{}",
+        safe(&status.daemon_version),
+        status
+            .endpoint
+            .map(|endpoint| format!(
+                " · endpoint {}",
+                endpoint.to_string().chars().take(8).collect::<String>()
+            ))
+            .unwrap_or_default()
+    ));
+    lines
+}
+
 pub(super) fn goal_status(
     view: &GoalStatus,
-    names: &[AgentView],
     formation: Option<&Formation>,
-    principal: Option<PublicKey>,
+    reader: &Reader,
 ) -> String {
+    let goal_id = reader.goal_id(view.goal);
     let mut lines = vec![
         format!(
             "{} ({})",
             safe(view.title.as_deref().unwrap_or("Title unavailable")),
             view.goal
         ),
-        host_line(view, principal),
+        host_line(view, reader),
     ];
     if let Some(reason) = view.halted {
         lines.push(halt(reason).into());
@@ -620,11 +902,23 @@ pub(super) fn goal_status(
         )
         .unwrap_or(0);
         if missing > 0 {
+            // Only the host adds or invites members; on another computer
+            // the sentence must not point the reader at a step it cannot take.
+            let tail = match (view.hosted_here, reader.voice) {
+                (true, Voice::Person) => {
+                    format!("members you add or invite become {}s.", safe(&role))
+                }
+                (true, Voice::Agent) => format!(
+                    "members {} adds or invites become {}s.",
+                    reader.owner(),
+                    safe(&role)
+                ),
+                (false, _) => "the host adds or invites them.".to_owned(),
+            };
             lines.push(format!(
-                "{missing} more {}{} needed; members you add or invite become {}s.",
+                "{missing} more {}{} needed; {tail}",
                 safe(&role),
                 if missing == 1 { " is" } else { "s are" },
-                safe(&role)
             ));
         }
     }
@@ -642,17 +936,25 @@ pub(super) fn goal_status(
             "{} · level {} · {}",
             safe(&abilities.name),
             tag(&abilities.level),
-            standing_line(abilities)
+            standing_line(abilities, reader.voice)
         ));
         for wanted in &abilities.wanted_tasks {
             let title = safe(wanted.title.as_deref().unwrap_or("this task"));
             // An allowance lowers the bar to ask, so at read only a level helps.
-            if abilities.level == locust_proto::api::Level::Read {
-                lines.push(format!("  Asked to take \"{}\", but at read it only reads: locust --owner --agent {} level --goal {} ask", title, abilities.agent, view.goal));
+            if abilities.level == Level::Read {
+                lines.push(format!(
+                    "  Asked to take \"{title}\", but at read it only reads: {}",
+                    level_command(&goal_id, &abilities.name, "ask")
+                ));
             } else {
                 lines.push(format!(
-                    "  Asked to take \"{}\": locust --owner --agent {} allow --goal {} --task {}",
-                    title, abilities.agent, view.goal, wanted.task
+                    "  Asked to take \"{title}\": {}",
+                    allow_command(
+                        &goal_id,
+                        &reader.task_id(wanted.task),
+                        &abilities.name,
+                        false
+                    )
                 ));
             }
         }
@@ -661,7 +963,11 @@ pub(super) fn goal_status(
         lines.push(format!(
             "Step {} stalled for {}: {}",
             stalled.effect,
-            signer(stalled.runner == view.governance, stalled.runner, names),
+            signer(
+                stalled.runner == view.governance,
+                stalled.runner,
+                reader.names
+            ),
             tag(&stalled.reason)
         ));
     }
@@ -686,34 +992,21 @@ pub(super) fn goal_status(
     lines.join("\n")
 }
 
-pub(super) fn render(
-    response: &Response,
-    names: &[AgentView],
-    goal: Option<GoalId>,
-    principal: Option<PublicKey>,
-) -> Option<String> {
+pub(super) fn render(response: &Response, goal: Option<GoalId>, reader: &Reader) -> Option<String> {
+    let names = reader.names;
+    let by_owner = match reader.voice {
+        Voice::Person => "by you",
+        Voice::Agent => "by your owner",
+    };
     let lines = match response {
-        Response::Status(status) => {
-            let mut lines = vec![format!("Daemon {}", safe(&status.daemon_version))];
-            if let Some(endpoint) = status.endpoint { lines.push(format!("Endpoint {endpoint}")); }
-            for agent in &status.agents {
-                if agent.revoked { lines.push(super::disconnected_agent(agent)); }
-                lines.push(format!("Participant {} · credential {}", label(agent.agent, &status.agents), if agent.revoked { "disconnected" } else { "active" }));
-            }
-            for goal in &status.goals {
-                lines.push(format!("Goal {} ({}) · {} · {}", safe(goal.title.as_deref().unwrap_or("Title unavailable")), goal.goal, label(goal.member, &status.agents), tag(&goal.membership)));
-                lines.push(format!("  Level: {} · {}", tag(&goal.abilities.level), standing_line(&goal.abilities)));
-                if let Some(action) = membership_action(goal.membership) { lines.push(action.into()); }
-                if let Some(reason) = goal.halted { lines.push(halt(reason).into()); }
-            }
-            lines
-        }
-        Response::GoalStatus(view) => return Some(goal_status(view, names, None, principal)),
+        Response::Status(view) => status(view, reader),
+        Response::GoalStatus(view) => return Some(goal_status(view, None, reader)),
         Response::Board(tasks) => {
             if tasks.is_empty() { vec!["No tasks in this goal.".into()] } else {
+                let board = Reader { tasks, ..*reader };
                 let mut lines = vec![format!("{} tasks", tasks.len())];
                 for task in tasks {
-                    lines.push(format!("{} · {}", task_label(task.task, tasks), task_state(task)));
+                    lines.push(format!("{} · {}", task_label(task.task, &board), task_state(task)));
                     lines.push(format!("  By {} · {} attempts · {} contributions", signer(task.by_host, task.creator, names), task.attempts.len(), task.contributions.len()));
                 }
                 lines.push("Use pending for start, review and acknowledgment actions.".into());
@@ -736,8 +1029,8 @@ pub(super) fn render(
             lines.push(format!("Effective rules: {}", safe(&rules.to_string())));
             lines
         }
-        Response::Pending(work) => pending(work, goal?, principal, &[]),
-        Response::Waited(WaitOutcome::Work(work)) => pending(work, goal?, principal, &[]),
+        Response::Pending(work) => pending(work, goal?, reader),
+        Response::Waited(WaitOutcome::Work(work)) => pending(work, goal?, reader),
         Response::Waited(WaitOutcome::NoEvent) => vec!["No observed change before the requested timeout.".into()],
         Response::Waited(WaitOutcome::Disconnected) => vec!["No observed change before the requested timeout. No peer of this goal is currently reachable.".into()],
         Response::Contributions(contributions) => {
@@ -756,7 +1049,7 @@ pub(super) fn render(
         Response::ContributionInspected(inspected) => {
             let event = &inspected.contribution;
             let mut lines = vec![format!("Contribution {} · {}", event.view.event, tag(&event.view.standing)), format!("Author: {}", signer(event.view.by_host, event.view.author, names))];
-            if event.view.by_owner { lines.push(if principal.is_some() { "by your owner" } else { "by you" }.into()); }
+            if event.view.by_owner { lines.push(by_owner.into()); }
             if let Some(text) = &event.text { lines.push(format!("Summary: {}", safe(text))); }
             else if event.payload.is_some() { lines.push("Summary text is not held locally.".into()); }
             if let Some(task) = event.task { lines.push(format!("Task: {task}")); }
@@ -785,7 +1078,7 @@ pub(super) fn render(
         }
         Response::Event(event) => {
             let mut lines = vec![format!("Event {} · {} · {}", event.view.event, safe(&event.view.kind), tag(&event.view.standing)), format!("Author: {}", signer(event.view.by_host, event.view.author, names))];
-            if event.view.by_owner { lines.push(if principal.is_some() { "by your owner" } else { "by you" }.into()); }
+            if event.view.by_owner { lines.push(by_owner.into()); }
             match &event.body {
                 Body::Genesis(genesis) => lines.push(format!("Goal created. Host's agent: {}. Definition: {}", label(genesis.host, names), genesis.definition)),
                 Body::ReviewRecorded { subject, verdict, .. } => lines.push(format!("Review of {subject}: {}", tag(verdict))),
@@ -800,7 +1093,7 @@ pub(super) fn render(
             lines
         }
         Response::Events(events) => {
-            let mut lines = events.iter().map(|event| format!("{} · {} · {} · {}{}", event.event, safe(&event.kind), signer(event.by_host, event.author, names), tag(&event.standing), if event.by_owner { if principal.is_some() { " · by your owner" } else { " · by you" } } else { "" })).collect::<Vec<_>>();
+            let mut lines = events.iter().map(|event| format!("{} · {} · {} · {}{}", event.event, safe(&event.kind), signer(event.by_host, event.author, names), tag(&event.standing), if event.by_owner { format!(" · {by_owner}") } else { String::new() })).collect::<Vec<_>>();
             if lines.is_empty() { lines.push("No events in this page.".into()); }
             lines
         }
@@ -813,6 +1106,14 @@ pub(super) fn render(
 mod tests {
     use super::*;
     use locust_proto::api::{Ability, AgentView};
+
+    fn person() -> Reader<'static> {
+        Reader::new(Voice::Person, None, &[])
+    }
+
+    fn agent(principal: PublicKey) -> Reader<'static> {
+        Reader::new(Voice::Agent, Some(principal), &[])
+    }
 
     #[test]
     fn standing_line_follows_the_level_and_eligible_rows() {
@@ -831,11 +1132,18 @@ mod tests {
             claims: vec![],
         };
         assert_eq!(
-            standing_line(&abilities),
+            standing_line(&abilities, Voice::Person),
             "reads only; reports on or drops what it holds"
         );
         abilities.level = Level::Ask;
-        assert_eq!(standing_line(&abilities), "posts; asks before each task");
+        assert_eq!(
+            standing_line(&abilities, Voice::Person),
+            "posts; waits for your yes before each task"
+        );
+        assert_eq!(
+            standing_line(&abilities, Voice::Agent),
+            "posts; waits for worker's owner before each task"
+        );
         abilities.rules.push(Ability {
             rule: Rule::Review,
             qualifies: Selector::Members,
@@ -853,13 +1161,13 @@ mod tests {
             allowed: false,
         });
         assert_eq!(
-            standing_line(&abilities),
-            "posts, reviews; asks before each task"
+            standing_line(&abilities, Voice::Person),
+            "posts, reviews; waits for your yes before each task"
         );
         abilities.level = Level::Auto;
         abilities.rules[1].eligible = true;
         assert_eq!(
-            standing_line(&abilities),
+            standing_line(&abilities, Voice::Agent),
             "posts, reviews, decides; takes tasks on its own"
         );
     }
@@ -868,11 +1176,11 @@ mod tests {
     fn an_event_the_person_signed_reads_by_you_or_by_your_owner() {
         use locust_proto::api::{EventView, Standing};
         use locust_proto::id::EventId;
-        let agent = PublicKey([2; 32]);
+        let agent_key = PublicKey([2; 32]);
         let view = EventView {
             position: Some(1),
             event: EventId([3; 32]),
-            author: agent,
+            author: agent_key,
             kind: "task_opened".into(),
             at_ms: 1,
             standing: Standing::Effective,
@@ -881,12 +1189,12 @@ mod tests {
         };
         let response = Response::Events(vec![view]);
         assert!(
-            render(&response, &[], None, None)
+            render(&response, None, &person())
                 .unwrap()
                 .contains("by you")
         );
         assert!(
-            render(&response, &[], None, Some(agent))
+            render(&response, None, &agent(agent_key))
                 .unwrap()
                 .contains("by your owner")
         );
@@ -1000,22 +1308,23 @@ mod tests {
     #[test]
     fn a_record_signed_by_the_governance_key_prints_host() {
         let governance = PublicKey([9; 32]);
-        let agent = PublicKey([2; 32]);
+        let agent_key = PublicKey([2; 32]);
         let names = [AgentView {
-            agent,
+            agent: agent_key,
             name: "maple".into(),
             author_only: false,
             revoked: false,
         }];
+        let reader = Reader::new(Voice::Person, None, &names);
         let rendered: Vec<_> = hosted(governance, true)
             .iter()
-            .map(|response| render(response, &names, Some(GoalId([1; 32])), None).unwrap())
+            .map(|response| render(response, Some(GoalId([1; 32])), &reader).unwrap())
             .collect();
         let [events, event, board, task, status] = rendered.as_slice() else {
             unreachable!("five responses")
         };
         assert!(events.contains(" · host · "), "{events}");
-        assert!(events.contains(&format!("maple ({agent})")), "{events}");
+        assert!(events.contains(&format!("maple ({agent_key})")), "{events}");
         assert!(event.contains("Author: host"), "{event}");
         assert!(board.contains("By host ·"), "{board}");
         assert!(task.contains("Created by host"), "{task}");
@@ -1023,9 +1332,8 @@ mod tests {
         assert!(status.contains("Host: you"), "{status}");
         let elsewhere = render(
             hosted(governance, false).last().unwrap(),
-            &names,
             Some(GoalId([1; 32])),
-            None,
+            &reader,
         )
         .unwrap();
         assert!(
@@ -1039,7 +1347,7 @@ mod tests {
         let governance = PublicKey([9; 32]);
         for hosted_here in [true, false] {
             for response in hosted(governance, hosted_here) {
-                let text = render(&response, &[], Some(GoalId([1; 32])), None).unwrap();
+                let text = render(&response, Some(GoalId([1; 32])), &person()).unwrap();
                 assert!(!text.contains(&governance.to_string()), "{text}");
                 assert!(!text.to_lowercase().contains("governance key"), "{text}");
                 if let Response::Event(mut detail) = response {
@@ -1050,22 +1358,40 @@ mod tests {
                         salt: [5; 16],
                     });
                     let text =
-                        render(&Response::Event(detail), &[], Some(GoalId([1; 32])), None).unwrap();
+                        render(&Response::Event(detail), Some(GoalId([1; 32])), &person()).unwrap();
                     assert!(!text.contains(&governance.to_string()), "{text}");
                     assert!(text.contains("Goal created."), "{text}");
                 }
             }
         }
         let response = hosted(governance, true).pop().unwrap();
-        let text = render(
-            &response,
-            &[],
-            Some(GoalId([1; 32])),
-            Some(PublicKey([2; 32])),
-        )
-        .unwrap();
+        let text = render(&response, Some(GoalId([1; 32])), &agent(PublicKey([2; 32]))).unwrap();
         assert!(text.contains("Host: your owner"), "{text}");
         assert!(!text.contains("Host: you ·"), "{text}");
+    }
+
+    #[test]
+    fn a_ticket_host_name_reads_as_unconfirmed_until_the_record_is_held() {
+        let Response::GoalStatus(mut view) = hosted(PublicKey([9; 32]), false).pop().unwrap()
+        else {
+            panic!("goal status fixture")
+        };
+        view.host = None;
+        view.members.clear();
+        view.host_name = Some("Harbor · lead".into());
+        let text = goal_status(&view, None, &person());
+        assert!(
+            text.contains(
+                "Host: on another computer · the ticket names \"Harbor · lead\"; not confirmed until admission arrives"
+            ),
+            "{text}"
+        );
+        view.host_name = None;
+        let text = goal_status(&view, None, &person());
+        assert!(
+            text.contains("Host: on another computer · name has not arrived"),
+            "{text}"
+        );
     }
 
     #[test]
@@ -1086,14 +1412,31 @@ mod tests {
     }
 
     #[test]
-    fn terminal_controls_and_bidi_never_reach_the_terminal() {
-        let text = "finding\u{1b}]52;c;secret\u{7}\r\nforged\u{202e}label";
-        let rendered = safe(text);
-        assert!(!rendered.chars().any(char::is_control));
-        assert!(!rendered.contains('\u{202e}'));
-        assert!(rendered.contains("\\u{1b}"));
-        assert!(rendered.contains("secret"));
-        assert_eq!(safe("ordinary café"), "ordinary café");
+    fn an_or_inside_an_and_is_bracketed() {
+        let rule = CompletionRule::All {
+            rules: vec![
+                CompletionRule::Any {
+                    rules: vec![
+                        CompletionRule::Reviews {
+                            by: Selector::Members,
+                            count: 1,
+                            exclude_author: true,
+                        },
+                        CompletionRule::Contribution {
+                            by: Selector::OnlyMember,
+                        },
+                    ],
+                },
+                CompletionRule::Check {
+                    name: "tests".into(),
+                    by: Selector::Members,
+                },
+            ],
+        };
+        assert_eq!(
+            counts_when(&rule),
+            "A result counts when (it has 1 approval, not the author's, or the goal's only member posts it) and the check \"tests\" is reported as passed."
+        );
     }
 
     #[test]
@@ -1114,7 +1457,7 @@ mod tests {
             .find(|preset| preset.name == "review-panel")
             .unwrap()
             .formation;
-        let text = goal_status(&view, &[], Some(&panel), None);
+        let text = goal_status(&view, Some(&panel), &person());
         assert!(
             text.contains("Host: on another computer · Harbor (02020202)"),
             "{text}"
@@ -1129,14 +1472,30 @@ mod tests {
             ),
             "{text}"
         );
-        assert!(text.contains("2 more reviewers are needed"), "{text}");
+        assert!(
+            text.contains("2 more reviewers are needed; the host adds or invites them."),
+            "{text}"
+        );
+        view.hosted_here = true;
+        let text = goal_status(&view, Some(&panel), &person());
+        assert!(
+            text.contains(
+                "2 more reviewers are needed; members you add or invite become reviewers."
+            ),
+            "{text}"
+        );
+        let text = goal_status(&view, Some(&panel), &agent(view.host.unwrap()));
+        assert!(
+            text.contains("members your owner adds or invites become reviewers."),
+            "{text}"
+        );
         let peer = locust_proto::organization::presets()
             .into_iter()
             .find(|preset| preset.name == "peer-review")
             .unwrap()
             .formation;
         view.roles.clear();
-        let text = goal_status(&view, &[], Some(&peer), None);
+        let text = goal_status(&view, Some(&peer), &person());
         assert!(!text.contains("Roles:"), "{text}");
         assert!(!text.contains("more reviewers"), "{text}");
         assert_eq!(
@@ -1155,19 +1514,32 @@ mod tests {
             revoked: false,
         }];
         assert_eq!(label(key, &names), format!("worker ({key})"));
-        let members = [MemberView {
+        let mut members = [MemberView {
             member: key,
             name: "Maple".into(),
             endpoint: locust_proto::id::EndpointId([2; 32]),
             local: false,
         }];
         assert_eq!(member_label(key, &members), "Maple (01010101)");
+        assert_eq!(
+            member_label_noting(key, &members, "the host's agent"),
+            "Maple (01010101, the host's agent)"
+        );
+        // A chosen name cannot imitate a line's separators.
+        members[0].name = "Zed (0a0b0c0d) · lead \"Maple\"".into();
+        assert_eq!(
+            member_label(key, &members),
+            "\"Zed (0a0b0c0d) · lead \\\"Maple\\\"\" (01010101)"
+        );
+        assert_eq!(chosen_name("Ana Maria"), "Ana Maria");
+        assert_eq!(chosen_name(" Ana"), "\" Ana\"");
+        assert_eq!(chosen_name("Zed\u{202e}"), "\"Zed\\u{202e}\"");
     }
 
     /// One of everything a view can ask its reader to do next.
     fn work() -> PendingWork {
         use locust_proto::api::{
-            CancelItem, Claim, ContextNews, DeliveryItem, ReviewItem, WorkItem,
+            Attempting, CancelItem, Claim, ContextNews, DeliveryItem, ReviewItem, WorkItem,
         };
         use locust_proto::id::{EffectId, EventId, InstanceId};
         let event = EventId([4; 32]);
@@ -1200,8 +1572,11 @@ mod tests {
                 WorkItem {
                     task,
                     offer: None,
-                    attempting: vec![],
-                    results: 0,
+                    attempting: vec![Attempting {
+                        member: PublicKey([7; 32]),
+                        status: None,
+                    }],
+                    results: 1,
                 },
                 WorkItem {
                     task: TaskId::Derived(EffectId([6; 32])),
@@ -1236,25 +1611,353 @@ mod tests {
         }
     }
 
+    fn names() -> Vec<AgentView> {
+        vec![
+            AgentView {
+                agent: PublicKey([2; 32]),
+                name: "codex-maple-1a2b3c4d".into(),
+                author_only: false,
+                revoked: false,
+            },
+            AgentView {
+                agent: PublicKey([3; 32]),
+                name: "claude-juniper-77aa0c52".into(),
+                author_only: false,
+                revoked: false,
+            },
+            AgentView {
+                agent: PublicKey([4; 32]),
+                name: "codex-birch-5e6f7a8b".into(),
+                author_only: false,
+                revoked: false,
+            },
+        ]
+    }
+
+    fn id<T: std::str::FromStr>(prefix: &str) -> T
+    where
+        T::Err: std::fmt::Debug,
+    {
+        format!("{prefix}{}", "0".repeat(64 - prefix.len()))
+            .parse()
+            .unwrap()
+    }
+
+    enum Host {
+        Here(&'static str),
+        Elsewhere(&'static str),
+    }
+
+    fn summary(
+        (goal, title): (GoalId, &str),
+        agent: usize,
+        name: &str,
+        membership: Membership,
+        level: Level,
+        roles: &[&str],
+        host: Host,
+    ) -> GoalSummary {
+        let names = names();
+        let agent = &names[agent];
+        let (hosted_here, host_name) = match host {
+            Host::Here(name) => (true, name),
+            Host::Elsewhere(name) => (false, name),
+        };
+        let mut rules = vec![];
+        if roles.contains(&"reviewer") {
+            rules.push(Ability {
+                rule: Rule::Review,
+                qualifies: Selector::Role {
+                    name: "reviewer".into(),
+                },
+                except_author: true,
+                eligible: true,
+                needs: Level::Ask,
+                allowed: true,
+            });
+        }
+        if roles.contains(&"lead") {
+            rules.push(Ability {
+                rule: Rule::Select,
+                qualifies: Selector::Role {
+                    name: "lead".into(),
+                },
+                except_author: false,
+                eligible: true,
+                needs: Level::Ask,
+                allowed: true,
+            });
+        }
+        GoalSummary {
+            goal,
+            title: Some(title.into()),
+            member: agent.agent,
+            name: name.into(),
+            membership,
+            host_name: Some(host_name.into()),
+            invitations_open: 0,
+            invitations_expire_ms: None,
+            halted: None,
+            abilities: Abilities {
+                goal,
+                agent: agent.agent,
+                name: agent.name.clone(),
+                membership: Some(membership),
+                level,
+                host: Some(PublicKey([8; 32])),
+                hosted_here,
+                roles: roles.iter().map(|role| (*role).into()).collect(),
+                rules,
+                allowed_tasks: vec![],
+                wanted_tasks: vec![],
+                claims: vec![],
+            },
+        }
+    }
+
+    /// Mockup P5-1.
+    fn p5_status() -> DaemonStatus {
+        let parser: GoalId = id("c01d55aa");
+        let search: GoalId = id("7f3a9c1e");
+        let task = TaskId::Authored(id("4b2d8e01"));
+        const DAY: u64 = 86_400_000;
+        let mut hosted = summary(
+            (parser, "Parser cleanup"),
+            0,
+            "Maple",
+            Membership::Member,
+            Level::Auto,
+            &["lead", "reviewer"],
+            Host::Here("Maple"),
+        );
+        hosted.invitations_open = 1;
+        hosted.invitations_expire_ms = Some(6 * DAY + 3_600_000);
+        DaemonStatus {
+            daemon_version: "0.1.0".into(),
+            endpoint: Some(id("5c0e77aa")),
+            agents: names(),
+            waiting: vec![WaitingForYou {
+                goal: search,
+                title: Some("Static site search".into()),
+                agent: Some(PublicKey([2; 32])),
+                agent_name: Some("Maple".into()),
+                kind: WaitingKind::AllowTask {
+                    task,
+                    task_title: Some("Fix the parser".into()),
+                },
+                command: allow_command("7f3a9c1e", "task:4b2d8e01", "codex-maple-1a2b3c4d", false),
+            }],
+            goals: vec![
+                hosted,
+                summary(
+                    (parser, "Parser cleanup"),
+                    1,
+                    "Juniper",
+                    Membership::Member,
+                    Level::Read,
+                    &[],
+                    Host::Here("Maple"),
+                ),
+                summary(
+                    (search, "Static site search"),
+                    0,
+                    "Maple",
+                    Membership::Member,
+                    Level::Ask,
+                    &[],
+                    Host::Elsewhere("Harbor"),
+                ),
+                summary(
+                    (search, "Static site search"),
+                    1,
+                    "claude-juniper-77aa0c52",
+                    Membership::Joining,
+                    Level::Auto,
+                    &[],
+                    Host::Elsewhere("Harbor"),
+                ),
+            ],
+        }
+    }
+
+    #[test]
+    fn status_shows_waiting_then_each_goal_and_agent() {
+        let view = p5_status();
+        let names = names();
+        let reader = Reader {
+            now_ms: 3_600_000,
+            ..Reader::new(Voice::Person, None, &names)
+        };
+        let text = render(&Response::Status(view), None, &reader).unwrap();
+        let expected = "\
+Waiting for you
+  Maple wants to take \"Fix the parser\" in \"Static site search\"
+    locust --owner allow --goal 7f3a9c1e --task task:4b2d8e01 --agent codex-maple-1a2b3c4d
+
+Parser cleanup (c01d55aa) · host: you
+  Maple (codex-maple-1a2b3c4d) · lead, reviewer · auto
+      posts, reviews, decides; takes tasks on its own
+  Juniper (claude-juniper-77aa0c52) · member · read
+      reads only; reports on or drops what it holds
+  1 invitation open, expires in 6 days
+    locust --owner invitation revoke --goal c01d55aa --all
+
+Static site search (7f3a9c1e) · host: Harbor's owner, on another computer
+  Maple (codex-maple-1a2b3c4d) · member · ask
+      posts; waits for your yes before each task
+  claude-juniper-77aa0c52 · joining
+      Admission has not arrived. It comes from the host's computer when that computer is on; nothing here waits for you.
+
+codex-birch-5e6f7a8b is connected and in no goal.
+Daemon 0.1.0 · endpoint 5c0e77aa";
+        assert_eq!(text, expected);
+    }
+
+    #[test]
+    fn a_halted_goal_and_a_refused_agent_show_under_the_goal_only() {
+        let mut view = p5_status();
+        view.waiting.clear();
+        view.goals.truncate(2);
+        view.goals[0].halted = Some(Halt::AuthorityConflict);
+        view.goals[1].halted = Some(Halt::AuthorityConflict);
+        view.goals[1].membership = Membership::Refused;
+        view.goals[1].name = "claude-juniper-77aa0c52".into();
+        let text = render(&Response::Status(view), None, &person()).unwrap();
+        assert!(text.starts_with("Nothing is waiting for you.\n"), "{text}");
+        assert!(
+            text.contains("Parser cleanup (c01d55aa) · host: you · halted\n  Blocked: conflicting authority history."),
+            "{text}"
+        );
+        assert_eq!(text.matches("Blocked:").count(), 1, "{text}");
+        assert!(
+            text.contains("  claude-juniper-77aa0c52 · refused\n      The invitation was refused."),
+            "{text}"
+        );
+    }
+
+    #[test]
+    fn an_agent_reads_the_same_view_about_its_owner() {
+        let mut view = p5_status();
+        let names = names();
+        let maple = names[0].agent;
+        view.agents.truncate(1);
+        view.goals.retain(|summary| summary.member == maple);
+        view.goals
+            .iter_mut()
+            .for_each(|summary| summary.invitations_open = 0);
+        let reader = Reader::new(Voice::Agent, Some(maple), &names[..1]);
+        let text = render(&Response::Status(view.clone()), None, &reader).unwrap();
+        assert!(
+            text.starts_with("Waiting for codex-maple-1a2b3c4d's owner\n"),
+            "{text}"
+        );
+        assert!(
+            text.contains("Parser cleanup (c01d55aa) · host: codex-maple-1a2b3c4d's owner\n"),
+            "{text}"
+        );
+        assert!(
+            text.contains("posts; waits for codex-maple-1a2b3c4d's owner before each task"),
+            "{text}"
+        );
+        assert!(!text.contains("you"), "{text}");
+        assert!(!text.contains("invitation"), "{text}");
+        view.waiting.clear();
+        let text = render(&Response::Status(view), None, &reader).unwrap();
+        assert!(
+            text.starts_with("Nothing is waiting for codex-maple-1a2b3c4d's owner.\n"),
+            "{text}"
+        );
+    }
+
+    #[test]
+    fn pending_names_who_is_attempting_and_counts_approvals() {
+        use locust_proto::id::EndpointId;
+        let names = names();
+        let members = [MemberView {
+            name: "Juniper".into(),
+            member: PublicKey([7; 32]),
+            endpoint: EndpointId([3; 32]),
+            local: false,
+        }];
+        let tasks = [TaskView {
+            task: TaskId::Authored(locust_proto::id::EventId([4; 32])),
+            context: locust_proto::event::Context {
+                scope: Scope::Goal,
+                round: locust_proto::id::EventId([4; 32]),
+            },
+            creator: PublicKey([7; 32]),
+            by_host: false,
+            title: Some("Fix the parser".into()),
+            attempts: vec![],
+            contributions: vec![],
+            completed: false,
+            selected: None,
+            closed: false,
+        }];
+        let goals = [GoalId([1; 32]), GoalId([2; 32])];
+        let reader = Reader {
+            goals: &goals,
+            members: &members,
+            tasks: &tasks,
+            ..Reader::new(Voice::Person, Some(names[0].agent), &names)
+        };
+        let text = render(&Response::Pending(work()), Some(GoalId([1; 32])), &reader).unwrap();
+        assert!(
+            text.contains("Waits for you: Fix the parser (task:04040404)\n  Nobody is attempting it · 0 results\n  Allow this task: locust --owner allow --goal 01010101 --task task:04040404 --agent codex-maple-1a2b3c4d"),
+            "{text}"
+        );
+        assert!(
+            text.contains("Ready to start: Fix the parser (task:04040404)\n  Attempting: Juniper (07070707) · 1 result"),
+            "{text}"
+        );
+        assert!(text.contains(" · 0 of 1 approvals"), "{text}");
+        assert!(
+            text.contains("attempt start --goal 01010101 --task task:04040404"),
+            "{text}"
+        );
+        let reader = Reader {
+            voice: Voice::Agent,
+            ..reader
+        };
+        let text = render(&Response::Pending(work()), Some(GoalId([1; 32])), &reader).unwrap();
+        assert!(
+            text.contains("Waits for codex-maple-1a2b3c4d's owner: Fix the parser (task:04040404)"),
+            "{text}"
+        );
+        assert!(
+            text.contains(
+                "  codex-maple-1a2b3c4d's owner can allow it: locust --owner allow --goal 01010101"
+            ),
+            "{text}"
+        );
+    }
+
     #[test]
     fn every_printed_command_parses_as_printed() {
         use super::super::args;
-        use locust_proto::api::{GoalStatus, MemberView};
+        use locust_proto::api::{
+            Act, Audience, GoalStatus, MemberView, OPERATIONS, Refused, Why, render as refusal,
+        };
         use locust_proto::id::EndpointId;
         let goal = GoalId([1; 32]);
-        let agent = PublicKey([2; 32]);
+        let agent_key = PublicKey([2; 32]);
+        let names = names();
         let abilities = Abilities {
             goal,
-            agent,
+            agent: agent_key,
             name: "worker".into(),
             membership: Some(Membership::Member),
             level: Level::Ask,
-            host: Some(agent),
+            host: Some(agent_key),
             hosted_here: true,
             roles: vec![],
             rules: vec![],
             allowed_tasks: vec![],
-            wanted_tasks: vec![],
+            wanted_tasks: vec![locust_proto::api::WantedTask {
+                task: TaskId::Authored(locust_proto::id::EventId([4; 32])),
+                title: Some("Fix the parser".into()),
+                since_ms: 1,
+            }],
             claims: vec![],
         };
         let status = GoalStatus {
@@ -1266,14 +1969,14 @@ mod tests {
             title: None,
             governance: PublicKey([9; 32]),
             hosted_here: true,
-            host: Some(agent),
+            host: Some(agent_key),
             governance_head: None,
             current_rules: None,
             scope_halts: vec![],
             members: vec![MemberView {
                 name: "Member".into(),
 
-                member: agent,
+                member: agent_key,
                 endpoint: EndpointId([3; 32]),
                 local: true,
             }],
@@ -1284,19 +1987,88 @@ mod tests {
             peers: vec![],
         };
         // A participant's view, the owner's merged view, a wait that found
-        // work, and the goal status view.
+        // work, the goal status view and the status view.
         let views = [
-            (Response::Pending(work()), Some(agent)),
+            (Response::Pending(work()), Some(agent_key)),
             (Response::Pending(work()), None),
             (
                 Response::Waited(WaitOutcome::Work(Box::new(work()))),
-                Some(agent),
+                Some(agent_key),
             ),
             (Response::GoalStatus(status), None),
+            (Response::Status(p5_status()), None),
         ];
+        let mut texts: Vec<String> = views
+            .into_iter()
+            .map(|(response, principal)| {
+                render(
+                    &response,
+                    Some(goal),
+                    &Reader::new(Voice::Person, principal, &names),
+                )
+                .unwrap()
+            })
+            .collect();
+        // The person's rendering of each `Why`, and the help line of every
+        // command only the person or the host runs.
+        let refused = |why: Why| Refused {
+            agent: agent_key,
+            agent_name: "codex-maple-1a2b3c4d".into(),
+            member_name: Some("Maple".into()),
+            goal: Some(goal),
+            goal_title: Some("Static site search".into()),
+            act: Act::TakeTask,
+            task: Some(TaskId::Authored(locust_proto::id::EventId([4; 32]))),
+            task_title: Some("Fix the parser".into()),
+            why,
+        };
+        texts.push(refusal(
+            &refused(Why::YourSetting {
+                level: Level::Ask,
+                needs: Level::Auto,
+            }),
+            Voice::Person,
+        ));
+        texts.push(refusal(
+            &refused(Why::YourSetting {
+                level: Level::Read,
+                needs: Level::Ask,
+            }),
+            Voice::Person,
+        ));
+        texts.push(refusal(
+            &refused(Why::Rules {
+                rule: Rule::Review,
+                qualifies: Selector::Role {
+                    name: "reviewer".into(),
+                },
+                except_author: true,
+                host: PublicKey([8; 32]),
+                host_name: Some("Harbor".into()),
+            }),
+            Voice::Person,
+        ));
+        texts.push(refusal(
+            &refused(Why::State {
+                reason: "the task is finished".into(),
+            }),
+            Voice::Person,
+        ));
+        for operation in OPERATIONS
+            .iter()
+            .filter(|operation| matches!(operation.audience, Audience::Owner | Audience::Host))
+        {
+            texts.push(refusal(
+                &refused(Why::OnlyYou {
+                    operation: operation.name.into(),
+                    host: operation.audience == Audience::Host,
+                }),
+                Voice::Person,
+            ));
+        }
         let mut operations = std::collections::BTreeSet::new();
-        for (response, principal) in views {
-            let rendered = render(&response, &[], Some(goal), principal).unwrap();
+        let mut help_lines = 0;
+        for rendered in texts {
             // Whatever follows `locust` on a line is a command its reader pastes.
             for line in rendered.lines() {
                 let Some(start) = line.find("locust ") else {
@@ -1304,10 +2076,16 @@ mod tests {
                 };
                 let command = &line[start..];
                 assert!(!command.contains(['<', '>']), "placeholder in: {line}");
-                let matches = args::command()
-                    .try_get_matches_from(command.split(' '))
-                    .unwrap_or_else(|error| panic!("{line}\n{error}"));
-                operations.insert(args::selected(&matches).0);
+                match args::command().try_get_matches_from(command.split(' ')) {
+                    Ok(matches) => {
+                        operations.insert(args::selected(&matches).0);
+                    }
+                    Err(error) if error.kind() == clap::error::ErrorKind::DisplayHelp => {
+                        assert!(command.ends_with(" --help"), "{line}");
+                        help_lines += 1;
+                    }
+                    Err(error) => panic!("{line}\n{error}"),
+                }
             }
         }
         assert_eq!(
@@ -1318,7 +2096,16 @@ mod tests {
                 "context.read",
                 "delivery.acknowledge",
                 "event.show",
+                "invitation.revoke",
+                "level",
             ]
+        );
+        assert_eq!(
+            help_lines,
+            OPERATIONS
+                .iter()
+                .filter(|operation| matches!(operation.audience, Audience::Owner | Audience::Host))
+                .count()
         );
     }
 }

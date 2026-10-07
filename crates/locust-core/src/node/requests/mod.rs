@@ -214,7 +214,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             Request::BlobGet { goal, hash } => self.blob_get(actor, goal, hash),
             Request::BlobStat { goal, hashes } => self.blob_stat(actor, goal, hashes),
             Request::BlobWithdraw { goal, hash } => self.blob_withdraw(actor, goal, hash),
-            Request::Status => self.status(actor),
+            Request::Status => self.status(actor, now),
             Request::Shutdown => self.shutdown(),
             Request::AgentEnroll { name, credential } => self.agent_enroll(name, credential),
             Request::GoalCreate {

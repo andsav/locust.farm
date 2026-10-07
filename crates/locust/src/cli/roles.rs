@@ -252,7 +252,7 @@ pub(super) fn run(
         .members
         .iter()
         .find(|entry| entry.member == member)
-        .map(|entry| presentation::safe(&entry.name))
+        .map(|entry| presentation::chosen_name(&entry.name))
         .unwrap_or_else(|| unique_key(&view, member));
     let mut lines = vec![
         if give {
@@ -283,11 +283,10 @@ pub(super) fn run(
         holders
             .iter()
             .map(|holder| {
-                let label = presentation::member_label(*holder, &view.members);
                 if host == Some(*holder) {
-                    format!("{}, the host's agent)", label.trim_end_matches(')'))
+                    presentation::member_label_noting(*holder, &view.members, "the host's agent")
                 } else {
-                    label
+                    presentation::member_label(*holder, &view.members)
                 }
             })
             .collect::<Vec<_>>()

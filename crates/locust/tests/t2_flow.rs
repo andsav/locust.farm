@@ -1165,7 +1165,7 @@ fn an_agents_cli_names_its_owner_and_refuses_workspace_init_without_a_false_disc
         &["goal", "add", "--goal", goal],
     );
     let text = participant.human(&["--credential", credential, "goal", "status", "--goal", goal]);
-    assert!(text.contains("Host: your owner"), "{text}");
+    assert!(text.contains("Host: juniper's owner"), "{text}");
     let output = participant
         .command()
         .args([
@@ -1296,4 +1296,112 @@ fn binding_reviewer_rules_assigns_current_members_and_no_role_keeps_the_choice_e
             );
         }
     }
+}
+
+#[test]
+fn a_refused_task_reaches_the_person_as_a_waiting_line_they_can_run() {
+    let participant = Participant::new();
+    let enrollment = participant.cli(&["--owner"], &["agent", "enroll", "reader"]);
+    let principal = enrollment["agent_enrolled"]["agent"].as_str().unwrap();
+    let credential = enrollment["agent_enrolled"]["credential_path"]
+        .as_str()
+        .unwrap();
+    let session_path = participant.home.path().join("one.session");
+    let session = session_path.to_str().unwrap();
+    participant.cli(&[], &["session", "create", session]);
+    let created = participant.approved_cli(
+        &["--owner", "--agent", principal],
+        &["goal", "create", "--title", "Shared decisions"],
+    );
+    let goal = created["goal_created"]["goal"].as_str().unwrap();
+    participant.cli(
+        &["--owner"],
+        &["level", "--goal", goal, "--agent", "reader", "ask"],
+    );
+    let mut mcp = Mcp::new(&participant, credential, session);
+    let opened = mcp.tool(
+        "locust_task_open",
+        json!({"goal":goal,"text":"Check the source","task_type":null,"inputs":{},"parent":null}),
+    );
+    let task = format!("task:{}", opened["recorded"]["event"].as_str().unwrap());
+    let refused = mcp.request(
+        "tools/call",
+        json!({"name":"locust_attempt_start","arguments":{"goal":goal,"task":task,"offer":null}}),
+    );
+    assert_eq!(refused["isError"], true);
+    let error = &refused["structuredContent"]["error"];
+    assert_eq!(error["code"], "level_required");
+    // The tool's message names the agent by its local name and says "this
+    // task"; the title is only in details.
+    let message = error["message"].as_str().unwrap();
+    assert!(
+        message.starts_with("reader can't take this task in this goal: reader's level here is ask"),
+        "{message}"
+    );
+    assert!(!message.contains("Check the source"), "{message}");
+    assert_eq!(error["details"]["task_title"], "Check the source");
+    assert_eq!(error["details"]["why"]["side"], "your_setting");
+    let same = participant
+        .command()
+        .args(["--credential", credential, "--session", session])
+        .args(["attempt", "start", "--goal", goal, "--task", &task])
+        .output()
+        .unwrap();
+    assert_eq!(same.status.code(), Some(4));
+    assert_eq!(
+        String::from_utf8(same.stderr).unwrap().trim_end(),
+        format!("locust: level_required: {message}")
+    );
+
+    let status = participant.human(&["--owner", "status"]);
+    assert!(status.starts_with("Waiting for you\n"), "{status}");
+    assert!(
+        status.contains("  reader wants to take \"Check the source\" in \"Shared decisions\"\n    locust --owner allow --goal "),
+        "{status}"
+    );
+    let line = status
+        .lines()
+        .find_map(|line| line.strip_prefix("    locust "))
+        .unwrap();
+    assert!(line.contains(&format!("--goal {}", &goal[..8])), "{line}");
+    assert!(line.contains(&format!("--task {}", &task[..13])), "{line}");
+    assert!(line.ends_with("--agent reader"), "{line}");
+    let allowed = participant.human(&line.split_whitespace().collect::<Vec<_>>());
+    assert!(
+        allowed.contains("reader may take \"Check the source\" in \"Shared decisions\""),
+        "{allowed}"
+    );
+    assert!(
+        allowed.contains("\nUndo: locust --owner allow --goal "),
+        "{allowed}"
+    );
+    let claim = mcp.tool(
+        "locust_attempt_start",
+        json!({"goal":goal,"task":task,"offer":null}),
+    );
+    assert!(claim["claimed"]["attempt"].is_string());
+    let status = participant.human(&["--owner", "status"]);
+    assert!(
+        status.starts_with("Nothing is waiting for you.\n"),
+        "{status}"
+    );
+    assert!(
+        status.contains("Shared decisions (") && status.contains(") · host: you\n  reader · member · ask\n      posts, reviews; waits for your yes before each task"),
+        "{status}"
+    );
+    // The agent's own status is worded about its owner.
+    let agent_status =
+        participant.human(&["--credential", credential, "--session", session, "status"]);
+    assert!(
+        agent_status.starts_with("Nothing is waiting for reader's owner.\n"),
+        "{agent_status}"
+    );
+    assert!(
+        agent_status.contains("host: reader's owner\n"),
+        "{agent_status}"
+    );
+    assert!(
+        agent_status.contains("posts, reviews; waits for reader's owner before each task"),
+        "{agent_status}"
+    );
 }

@@ -13,19 +13,39 @@ fn auth(socket: PathBuf) -> Arc<Authentication> {
         session: Some(SessionSecret([2; 32])),
     })
 }
+/// Refusal 2 of mockup P5-2: the agent's level is ask and the task needs auto.
+fn refused() -> locust_proto::api::Refused {
+    use locust_proto::api::{Act, Level, Refused, Why};
+    use locust_proto::id::{EventId, GoalId, PublicKey};
+    Refused {
+        agent: PublicKey([3; 32]),
+        agent_name: "codex-maple-1a2b3c4d".into(),
+        member_name: Some("Maple".into()),
+        goal: Some(GoalId([1; 32])),
+        goal_title: Some("Static site search".into()),
+        act: Act::TakeTask,
+        task: Some(locust_proto::event::TaskId::Authored(EventId([4; 32]))),
+        task_title: Some("Fix the parser".into()),
+        why: Why::YourSetting {
+            level: Level::Ask,
+            needs: Level::Auto,
+        },
+    }
+}
 fn fake(
     socket: &std::path::Path,
     owner: bool,
     block: bool,
 ) -> (std::thread::JoinHandle<()>, std::sync::mpsc::Receiver<()>) {
+    let refused = refused();
     fake_response(
         socket,
         owner,
         block,
         Err(ApiError {
-            code: ErrorCode::Denied,
-            message: "grant required".into(),
-            details_json: None,
+            code: ErrorCode::LevelRequired,
+            message: locust_proto::api::render(&refused, locust_proto::api::Voice::Agent),
+            details_json: Some(serde_json::to_string(&refused).unwrap()),
         }),
     )
 }
@@ -150,9 +170,23 @@ async fn authenticated_daemon_errors_are_structured_tool_errors() {
     .await;
     let answer = receive(&mut reader).await;
     assert_eq!(answer["result"]["isError"], true);
+    let error = &answer["result"]["structuredContent"]["error"];
+    assert_eq!(error["code"], "level_required");
+    // Mockup P5-3: the message names the agent by its local name and says
+    // "this task"; the titles and the name in the goal are only in details.
+    let message = error["message"].as_str().unwrap();
     assert_eq!(
-        answer["result"]["structuredContent"]["error"]["code"],
-        "denied"
+        message,
+        "codex-maple-1a2b3c4d can't take this task in this goal: codex-maple-1a2b3c4d's level here is ask (set by codex-maple-1a2b3c4d's owner). codex-maple-1a2b3c4d's owner can allow this task or set codex-maple-1a2b3c4d to auto."
+    );
+    assert!(!message.contains("Fix the parser"));
+    assert!(!message.contains("Maple "));
+    assert_eq!(error["details"]["why"]["side"], "your_setting");
+    assert_eq!(error["details"]["task_title"], "Fix the parser");
+    assert_eq!(error["details"]["member_name"], "Maple");
+    assert_eq!(
+        answer["result"]["content"][0]["text"],
+        serde_json::to_string(&answer["result"]["structuredContent"]).unwrap()
     );
     drop(writer);
     bridge.await.unwrap().unwrap();
@@ -298,6 +332,44 @@ fn strings_written_for_a_model_name_listed_tools_and_no_operation() {
             );
         }
     }
+    // The old words are gone from the instructions and every description.
+    let descriptions: Vec<String> = std::iter::once(INSTRUCTIONS.to_owned())
+        .chain(
+            tools
+                .iter()
+                .map(|tool| tool["description"].as_str().unwrap().to_owned()),
+        )
+        .collect();
+    for text in &descriptions {
+        let lower = text.to_lowercase();
+        for word in [
+            "grant",
+            "authoriz",
+            "administrator",
+            "participant",
+            "principal",
+            "viewer",
+        ] {
+            assert!(!lower.contains(word), "{word} in: {text}");
+        }
+    }
+    let description = |name: &str| {
+        tools
+            .iter()
+            .find(|tool| tool["name"] == name)
+            .unwrap_or_else(|| panic!("{name} is listed"))["description"]
+            .as_str()
+            .unwrap()
+            .to_owned()
+    };
+    let attended = "Tasks to start come least-attended first, each with the members already attempting it; results to review carry the approvals so far and the number needed.";
+    assert!(description("locust_pending").ends_with(attended));
+    assert!(description("locust_wait").ends_with(attended));
+    let review = description("locust_review_record");
+    assert!(review.contains("A member's latest review of a result is the one that counts."));
+    assert!(review.contains(
+        "A pick, a plan text or a file change already recorded on an earlier approval is not undone."
+    ));
 }
 
 #[tokio::test]

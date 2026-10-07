@@ -97,6 +97,7 @@ impl MinimalEngine {
         DaemonStatus {
             daemon_version: self.daemon_version.clone(),
             endpoint: None,
+            waiting: Vec::new(),
             agents: self
                 .principals
                 .iter()
