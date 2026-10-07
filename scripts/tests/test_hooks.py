@@ -163,7 +163,8 @@ class HookQualificationTests(unittest.TestCase):
                 +"print(json.dumps("+repr({"line":line,"keep_going":keep_going})+"))\n")
         harness.private_write(launcher,script,0o700)
         template=(Path(__file__).resolve().parents[2] / "crates/locust-adapter/src/hooks/pi-shim.ts").read_text()
-        source=template.replace("__LOCUST_HOOK_TIMEOUT_MS__","300000").replace("__LOCUST_FAILURE_LINE_JSON__",json.dumps("Locust context was NOT injected")).replace("__LOCUST_LAUNCHER_JSON__",json.dumps(str(launcher)))
+        source=(template.replace("__LOCUST_COMMAND_TIMEOUT_MS__","30000").replace("__LOCUST_STOP_TIMEOUT_MS__","300000")
+                .replace("__LOCUST_HARNESS_JSON__",json.dumps("pi")).replace("__LOCUST_LAUNCHER_JSON__",json.dumps(str(launcher))))
         extension=self.profile.home / ".pi/agent/extensions/locust.ts"
         harness.private_write(extension,source)
         return extension

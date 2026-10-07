@@ -8,12 +8,11 @@ import { setTimeout as sleep } from 'node:timers/promises';
 
 const directory = dirname(fileURLToPath(import.meta.url));
 const template = readFileSync(join(directory, 'pi-shim.ts'), 'utf8');
-const failureLine = 'Locust context was NOT injected';
 const line = 'Locust: goal 123, attempt 456, generation 1: claim lost. Use locust_pending and locust_context_read.';
 
 async function fixture({ body = {line, keep_going:false}, timeout = 5000, hang = false, launcherMissing = false } = {}) {
     const root = mkdtempSync('/tmp/lh.');
-    const launcher = join(root, "launcher ' $(touch injected) `touch injected` ${HOME} $& __LOCUST_HOOK_TIMEOUT_MS__ __LOCUST_FAILURE_LINE_JSON__.mjs");
+    const launcher = join(root, "launcher ' $(touch injected) `touch injected` ${HOME} $& __LOCUST_COMMAND_TIMEOUT_MS__ __LOCUST_HARNESS_JSON__.mjs");
     const record = join(root, 'calls.jsonl');
     const config = join(root, 'reply.json');
     writeFileSync(config, JSON.stringify({body,hang}));
@@ -30,8 +29,9 @@ process.stdin.on('end',()=>{
 });\n`);
         chmodSync(launcher, 0o700);
     }
-    const code = template.replaceAll('__LOCUST_HOOK_TIMEOUT_MS__', () => String(timeout))
-        .replaceAll('__LOCUST_FAILURE_LINE_JSON__', () => JSON.stringify(failureLine))
+    const code = template.replaceAll('__LOCUST_COMMAND_TIMEOUT_MS__', () => String(timeout))
+        .replaceAll('__LOCUST_STOP_TIMEOUT_MS__', () => String(timeout))
+        .replaceAll('__LOCUST_HARNESS_JSON__', () => JSON.stringify('pi'))
         .replaceAll('__LOCUST_LAUNCHER_JSON__', () => JSON.stringify(launcher));
     const js = stripTypeScriptTypes(code, {mode:'strip'});
     const factory = (await import('data:text/javascript,' + encodeURIComponent(js) + '#' + root)).default;
@@ -39,7 +39,7 @@ process.stdin.on('end',()=>{
     factory({on:(name,handler)=>{assert(!handlers.has(name));handlers.set(name,handler);return()=>handlers.delete(name);},
         sendMessage:(message,options)=>messages.push({message,options})});
     let session='native-chat'; const abort=new AbortController();
-    const ctx={sessionManager:{getSessionId:()=>session},signal:abort.signal};
+    const ctx={sessionManager:{getSessionId:()=>session},signal:abort.signal,mode:'tui'};
     const invoke=(name,event={})=>handlers.get(name)({type:name,...event},ctx);
     const calls=()=>existsSync(record)?readFileSync(record,'utf8').trim().split('\n').filter(Boolean).map(JSON.parse):[];
     const change=(value)=>writeFileSync(config,JSON.stringify({body:value,hang:false}));
@@ -75,7 +75,9 @@ test('start and compaction use native identity without triggering a provider tur
     for(const message of f.messages){assert.equal(message.message.content,line);assert.deepEqual(message.options,{triggerTurn:false});}
     const calls=f.calls();assert.equal(calls.length,2);
     assert.deepEqual(calls.map(c=>c.args),[['hook','start','--harness','pi'],['hook','start','--harness','pi']]);
-    assert.equal(calls[0].input.session_id,'native-chat');assert.equal(calls[0].input.source,'resume');assert.equal(calls[1].input.source,'compact');
+    assert.equal(calls[0].input.session_id,'native-chat');assert.equal(calls[0].input.mode,'tui');
+    assert.deepEqual(calls.map(c=>c.input.hook_event_name),['session_start','session_compact']);
+    assert(calls.every(call=>!('source' in call.input)));
     assert(!JSON.stringify(calls).includes('never pass'));assert(!JSON.stringify(calls).includes('/should/not/read'));
     assert(calls.every(call=>call.home.startsWith('/tmp/lh.')));
 });
@@ -145,9 +147,14 @@ test('shutdown during wait reaps owned child before shutdown resolves',async()=>
     assert.equal(await f.invoke('tool_result',result()),undefined);assert.equal(f.calls().length,1);
 });
 
-test('adapter timeout reaps child and emits generated fixed failure line',async()=>{
+test('the run mode reaches the launcher so print runs can wait',async()=>{
+    const f=await fixture();f.ctx.mode='print';await f.invoke('agent_before_settle',settle());
+    assert.equal(f.calls()[0].input.mode,'print');
+});
+
+test('adapter timeout reaps child and leaves the native event unchanged',async()=>{
     const f=await fixture({hang:true,timeout:1000});const pending=f.invoke('tool_result',result());const call=await f.waitForCall();
-    const value=await pending;assert(!f.alive(call.pid));assert.equal(value.content.at(-1).text,failureLine);assert.equal(value.isError,false);
+    const value=await pending;assert(!f.alive(call.pid));assert.equal(value,undefined);
 });
 
 test('late output cannot be injected into a changed session identity',async()=>{
@@ -155,12 +162,15 @@ test('late output cannot be injected into a changed session identity',async()=>{
     f.change({line,keep_going:false});assert.equal(await pending,undefined);
 });
 
-test('invalid core output and spawn failure preserve payload and report only generated failure line',async()=>{
+test('invalid output and a missing launcher leave every native event unchanged',async()=>{
     const invalid=['not-json',{line:'contains\nnewline',keep_going:false},{line:'unsafe',keep_going:true},
         {line:null,keep_going:true},{line:'unicode-é',keep_going:false},{line:'x'.repeat(512),keep_going:false},
         {line:'okay',keep_going:'false'},{line:'okay',keep_going:false,unexpected:true}];
     const f=await fixture();
-    for(const body of invalid){f.change(body);const event=result();const value=await f.invoke('tool_result',event);
-        assert.equal(value.content.at(-1).text,failureLine);assert.equal(value.isError,event.isError);assert.deepEqual(value.structuredContent,event.structuredContent);}
-    const missing=await fixture({launcherMissing:true});const value=await missing.invoke('tool_result',result());assert.equal(value.content.at(-1).text,failureLine);
+    for(const body of invalid){f.change(body);assert.equal(await f.invoke('tool_result',result()),undefined);}
+    // Software removed before setup remove: every chat stays as it was.
+    const missing=await fixture({launcherMissing:true});
+    assert.equal(await missing.invoke('tool_result',result()),undefined);
+    assert.equal(await missing.invoke('agent_before_settle',settle()),undefined);
+    await missing.invoke('session_start',{reason:'startup'});assert.equal(missing.messages.length,0);
 });

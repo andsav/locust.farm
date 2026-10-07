@@ -235,7 +235,7 @@ def selected_hook(document, launcher, event, harness):
     return matches[0]
 
 
-def invoke_hook(profile, command, native_event, timeout, *, client=None, chat="scripted-root", call=None, compacted=False, continued=False):
+def invoke_hook(profile, command, native_event, timeout, *, client=None, chat="scripted-root", call=None, compacted=False, continued=False, extra=None):
     if client=="pi":
         native_type={"SessionStart":"session_compact" if compacted else "session_start","Stop":"agent_before_settle","PostToolUse":"tool_result"}[native_event]
         event={"type":native_type}
@@ -276,6 +276,7 @@ def invoke_hook(profile, command, native_event, timeout, *, client=None, chat="s
             payload["tool_response"]=json.dumps(envelope)
         if client == "droid":
             payload.pop("tool_use_id")
+    payload.update(extra or {})
     code, output, errors = run(profile, command, timeout, input_value=payload)
     require(code == 0 and not errors, "hook did not fail open with a clean transport")
     if not output.strip():
@@ -555,6 +556,13 @@ def qualify(client, binary, source_commit, timeout, *, native_binary=None, real_
         first = invoke_hook(profile, hooks["stop"][1], hooks["stop"][0], timeout, client=client)
         second = invoke_hook(profile, hooks["stop"][1], hooks["stop"][0], timeout, client=client, continued=True)
         require(blocks_once(first, second), "waiting work did not block exactly once then pass")
+        # A chat that never used Locust, and a subagent of the Locust chat, hear nothing.
+        stranger = invoke_hook(profile, hooks["stop"][1], hooks["stop"][0], timeout, client=client, chat="never-used-locust")
+        require(stranger is None, "a chat that never used Locust heard from a hook")
+        if client != "pi":
+            child = invoke_hook(profile, hooks["tool"][1], hooks["tool"][0], timeout, client=client,
+                                call=("wait", wait_args, wait_result, "scripted-child-wait"), extra={"agent_id": "child-agent"})
+            require(child is None, "a subagent's callback produced output")
         claim_args = {"goal": goal, "task": task, "offer": offer}
         claimed = call("attempt.start", claim_args)
         invoke_hook(profile, hooks["tool"][1], hooks["tool"][0], timeout, client=client,call=("attempt.start", claim_args, claimed, "scripted-claim"))
@@ -576,6 +584,7 @@ def qualify(client, binary, source_commit, timeout, *, native_binary=None, real_
                                client=client, call=notice_call)
         require(repeated is None, "repeated tool callback delivered the same notice twice")
         result["scripted"] = {"status": "pass", "waiting_task_blocks_once_then_passes": True,
+                              "unassociated_chat_silent": True, "subagent_callback_silent": client != "pi",
                               "compaction_restores_held_attempt": True, "generated_setup_hook_command_executed": True,
                               "cancellation_reaches_stop_callback": True,
                               "cancellation_reaches_tool_callback": True,

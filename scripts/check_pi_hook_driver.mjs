@@ -39,7 +39,9 @@ export async function replay(extension, frame) {
         },
     };
     const controller = new AbortController();
-    const ctx = { sessionManager: { getSessionId: () => frame.session_id }, signal: controller.signal };
+    // Pi's run mode reaches the launcher; replays default to a person's TUI chat.
+    requireValue(frame.mode === undefined || typeof frame.mode === "string");
+    const ctx = { sessionManager: { getSessionId: () => frame.session_id }, signal: controller.signal, mode: frame.mode ?? "tui" };
     const text = await readFile(source, "utf8");
     const javascript = stripTypeScriptTypes(text, { mode: "strip" });
     const module = await import("data:text/javascript;base64," + Buffer.from(javascript).toString("base64"));

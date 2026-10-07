@@ -1,11 +1,17 @@
 //! Pure native hook adapters. Callers supply input and configuration documents;
 //! this module never reads profiles, transcripts, credentials or files.
 //!
+//! An adapter is data: a row of [`ADAPTERS`] names its native events, config
+//! file and shape, payload encodings, envelope and time limits. The code here
+//! serves every row through those facts and never names a harness, so a new
+//! harness adds a row, a shim if it needs one, and goldens.
+//!
 //! Native contracts: <https://learn.chatgpt.com/docs/hooks> and
 //! <https://code.claude.com/docs/en/hooks>. These adapters cover root lifecycle
-//! hooks. Identifiable subagent callbacks are refused: the shared execution
-//! session's claims cannot establish a subagent's ownership. Codex 0.153.4
-//! serializes agent_id on subagent tool hooks (the common-field docs omit it):
+//! hooks. A subagent's callback is not this chat's: the shared execution
+//! session's claims cannot establish a subagent's ownership, so it is ignored
+//! without a word. Codex 0.153.4 serializes agent_id on subagent tool hooks
+//! (the common-field docs omit it):
 //! <https://github.com/openai/codex/blob/rust-v0.153.4/codex-rs/hooks/src/events/post_tool_use.rs>.
 //! Droid's standalone event map and envelopes follow
 //! <https://docs.factory.com/harness/hooks>. Root callbacks retain the exact
@@ -27,57 +33,103 @@ use serde_json::{Value, json};
 
 use crate::config::Client;
 
+/// The MCP server name setup registers in every client.
+const SERVER: &str = "locust";
+
 #[derive(Clone, Copy, Debug)]
 pub struct HookAdapter {
     pub client: Client,
     pub harness: &'static str,
     /// Relative to the explicitly selected profile home.
     pub relative_config_path: &'static str,
+    pub config: ConfigShape,
     pub events: &'static [NativeEvent],
+    /// Payload fields whose presence marks a subagent's callback.
+    pub subagent_fields: &'static [&'static str],
+    /// Where the payload can say that no person types in this chat.
+    pub unattended: Option<Unattended>,
     pub native_tool_prefix: &'static str,
     pub native_tool_use_id: bool,
+    pub response: ResponseEncoding,
+    pub envelope: EnvelopeKind,
+    /// The native limit for start and tool commands, which never wait.
     pub command_timeout_seconds: u32,
-    /// The stop command gets 300 seconds; the runtime leaves 30 for transport.
+    /// The native limit for the stop command, the only one that may wait.
     pub stop_timeout_seconds: u32,
-    pub wait_limit_ms: u32,
+    /// The harness asks its person to review new hooks before running them.
+    pub trust_review: bool,
+}
+
+/// How a native config file holds Locust's hook entries.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ConfigShape {
+    /// A JSON settings object whose `hooks` key maps native events to groups.
+    HooksKey,
+    /// A JSON file that is itself the map of native events to groups.
+    EventMap,
+    /// A source file generated whole from this template, owned by Locust.
+    OwnedSource { template: &'static str },
+}
+
+/// How a native tool callback carries the tool's result.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ResponseEncoding {
+    /// The MCP `CallToolResult` object.
+    Mcp,
+    /// The MCP result object, or the Locust JSON envelope as a string.
+    McpOrText,
+    /// A native result with `details.server`/`details.tool` whose
+    /// `structuredContent` is the whole MCP result.
+    NestedMcp,
+}
+
+/// The JSON a harness reads the one line, or a block, from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EnvelopeKind {
+    /// `decision: block` with `reason`; `systemMessage` for a stop line;
+    /// `hookSpecificOutput.additionalContext` otherwise.
+    Hook,
+    /// `{"line": ..., "keep_going": ...}` for a shim.
+    Line,
 }
 
 #[derive(Clone, Copy, Debug)]
 pub struct NativeEvent {
     pub native_name: &'static str,
     pub event: &'static str,
+    /// A `tool` event for a call that succeeded, whose result can show this
+    /// chat's own Locust call.
+    pub success: bool,
+}
+
+/// A payload field whose listed values say no person types in the chat.
+#[derive(Clone, Copy, Debug)]
+pub struct Unattended {
+    pub field: &'static str,
+    pub values: &'static [&'static str],
+}
+
+const fn event(native_name: &'static str, event: &'static str) -> NativeEvent {
+    NativeEvent {
+        native_name,
+        event,
+        success: true,
+    }
 }
 
 const EVENTS: &[NativeEvent] = &[
-    NativeEvent {
-        native_name: "SessionStart",
-        event: "start",
-    },
-    NativeEvent {
-        native_name: "Stop",
-        event: "stop",
-    },
-    NativeEvent {
-        native_name: "PostToolUse",
-        event: "tool",
-    },
+    event("SessionStart", "start"),
+    event("Stop", "stop"),
+    event("PostToolUse", "tool"),
 ];
 const CLAUDE_EVENTS: &[NativeEvent] = &[
-    NativeEvent {
-        native_name: "SessionStart",
-        event: "start",
-    },
-    NativeEvent {
-        native_name: "Stop",
-        event: "stop",
-    },
-    NativeEvent {
-        native_name: "PostToolUse",
-        event: "tool",
-    },
+    event("SessionStart", "start"),
+    event("Stop", "stop"),
+    event("PostToolUse", "tool"),
     NativeEvent {
         native_name: "PostToolUseFailure",
         event: "tool",
+        success: false,
     },
 ];
 pub const ADAPTERS: &[HookAdapter] = &[
@@ -86,34 +138,49 @@ pub const ADAPTERS: &[HookAdapter] = &[
         client: Client::Codex,
         harness: "codex",
         relative_config_path: ".codex/hooks.json",
+        config: ConfigShape::HooksKey,
         events: EVENTS,
+        subagent_fields: &["agent_id", "agent_type"],
+        unattended: None,
         native_tool_prefix: "mcp__locust__",
         native_tool_use_id: true,
-        command_timeout_seconds: 600,
+        response: ResponseEncoding::Mcp,
+        envelope: EnvelopeKind::Hook,
+        command_timeout_seconds: 30,
         stop_timeout_seconds: 300,
-        wait_limit_ms: 270_000,
+        trust_review: true,
     },
     HookAdapter {
         client: Client::ClaudeCode,
         harness: "claude",
         relative_config_path: ".claude/settings.json",
+        config: ConfigShape::HooksKey,
         events: CLAUDE_EVENTS,
+        subagent_fields: &["agent_id"],
+        unattended: None,
         native_tool_prefix: "mcp__locust__",
         native_tool_use_id: true,
-        command_timeout_seconds: 600,
+        response: ResponseEncoding::McpOrText,
+        envelope: EnvelopeKind::Hook,
+        command_timeout_seconds: 30,
         stop_timeout_seconds: 300,
-        wait_limit_ms: 270_000,
+        trust_review: false,
     },
     HookAdapter {
         client: Client::FactoryDroid,
         harness: "droid",
         relative_config_path: ".factory/hooks.json",
+        config: ConfigShape::EventMap,
         events: EVENTS,
+        subagent_fields: &["agent_id"],
+        unattended: None,
         native_tool_prefix: "locust___",
         native_tool_use_id: false,
-        command_timeout_seconds: 300,
+        response: ResponseEncoding::McpOrText,
+        envelope: EnvelopeKind::Hook,
+        command_timeout_seconds: 30,
         stop_timeout_seconds: 300,
-        wait_limit_ms: 270_000,
+        trust_review: false,
     },
 ];
 
@@ -122,11 +189,15 @@ pub fn adapter(client: Client) -> Option<&'static HookAdapter> {
 }
 
 /// A normalized document is the adapter interface; setup does not own native
-/// serialization. JSON adapters normalize absent files to empty documents.
+/// serialization. JSON shapes normalize absent files to empty documents.
 pub fn parse_configuration(client: Client, bytes: Option<&[u8]>) -> Result<Value, HookError> {
-    adapter(client).ok_or(HookError::UnsupportedClient)?;
-    if client == Client::Pi {
-        return pi::parse_configuration(bytes);
+    let adapter = adapter(client).ok_or(HookError::UnsupportedClient)?;
+    if let ConfigShape::OwnedSource { .. } = adapter.config {
+        let source = bytes
+            .map(std::str::from_utf8)
+            .transpose()
+            .map_err(|_| HookError::InvalidConfiguration)?;
+        return Ok(json!({ "source": source }));
     }
     let value = match bytes {
         None => json!({}),
@@ -137,11 +208,11 @@ pub fn parse_configuration(client: Client, bytes: Option<&[u8]>) -> Result<Value
     if !value.is_object() {
         return Err(HookError::InvalidConfiguration);
     }
-    if client == Client::FactoryDroid {
+    if adapter.config == ConfigShape::EventMap {
         if value.get("hooks").is_some() {
             return Err(HookError::InvalidConfiguration);
         }
-        Ok(json!({"hooks":value}))
+        Ok(json!({ "hooks": value }))
     } else {
         Ok(value)
     }
@@ -152,15 +223,15 @@ pub fn render_configuration(
     client: Client,
     document: &Value,
 ) -> Result<Option<Vec<u8>>, HookError> {
-    adapter(client).ok_or(HookError::UnsupportedClient)?;
-    if client == Client::Pi {
-        return pi::render_configuration(document);
+    let adapter = adapter(client).ok_or(HookError::UnsupportedClient)?;
+    if let ConfigShape::OwnedSource { .. } = adapter.config {
+        return Ok(source(document)?.map(|source| source.as_bytes().to_vec()));
     }
     if !document.is_object() {
         return Err(HookError::InvalidConfiguration);
     }
     let empty = json!({});
-    let native = if client == Client::FactoryDroid {
+    let native = if adapter.config == ConfigShape::EventMap {
         if document
             .as_object()
             .is_some_and(|object| object.keys().any(|key| key != "hooks"))
@@ -180,27 +251,52 @@ pub fn render_configuration(
     Ok(Some(bytes))
 }
 
+fn source(document: &Value) -> Result<Option<&str>, HookError> {
+    let map = document
+        .as_object()
+        .ok_or(HookError::InvalidConfiguration)?;
+    if map.len() != 1 || !map.contains_key("source") {
+        return Err(HookError::InvalidConfiguration);
+    }
+    match &map["source"] {
+        Value::Null => Ok(None),
+        Value::String(source) => Ok(Some(source)),
+        _ => Err(HookError::InvalidConfiguration),
+    }
+}
+
+/// Only the native session ID identifies a chat. Titles, transcripts and
+/// working directories never do.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ChatIdentity {
     pub session_id: String,
-    pub agent_id: Option<String>,
 }
 
 #[derive(Clone, Debug)]
 pub struct NativeInput {
-    pub client: Client,
     pub chat: ChatIdentity,
     pub event: Event,
     pub native_event_name: String,
-    pub compacted: bool,
-    pub stop_hook_active: bool,
+}
+
+/// What a native callback is, as far as Locust may act on it.
+#[derive(Clone, Debug)]
+pub enum Parsed {
+    /// Not a root chat Locust can attribute, such as a subagent's callback:
+    /// print nothing, read nothing, write nothing.
+    Ignored,
+    /// The chat is known; the rest of the callback is not.
+    Invalid {
+        chat: ChatIdentity,
+        native_event_name: String,
+    },
+    Input(NativeInput),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum HookError {
     UnsupportedClient,
-    InvalidInput,
     InvalidOutput,
     InvalidConfiguration,
     EntryConflict,
@@ -210,7 +306,6 @@ impl fmt::Display for HookError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
             Self::UnsupportedClient => "this client has no Locust hook adapter",
-            Self::InvalidInput => "invalid native hook input",
             Self::InvalidOutput => "invalid Locust hook output",
             Self::InvalidConfiguration => "hook configuration must contain objects and event arrays",
             Self::EntryConflict => "Locust hook entry is occupied or modified",
@@ -222,87 +317,106 @@ impl std::error::Error for HookError {}
 
 /// Parse native event facts only. Unknown fields, including titles and transcript
 /// paths, are ignored. They never become core state or model-visible output.
-pub fn parse_input(
-    client: Client,
+pub fn parse_input(adapter: &HookAdapter, expected_event: &str, value: &Value) -> Parsed {
+    if adapter
+        .subagent_fields
+        .iter()
+        .any(|field| value.get(*field).is_some_and(|value| !value.is_null()))
+    {
+        return Parsed::Ignored;
+    }
+    let Ok(session_id) = required_string(value, "session_id") else {
+        return Parsed::Ignored;
+    };
+    let chat = ChatIdentity {
+        session_id: session_id.to_owned(),
+    };
+    match parse_event(adapter, expected_event, value) {
+        Some(event) => Parsed::Input(NativeInput {
+            chat,
+            event,
+            native_event_name: value["hook_event_name"]
+                .as_str()
+                .unwrap_or_default()
+                .to_owned(),
+        }),
+        None => Parsed::Invalid {
+            chat,
+            native_event_name: native_event_name(adapter, expected_event, value).to_owned(),
+        },
+    }
+}
+
+/// The native event a reply names: the callback's own when it is one of this
+/// event's names, otherwise the first.
+pub fn native_event_name<'a>(
+    adapter: &'a HookAdapter,
     expected_event: &str,
     value: &Value,
-) -> Result<NativeInput, HookError> {
-    let adapter = adapter(client).ok_or(HookError::UnsupportedClient)?;
-    let native_name = required_string(value, "hook_event_name")?;
+) -> &'a str {
+    let names = adapter
+        .events
+        .iter()
+        .filter(|event| event.event == expected_event);
+    let given = value.get("hook_event_name").and_then(Value::as_str);
+    names
+        .clone()
+        .find(|event| Some(event.native_name) == given)
+        .or_else(|| names.clone().next())
+        .map_or("", |event| event.native_name)
+}
+
+fn parse_event(adapter: &HookAdapter, expected_event: &str, value: &Value) -> Option<Event> {
+    let native_name = required_string(value, "hook_event_name").ok()?;
     let mapping = adapter
         .events
         .iter()
-        .find(|event| event.native_name == native_name && event.event == expected_event)
-        .ok_or(HookError::InvalidInput)?;
-    let session_id = required_string(value, "session_id")?.to_owned();
-    let agent_id = optional_string(value, "agent_id")?;
-    if agent_id.is_some()
-        || (client == Client::Codex && optional_string(value, "agent_type")?.is_some())
-    {
-        return Err(HookError::InvalidInput);
-    }
-    let stop_hook_active = match value.get("stop_hook_active") {
-        None => false,
-        Some(Value::Bool(active)) => *active,
-        _ => return Err(HookError::InvalidInput),
-    };
-    let event = match mapping.event {
-        "start" => Event::Start,
-        "stop" => Event::Stop,
+        .find(|event| event.native_name == native_name && event.event == expected_event)?;
+    match mapping.event {
+        "start" => Some(Event::Start),
+        "stop" => Some(Event::Stop {
+            unattended: adapter.unattended.is_some_and(|signal| {
+                value
+                    .get(signal.field)
+                    .and_then(Value::as_str)
+                    .is_some_and(|given| signal.values.contains(&given))
+            }),
+        }),
         "tool" => {
-            required_string(value, "tool_name")?;
+            required_string(value, "tool_name").ok()?;
             if adapter.native_tool_use_id {
-                required_string(value, "tool_use_id")?;
+                required_string(value, "tool_use_id").ok()?;
             }
-            Event::Tool {
-                own_call: if matches!(native_name, "PostToolUse" | "tool_result") {
-                    own_call(client, value).map(Box::new)
+            Some(Event::Tool {
+                own_call: if mapping.success {
+                    own_call(adapter, value).map(Box::new)
                 } else {
                     None
                 },
-            }
+            })
         }
-        _ => unreachable!("adapter table contains generic events"),
-    };
-    Ok(NativeInput {
-        client,
-        chat: ChatIdentity {
-            session_id,
-            agent_id,
-        },
-        event,
-        native_event_name: native_name.to_owned(),
-        compacted: value.get("source").and_then(Value::as_str) == Some("compact"),
-        stop_hook_active,
-    })
+        _ => None,
+    }
 }
 
-fn required_string<'a>(value: &'a Value, field: &str) -> Result<&'a str, HookError> {
+fn required_string<'a>(value: &'a Value, field: &str) -> Result<&'a str, ()> {
     value
         .get(field)
         .and_then(Value::as_str)
         .filter(|text| !text.is_empty())
-        .ok_or(HookError::InvalidInput)
-}
-fn optional_string(value: &Value, field: &str) -> Result<Option<String>, HookError> {
-    match value.get(field) {
-        None | Some(Value::Null) => Ok(None),
-        Some(Value::String(text)) if !text.is_empty() => Ok(Some(text.clone())),
-        _ => Err(HookError::InvalidInput),
-    }
+        .ok_or(())
 }
 
-fn own_call(client: Client, value: &Value) -> Option<OwnCall> {
+fn own_call(adapter: &HookAdapter, value: &Value) -> Option<OwnCall> {
     let projected;
-    let value = if client == Client::Pi {
-        projected = pi::own_call_projection(value)?;
+    let value = if adapter.response == ResponseEncoding::NestedMcp {
+        projected = nested_projection(adapter, value)?;
         &projected
     } else {
         value
     };
     // No bare tool-name or vendor/plugin prefix aliases: only the configured
     // server name and the operation registry can establish a Locust call.
-    let adapter = adapter(client)?;
     let tool = value["tool_name"]
         .as_str()?
         .strip_prefix(adapter.native_tool_prefix)?;
@@ -313,7 +427,7 @@ fn own_call(client: Client, value: &Value) -> Option<OwnCall> {
     if let Some(key) = args.remove("idempotency_key") {
         serde_json::from_value::<Option<IdempotencyKey>>(key).ok()?;
     }
-    let result = successful_result(client, &value["tool_response"])?;
+    let result = successful_result(adapter.response, &value["tool_response"])?;
     let (goal, action, effect) = if operation.name == "context.acknowledge" {
         #[derive(Deserialize)]
         #[serde(deny_unknown_fields)]
@@ -422,32 +536,66 @@ fn own_call(client: Client, value: &Value) -> Option<OwnCall> {
     })
 }
 
-fn successful_result(client: Client, response: &Value) -> Option<Value> {
+fn successful_result(encoding: ResponseEncoding, response: &Value) -> Option<Value> {
     // Native successful MCP callbacks may project the server's text envelope.
     // It is still checked as the exact typed Locust result below.
-    let envelope =
-        if matches!(client, Client::ClaudeCode | Client::FactoryDroid) && response.is_string() {
-            serde_json::from_str(response.as_str()?).ok()?
-        } else if response["isError"].as_bool()? {
+    let envelope = if encoding == ResponseEncoding::McpOrText && response.is_string() {
+        serde_json::from_str(response.as_str()?).ok()?
+    } else if response["isError"].as_bool()? {
+        return None;
+    } else if let Some(structured) = response.get("structuredContent") {
+        structured.clone()
+    } else {
+        let content = response["content"].as_array()?;
+        if content.len() != 1 || content[0]["type"] != "text" {
             return None;
-        } else if let Some(structured) = response.get("structuredContent") {
-            structured.clone()
-        } else {
-            let content = response["content"].as_array()?;
-            if content.len() != 1 || content[0]["type"] != "text" {
-                return None;
-            }
-            serde_json::from_str(content[0]["text"].as_str()?).ok()?
-        };
+        }
+        serde_json::from_str(content[0]["text"].as_str()?).ok()?
+    };
     if envelope["ok"] != true {
         return None;
     }
     envelope.get("result").cloned()
 }
 
+/// A nested native result holds the whole MCP result in structured content.
+/// Check both error layers and the exact server and tool before unwrapping it
+/// for the shared typed Locust request/response extractor.
+fn nested_projection(adapter: &HookAdapter, value: &Value) -> Option<Value> {
+    let response = &value["tool_response"];
+    if response["isError"].as_bool()? {
+        return None;
+    }
+    let details = response.get("details")?.as_object()?;
+    if details.get("server")?.as_str()? != SERVER {
+        return None;
+    }
+    let tool = details.get("tool")?.as_str()?;
+    if value["tool_name"].as_str()? != format!("{}{tool}", adapter.native_tool_prefix) {
+        return None;
+    }
+    let mut mcp = response.get("structuredContent")?.as_object()?.clone();
+    if !mcp.get("content").is_some_and(Value::is_array) {
+        return None;
+    }
+    match mcp.get("isError") {
+        None | Some(Value::Bool(false)) => {}
+        _ => return None,
+    }
+    mcp.insert("isError".into(), Value::Bool(false));
+    let mut projected = value.clone();
+    projected["tool_response"] = Value::Object(mcp);
+    Some(projected)
+}
+
 /// Wrapping never adds instructions or native response text. Stop informational
 /// lines use systemMessage: additionalContext itself continues some harnesses.
-pub fn envelope(input: &NativeInput, outcome: &Outcome) -> Result<Option<Value>, HookError> {
+pub fn envelope(
+    adapter: &HookAdapter,
+    event: &str,
+    native_event_name: &str,
+    outcome: &Outcome,
+) -> Result<Option<Value>, HookError> {
     let Some(line) = &outcome.line else {
         return if outcome.keep_going {
             Err(HookError::InvalidOutput)
@@ -461,21 +609,17 @@ pub fn envelope(input: &NativeInput, outcome: &Outcome) -> Result<Option<Value>,
     {
         return Err(HookError::InvalidOutput);
     }
-    if outcome.keep_going && !matches!(input.event, Event::Stop) {
+    if outcome.keep_going && event != "stop" {
         return Err(HookError::InvalidOutput);
     }
-    if input.client == Client::Pi {
-        return Ok(Some(json!({"line":line,"keep_going":outcome.keep_going})));
-    }
-    if outcome.keep_going {
-        Ok(Some(json!({"decision":"block","reason":line})))
-    } else if matches!(input.event, Event::Stop) {
-        Ok(Some(json!({"systemMessage":line})))
-    } else {
-        Ok(Some(
-            json!({"hookSpecificOutput":{"hookEventName":input.native_event_name,"additionalContext":line}}),
-        ))
-    }
+    Ok(Some(match adapter.envelope {
+        EnvelopeKind::Line => json!({"line": line, "keep_going": outcome.keep_going}),
+        EnvelopeKind::Hook if outcome.keep_going => json!({"decision": "block", "reason": line}),
+        EnvelopeKind::Hook if event == "stop" => json!({"systemMessage": line}),
+        EnvelopeKind::Hook => json!({
+            "hookSpecificOutput": {"hookEventName": native_event_name, "additionalContext": line}
+        }),
+    }))
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -502,27 +646,71 @@ impl HookRegistration {
 
 pub fn registration(client: Client, executable: &Path) -> Result<HookRegistration, HookError> {
     let adapter = adapter(client).ok_or(HookError::UnsupportedClient)?;
-    if client == Client::Pi {
-        return pi::registration(adapter, executable);
-    }
     let path = executable
         .to_str()
-        .filter(|path| {
-            executable.is_absolute() && !path.chars().any(char::is_control) && !path.contains("${")
-        })
+        .filter(|path| executable.is_absolute() && !path.chars().any(char::is_control))
         .ok_or(HookError::InvalidExecutable)?;
+    if let ConfigShape::OwnedSource { template } = adapter.config {
+        // The path is inserted last, as a JSON string literal, so marker-like
+        // text in it is never scanned again as a template placeholder.
+        let rendered = template
+            .replace(
+                "__LOCUST_COMMAND_TIMEOUT_MS__",
+                &(u64::from(adapter.command_timeout_seconds) * 1000).to_string(),
+            )
+            .replace(
+                "__LOCUST_STOP_TIMEOUT_MS__",
+                &(u64::from(adapter.stop_timeout_seconds) * 1000).to_string(),
+            )
+            .replace(
+                "__LOCUST_HARNESS_JSON__",
+                &serde_json::to_string(adapter.harness)
+                    .map_err(|_| HookError::InvalidConfiguration)?,
+            )
+            .replace(
+                "__LOCUST_LAUNCHER_JSON__",
+                &serde_json::to_string(path).map_err(|_| HookError::InvalidExecutable)?,
+            );
+        return Ok(HookRegistration::OwnedSource {
+            source: Some(rendered),
+        });
+    }
+    // A command string is expanded by the harness; refuse its expansion syntax.
+    if path.contains("${") {
+        return Err(HookError::InvalidExecutable);
+    }
     let quoted = format!("'{}'", path.replace('\'', "'\\''"));
-    Ok(HookRegistration::JsonGroups { entries: adapter.events.iter().map(|event| {
-        let timeout = if event.event == "stop" { adapter.stop_timeout_seconds } else { adapter.command_timeout_seconds };
-        HookEntry { native_event: event.native_name.to_owned(), group: json!({"hooks":[{"type":"command","command":format!("{quoted} hook {} --harness {}", event.event, adapter.harness),"timeout":timeout,"statusMessage":"Locust"}]}) }
-    }).collect() })
+    Ok(HookRegistration::JsonGroups {
+        entries: adapter
+            .events
+            .iter()
+            .map(|event| {
+                let timeout = if event.event == "stop" {
+                    adapter.stop_timeout_seconds
+                } else {
+                    adapter.command_timeout_seconds
+                };
+                HookEntry {
+                    native_event: event.native_name.to_owned(),
+                    group: json!({"hooks":[{"type":"command","command":format!("{quoted} hook {} --harness {}", event.event, adapter.harness),"timeout":timeout,"statusMessage":"Locust"}]}),
+                }
+            })
+            .collect(),
+    })
 }
 
-/// Install only fresh own groups; existing Locust groups are conflicts. Reapply
-/// should first remove the retained exact groups, then install their replacement.
+/// Install only fresh own groups; existing Locust groups are conflicts. An
+/// installed registration is updated with [`reapply`].
 pub fn install(current: &Value, registration: &HookRegistration) -> Result<Value, HookError> {
-    if let HookRegistration::OwnedSource { source } = registration {
-        return pi::install(current, source.as_deref());
+    if let HookRegistration::OwnedSource { source: expected } = registration {
+        if expected.is_none() {
+            source(current)?;
+            return Ok(current.clone());
+        }
+        if source(current)?.is_some() {
+            return Err(HookError::EntryConflict);
+        }
+        return Ok(json!({ "source": expected }));
     }
     let mut document = current.clone();
     let hooks = document
@@ -546,13 +734,132 @@ pub fn install(current: &Value, registration: &HookRegistration) -> Result<Value
     Ok(document)
 }
 
+/// An installed registration brought up to this release.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Reapplied {
+    pub document: Value,
+    pub registration: HookRegistration,
+    /// Native events whose entry the person removed; they stay out.
+    pub declined: Vec<String>,
+}
+
+/// Replace an installed registration with this release's, entry by entry and
+/// in place. An entry the person removed stays out, now and in later
+/// releases; an event new in this release is added while any owned entry
+/// remains.
+pub fn reapply(
+    current: &Value,
+    owned: &HookRegistration,
+    declined: &[String],
+    fresh: &HookRegistration,
+) -> Result<Reapplied, HookError> {
+    let present = retain_present(current, owned)?;
+    let unchanged = |present: HookRegistration, declined: Vec<String>| Reapplied {
+        document: current.clone(),
+        registration: present,
+        declined,
+    };
+    match (&present, fresh) {
+        (HookRegistration::OwnedSource { source: kept }, HookRegistration::OwnedSource { .. }) => {
+            if kept.is_none() {
+                return Ok(unchanged(present, declined.to_vec()));
+            }
+            source(current)?;
+            let HookRegistration::OwnedSource { source } = fresh else {
+                unreachable!("matched above");
+            };
+            Ok(Reapplied {
+                document: json!({ "source": source }),
+                registration: fresh.clone(),
+                declined: declined.to_vec(),
+            })
+        }
+        (
+            HookRegistration::JsonGroups { entries: kept },
+            HookRegistration::JsonGroups { entries: new },
+        ) => {
+            let had = |name: &str, entries: &[HookEntry]| {
+                entries.iter().any(|entry| entry.native_event == name)
+            };
+            let mut declined = declined.to_vec();
+            for entry in owned.entries() {
+                if !had(&entry.native_event, kept) && !declined.contains(&entry.native_event) {
+                    declined.push(entry.native_event.clone());
+                }
+            }
+            let wanted: Vec<_> = new
+                .iter()
+                .filter(|entry| !kept.is_empty() && !declined.contains(&entry.native_event))
+                .cloned()
+                .collect();
+            if wanted == *kept {
+                return Ok(unchanged(present, declined));
+            }
+            let mut document = current.clone();
+            let hooks = document
+                .as_object_mut()
+                .ok_or(HookError::InvalidConfiguration)?
+                .entry("hooks")
+                .or_insert_with(|| json!({}))
+                .as_object_mut()
+                .ok_or(HookError::InvalidConfiguration)?;
+            for entry in kept {
+                let groups = hooks
+                    .get_mut(&entry.native_event)
+                    .and_then(Value::as_array_mut)
+                    .ok_or(HookError::InvalidConfiguration)?;
+                let position = groups
+                    .iter()
+                    .position(|group| *group == entry.group)
+                    .ok_or(HookError::EntryConflict)?;
+                match wanted
+                    .iter()
+                    .find(|update| update.native_event == entry.native_event)
+                {
+                    Some(update) => groups[position] = update.group.clone(),
+                    None => {
+                        groups.remove(position);
+                    }
+                }
+            }
+            for entry in wanted
+                .iter()
+                .filter(|entry| !had(&entry.native_event, kept))
+            {
+                hooks
+                    .entry(&entry.native_event)
+                    .or_insert_with(|| json!([]))
+                    .as_array_mut()
+                    .ok_or(HookError::InvalidConfiguration)?
+                    .push(entry.group.clone());
+            }
+            Ok(Reapplied {
+                document,
+                registration: HookRegistration::JsonGroups { entries: wanted },
+                declined,
+            })
+        }
+        _ => Err(HookError::InvalidConfiguration),
+    }
+}
+
 /// Keep entries that still exist exactly, preserving intentional hand-removal.
 pub fn retain_present(
     current: &Value,
     registration: &HookRegistration,
 ) -> Result<HookRegistration, HookError> {
-    if let HookRegistration::OwnedSource { source } = registration {
-        return pi::retain_present(current, source.as_deref());
+    if let HookRegistration::OwnedSource { source: expected } = registration {
+        let present = source(current)?;
+        if expected.is_some() && present.is_some() && present != expected.as_deref() {
+            return Err(HookError::EntryConflict);
+        }
+        return Ok(HookRegistration::OwnedSource {
+            source: if expected.is_some() {
+                present.map(str::to_owned)
+            } else {
+                None
+            },
+        });
     }
     let root = current.as_object().ok_or(HookError::InvalidConfiguration)?;
     let Some(hooks) = root.get("hooks") else {
@@ -603,8 +910,16 @@ pub fn remove(
     registration: &HookRegistration,
     original: &Value,
 ) -> Result<Value, HookError> {
-    if let HookRegistration::OwnedSource { source } = registration {
-        return pi::remove(current, source.as_deref(), original);
+    if let HookRegistration::OwnedSource { source: expected } = registration {
+        let present = source(current)?;
+        source(original)?;
+        if expected.is_none() || present.is_none() {
+            return Ok(current.clone());
+        }
+        if present != expected.as_deref() {
+            return Err(HookError::EntryConflict);
+        }
+        return Ok(original.clone());
     }
     let present = retain_present(current, registration)?;
     let mut document = current.clone();
@@ -664,6 +979,34 @@ mod tests {
     use locust_proto::api::{CancelItem, Claim, ContextAcknowledgment, PendingWork, WorkItem};
     use locust_proto::event::TaskId;
     use locust_proto::id::{EventId, InstanceId, PublicKey};
+
+    fn parse(client: Client, event: &str, value: &Value) -> NativeInput {
+        match parse_input(adapter(client).unwrap(), event, value) {
+            Parsed::Input(input) => input,
+            other => panic!("{other:?}"),
+        }
+    }
+
+    fn kind(event: &Event) -> &'static str {
+        match event {
+            Event::Start => "start",
+            Event::Stop { .. } => "stop",
+            Event::Tool { .. } => "tool",
+        }
+    }
+
+    fn wrap(
+        client: Client,
+        input: &NativeInput,
+        outcome: &Outcome,
+    ) -> Result<Option<Value>, HookError> {
+        envelope(
+            adapter(client).unwrap(),
+            kind(&input.event),
+            &input.native_event_name,
+            outcome,
+        )
+    }
 
     fn native(event: &str) -> Value {
         json!({"session_id":"chat-1","hook_event_name":event,"source":"compact","stop_hook_active":false,"tool_name":"mcp__locust__locust_wait","tool_use_id":"call-1","tool_input":{"goal":"11".repeat(32),"seen":0,"timeout_ms":0},"tool_response":{"isError":false,"structuredContent":{"ok":true,"result":{"waited":"no_event"}}}})
@@ -728,15 +1071,14 @@ mod tests {
                     3
                 }
             );
-            let start = parse_input(
+            let start = parse(
                 spec.client,
                 "start",
                 &native_for(spec.client, "SessionStart"),
-            )
-            .unwrap();
-            assert!(start.compacted);
+            );
             assert_eq!(
-                envelope(
+                wrap(
+                    spec.client,
                     &start,
                     &Outcome {
                         line: Some("Locust: held 1; locust_status".into()),
@@ -748,9 +1090,10 @@ mod tests {
                     json!({"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"Locust: held 1; locust_status"}})
                 )
             );
-            let stop = parse_input(spec.client, "stop", &native_for(spec.client, "Stop")).unwrap();
+            let stop = parse(spec.client, "stop", &native_for(spec.client, "Stop"));
             assert_eq!(
-                envelope(
+                wrap(
+                    spec.client,
                     &stop,
                     &Outcome {
                         line: Some("Locust: tasks 1; locust_wait".into()),
@@ -762,7 +1105,8 @@ mod tests {
                 Some(json!({"decision":"block","reason":"Locust: tasks 1; locust_wait"}))
             );
             assert_eq!(
-                envelope(
+                wrap(
+                    spec.client,
                     &stop,
                     &Outcome {
                         line: Some("Locust context was NOT injected".into()),
@@ -772,7 +1116,7 @@ mod tests {
                 .unwrap(),
                 Some(json!({"systemMessage":"Locust context was NOT injected"}))
             );
-            assert_eq!(envelope(&stop, &Outcome::default()).unwrap(), None);
+            assert_eq!(wrap(spec.client, &stop, &Outcome::default()).unwrap(), None);
         }
     }
 
@@ -867,20 +1211,77 @@ mod tests {
     }
 
     #[test]
-    fn subagent_identity_is_refused_and_transcripts_titles_never_enter_core() {
+    fn reapply_updates_in_place_keeps_declined_events_out_and_adds_new_ones() {
+        let fresh =
+            registration(Client::ClaudeCode, Path::new("/tmp/lh.fixture/launch.sh")).unwrap();
+        let mut old = fresh.clone();
+        let HookRegistration::JsonGroups { entries } = &mut old else {
+            panic!("JSON hooks");
+        };
+        entries.retain(|entry| entry.native_event != "PostToolUseFailure");
+        for entry in entries.iter_mut() {
+            entry.group["hooks"][0]["timeout"] = json!(600);
+        }
+        let other = json!({"hooks":[{"type":"command","command":"after-locust"}]});
+        let mut current = install(&json!({}), &old).unwrap();
+        current["hooks"]["Stop"]
+            .as_array_mut()
+            .unwrap()
+            .push(other.clone());
+        current["hooks"]
+            .as_object_mut()
+            .unwrap()
+            .remove("SessionStart");
+        let updated = reapply(&current, &old, &[], &fresh).unwrap();
+        assert_eq!(updated.declined, vec!["SessionStart".to_owned()]);
+        assert_eq!(updated.document["hooks"]["Stop"][1], other);
+        assert_eq!(
+            updated.document["hooks"]["Stop"][0]["hooks"][0]["timeout"],
+            300
+        );
+        assert!(updated.document["hooks"].get("SessionStart").is_none());
+        assert!(
+            updated.document["hooks"]
+                .get("PostToolUseFailure")
+                .is_some()
+        );
+        assert!(installed(&updated.document, &updated.registration).unwrap());
+        // The next release still leaves the declined event out.
+        let again = reapply(
+            &updated.document,
+            &updated.registration,
+            &updated.declined,
+            &fresh,
+        )
+        .unwrap();
+        assert_eq!(again.document, updated.document);
+        assert_eq!(again.registration, updated.registration);
+        // Every owned entry removed: nothing comes back, new events included.
+        let bare = json!({"hooks":{"Stop":[other]}});
+        let none = reapply(&bare, &old, &[], &fresh).unwrap();
+        assert_eq!(none.document, bare);
+        assert!(none.registration.entries().is_empty());
+    }
+
+    #[test]
+    fn subagent_callbacks_are_ignored_and_transcripts_titles_never_enter_core() {
         for spec in ADAPTERS {
             let mut value = native_for(spec.client, "PostToolUse");
-            value["agent_id"] = json!("child-1");
             value["transcript_path"] = json!("/forbidden/profile/transcript");
             value["last_assistant_message"] = json!("private arbitrary title");
-            assert!(parse_input(spec.client, "tool", &value).is_err());
-            value.as_object_mut().unwrap().remove("agent_id");
-            let parsed = parse_input(spec.client, "tool", &value).unwrap();
+            for field in spec.subagent_fields {
+                let mut child = value.clone();
+                child[*field] = json!("child-1");
+                assert!(matches!(parse_input(spec, "tool", &child), Parsed::Ignored));
+                // A malformed child payload is still a child's: nothing to say.
+                child["hook_event_name"] = json!("Unknown");
+                assert!(matches!(parse_input(spec, "tool", &child), Parsed::Ignored));
+            }
+            let parsed = parse(spec.client, "tool", &value);
             assert_eq!(
                 parsed.chat,
                 ChatIdentity {
                     session_id: "chat-1".into(),
-                    agent_id: None
                 }
             );
             let Event::Tool {
@@ -898,10 +1299,29 @@ mod tests {
             assert_eq!(call.action, OwnAction::Other);
             assert_eq!(call.goal, Some(GoalId([0x11; 32])));
         }
-        assert!(parse_input(Client::Codex, "stop", &native("PostToolUse")).is_err());
-        let mut malformed_child = native("PostToolUse");
-        malformed_child["agent_type"] = json!("default");
-        assert!(parse_input(Client::Codex, "tool", &malformed_child).is_err());
+        let codex = adapter(Client::Codex).unwrap();
+        assert!(matches!(
+            parse_input(codex, "stop", &native("PostToolUse")),
+            Parsed::Invalid { chat, native_event_name }
+                if chat.session_id == "chat-1" && native_event_name == "Stop"
+        ));
+        let mut nameless = native("PostToolUse");
+        nameless.as_object_mut().unwrap().remove("session_id");
+        assert!(matches!(
+            parse_input(codex, "tool", &nameless),
+            Parsed::Ignored
+        ));
+        assert!(matches!(
+            parse_input(codex, "tool", &json!("not an object")),
+            Parsed::Ignored
+        ));
+        // Claude's main thread may name its agent type; only agent_id marks a child.
+        let mut main_thread = native("PostToolUse");
+        main_thread["agent_type"] = json!("reviewer");
+        assert!(matches!(
+            parse_input(adapter(Client::ClaudeCode).unwrap(), "tool", &main_thread),
+            Parsed::Input(_)
+        ));
         assert_eq!(
             adapter(Client::FactoryDroid).unwrap().relative_config_path,
             ".factory/hooks.json"
@@ -941,27 +1361,30 @@ mod tests {
                 let mut value = native_for(spec.client, "PostToolUse");
                 value[*field] = replacement.clone();
                 assert!(matches!(
-                    parse_input(spec.client, "tool", &value).unwrap().event,
+                    parse(spec.client, "tool", &value).event,
                     Event::Tool { own_call: None }
                 ));
             }
         }
         assert!(matches!(
-            parse_input(Client::ClaudeCode, "tool", &native("PostToolUseFailure"))
-                .unwrap()
-                .event,
+            parse(Client::ClaudeCode, "tool", &native("PostToolUseFailure")).event,
             Event::Tool { own_call: None }
         ));
-        assert!(parse_input(Client::Codex, "tool", &native("PostToolUseFailure")).is_err());
+        assert!(matches!(
+            parse_input(
+                adapter(Client::Codex).unwrap(),
+                "tool",
+                &native("PostToolUseFailure")
+            ),
+            Parsed::Invalid { .. }
+        ));
     }
 
     #[test]
     fn native_successful_tool_string_requires_exact_typed_locust_envelope() {
         let mut input = native_for(Client::ClaudeCode, "PostToolUse");
         assert!(matches!(
-            parse_input(Client::ClaudeCode, "tool", &input)
-                .unwrap()
-                .event,
+            parse(Client::ClaudeCode, "tool", &input).event,
             Event::Tool { own_call: Some(_) }
         ));
         for response in [
@@ -972,9 +1395,7 @@ mod tests {
         ] {
             input["tool_response"] = json!(response);
             assert!(matches!(
-                parse_input(Client::ClaudeCode, "tool", &input)
-                    .unwrap()
-                    .event,
+                parse(Client::ClaudeCode, "tool", &input).event,
                 Event::Tool { own_call: None }
             ));
         }
@@ -985,12 +1406,12 @@ mod tests {
         let mut value = native("PostToolUse");
         value["tool_response"] = json!({"isError":false,"content":[{"type":"text","text":json!({"ok":true,"result":{"waited":"no_event"}}).to_string()}]});
         assert!(matches!(
-            parse_input(Client::Codex, "tool", &value).unwrap().event,
+            parse(Client::Codex, "tool", &value).event,
             Event::Tool { own_call: Some(_) }
         ));
         value["tool_response"]["content"][0]["text"] = json!("success");
         assert!(matches!(
-            parse_input(Client::Codex, "tool", &value).unwrap().event,
+            parse(Client::Codex, "tool", &value).event,
             Event::Tool { own_call: None }
         ));
     }
@@ -1010,14 +1431,14 @@ mod tests {
         value["tool_response"] = json!({"isError":false,"structuredContent":{"ok":true,"result":Response::Claimed(claim)}});
         let Event::Tool {
             own_call: Some(call),
-        } = parse_input(Client::Codex, "tool", &value).unwrap().event
+        } = parse(Client::Codex, "tool", &value).event
         else {
             panic!("claim expected");
         };
         assert_eq!(call.action, OwnAction::Claimed(claim));
         value["tool_input"]["task"] = json!("77".repeat(32));
         assert!(matches!(
-            parse_input(Client::Codex, "tool", &value).unwrap().event,
+            parse(Client::Codex, "tool", &value).event,
             Event::Tool { own_call: None }
         ));
     }
@@ -1045,14 +1466,14 @@ mod tests {
                         ..PendingWork::default()
                     },
                 }],
+                released: Default::default(),
             };
-            let tool =
-                parse_input(spec.client, "tool", &native_for(spec.client, "PostToolUse")).unwrap();
+            let tool = parse(spec.client, "tool", &native_for(spec.client, "PostToolUse"));
             let used = decide(tool.event, &snapshot, &mut marks);
-            let stop = parse_input(spec.client, "stop", &native_for(spec.client, "Stop")).unwrap();
+            let stop = parse(spec.client, "stop", &native_for(spec.client, "Stop"));
             let first = decide(stop.event.clone(), &snapshot, &mut marks);
             assert!(first.keep_going);
-            assert!(envelope(&stop, &first).unwrap().is_some());
+            assert!(wrap(spec.client, &stop, &first).unwrap().is_some());
             let ignored = decide(stop.event, &snapshot, &mut marks);
             assert!(!ignored.keep_going);
             snapshot.goals[0].pending.to_start.clear();
@@ -1070,20 +1491,17 @@ mod tests {
                 generation: Some(1),
             });
             let cancelled = decide(
-                parse_input(spec.client, "stop", &native_for(spec.client, "Stop"))
-                    .unwrap()
-                    .event,
+                parse(spec.client, "stop", &native_for(spec.client, "Stop")).event,
                 &snapshot,
                 &mut marks,
             );
             assert!(cancelled.keep_going);
             snapshot.goals[0].pending.to_acknowledge.clear();
-            let compacted = parse_input(
+            let compacted = parse(
                 spec.client,
                 "start",
                 &native_for(spec.client, "SessionStart"),
-            )
-            .unwrap();
+            );
             let start = decide(compacted.event, &snapshot, &mut marks);
             assert!(start.line.as_ref().unwrap().contains("1 held attempts"));
             results.push((used, first, ignored, cancelled, start));
@@ -1095,7 +1513,7 @@ mod tests {
 
     #[test]
     fn output_cannot_smuggle_a_second_line_or_non_ascii_text() {
-        let stop = parse_input(Client::Codex, "stop", &native("Stop")).unwrap();
+        let stop = parse(Client::Codex, "stop", &native("Stop"));
         for line in [
             "line\nsecond".to_owned(),
             "é".to_owned(),
@@ -1103,7 +1521,8 @@ mod tests {
             String::new(),
         ] {
             assert_eq!(
-                envelope(
+                wrap(
+                    Client::Codex,
                     &stop,
                     &Outcome {
                         line: Some(line),
@@ -1124,7 +1543,7 @@ mod tests {
         value["tool_response"] = json!({"isError":false,"structuredContent":{"ok":true,"result":Response::ContextAcknowledged(ContextAcknowledgment {goal,principal:PublicKey([3;32]),session:InstanceId([4;16]),entries:vec![]})}});
         let Event::Tool {
             own_call: Some(call),
-        } = parse_input(Client::Codex, "tool", &value).unwrap().event
+        } = parse(Client::Codex, "tool", &value).event
         else {
             panic!("successful acknowledgment expected");
         };
@@ -1132,7 +1551,7 @@ mod tests {
         assert_eq!(call.goal, Some(goal));
         value["tool_input"]["receipt"] = json!("opaque receipt");
         assert!(matches!(
-            parse_input(Client::Codex, "tool", &value).unwrap().event,
+            parse(Client::Codex, "tool", &value).event,
             Event::Tool { own_call: None }
         ));
     }
@@ -1160,7 +1579,7 @@ mod tests {
                     response_for(spec.client, input["tool_name"].as_str().unwrap(), response);
                 let Event::Tool {
                     own_call: Some(call),
-                } = parse_input(spec.client, "tool", &input).unwrap().event
+                } = parse(spec.client, "tool", &input).event
                 else {
                     panic!("validated report expected");
                 };
@@ -1192,7 +1611,7 @@ mod tests {
                         response_for(spec.client, input["tool_name"].as_str().unwrap(), response);
                     let Event::Tool {
                         own_call: Some(call),
-                    } = parse_input(spec.client, "tool", &input).unwrap().event
+                    } = parse(spec.client, "tool", &input).event
                     else {
                         panic!("validated acknowledgment expected");
                     };
@@ -1221,9 +1640,9 @@ mod tests {
         assert_eq!(
             native,
             json!({
-                "SessionStart":[{"hooks":[{"type":"command","command":"'/tmp/lh.fixture/locust-cli' hook start --harness droid","timeout":300,"statusMessage":"Locust"}]}],
+                "SessionStart":[{"hooks":[{"type":"command","command":"'/tmp/lh.fixture/locust-cli' hook start --harness droid","timeout":30,"statusMessage":"Locust"}]}],
                 "Stop":[{"hooks":[{"type":"command","command":"'/tmp/lh.fixture/locust-cli' hook stop --harness droid","timeout":300,"statusMessage":"Locust"}]}],
-                "PostToolUse":[{"hooks":[{"type":"command","command":"'/tmp/lh.fixture/locust-cli' hook tool --harness droid","timeout":300,"statusMessage":"Locust"}]}],
+                "PostToolUse":[{"hooks":[{"type":"command","command":"'/tmp/lh.fixture/locust-cli' hook tool --harness droid","timeout":30,"statusMessage":"Locust"}]}],
             })
         );
         assert!(native.get("hooks").is_none());
@@ -1236,10 +1655,11 @@ mod tests {
             Some(b"{}\n".to_vec())
         );
         assert!(parse_configuration(client, Some(b"{\"hooks\":{}}")).is_err());
-        let input = parse_input(client, "tool", &native_for(client, "PostToolUse")).unwrap();
+        let input = parse(client, "tool", &native_for(client, "PostToolUse"));
         assert_eq!(input.chat.session_id, "chat-1");
         assert_eq!(
-            envelope(
+            wrap(
+                client,
                 &input,
                 &Outcome {
                     line: Some("Locust: claim lost. Use locust_pending.".into()),
@@ -1265,7 +1685,7 @@ mod tests {
         let identity = |value: &Value| {
             let Event::Tool {
                 own_call: Some(call),
-            } = parse_input(client, "tool", value).unwrap().event
+            } = parse(client, "tool", value).event
             else {
                 panic!("validated Droid effect expected");
             };

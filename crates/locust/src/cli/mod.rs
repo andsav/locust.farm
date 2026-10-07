@@ -86,12 +86,9 @@ pub(super) fn run() -> u8 {
             };
             return print::status(written, 0);
         }
-        Err(_) if hook_mode => {
-            if std::env::var_os("LOCUST_HOOKS").is_none_or(|value| value != "off") {
-                let _ = print::stdout(format_args!("Locust context was NOT injected\n"));
-            }
-            return 0;
-        }
+        // A hook entry this build cannot read, such as one naming a harness
+        // it does not know, cannot tell whose chat this is: stay silent.
+        Err(_) if hook_mode => return 0,
         Err(error) => return print_failure(Failure::usage(error.to_string()), json_mode),
     };
     if let Some(("mcp", selected)) = matches.subcommand() {

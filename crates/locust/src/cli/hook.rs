@@ -1,6 +1,6 @@
 //! The hook command selects a native adapter; all decisions belong to the core.
 use clap::{Arg, ArgMatches, Command};
-use locust_adapter::hooks::{self, Event, NativeInput};
+use locust_adapter::hooks::{self, Event, Parsed, core};
 use serde_json::Value;
 use std::io::{self, Read};
 
@@ -25,8 +25,11 @@ pub(super) fn command() -> Command {
         )
 }
 
+/// `LOCUST_HOOKS=off` silences every hook. `LOCUST_HOOKS=unattended` says no
+/// person types in this harness, so an idle worker may wait at its turn end.
 pub(super) fn run(matches: &ArgMatches, selected: &ArgMatches) -> u8 {
-    if std::env::var_os("LOCUST_HOOKS").is_some_and(|value| value == "off") {
+    let setting = std::env::var_os("LOCUST_HOOKS");
+    if setting.as_deref().is_some_and(|value| value == "off") {
         return 0;
     }
     let harness = selected.get_one::<String>("harness").expect("required");
@@ -35,28 +38,29 @@ pub(super) fn run(matches: &ArgMatches, selected: &ArgMatches) -> u8 {
         .find(|adapter| adapter.harness == harness)
         .expect("validated");
     let event = selected.get_one::<String>("event").expect("required");
-    let mut input = NativeInput {
-        client: adapter.client,
-        chat: hooks::ChatIdentity {
-            session_id: String::new(),
-            agent_id: None,
-        },
-        event: match event.as_str() {
-            "start" => Event::Start,
-            "stop" => Event::Stop,
-            _ => Event::Tool { own_call: None },
-        },
-        native_event_name: adapter
-            .events
-            .iter()
-            .find(|mapping| mapping.event == event)
-            .expect("registered")
-            .native_name
-            .to_owned(),
-        compacted: false,
-        stop_hook_active: false,
+    let mut bytes = Vec::new();
+    let value: Option<Value> = io::stdin()
+        .read_to_end(&mut bytes)
+        .ok()
+        .and_then(|_| serde_json::from_slice(&bytes).ok());
+    let mut parsed = value.as_ref().map_or(Parsed::Ignored, |value| {
+        hooks::parse_input(adapter, event, value)
+    });
+    if let Parsed::Input(input) = &mut parsed
+        && let Event::Stop { unattended } = &mut input.event
+    {
+        *unattended |= setting
+            .as_deref()
+            .is_some_and(|value| value == "unattended");
+    }
+    let native_event_name = match &parsed {
+        Parsed::Input(input) => input.native_event_name.clone(),
+        Parsed::Invalid {
+            native_event_name, ..
+        } => native_event_name.clone(),
+        Parsed::Ignored => String::new(),
     };
-    let result = (|| {
+    let config = (|| {
         if matches.get_flag("owner")
             || matches.get_one::<String>("agent").is_some()
             || matches.get_flag("json")
@@ -64,43 +68,22 @@ pub(super) fn run(matches: &ArgMatches, selected: &ArgMatches) -> u8 {
         {
             return Err(Failure::usage("hooks require an agent execution session"));
         }
-        let mut bytes = Vec::new();
-        io::stdin()
-            .read_to_end(&mut bytes)
-            .map_err(|error| Failure::invalid(error.to_string()))?;
-        let value: Value =
-            serde_json::from_slice(&bytes).map_err(|error| Failure::invalid(error.to_string()))?;
-        input = hooks::parse_input(adapter.client, event, &value)
-            .map_err(|error| Failure::invalid(error.to_string()))?;
         let home = connection::home(matches)?;
-        let credential = connection::credential_path(matches, &home)?;
-        let session = connection::session_path(matches)?
-            .ok_or_else(|| Failure::usage("hooks require a session"))?;
-        crate::hook::run(
-            crate::hook::Config {
-                home,
-                credential,
-                session,
-                chat: serde_json::to_vec(&input.chat)
-                    .map_err(|error| Failure::internal(error.to_string()))?,
-                wait_limit_ms: adapter.wait_limit_ms,
-                hook_timeout_ms: adapter
-                    .stop_timeout_seconds
-                    .saturating_mul(1000)
-                    .saturating_sub(1000),
-            },
-            input.event.clone(),
-        )
+        Ok(crate::hook::Config {
+            credential: connection::credential_path(matches, &home)?,
+            session: connection::session_path(matches)?
+                .ok_or_else(|| Failure::usage("hooks require a session"))?,
+            home,
+            stop_timeout_seconds: adapter.stop_timeout_seconds,
+        })
     })();
-    let outcome = result.unwrap_or_else(|_| hooks::core::failure());
-    match hooks::envelope(&input, &outcome) {
-        Ok(Some(value)) => {
-            let _ = print::stdout(format_args!("{value}\n"));
-        }
-        Ok(None) => (),
-        Err(_) => {
-            let _ = print::stdout(format_args!("Locust context was NOT injected\n"));
-        }
+    let outcome = crate::hook::run(config, parsed);
+    // An outcome the adapter cannot carry is a fault of this build; the chat
+    // already heard from Locust, so it gets the core's failure line instead.
+    let envelope = hooks::envelope(adapter, event, &native_event_name, &outcome)
+        .or_else(|_| hooks::envelope(adapter, event, &native_event_name, &core::failure()));
+    if let Ok(Some(value)) = envelope {
+        let _ = print::stdout(format_args!("{value}\n"));
     }
     // A broken integration must not make the native tool or turn fail.
     0

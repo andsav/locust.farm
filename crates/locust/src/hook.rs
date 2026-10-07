@@ -1,5 +1,9 @@
 //! Local hook runtime: authenticated reads, private chat marks and one waiting
 //! worker per execution session. Native formats live entirely in the adapters.
+//!
+//! Silence rule: a chat that has not used Locust never hears from a hook, and
+//! a callback Locust cannot attribute to a root chat is ignored. A failure is
+//! said only to a chat that has used Locust, once until a callback succeeds.
 mod marks;
 
 use std::collections::BTreeSet;
@@ -11,11 +15,12 @@ use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 use locust_adapter::hooks::core::{self, Event, GoalWork, Marks, Outcome, Snapshot};
+use locust_adapter::hooks::{ChatIdentity, Parsed};
 use locust_proto::api::{
-    Caller, Credential, GoalSummary, Membership, Request, Response, SessionSecret, Standing,
-    WaitOutcome,
+    Caller, Credential, ErrorCode, GoalSummary, Membership, Request, Response, SessionSecret,
+    Standing, WaitOutcome,
 };
-use locust_proto::client::Client;
+use locust_proto::client::{Client, ClientError};
 use locust_proto::event::Body;
 use locust_proto::id::{EventId, GoalId};
 use locust_proto::{crypto, local};
@@ -26,17 +31,32 @@ pub(crate) struct Config {
     pub home: PathBuf,
     pub credential: PathBuf,
     pub session: PathBuf,
-    /// Native chat identity serialized by the adapter, never used as a path.
-    pub chat: Vec<u8>,
-    pub wait_limit_ms: u32,
-    pub hook_timeout_ms: u32,
+    /// The adapter's native limit for the stop command, the only one that waits.
+    pub stop_timeout_seconds: u32,
 }
+
+/// Start, tool, and the reads before a stop decision, end within this.
+const QUICK: Duration = Duration::from_secs(5);
+/// The longest an idle worker's turn end parks.
+const MAX_WAIT: Duration = Duration::from_secs(270);
+/// Room left inside a native limit for the reads after a wake and the reply.
+const MARGIN: Duration = Duration::from_secs(30);
 
 struct Auth {
     socket: PathBuf,
     credential: Credential,
     session: SessionSecret,
     deadline: Instant,
+}
+
+/// What a terminal acknowledgment's cancellation turned out to be.
+enum Target {
+    Attempt(EventId),
+    /// It will never name a target: removed, excluded, disputed or not a
+    /// cancellation.
+    Gone,
+    /// Not known yet; ask again at a later callback.
+    Later,
 }
 
 impl Auth {
@@ -98,6 +118,8 @@ impl Auth {
         })
     }
 
+    /// A goal the daemon refuses to answer for is left out, keeping its
+    /// baseline; only a failed connection fails the whole snapshot.
     fn snapshot(
         &self,
         current: &[GoalSummary],
@@ -108,31 +130,33 @@ impl Auth {
             let mut client = self.open(stream)?;
             let mut goals = Vec::new();
             for goal in current.iter().filter(|goal| eligible(goal, resume)) {
-                let pending = if let Some(baseline) =
-                    observed.and_then(|marks| marks.goals.get(&goal.goal))
-                {
-                    match client
-                        .call(Request::Wait {
-                            goal: goal.goal,
-                            seen: baseline.revision,
-                            timeout_ms: 0,
-                        })
-                        .map_err(|error| connection::client_error(error, &self.socket))?
-                    {
-                        Response::Waited(WaitOutcome::Work(pending)) => *pending,
-                        Response::Waited(WaitOutcome::NoEvent | WaitOutcome::Disconnected) => {
+                let baseline = observed.and_then(|marks| marks.goals.get(&goal.goal));
+                let changed = match baseline {
+                    Some(baseline) => match client.call(Request::Wait {
+                        goal: goal.goal,
+                        seen: baseline.revision,
+                        timeout_ms: 0,
+                    }) {
+                        Ok(Response::Waited(WaitOutcome::Work(pending))) => Some(*pending),
+                        Ok(Response::Waited(WaitOutcome::NoEvent | WaitOutcome::Disconnected)) => {
                             continue;
                         }
-                        _ => return Err(Failure::internal("hook poll response")),
-                    }
-                } else {
-                    let Response::Pending(pending) = client
-                        .call(Request::Pending { goal: goal.goal })
-                        .map_err(|error| connection::client_error(error, &self.socket))?
-                    else {
-                        return Err(Failure::internal("hook pending response"));
-                    };
-                    pending
+                        Ok(_) => return Err(Failure::internal("hook poll response")),
+                        // A baseline ahead of the goal, after its database
+                        // alone was put back, is read afresh.
+                        Err(ClientError::Api(_)) => None,
+                        Err(error) => return Err(connection::client_error(error, &self.socket)),
+                    },
+                    None => None,
+                };
+                let pending = match changed {
+                    Some(pending) => pending,
+                    None => match client.call(Request::Pending { goal: goal.goal }) {
+                        Ok(Response::Pending(pending)) => pending,
+                        Ok(_) => return Err(Failure::internal("hook pending response")),
+                        Err(ClientError::Api(_)) => continue,
+                        Err(error) => return Err(connection::client_error(error, &self.socket)),
+                    },
                 };
                 goals.push(GoalWork {
                     goal: goal.goal,
@@ -142,30 +166,34 @@ impl Auth {
             Ok(Snapshot {
                 instance: self.session.instance(),
                 goals,
+                released: BTreeSet::new(),
             })
         })
     }
 
-    fn cancellation_target(&self, goal: GoalId, cancel: EventId) -> Result<EventId, Failure> {
-        self.with_stream(|stream| {
-            let mut client = self.open(stream)?;
-            let Response::Event(detail) = client
-                .call(Request::Event {
-                    goal,
-                    event: cancel,
-                })
-                .map_err(|error| connection::client_error(error, &self.socket))?
-            else {
-                return Err(Failure::internal("hook cancellation response"));
-            };
-            if detail.view.event != cancel || detail.view.standing != Standing::Effective {
-                return Err(Failure::internal("hook cancellation is not effective"));
+    fn cancellation_target(&self, goal: GoalId, cancel: EventId) -> Target {
+        let answer = self.with_stream(|stream| {
+            Ok(self.open(stream)?.call(Request::Event {
+                goal,
+                event: cancel,
+            }))
+        });
+        match answer {
+            Ok(Ok(Response::Event(detail))) => {
+                if detail.view.event != cancel {
+                    return Target::Gone;
+                }
+                match (detail.view.standing, detail.body) {
+                    (Standing::Effective, Body::CancelRequested { attempt }) => {
+                        Target::Attempt(attempt)
+                    }
+                    (Standing::Pending, Body::CancelRequested { .. }) => Target::Later,
+                    _ => Target::Gone,
+                }
             }
-            let Body::CancelRequested { attempt } = detail.body else {
-                return Err(Failure::internal("hook event is not a cancellation"));
-            };
-            Ok(attempt)
-        })
+            Ok(Err(ClientError::Api(error))) if error.code == ErrorCode::NotFound => Target::Gone,
+            _ => Target::Later,
+        }
     }
 
     /// One socket per goal; the first changed answer cancels the others. No
@@ -220,90 +248,202 @@ impl Auth {
     }
 }
 
-pub(crate) fn run(config: Config, event: Event) -> Result<Outcome, Failure> {
-    if std::env::var_os("LOCUST_HOOKS").is_some_and(|value| value == "off") {
-        return Ok(Outcome::default());
+/// Never fails: anything that goes wrong becomes silence or, for a chat that
+/// has used Locust, the core's one failure line.
+pub(crate) fn run(config: Result<Config, Failure>, parsed: Parsed) -> Outcome {
+    let started = Instant::now();
+    let (chat, event) = match parsed {
+        Parsed::Ignored => return Outcome::default(),
+        Parsed::Invalid { chat, .. } => (chat, None),
+        Parsed::Input(input) => (input.chat, Some(input.event)),
+    };
+    // Without its paths or secrets no chat can be found to be a Locust chat.
+    match config.and_then(|config| Local::open(&config, &chat, started)) {
+        Ok(local) => local.handle(event),
+        Err(_) => Outcome::default(),
     }
-    for path in [&config.home, &config.credential, &config.session] {
-        if !path.is_absolute() {
-            return Err(Failure::usage("hook paths must be absolute"));
+}
+
+struct Local {
+    auth: Auth,
+    home: PathBuf,
+    /// Native chat identity serialized by the adapter, never used as a path.
+    identity: Vec<u8>,
+    saved: PathBuf,
+    started: Instant,
+    stop_limit: Duration,
+}
+
+impl Local {
+    fn open(config: &Config, chat: &ChatIdentity, started: Instant) -> Result<Self, Failure> {
+        for path in [&config.home, &config.credential, &config.session] {
+            if !path.is_absolute() {
+                return Err(Failure::usage("hook paths must be absolute"));
+            }
+        }
+        let credential = Credential(connection::read_secret(&config.credential)?);
+        let session = SessionSecret(connection::read_secret(&config.session)?);
+        let identity =
+            serde_json::to_vec(chat).map_err(|error| Failure::internal(error.to_string()))?;
+        let saved = config
+            .home
+            .join("hook-marks")
+            .join(locust_proto::id::BlobHash(credential.digest()).to_string())
+            .join(session.instance().to_string())
+            .join(format!("{}.json", crypto::content_hash(&identity)));
+        Ok(Self {
+            auth: Auth {
+                socket: local::socket_path(&config.home)?,
+                credential,
+                session,
+                deadline: started + QUICK,
+            },
+            home: config.home.clone(),
+            identity,
+            saved,
+            started,
+            stop_limit: Duration::from_secs(u64::from(config.stop_timeout_seconds)),
+        })
+    }
+
+    fn directory(&self) -> Result<marks::Directory, Failure> {
+        marks::Directory::open(&self.home, self.auth.credential, self.auth.session)
+    }
+
+    fn handle(mut self, event: Option<Event>) -> Outcome {
+        let Ok(associated) = fs::exists(&self.saved) else {
+            return Outcome::default();
+        };
+        let Some(event) = event else {
+            return if associated {
+                self.directory()
+                    .map_or_else(|_| Outcome::default(), |directory| self.failed(&directory))
+            } else {
+                Outcome::default()
+            };
+        };
+        if !associated {
+            if !matches!(event, Event::Tool { own_call: Some(_) }) {
+                return Outcome::default();
+            }
+            // First association requires live authentication. An existing
+            // chat retains a validated own write before reconnecting, so a
+            // daemon outage cannot erase that explanation for a later loss.
+            if self
+                .auth
+                .with_stream(|stream| self.auth.open(stream).map(|_| ()))
+                .is_err()
+            {
+                return Outcome::default();
+            }
+        }
+        let Ok(directory) = self.directory() else {
+            return Outcome::default();
+        };
+        let Ok(mut chat) = directory.chat(&self.identity, self.auth.deadline) else {
+            return Outcome::default();
+        };
+        let (outcome, snapshot) = match self.decide(&directory, &mut chat, event) {
+            Ok(decided) => decided,
+            Err(_) => (core::fail(&mut chat.marks), None),
+        };
+        if self.keep(&directory, &mut chat).is_err() {
+            return Outcome::default();
+        }
+        match snapshot {
+            Some(snapshot) if outcome.wait => {
+                drop(chat);
+                self.park(&directory, snapshot)
+            }
+            _ => outcome,
         }
     }
-    let credential = Credential(connection::read_secret(&config.credential)?);
-    let session = SessionSecret(connection::read_secret(&config.session)?);
-    let auth = Auth {
-        socket: local::socket_path(&config.home)?,
-        credential,
-        session,
-        deadline: Instant::now() + Duration::from_millis(u64::from(config.hook_timeout_ms)),
-    };
-    let saved = config
-        .home
-        .join("hook-marks")
-        .join(locust_proto::id::BlobHash(credential.digest()).to_string())
-        .join(session.instance().to_string())
-        .join(format!("{}.json", crypto::content_hash(&config.chat)));
-    let associated = fs::exists(&saved).map_err(io_failure)?;
-    if matches!(
-        &event,
-        Event::Start | Event::Stop | Event::Tool { own_call: None }
-    ) && !associated
-    {
-        return Ok(Outcome::default());
-    }
-    // First association requires live authentication. An existing protected
-    // chat can retain a validated own write before reconnecting, so a daemon
-    // outage cannot erase that exact explanation for a later claim loss.
-    if !associated {
-        auth.with_stream(|stream| auth.open(stream).map(|_| ()))?;
-    }
-    let resume = event == Event::Start;
-    let directory = marks::Directory::open(&config.home, credential, session)?;
-    let mut chat = directory.chat(&config.chat, auth.deadline)?;
-    if let Event::Tool {
-        own_call: Some(call),
-    } = &event
-    {
-        // A native successful write is evidence even if the following read
-        // fails. Persist it before polling so a later call cannot invent a loss
-        // that this exact write already explains.
-        core::observe(call, session.instance(), &mut chat.marks);
-        chat.save()?;
-    }
-    // An acknowledgement can precede the hook's observation of its request.
-    // Resolve only that cancellation's typed target, and keep the pending fact
-    // if a read fails so a later callback retries before inferring claim loss.
-    let goals = auth.goals()?;
-    resolve_releases(&auth, &mut chat, &goals, resume)?;
-    let observed = matches!(event, Event::Tool { .. }).then_some(&chat.marks);
-    let snapshot = auth.snapshot(&goals, resume, observed)?;
-    let outcome = core::decide(event, &snapshot, &mut chat.marks);
-    chat.save()?;
-    if !outcome.wait {
-        return Ok(outcome);
-    }
-    drop(chat);
-    let Some(_waiting) = directory.try_wait()? else {
-        return Ok(Outcome::default());
-    };
-    let deadline =
-        Instant::now() + Duration::from_millis(u64::from(config.wait_limit_ms.min(270_000)));
-    let deadline = deadline.min(auth.deadline);
-    let mut snapshot = snapshot;
-    loop {
-        if !auth.wait(&snapshot, deadline)? {
-            return Ok(Outcome::default());
+
+    fn decide(
+        &self,
+        directory: &marks::Directory,
+        chat: &mut marks::Chat,
+        event: Event,
+    ) -> Result<(Outcome, Option<Snapshot>), Failure> {
+        if let Event::Tool {
+            own_call: Some(call),
+        } = &event
+        {
+            // A native successful write is evidence even if the following read
+            // fails. Persist it before polling so a later call cannot invent a
+            // loss that this exact write already explains.
+            core::observe(call, self.auth.session.instance(), &mut chat.marks);
+            self.keep(directory, chat)?;
         }
-        // Membership and halt can change while parked. Re-read them before
-        // deciding whether any newly delivered pending work should block.
-        let mut chat = directory.chat(&config.chat, auth.deadline)?;
-        let goals = auth.goals()?;
-        resolve_releases(&auth, &mut chat, &goals, false)?;
-        snapshot = auth.snapshot(&goals, false, None)?;
-        let outcome = core::decide(Event::Stop, &snapshot, &mut chat.marks);
-        chat.save()?;
-        if !outcome.wait {
-            return Ok(outcome);
+        let resume = event == Event::Start;
+        let goals = self.auth.goals()?;
+        resolve_releases(&self.auth, &mut chat.marks, &goals, resume);
+        let observed = matches!(event, Event::Tool { .. }).then_some(&chat.marks);
+        let mut snapshot = self.auth.snapshot(&goals, resume, observed)?;
+        snapshot.released = directory.released()?;
+        let outcome = core::decide(event, &snapshot, &mut chat.marks);
+        Ok((outcome, Some(snapshot)))
+    }
+
+    /// Share this chat's own releases with its session, then save its marks.
+    fn keep(&self, directory: &marks::Directory, chat: &mut marks::Chat) -> Result<(), Failure> {
+        if !chat.marks.released.is_empty() {
+            directory.share(&chat.marks.released, self.auth.deadline)?;
+            chat.marks.released.clear();
+        }
+        chat.save()
+    }
+
+    fn failed(&self, directory: &marks::Directory) -> Outcome {
+        let Ok(mut chat) = directory.chat(&self.identity, self.auth.deadline) else {
+            return Outcome::default();
+        };
+        let outcome = core::fail(&mut chat.marks);
+        match chat.save() {
+            Ok(()) => outcome,
+            Err(_) => Outcome::default(),
+        }
+    }
+
+    /// An idle worker, in a chat no person types in, waits for work.
+    fn park(&mut self, directory: &marks::Directory, mut snapshot: Snapshot) -> Outcome {
+        let Ok(Some(_waiting)) = directory.try_wait() else {
+            return Outcome::default();
+        };
+        let cap = self.started + self.stop_limit.saturating_sub(Duration::from_secs(1));
+        let wait_limit = MAX_WAIT.min(self.stop_limit.saturating_sub(MARGIN));
+        let deadline = (Instant::now() + wait_limit).min(cap);
+        loop {
+            self.auth.deadline = deadline;
+            match self.auth.wait(&snapshot, deadline) {
+                Ok(false) => return Outcome::default(),
+                Ok(true) => {}
+                Err(_) => {
+                    self.auth.deadline = (Instant::now() + QUICK).min(cap);
+                    return self.failed(directory);
+                }
+            }
+            // Membership and halt can change while parked. Re-read them before
+            // deciding whether any newly delivered pending work should block.
+            self.auth.deadline = (Instant::now() + QUICK).min(cap);
+            let Ok(mut chat) = directory.chat(&self.identity, self.auth.deadline) else {
+                return Outcome::default();
+            };
+            let outcome = match self.decide(directory, &mut chat, Event::Stop { unattended: true })
+            {
+                Ok((outcome, Some(next))) => {
+                    snapshot = next;
+                    outcome
+                }
+                Ok((outcome, None)) => outcome,
+                Err(_) => core::fail(&mut chat.marks),
+            };
+            if self.keep(directory, &mut chat).is_err() {
+                return Outcome::default();
+            }
+            if !outcome.wait {
+                return outcome;
+            }
         }
     }
 }
@@ -316,14 +456,10 @@ fn eligible(goal: &GoalSummary, resume: bool) -> bool {
     goal.membership == Membership::Member && (resume || goal.halted.is_none())
 }
 
-fn resolve_releases(
-    auth: &Auth,
-    chat: &mut marks::Chat,
-    goals: &[GoalSummary],
-    resume: bool,
-) -> Result<(), Failure> {
-    let unresolved: BTreeSet<_> = chat
-        .marks
+/// Resolve each terminal acknowledgment's target goal by goal. A read that
+/// fails defers only its own goal; one that can never answer is dropped.
+fn resolve_releases(auth: &Auth, marks: &mut Marks, goals: &[GoalSummary], resume: bool) {
+    let unresolved: BTreeSet<_> = marks
         .unresolved
         .iter()
         .filter(|release| {
@@ -334,11 +470,12 @@ fn resolve_releases(
         .map(|release| (release.goal, release.cancel))
         .collect();
     for (goal, cancel) in unresolved {
-        let attempt = auth.cancellation_target(goal, cancel)?;
-        core::resolve_cancellation(&mut chat.marks, goal, cancel, attempt);
-        chat.save()?;
+        match auth.cancellation_target(goal, cancel) {
+            Target::Attempt(attempt) => core::resolve_cancellation(marks, goal, cancel, attempt),
+            Target::Gone => core::abandon_cancellation(marks, goal, cancel),
+            Target::Later => {}
+        }
     }
-    Ok(())
 }
 
 #[cfg(test)]

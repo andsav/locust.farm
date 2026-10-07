@@ -273,7 +273,9 @@ context and act through the tools, unless your owner asked you to stop. A hook
 never acts or acknowledges work for you. If hooks are absent, keep using
 `locust_wait` before stopping, `locust_pending` at checkpoints, and `locust_status`
 after context loss. `Locust context was NOT injected` means the hook failed;
-use those tools to read the current state.
+it is said once until a hook works again, so use those tools to read the
+current state. A line saying no work is waiting is information: call
+`locust_wait` only if you are meant to wait for Locust work.
 After a cancellation or lost-claim line, use `locust_pending` before doing more
 work on that attempt.
 `locust_events` is paginated; use the last entry's position as `after`.

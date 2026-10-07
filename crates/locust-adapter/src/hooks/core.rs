@@ -1,7 +1,7 @@
 //! Pure hook decisions. Callers supply authenticated local observations and
 //! persist marks while holding their per-chat lock; this module performs no I/O.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use locust_proto::api::{CancelItem, Claim, OPERATIONS, PendingWork};
 use locust_proto::event::{AttemptStatus, CancelOutcome, TaskId};
@@ -11,9 +11,26 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Event {
     Start,
-    Stop,
-    Tool { own_call: Option<Box<OwnCall>> },
+    /// `unattended` says no person types in this chat, so an idle worker may
+    /// park at its turn end. Without it the chat is the person's own.
+    Stop {
+        unattended: bool,
+    },
+    Tool {
+        own_call: Option<Box<OwnCall>>,
+    },
 }
+
+/// The only line a failing hook prints, once per failure episode.
+pub const FAILURE_LINE: &str = "Locust context was NOT injected";
+
+/// Successful own invocation IDs kept to ignore replayed native callbacks.
+pub const MAX_INVOCATIONS: usize = 256;
+
+/// Operations that change no work: they never count as this chat's progress
+/// for the stop rule. A model that obeys the skill acknowledges after every
+/// context read; counting that would re-arm the block it just obeyed.
+const STOP_RULE_NEUTRAL: &[&str] = &["context.acknowledge"];
 
 /// A successful call attributed to this chat by the native adapter. The adapter
 /// validates the MCP request and response before constructing these facts.
@@ -57,6 +74,17 @@ pub struct Outcome {
 pub struct Snapshot {
     pub instance: InstanceId,
     pub goals: Vec<GoalWork>,
+    /// Claims of this session that any of its chats ended by its own
+    /// terminal write. Their disappearance is not a loss in a sibling chat.
+    pub released: BTreeSet<ClaimKey>,
+}
+
+/// One generation of one attempt in one goal.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct ClaimKey {
+    pub goal: GoalId,
+    pub attempt: EventId,
+    pub generation: u32,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -102,6 +130,8 @@ pub struct Marks {
     /// Informational lines also show work, but only an ignored Stop block
     /// prevents idle waiting until this chat writes again.
     pub has_blocked: bool,
+    /// A failure line was printed and no callback has succeeded since.
+    pub failing: bool,
     /// Last supplied snapshot for each goal. Omitted goals stay unchanged.
     pub goals: BTreeMap<GoalId, GoalBaseline>,
     pub queued: BTreeSet<Notice>,
@@ -109,7 +139,12 @@ pub struct Marks {
     /// Successful terminal acknowledgements whose target still needs an
     /// authenticated cancellation-event read. Never reconcile past these.
     pub unresolved: BTreeSet<PendingRelease>,
-    pub invocations: BTreeSet<String>,
+    /// The latest successful own invocation IDs, oldest first, at most
+    /// [`MAX_INVOCATIONS`].
+    pub invocations: VecDeque<String>,
+    /// This chat's own terminal releases not yet shared with its session's
+    /// other chats. The caller moves them to the session record.
+    pub released: BTreeSet<ClaimKey>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -135,6 +170,14 @@ pub enum Notice {
     },
 }
 impl Notice {
+    fn key(self) -> ClaimKey {
+        let (goal, attempt, generation) = self.claim();
+        ClaimKey {
+            goal,
+            attempt,
+            generation,
+        }
+    }
     fn claim(self) -> (GoalId, EventId, u32) {
         match self {
             Self::Cancelled {
@@ -218,7 +261,21 @@ pub fn resolve_cancellation(marks: &mut Marks, goal: GoalId, cancel: EventId, at
     }
 }
 
+/// Drop a pending release whose cancellation will never resolve to a target
+/// (removed, excluded, disputed or not a cancellation). Ordinary
+/// reconciliation then reports the claim as it finds it.
+pub fn abandon_cancellation(marks: &mut Marks, goal: GoalId, cancel: EventId) {
+    marks
+        .unresolved
+        .retain(|pending| !(pending.goal == goal && pending.cancel == cancel));
+}
+
 fn release(goal: GoalId, attempt: EventId, generation: u32, marks: &mut Marks) {
+    marks.released.insert(ClaimKey {
+        goal,
+        attempt,
+        generation,
+    });
     if let Some(baseline) = marks.goals.get_mut(&goal) {
         baseline.claims.retain(|claim| {
             !(claim.goal == goal && claim.attempt == attempt && claim.generation == generation)
@@ -240,9 +297,13 @@ pub fn observe(call: &OwnCall, instance: InstanceId, marks: &mut Marks) -> bool 
         || (operation.goal_scoped && call.goal.is_none())
         || matches!(call.action, OwnAction::Claimed(claim)
             if claim.instance != instance || Some(claim.goal) != call.goal)
-        || !marks.invocations.insert(call.invocation_id.clone())
+        || marks.invocations.contains(&call.invocation_id)
     {
         return false;
+    }
+    marks.invocations.push_back(call.invocation_id.clone());
+    while marks.invocations.len() > MAX_INVOCATIONS {
+        marks.invocations.pop_front();
     }
     marks.used_locust = true;
     if matches!(
@@ -251,8 +312,13 @@ pub fn observe(call: &OwnCall, instance: InstanceId, marks: &mut Marks) -> bool 
     ) {
         marks.worker = true;
     }
-    if !operation.read_only {
-        marks.shown.clear();
+    if !operation.read_only && !STOP_RULE_NEUTRAL.contains(&operation.name) {
+        // A write is progress: work shown before it may block once more.
+        // A held claim stays shown until its generation changes, so a
+        // progress note on the claim does not block its own turn end again.
+        marks
+            .shown
+            .retain(|fact| matches!(fact, WorkIdentity::Claim { .. }));
         marks.has_blocked = false;
     }
     if let Some(goal) = call.goal {
@@ -338,6 +404,8 @@ pub fn decide(event: Event, snapshot: &Snapshot, marks: &mut Marks) -> Outcome {
     if !marks.used_locust {
         return Outcome::default();
     }
+    // A callback that reached a decision ends any failure episode.
+    marks.failing = false;
     reconcile(snapshot, marks);
     if matches!(event, Event::Tool { .. }) {
         let Some(notice) = marks
@@ -361,7 +429,8 @@ pub fn decide(event: Event, snapshot: &Snapshot, marks: &mut Marks) -> Outcome {
         };
     }
 
-    let mut facts = relevant(snapshot, marks.worker && event == Event::Stop, marks);
+    let stop = matches!(event, Event::Stop { .. });
+    let mut facts = relevant(snapshot, marks.worker && stop, marks);
     if event == Event::Start {
         facts.retain(|fact| matches!(fact, WorkIdentity::Claim { .. }));
         marks.shown.extend(&facts);
@@ -373,10 +442,23 @@ pub fn decide(event: Event, snapshot: &Snapshot, marks: &mut Marks) -> Outcome {
 
     let Some(fact) = facts.iter().find(|fact| !marks.shown.contains(fact)) else {
         // A repeated block must pass through immediately, without entering a
-        // wait. An idle worker with no pending work can wait outside the core.
+        // wait. An idle worker with no pending work may wait outside the
+        // core, but only where no person types; in the person's own chat it
+        // is told once how to wait, and the next turn end goes through.
+        if !(marks.worker && facts.is_empty() && !marks.has_blocked) {
+            return Outcome::default();
+        }
+        if matches!(event, Event::Stop { unattended: true }) {
+            return Outcome {
+                wait: true,
+                ..Outcome::default()
+            };
+        }
+        marks.has_blocked = true;
         return Outcome {
-            wait: marks.worker && facts.is_empty() && !marks.has_blocked,
-            ..Outcome::default()
+            line: Some(IDLE_LINE.to_owned()),
+            keep_going: true,
+            wait: false,
         };
     };
     let line = stop_line(&facts, *fact);
@@ -402,6 +484,10 @@ fn exact_cancellation(item: &CancelItem, claim: &Claim) -> bool {
 }
 
 fn reconcile(snapshot: &Snapshot, marks: &mut Marks) {
+    // A sibling chat of this session ended these claims itself.
+    marks.queued.retain(|notice| {
+        !matches!(notice, Notice::LostClaim { .. }) || !snapshot.released.contains(&notice.key())
+    });
     for work in &snapshot.goals {
         if unresolved_goal(work.goal, marks) {
             // Only this goal waits for a target read. Omitted or unreadable
@@ -440,7 +526,13 @@ fn reconcile(snapshot: &Snapshot, marks: &mut Marks) {
             }
         }
         for claim in &previous.claims {
+            let key = ClaimKey {
+                goal: work.goal,
+                attempt: claim.attempt,
+                generation: claim.generation,
+            };
             if !current.contains(claim)
+                && !snapshot.released.contains(&key)
                 && !work
                     .pending
                     .to_acknowledge
@@ -457,6 +549,15 @@ fn reconcile(snapshot: &Snapshot, marks: &mut Marks) {
                 );
             }
         }
+        // A delivered notice only guards against repeating itself while
+        // its claim generation can still be seen; forget it after that.
+        marks.delivered.retain(|notice| {
+            let (goal, attempt, generation) = notice.claim();
+            goal != work.goal
+                || current
+                    .iter()
+                    .any(|claim| claim.attempt == attempt && claim.generation == generation)
+        });
         marks.goals.insert(
             work.goal,
             GoalBaseline {
@@ -608,12 +709,23 @@ fn identify(fact: WorkIdentity) -> String {
     }
 }
 
+const IDLE_LINE: &str = "Locust: no work is waiting for this chat. Use locust_wait to wait for new work, or end your turn.";
+
 /// One fixed failure line, with no untrusted daemon or adapter error text.
 pub fn failure() -> Outcome {
     Outcome {
-        line: Some("Locust context was NOT injected".into()),
+        line: Some(FAILURE_LINE.into()),
         ..Outcome::default()
     }
+}
+
+/// A callback of this chat failed. Only a chat that has used Locust hears of
+/// it, and only once until a callback succeeds again.
+pub fn fail(marks: &mut Marks) -> Outcome {
+    if !marks.used_locust || std::mem::replace(&mut marks.failing, true) {
+        return Outcome::default();
+    }
+    failure()
 }
 
 #[cfg(test)]
@@ -621,6 +733,9 @@ mod tests {
     use super::*;
     use locust_proto::api::{CancelItem, DeliveryItem, ReviewItem, WorkItem};
     use locust_proto::event::{Context, Scope};
+
+    /// Most rule tests describe an unattended worker, which may park.
+    const STOP: Event = Event::Stop { unattended: true };
 
     fn observe(call: &OwnCall, marks: &mut Marks) -> bool {
         super::observe(call, InstanceId([2; 16]), marks)
@@ -643,6 +758,7 @@ mod tests {
                 goal: GoalId([1; 32]),
                 pending,
             }],
+            released: BTreeSet::new(),
         }
     }
 
@@ -677,7 +793,7 @@ mod tests {
             ..PendingWork::default()
         });
         assert_eq!(
-            decide(Event::Stop, &work, &mut Marks::default()),
+            decide(STOP, &work, &mut Marks::default()),
             Outcome::default()
         );
         assert_eq!(
@@ -691,7 +807,7 @@ mod tests {
         let work = pending_claim(3);
         let mut marks = Marks::default();
         assert_eq!(decide(Event::Start, &work, &mut marks), Outcome::default());
-        assert_eq!(decide(Event::Stop, &work, &mut marks), Outcome::default());
+        assert_eq!(decide(STOP, &work, &mut marks), Outcome::default());
         assert_eq!(marks, Marks::default());
         observe(&call("own-status", "status"), &mut marks);
         assert!(decide(Event::Start, &work, &mut marks).line.is_some());
@@ -702,8 +818,8 @@ mod tests {
         let mut work = pending_claim(3);
         let own = work.goals[0].pending.claimed[0];
         let mut marks = participant(false);
-        assert!(decide(Event::Stop, &work, &mut marks).keep_going);
-        assert_eq!(decide(Event::Stop, &work, &mut marks), Outcome::default());
+        assert!(decide(STOP, &work, &mut marks).keep_going);
+        assert_eq!(decide(STOP, &work, &mut marks), Outcome::default());
         let cancel = CancelItem {
             task: own.task,
             attempt: own.attempt,
@@ -717,19 +833,19 @@ mod tests {
             cancel: EventId([7; 32]),
             generation: None,
         });
-        assert_eq!(decide(Event::Stop, &work, &mut marks), Outcome::default());
+        assert_eq!(decide(STOP, &work, &mut marks), Outcome::default());
         work.goals[0].pending.to_acknowledge.push(CancelItem {
             cancel: EventId([5; 32]),
             generation: Some(own.generation),
             ..cancel
         });
-        let outcome = decide(Event::Stop, &work, &mut marks);
+        let outcome = decide(STOP, &work, &mut marks);
         assert!(outcome.keep_going && !outcome.wait);
         let line = outcome.line.unwrap();
         assert!(line.contains("1 cancellations"));
         assert!(line.contains(&EventId([5; 32]).to_string()));
         assert!(line.contains("locust_cancel_acknowledge"));
-        assert_eq!(decide(Event::Stop, &work, &mut marks), Outcome::default());
+        assert_eq!(decide(STOP, &work, &mut marks), Outcome::default());
     }
 
     #[test]
@@ -744,10 +860,10 @@ mod tests {
             ..PendingWork::default()
         });
         let mut marks = participant(false);
-        assert_eq!(decide(Event::Stop, &work, &mut marks), Outcome::default());
-        assert!(decide(Event::Stop, &pending_claim(6), &mut marks).keep_going);
+        assert_eq!(decide(STOP, &work, &mut marks), Outcome::default());
+        assert!(decide(STOP, &pending_claim(6), &mut marks).keep_going);
         assert_eq!(
-            decide(Event::Stop, &pending_claim(6), &mut marks),
+            decide(STOP, &pending_claim(6), &mut marks),
             Outcome::default()
         );
     }
@@ -757,10 +873,10 @@ mod tests {
         let mut marks = participant(true);
         let a = pending_claim(3);
         let b = pending_claim(4);
-        assert!(decide(Event::Stop, &a, &mut marks).keep_going);
-        assert!(decide(Event::Stop, &b, &mut marks).keep_going);
-        assert_eq!(decide(Event::Stop, &a, &mut marks), Outcome::default());
-        assert_eq!(decide(Event::Stop, &b, &mut marks), Outcome::default());
+        assert!(decide(STOP, &a, &mut marks).keep_going);
+        assert!(decide(STOP, &b, &mut marks).keep_going);
+        assert_eq!(decide(STOP, &a, &mut marks), Outcome::default());
+        assert_eq!(decide(STOP, &b, &mut marks), Outcome::default());
         assert_eq!(marks.shown.len(), 2);
     }
 
@@ -769,27 +885,72 @@ mod tests {
         let mut marks = participant(true);
         let work = pending_claim(3);
         let empty = snapshot(PendingWork::default());
-        assert!(decide(Event::Stop, &work, &mut marks).keep_going);
-        assert_eq!(decide(Event::Stop, &work, &mut marks), Outcome::default());
-        assert_eq!(decide(Event::Stop, &empty, &mut marks), Outcome::default());
-        assert_eq!(decide(Event::Stop, &work, &mut marks), Outcome::default());
+        assert!(decide(STOP, &work, &mut marks).keep_going);
+        assert_eq!(decide(STOP, &work, &mut marks), Outcome::default());
+        assert_eq!(decide(STOP, &empty, &mut marks), Outcome::default());
+        assert_eq!(decide(STOP, &work, &mut marks), Outcome::default());
         observe(&call("progress", "attempt.report"), &mut marks);
-        assert!(decide(Event::Stop, &empty, &mut marks).wait);
+        assert!(decide(STOP, &empty, &mut marks).wait);
     }
 
     #[test]
     fn read_other_tool_and_duplicate_write_do_not_count_as_new_progress() {
-        let work = pending_claim(3);
+        let mut work = pending_claim(3);
+        work.goals[0].pending.to_review.push(review(9));
         let mut marks = participant(true);
-        assert!(decide(Event::Stop, &work, &mut marks).keep_going);
+        assert!(decide(STOP, &work, &mut marks).keep_going);
         assert!(observe(&call("read", "context.read"), &mut marks));
         assert!(!observe(&call("external", "shell"), &mut marks));
         assert!(!observe(&call("owner", "daemon.stop"), &mut marks));
-        assert_eq!(decide(Event::Stop, &work, &mut marks), Outcome::default());
+        assert_eq!(decide(STOP, &work, &mut marks), Outcome::default());
         assert!(observe(&call("write", "attempt.report"), &mut marks));
-        assert!(decide(Event::Stop, &work, &mut marks).keep_going);
+        let again = decide(STOP, &work, &mut marks).line.unwrap();
+        assert!(again.contains(&format!("subject {}", EventId([9; 32]))));
         assert!(!observe(&call("write", "attempt.report"), &mut marks));
-        assert_eq!(decide(Event::Stop, &work, &mut marks), Outcome::default());
+        assert_eq!(decide(STOP, &work, &mut marks), Outcome::default());
+    }
+
+    fn review(n: u8) -> ReviewItem {
+        ReviewItem {
+            subject: EventId([n; 32]),
+            context: Context {
+                scope: Scope::Goal,
+                round: EventId([8; 32]),
+            },
+            approvals: 0,
+            needed: 1,
+            verdicts: vec![],
+        }
+    }
+
+    #[test]
+    fn acknowledgments_and_notes_on_a_held_claim_do_not_block_its_turn_end_again() {
+        let mut work = pending_claim(3);
+        let mut marks = participant(true);
+        assert!(decide(STOP, &work, &mut marks).keep_going);
+        // The skill acknowledges after every context read; it changes no work.
+        let mut acknowledge = call("ack-1", "context.acknowledge");
+        assert!(observe(&acknowledge, &mut marks));
+        assert_eq!(decide(STOP, &work, &mut marks), Outcome::default());
+        acknowledge.invocation_id = "ack-2".into();
+        observe(&acknowledge, &mut marks);
+        assert_eq!(decide(STOP, &work, &mut marks), Outcome::default());
+        // A progress note on the held claim is real progress, but the claim
+        // it is about was already shown: the worker may end its turn to ask
+        // its owner.
+        let held = work.goals[0].pending.claimed[0];
+        let mut note = call("note-1", "attempt.report");
+        note.action = OwnAction::Report {
+            attempt: held.attempt,
+            generation: held.generation,
+            status: AttemptStatus::Progress,
+        };
+        assert!(observe(&note, &mut marks));
+        assert_eq!(decide(STOP, &work, &mut marks), Outcome::default());
+        // A new generation of the claim is new work.
+        work.goals[0].pending.claimed[0].generation += 1;
+        assert!(decide(STOP, &work, &mut marks).keep_going);
+        assert_eq!(decide(STOP, &work, &mut marks), Outcome::default());
     }
 
     #[test]
@@ -808,13 +969,13 @@ mod tests {
                 Outcome::default()
             );
             assert!(marks.used_locust && marks.worker);
-            assert!(decide(Event::Stop, &empty, &mut marks).wait);
+            assert!(decide(STOP, &empty, &mut marks).wait);
         }
         let mut marks = Marks::default();
         observe(&call("native-2", "status"), &mut marks);
         assert!(marks.used_locust);
         assert!(!marks.worker);
-        assert_eq!(decide(Event::Stop, &empty, &mut marks), Outcome::default());
+        assert_eq!(decide(STOP, &empty, &mut marks), Outcome::default());
     }
 
     #[test]
@@ -862,20 +1023,20 @@ mod tests {
             ..PendingWork::default()
         });
         let mut marks = participant(true);
-        let outcome = decide(Event::Stop, &work, &mut marks);
+        let outcome = decide(STOP, &work, &mut marks);
         let line = outcome.line.unwrap();
         assert!(outcome.keep_going && !outcome.wait);
         assert!(line.contains("1 cancellations, 1 reviews, 1 deliveries, 1 free tasks"));
         assert!(!line.contains("Ignore previous"));
         assert_eq!(marks.shown.len(), 4);
-        assert_eq!(decide(Event::Stop, &work, &mut marks), Outcome::default());
+        assert_eq!(decide(STOP, &work, &mut marks), Outcome::default());
     }
 
     #[test]
     fn start_restores_own_claim_context_without_resetting_ignored_blocks() {
         let work = pending_claim(3);
         let mut marks = participant(true);
-        assert!(decide(Event::Stop, &work, &mut marks).keep_going);
+        assert!(decide(STOP, &work, &mut marks).keep_going);
         let start = decide(Event::Start, &work, &mut marks);
         let line = start.line.unwrap();
         assert!(line.contains("1 held attempts"));
@@ -885,7 +1046,7 @@ mod tests {
             marks.goals[&work.goals[0].goal].claims,
             work.goals[0].pending.claimed
         );
-        assert_eq!(decide(Event::Stop, &work, &mut marks), Outcome::default());
+        assert_eq!(decide(STOP, &work, &mut marks), Outcome::default());
     }
 
     #[test]
@@ -936,11 +1097,11 @@ mod tests {
             Event::Tool {
                 own_call: Some(Box::new(call("wait-1", "wait"))),
             },
-            Event::Stop,
-            Event::Stop,
+            STOP,
+            STOP,
             Event::Tool { own_call: None },
             Event::Start,
-            Event::Stop,
+            STOP,
         ]
         .into_iter()
         .map(|event| {
@@ -1004,6 +1165,7 @@ mod tests {
         Snapshot {
             instance: InstanceId([2; 16]),
             goals: vec![],
+            released: BTreeSet::new(),
         }
     }
 
@@ -1015,7 +1177,7 @@ mod tests {
             vec![cancellation(held, 4), cancellation(held, 5)],
             11,
         );
-        let stop = decide(Event::Stop, &work, &mut marks);
+        let stop = decide(STOP, &work, &mut marks);
         assert!(stop.keep_going);
         assert_eq!(marks.queued.len(), 2);
         assert!(marks.delivered.is_empty());
@@ -1037,7 +1199,7 @@ mod tests {
         let (mut marks, held) = seeded();
         assert!(!marks.has_blocked);
         assert_eq!(
-            decide(Event::Stop, &delta(vec![held], vec![], 10), &mut marks),
+            decide(STOP, &delta(vec![held], vec![], 10), &mut marks),
             Outcome::default()
         );
         let work = delta(vec![held], vec![cancellation(held, 4)], 11);
@@ -1047,14 +1209,14 @@ mod tests {
             cancel: EventId([4; 32])
         }));
         assert!(!marks.has_blocked);
-        assert_eq!(decide(Event::Stop, &work, &mut marks), Outcome::default());
-        assert!(decide(Event::Stop, &delta(vec![], vec![], 12), &mut marks).wait);
+        assert_eq!(decide(STOP, &work, &mut marks), Outcome::default());
+        assert!(decide(STOP, &delta(vec![], vec![], 12), &mut marks).wait);
 
         let mut blocked = participant(true);
-        assert!(decide(Event::Stop, &delta(vec![held], vec![], 10), &mut blocked).keep_going);
+        assert!(decide(STOP, &delta(vec![held], vec![], 10), &mut blocked).keep_going);
         assert!(blocked.has_blocked);
         assert_eq!(
-            decide(Event::Stop, &delta(vec![], vec![], 11), &mut blocked),
+            decide(STOP, &delta(vec![], vec![], 11), &mut blocked),
             Outcome::default()
         );
         observe(&call("read-after-block", "status"), &mut blocked);
@@ -1064,7 +1226,7 @@ mod tests {
             &mut blocked,
         );
         assert!(!blocked.has_blocked);
-        assert!(decide(Event::Stop, &delta(vec![], vec![], 12), &mut blocked).wait);
+        assert!(decide(STOP, &delta(vec![], vec![], 12), &mut blocked).wait);
     }
 
     #[test]
@@ -1117,9 +1279,13 @@ mod tests {
         let (mut marks, held) = seeded();
         let work = delta(vec![held], vec![cancellation(held, 4)], 11);
         tool(&work, &mut marks);
-        let history = marks.delivered.clone();
+        assert_eq!(marks.delivered.len(), 1);
         decide(Event::Start, &delta(vec![], vec![], 12), &mut marks);
         assert_eq!(marks.queued.len(), 1);
+        // The cancelled claim generation is gone, so its delivered notice
+        // can never repeat and is forgotten.
+        assert!(marks.delivered.is_empty());
+        let history = marks.delivered.clone();
         for (id, op, action) in [
             ("unrelated", "contribution.publish", OwnAction::Other),
             (
@@ -1144,11 +1310,12 @@ mod tests {
                 .unwrap()
                 .contains("claim lost")
         );
-        assert_eq!(marks.delivered.len(), 2);
+        assert_eq!(marks.delivered.len(), 1);
         assert_eq!(
             tool(&delta(vec![], vec![], 13), &mut marks),
             Outcome::default()
         );
+        assert!(marks.delivered.is_empty());
     }
 
     #[test]
@@ -1302,8 +1469,9 @@ mod tests {
                     ..PendingWork::default()
                 },
             }],
+            released: BTreeSet::new(),
         };
-        assert!(decide(Event::Stop, &work, &mut marks).keep_going);
+        assert!(decide(STOP, &work, &mut marks).keep_going);
         assert_eq!(marks.goals[&held.goal].revision, 10);
         assert_eq!(marks.goals[&other.goal].revision, 30);
         let lost_other = Snapshot {
@@ -1315,6 +1483,7 @@ mod tests {
                     ..PendingWork::default()
                 },
             }],
+            released: BTreeSet::new(),
         };
         let line = tool(&lost_other, &mut marks).line.unwrap();
         assert!(line.contains(&other.goal.to_string()));
@@ -1434,6 +1603,118 @@ mod tests {
         assert!(!observe(&ack, &mut marks));
         assert!(marks.unresolved.is_empty());
         assert_eq!(marks.goals[&held.goal].claims, vec![next]);
+    }
+
+    #[test]
+    fn an_idle_worker_in_a_persons_chat_is_told_once_and_never_parked() {
+        let empty = snapshot(PendingWork::default());
+        let attended = Event::Stop { unattended: false };
+        let mut marks = participant(true);
+        let told = decide(attended.clone(), &empty, &mut marks);
+        assert!(told.keep_going && !told.wait);
+        let line = told.line.unwrap();
+        assert!(line.contains("locust_wait") && line.is_ascii() && line.len() < 512);
+        for _ in 0..3 {
+            assert_eq!(
+                decide(attended.clone(), &empty, &mut marks),
+                Outcome::default()
+            );
+        }
+        // Unattended, the same chat parks only after new progress.
+        assert_eq!(decide(STOP, &empty, &mut marks), Outcome::default());
+        observe(&call("progress", "contribution.publish"), &mut marks);
+        assert!(decide(STOP, &empty, &mut marks).wait);
+        // A passive chat is never told to wait.
+        let mut passive = participant(false);
+        assert_eq!(decide(attended, &empty, &mut passive), Outcome::default());
+    }
+
+    #[test]
+    fn failure_is_said_once_per_episode_and_only_to_a_chat_that_used_locust() {
+        let mut stranger = Marks::default();
+        assert_eq!(fail(&mut stranger), Outcome::default());
+        assert!(!stranger.failing);
+        let mut marks = participant(false);
+        assert_eq!(fail(&mut marks).line.as_deref(), Some(FAILURE_LINE));
+        for _ in 0..5 {
+            assert_eq!(fail(&mut marks), Outcome::default());
+        }
+        decide(Event::Tool { own_call: None }, &omitted(), &mut marks);
+        assert!(!marks.failing);
+        assert_eq!(fail(&mut marks).line.as_deref(), Some(FAILURE_LINE));
+    }
+
+    #[test]
+    fn a_sibling_chats_own_release_is_not_reported_as_a_loss() {
+        let (mut marks, held) = seeded();
+        let key = ClaimKey {
+            goal: held.goal,
+            attempt: held.attempt,
+            generation: held.generation,
+        };
+        let mut gone = delta(vec![], vec![], 11);
+        gone.released.insert(key);
+        assert_eq!(tool(&gone, &mut marks), Outcome::default());
+        assert!(marks.queued.is_empty() && marks.delivered.is_empty());
+        // A loss queued before the sibling's release was shared is dropped.
+        let (mut marks, _) = seeded();
+        decide(Event::Start, &delta(vec![], vec![], 11), &mut marks);
+        assert_eq!(marks.queued.len(), 1);
+        let mut later = omitted();
+        later.released.insert(key);
+        assert_eq!(tool(&later, &mut marks), Outcome::default());
+        assert!(marks.queued.is_empty());
+    }
+
+    #[test]
+    fn own_terminal_writes_are_kept_for_the_session_record() {
+        let (mut marks, held) = seeded();
+        let mut report = call("done", "attempt.report");
+        report.action = OwnAction::Report {
+            attempt: held.attempt,
+            generation: held.generation,
+            status: AttemptStatus::Completed,
+        };
+        observe(&report, &mut marks);
+        assert_eq!(
+            marks.released,
+            BTreeSet::from([ClaimKey {
+                goal: held.goal,
+                attempt: held.attempt,
+                generation: held.generation,
+            }])
+        );
+    }
+
+    #[test]
+    fn invocation_history_is_bounded_and_still_ignores_recent_replays() {
+        let mut marks = participant(false);
+        for n in 0..MAX_INVOCATIONS + 10 {
+            assert!(observe(&call(&format!("call-{n}"), "status"), &mut marks));
+        }
+        assert_eq!(marks.invocations.len(), MAX_INVOCATIONS);
+        assert!(!observe(
+            &call(&format!("call-{}", MAX_INVOCATIONS + 9), "status"),
+            &mut marks
+        ));
+    }
+
+    #[test]
+    fn an_abandoned_cancellation_lets_reconciliation_report_the_claim() {
+        let (mut marks, held) = seeded();
+        let mut ack = call("ack", "cancel.acknowledge");
+        ack.action = OwnAction::CancelAcknowledged {
+            cancel: EventId([4; 32]),
+            generation: Some(held.generation),
+            outcome: CancelOutcome::Stopped,
+            target: None,
+        };
+        observe(&ack, &mut marks);
+        assert_eq!(marks.unresolved.len(), 1);
+        abandon_cancellation(&mut marks, held.goal, EventId([4; 32]));
+        assert!(marks.unresolved.is_empty());
+        let line = tool(&delta(vec![], vec![], 11), &mut marks).line.unwrap();
+        assert!(line.contains("claim lost"));
     }
 
     #[test]

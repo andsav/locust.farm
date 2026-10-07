@@ -157,8 +157,8 @@ this plan's own choices.
 - **A6 ships without a kind field:** "finding" keeps A3's meaning.
 - **J1+ replaces E2's refused set:** one structure, not two.
 - **R7's seeds are findings, not tasks:** R7's setup stays true and A3 shows them.
-- **Stop rule:** block only for work IDs not shown since the chat's last Locust write; after an ignored block, stops go through until a new ID. One worker chat per session waits, at most 270 s, or less where an adapter's harness ends a hook sooner.
-- **Hook output:** one ASCII line under 512 bytes: counts, IDs, tool names, fixed words; on failure, "Locust context was NOT injected".
+- **Stop rule:** block only for work IDs not shown since the chat's last Locust write; after an ignored block, stops go through until a new ID. A context acknowledgment is not a write for this rule, and a held claim stays shown until its generation changes. One worker chat per session waits, at most 270 s, or less where an adapter's harness ends a hook sooner, and only where no person types; in the person's own chat an idle worker is told once and the next stop goes through.
+- **Hook output:** one ASCII line under 512 bytes: counts, IDs, tool names, fixed words; on failure, "Locust context was NOT injected", once per failure episode and only in a chat that has used Locust. A chat that never used Locust, and a subagent's callback, get nothing.
 - **State stays local;** a reset forgets rather than flags. No `--owner`, prompt-submit or reject hook.
 
 ## Decided by the owner
@@ -599,9 +599,13 @@ stay the fallback and the only way an agent acts.
   to print, the failure line), with no harness branch.
 - An adapter is data and a thin shim: native events to Locust events, the
   envelope its harness reads a line or a block in, where its config entry
-  lives, its harness's hook time limit (set in the config entry where the
-  harness allows), and how setup adds and removes it. A new harness adds
-  only an adapter and its tests.
+  lives and its shape, how a tool result is encoded, which payload fields
+  mark a subagent, whether the payload can say no person types, its
+  harness's hook time limits (set in the config entry where the harness
+  allows), and whether the harness asks its person to trust new hooks. The
+  dispatcher and setup serve every adapter through those facts, with no
+  harness branch. A new harness adds only a table entry, a shim if it needs
+  one, and its goldens.
 - Output suits any model: plain facts and tool names in fixed wording, no
   vendor markup or model-tuned phrasing, no assumption about how a model
   treats system text. Adapters wrap the same line in any JSON needed.
@@ -680,9 +684,21 @@ work in an ended goal.
 
 **Risks and notes.** Beads #3451 pushed stops; guards: the stop rule,
 facts only, "unless your owner asked you to stop", the harness's own
-interrupt. Unverified per harness: whether a waiting stop holds a typed
-prompt; each adapter's /tmp check records it. Unverified: one bridge per
-chat.
+interrupt, and a rule that a bookkeeping write (a context acknowledgment) or
+a note on a claim already shown never re-arms a block. Whether a waiting stop
+holds a typed prompt is unverified per harness, so a stop waits only where no
+person types: `LOCUST_HOOKS=unattended`, or the adapter's own signal (pi's
+print and JSON modes); elsewhere an idle worker is told once and the next stop
+goes through. Start and tool hooks give up after 5 s; only a stop waits.
+Unverified: one bridge per chat.
+
+**Silence rule** (owner, 7 October 2026). A chat that has not used Locust
+never sees anything from Locust's hooks, whatever fails, and a subagent's
+callbacks are silent. The failure line appears only in a chat already
+associated with Locust, once per failure episode, never on every tool call.
+One goal's failing read (a cancellation target, a stale baseline) skips that
+goal, never the callback. Chats of one session share a record of the claims
+their own terminal writes ended, so a sibling's completion is not a loss.
 
 ### S1: Store hygiene
 
