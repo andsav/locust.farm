@@ -2363,12 +2363,25 @@ second or the third "caught up".
   is given up once every other computer has answered, and the position can
   be signed again (the model's `restore-finding-unseen-agent-reuse`).
   It is not claimed for an agent's key on a member's machine whose marks are
-  lost. Two seeded runs are kept that must end in a reused position, one for
-  each case left out, both under residual 5 in the notes: a member's machine
-  restored with its marks lost, whose agent's last record reached another
-  member's machine and not the host's; and an agent's record that reached only
-  a machine whose removal the restored copy does not hold, given up with the
-  marks kept. These bounds are from
+  lost. Nor is it claimed for an agent's key on a member's machine restored
+  with its marks kept to a copy older than an admission, when the host's
+  computer held that admission and was itself restored to a copy without it:
+  no computer that answers knows the admitted member, so the mark is given
+  up once every computer the copy lists has answered, and a record only the
+  admitted member holds can be signed over. A host copy that lacks the
+  admission only because it was taken before the admission existed does not
+  count: the host's computer learns of the admission again and answers for
+  that member. Three runs built step by step are kept that must end in a
+  reused position, one for each case left out, all under risk (5) in the
+  notes: a member's machine restored with its marks lost, whose agent's last
+  record reached another member's machine and not the host's; an agent's
+  record that reached only a machine whose removal the restored copy does
+  not hold, given up with the marks kept; and a member's machine and the
+  host's each restored to a copy from before the same admission, the
+  member's with its marks kept. A seeded run that fails counts as one of
+  these residuals only when every invariant it breaks follows from the
+  reused key: that key's halt, or records standing on its reused records
+  that are not effective. These bounds are from
   reading. A seed that breaks the invariant inside them is a finding. The
   invariant that every machine holds every acknowledged record leaves out a
   record that only the restored machine held. Sleep stays what it is there,
@@ -2478,14 +2491,22 @@ second or the third "caught up".
   held; if the person then continues, the member can show the records and the
   host is forked. In a goal of a host and one hostile member there is no
   defence: v2 cannot replace a host. (5) An agent's key can still fork in
-  three ways, each at the cost of that agent's key in one goal and with the
+  four ways, each at the cost of that agent's key in one goal and with the
   goal unharmed. On a member's computer after a copy of unknown age, the
   host's computer never received that agent's last records and another member
   did. A key is admitted again and the host's computer lacks its later
-  records. Or, with the marks kept, a record reached only a computer removed
+  records. With the marks kept, a record reached only a computer removed
   since: it is given up once every other computer has answered, and the
   removed computer brings it back if it is ever admitted again. For the host's
-  agent the last also stops the goal's first files. (6) The person continues
+  agent this third way also stops the goal's first files. Or, on a member's
+  computer with the marks kept, the copy is older than an admission and the
+  host's computer, which held that admission, was itself put back to a copy
+  without it: a record that reached only the member admitted since is given
+  up once every computer the copy lists has answered. This fourth way is
+  accepted as a limit because it needs two separate restores, of two
+  computers, from before the same admission, and because no computer that
+  answers then knows the admitted member, so nothing could tell the guard
+  to wait for it. (6) The person continues
   when they should not. After a whole-computer restore or a move this is the
   only way a host's hold ends, so a release that was a guess is now the
   person's choice. The risky case is a copy older than a change of members:

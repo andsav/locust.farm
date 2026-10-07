@@ -182,13 +182,17 @@ read, not edited. G2 owns the words a person reads; the words here are interim.
 
 ## Tests
 
-- Store: eight tests in [tests.rs](../crates/locust-store/src/tests.rs) and
+- Store: nine tests in [tests.rs](../crates/locust-store/src/tests.rs), the
+  ninth `a_marks_unheard_bit_survives_reopen_and_a_nonzero_reserved_byte_is_lost`
+  for the bit the sweep's fix added, and
   `marks_follow_their_commit_and_survive_reopen` in the conformance module.
 - Proto: `refusals_render_in_snake_case` gains `catching_up`,
   `the_published_names_and_modes_are_stable` the suffix, and
   `the_marks_directory_is_beside_the_home_and_never_inside_it` is new.
-- [node/tests/guard.rs](../crates/locust-core/src/node/tests/guard.rs): the
-  plan's 23 tests on `Network`.
+- [node/tests/guard.rs](../crates/locust-core/src/node/tests/guard.rs): 25
+  tests on `Network`, the plan's 23 and two for the sweep's fix:
+  `a_second_restore_before_the_first_is_caught_up_is_still_unheard` and
+  `records_that_return_raise_the_mark`.
 - [delivery.rs](../crates/locust-core/src/node/tests/delivery.rs): the four
   restored-host tests rewritten under the plan's names, and
   `a_stage_step_signed_twice_from_one_input_is_one_record`. Each caller of
@@ -225,8 +229,10 @@ across all stores, one key at one position never holds two different records
 nowhere else: a reuse signed after the owner continued, after a member's
 machine was restored with its marks lost, or after a marks-kept restore in a
 run whose member removal the copy does not hold is left out; the governance
-key, and the host's agent with the marks lost, are always claimed. A run that
-fails only on unclaimed reuses counts as residual, and shrinking ignores it.
+key, and the host's agent with the marks lost, are always claimed. As built
+here, a run that failed and had unclaimed reuses and no claimed one counted as
+residual whatever made it fail, and shrinking ignored it; the review
+(finding 8) narrowed that, below.
 
 The first sweeps found two gaps inside the claims, and one guard bug:
 
@@ -252,23 +258,63 @@ The first sweeps found two gaps inside the claims, and one guard bug:
   in which no local key has any record in the copy carries no mark, so the
   bit cannot be kept for it (on the host the governance key always has one;
   this is a member's computer whose agents signed nothing in the copy).
-- **Two restores older than one admission (residual 6, claim narrowed).** A
-  member restored with its marks kept to a copy older than an admission gives
-  a record up once it has heard from every computer its copy lists — but when
-  the host's computer was itself restored from a copy that missed the same
-  admission, no computer that answers knows the admitted member, which holds
-  the given-up records. The plan accepts the fork. The kept run
+- **Two restores older than one admission (called residual 6 here, claim
+  narrowed).** A member restored with its marks kept to a copy older than an
+  admission gives a record up once it has heard from every computer its copy
+  lists — but when the host's computer was itself restored from a copy that
+  missed the same admission, no computer that answers knows the admitted
+  member, which holds the given-up records. The plan as written at this
+  phase did not accept this fork: its risk (5) listed three agent-key forks,
+  none of them this one, and its simulator claim still covered it, so the
+  exclusion in `host_missed_the_same_admission` narrowed a claim the plan
+  made. After the [review](v2-phase-g1-review-2026-10-07.md) (findings 7
+  and 10) the plan author accepted it as a stated limit: the plan now lists
+  it as the fourth way of risk (5), and the master plan says what a person
+  sees. The kept run
   `a_member_restored_with_its_marks_kept_gives_up_what_only_a_member_admitted_since_holds`
   ends in that reused position and stays outside the claims.
 
-The two kept runs of the plan's residual 5 stand beside these:
+The plan's two kept runs of residual 5 stand beside these:
 `a_member_restored_with_its_marks_lost_signs_again_what_only_another_member_holds`
 and `a_member_restored_with_its_marks_kept_gives_up_what_only_a_removed_member_holds`.
+All the kept runs are separate deterministic tests in
+[restore_runs.rs](../crates/locust-core/src/node/sim/restore_runs.rs), built
+step by step with fixed seeds and no injected faults; the seeded sweep never
+runs them.
 
 Seeded sweeps in a release build: seeds 0 to 10,000 in about a minute, no
 failure inside the claims; 30 positions signed again outside them, across 14
-residual runs (the two kept runs of the plan among them). Before the fixes:
-21 failures and 11 residuals.
+residual runs of the sweep. Before the fixes: 21 failures and 11 residuals.
+
+## After the review
+
+The [review](v2-phase-g1-review-2026-10-07.md) of 7 October found two gaps in
+the simulator's oracle (findings 7 and 8), corrected here:
+
+- **The fourth case is narrowed.** `host_missed_the_same_admission` now needs
+  a host restore whose copy lacks an admission the host held before that
+  restore. A host copy taken before the admission existed no longer counts:
+  the host learns of the admission again and answers for the member.
+  `a_host_restore_from_before_an_admission_existed_leaves_the_claim_standing`
+  in [restore_runs.rs](../crates/locust-core/src/node/sim/restore_runs.rs)
+  covers it.
+- **A residual is a run the fork explains.** A failing run counts as residual
+  only when every invariant it breaks follows from the positions signed
+  again outside the claims: the reused key's own halt, or records that stand
+  on its reused records (and the deliveries of effects they materialize) not
+  being effective ([check.rs](../crates/locust-core/src/node/sim/check.rs),
+  `Violation` and `Forked`). A step that fails, a panic, a missing record or
+  a hold that never ends beside such a reuse is a failure.
+  `a_failure_beside_an_unclaimed_reuse_is_residual_only_while_the_fork_explains_it`
+  covers it, and a replayed seed's report says when it is residual.
+
+The sweep over seeds 0 to 10,000 in a release build, rerun with both: no
+failure; 30 positions signed again outside the claims and none inside, across
+the same 14 residual runs (241, 765, 1936, 2110, 3138, 3147, 3552, 5420,
+5933, 6481, 7125, 7842, 8333, 8340). Each fails only at quiet, on the reused
+agent's halt and on records standing on its reused ones. A first version of
+the narrower rule left out acknowledgements of deliveries whose effects stood
+on the fork, and reported four of these as failures (765, 7125, 8333, 8340).
 
 ## Verification
 

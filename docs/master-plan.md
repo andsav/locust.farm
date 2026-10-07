@@ -264,6 +264,13 @@ From the [host safety and ending plan](host-safety-and-ending-plan.md):
   has caught up.
 - On finding that its data was restored, Locust revokes the pending
   invitations of the goals it hosts.
+- If the host's computer and a member's computer are both put back from
+  copies made before a third member joined, the restored member's agent can
+  write over work that only the third member holds. That agent then stops
+  working in that goal, with two of its records in conflict, until the host
+  acts; the goal and the other members carry on. It needs two restores from
+  before the same join, and no computer that answers knows the third member,
+  so Locust accepts it as a limit.
 - The words are "catching up" for the state, `goal continue` for the command
   and "ended by the host" for an ended goal.
 - Rules that name "the task's creator" for a stage's task, where only a

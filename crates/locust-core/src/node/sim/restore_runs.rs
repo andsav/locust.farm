@@ -5,17 +5,16 @@
 //! that they stay lost in the way the plan says: each must end in a
 //! position of a member's agent signed twice, outside the claims of
 //! `a_restored_machine_signs_at_no_used_position_unless_its_owner_continued`
-//! (residuals 5 and 6 in the notes of G1 in
-//! `docs/host-safety-and-ending-plan.md`).
+//! (risk (5) in the notes of G1 in `docs/host-safety-and-ending-plan.md`).
 
 use locust_proto::api::Request;
 use locust_proto::id::EventId;
 use locust_proto::store::Store;
 
-use super::check::reuses;
+use super::check::{host_missed_the_same_admission, reuses, settle, violations};
 use super::machine::Who;
 use super::restore::Marks;
-use super::run::Run;
+use super::run::{Acked, Run};
 use super::scenario;
 use super::world::SEC;
 
@@ -133,14 +132,11 @@ fn a_member_restored_with_its_marks_kept_gives_up_what_only_a_removed_member_hol
     reused_after(&mut r, first, at);
 }
 
-/// m2 and the host's computer are each put back to a backup taken before
-/// m3 was admitted, m2 with its marks kept. m2's agent's last record
-/// reached only m3, which is stopped. m2's copy does not wait for the
-/// member it does not know, the restored host cannot answer for it, and
-/// once every computer the copy knows has answered, the mark is given up.
-#[test]
-fn a_member_restored_with_its_marks_kept_gives_up_what_only_a_member_admitted_since_holds() {
-    let mut r = Run::new(8204, 3);
+/// m2 and the host's computer each put back to a backup taken before m3 was
+/// admitted, m2 with its marks kept, after m2's agent wrote a record that
+/// reached only m3, which is stopped. Returns that record and its position.
+fn restored_before_an_admission(seed: u64) -> (Run, EventId, u64) {
+    let mut r = Run::new(seed, 3);
     r.faults = false;
     r.w.net.stall = 0;
     r.w.chaos.allow_restores = true;
@@ -169,7 +165,93 @@ fn a_member_restored_with_its_marks_kept_gives_up_what_only_a_member_admitted_si
     r.w.start(M1);
     assert!(!r.signs(M2), "the restored m2 is held at its start");
     r.w.run_for(120 * SEC);
+    (r, first, at)
+}
+
+/// m2 and the host's computer are each put back to a backup taken before
+/// m3 was admitted, m2 with its marks kept. m2's agent's last record
+/// reached only m3, which is stopped. m2's copy does not wait for the
+/// member it does not know, the restored host cannot answer for it, and
+/// once every computer the copy knows has answered, the mark is given up.
+#[test]
+fn a_member_restored_with_its_marks_kept_gives_up_what_only_a_member_admitted_since_holds() {
+    let (mut r, first, at) = restored_before_an_admission(8204);
     reused_after(&mut r, first, at);
+}
+
+/// The same run, brought to quiet with m3 reachable again: what breaks is what
+/// the fork explains, so the run would count as a residual. An acknowledged
+/// record that no machine holds is no consequence of the fork, and beside it
+/// the run would be a failure.
+#[test]
+fn a_failure_beside_an_unclaimed_reuse_is_residual_only_while_the_fork_explains_it() {
+    let (mut r, first, at) = restored_before_an_admission(8204);
+    reused_after(&mut r, first, at);
+    cut(&mut r, M1, M3, false);
+    r.w.start(M3);
+    let failed = settle(&mut r).expect_err("m2's agent has two records at one position");
+    assert!(failed.forked, "{}", failed.what);
+    r.acked.push(Acked {
+        what: "record held nowhere",
+        machine: M1,
+        event: EventId([7; 32]),
+    });
+    let found = violations(&mut r, false);
+    assert!(found.iter().any(|violation| violation.forked));
+    assert!(
+        found
+            .iter()
+            .any(|violation| !violation.forked && violation.text.contains("record held nowhere")),
+        "{found:?}"
+    );
+}
+
+/// The host's computer is put back before m3 is admitted, to a copy that
+/// lacks the admission only because it did not exist yet, and m3 is admitted
+/// afterwards. m2 is then put back with its marks kept to a copy from before
+/// the admission. The host's computer knows m3 again and answers for it, so
+/// m2 waits for m3, and a reuse of m2's agent here would be inside the
+/// claims: the fourth case of risk (5) needs a host restore that lost the
+/// admission.
+#[test]
+fn a_host_restore_from_before_an_admission_existed_leaves_the_claim_standing() {
+    let mut r = Run::new(8205, 3);
+    r.faults = false;
+    r.w.net.stall = 0;
+    r.w.chaos.allow_restores = true;
+    scenario::setup(&mut r).unwrap();
+    scenario::create(&mut r).unwrap();
+    scenario::join(&mut r, M2, 2).unwrap();
+    r.w.run_for(60 * SEC);
+    for m in [M1, M2] {
+        r.w.ready[m] = true;
+        r.w.backup(m);
+        assert_eq!(r.w.backups[m].len(), 1);
+    }
+    r.w.put_back(M1, 0, Marks::Kept, true);
+    r.w.start(M1);
+    r.w.run_for(60 * SEC);
+    assert!(
+        r.signs(M1),
+        "m1 is still held: {:?}",
+        r.read(M1, goal_status(&r))
+    );
+    scenario::join(&mut r, M3, 3).unwrap();
+    r.w.run_for(60 * SEC);
+    r.w.put_back(M2, 0, Marks::Kept, true);
+    let member = r.w.restores.last().unwrap().clone();
+    assert_eq!(member.m, M2);
+    assert!(!host_missed_the_same_admission(&r, &member));
+    r.w.start(M2);
+    r.w.run_for(120 * SEC);
+    assert!(
+        r.signs(M2),
+        "m2 is still held: {:?}",
+        r.read(M2, goal_status(&r))
+    );
+    scenario::finding(&mut r, M2, "written after the restore").unwrap();
+    r.w.run_for(60 * SEC);
+    assert!(reuses(&r).is_empty(), "{:?}", reuses(&r));
 }
 
 /// m3's agent has signed nothing in the goal when m3 is put back with its

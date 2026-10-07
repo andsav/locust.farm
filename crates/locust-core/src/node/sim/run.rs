@@ -32,6 +32,10 @@ const HARD_STOP: Micros = 2 * 24 * 3_600 * SEC;
 pub struct Fail {
     pub step: &'static str,
     pub what: String,
+    /// Every invariant that broke follows from a position signed again
+    /// outside the claims ([`super::check::Violation::forked`]). Only the
+    /// final checks set it; a step that fails never does.
+    pub forked: bool,
 }
 
 /// One `goal.continue` the owner sent on machine `m`.
@@ -110,6 +114,7 @@ impl Run {
         Err(Fail {
             step: self.step,
             what: what.into(),
+            forked: false,
         })
     }
 

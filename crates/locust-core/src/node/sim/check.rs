@@ -2,9 +2,11 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use locust_proto::api::{BlobState, ErrorCode, Membership, Request, Response, Standing};
-use locust_proto::event::{Body, TaskId};
-use locust_proto::id::{EventId, PublicKey};
+use locust_proto::api::{
+    BlobState, ErrorCode, Halt, Membership, PendingWork, Request, Response, Standing,
+};
+use locust_proto::event::{Body, EffectAction, Event, TaskId};
+use locust_proto::id::{EffectId, EventId, PublicKey};
 use locust_proto::store::Store;
 
 use super::machine::Who;
@@ -136,10 +138,11 @@ pub fn reuses(r: &Run) -> Vec<Reuse> {
 ///   may have reached only the removed computer, and is given up once every
 ///   other computer has answered);
 /// - for an agent's key on a member's machine, a restore with the marks
-///   kept whose copy predates an admission that a restore of the host's
-///   computer also missed (residual 6: the member's copy does not wait for
-///   the computer it does not know, and no computer in the know could
-///   answer for it, so the give-up lowers the mark).
+///   kept whose copy predates an admission that the host's computer held
+///   and then lost to a restore of its own (the fourth case of risk (5):
+///   the member's copy does not wait for the computer it does not know, and
+///   no computer in the know could answer for it, so the give-up lowers the
+///   mark).
 ///
 /// It stays claimed for the governance key whatever the marks and the
 /// members admitted or removed since, and for the host's agent whenever
@@ -180,12 +183,15 @@ fn claimed(r: &Run, m: usize, governance: bool, records: &BTreeSet<EventId>) -> 
     !continued && !excluded
 }
 
-/// Residual 6: `restore` put a member's computer back with its marks kept
-/// to a copy that predates an admission, and the host's computer was itself
-/// restored to a copy that missed the same admission. The member's copy
-/// does not wait for the computer it does not know, and no computer in the
-/// know could answer for it, so the give-up lowers the mark.
-fn host_missed_the_same_admission(r: &Run, restore: &Restore) -> bool {
+/// The fourth case of risk (5): `restore` put a member's computer back with
+/// its marks kept to a copy that predates an admission, and the host's
+/// computer, which held that admission, was itself restored to a copy
+/// without it. The member's copy does not wait for the computer it does not
+/// know, and no computer in the know could answer for it, so the give-up
+/// lowers the mark. A host copy without the admission whose restore came
+/// before the admission existed is no such case: the host learns of the
+/// admission again and can answer for the admitted member.
+pub(super) fn host_missed_the_same_admission(r: &Run, restore: &Restore) -> bool {
     let goal = r.goal();
     let admissions: BTreeSet<EventId> =
         r.w.machines
@@ -201,20 +207,114 @@ fn host_missed_the_same_admission(r: &Run, restore: &Restore) -> bool {
             .collect();
     admissions.iter().any(|admission| {
         !restore.copy.contains(admission)
-            && r.w
-                .restores
-                .iter()
-                .any(|host| host.m == HOST && !host.copy.contains(admission))
+            && r.w.restores.iter().any(|host| {
+                host.m == HOST && host.before.contains(admission) && !host.copy.contains(admission)
+            })
     })
 }
 
-/// Every broken invariant, in words. Empty when all hold. Reads through the
-/// local API as each machine's principal, and the stores for event sets.
-/// `deep` also reads the artifact's bytes back instead of asking whether it
-/// is held, which is slow enough to do once.
-pub fn violations(r: &mut Run, deep: bool) -> Vec<String> {
+/// One broken invariant.
+#[derive(Clone, Debug)]
+pub struct Violation {
+    pub text: String,
+    /// It follows from a position signed again outside the claims: the
+    /// reused key's own halt, or records that stand on its reused records
+    /// (and the deliveries of their effects) not being effective. Anything
+    /// else, such as a record missing somewhere, never does.
+    pub forked: bool,
+}
+
+/// What a fork outside the claims explains: each record that stands on a
+/// reused record (the key's records from the reused position on, then every
+/// record whose previous record, typed dependency or effect evidence is one
+/// of these, or that acknowledges the delivery of an effect one of these
+/// materializes), those effects, and the reused keys.
+struct Forked {
+    keys: BTreeSet<PublicKey>,
+    events: BTreeSet<EventId>,
+    effects: BTreeSet<EffectId>,
+}
+
+impl Forked {
+    fn of(r: &Run) -> Self {
+        let mut from: BTreeMap<PublicKey, u64> = BTreeMap::new();
+        for reuse in reuses(r).into_iter().filter(|reuse| !reuse.claimed) {
+            let seq = from.entry(reuse.key).or_insert(reuse.seq);
+            *seq = (*seq).min(reuse.seq);
+        }
+        let goal = r.goal();
+        let mut all: BTreeMap<EventId, Event> = BTreeMap::new();
+        for machine in &r.w.machines {
+            let log = machine.store.log(&goal, 0, usize::MAX);
+            for (_, event) in log.expect("a memory store reads") {
+                all.entry(event.id()).or_insert(event);
+            }
+        }
+        let mut events: BTreeSet<EventId> = all
+            .iter()
+            .filter(|(_, event)| {
+                let header = event.header();
+                from.get(&header.author)
+                    .is_some_and(|seq| header.seq >= *seq)
+            })
+            .map(|(id, _)| *id)
+            .collect();
+        let mut effects = BTreeSet::new();
+        loop {
+            effects.extend(events.iter().filter_map(|id| match &all[id].header().body {
+                Body::EffectMaterialized { effect } => Some(effect.id(goal)),
+                _ => None,
+            }));
+            let more: Vec<EventId> = all
+                .iter()
+                .filter(|(id, event)| {
+                    !events.contains(*id)
+                        && (stands_on(event).iter().any(|on| events.contains(on))
+                            || matches!(
+                                &event.header().body,
+                                Body::DeliveryAcknowledged { effect } if effects.contains(effect)
+                            ))
+                })
+                .map(|(id, _)| *id)
+                .collect();
+            if more.is_empty() {
+                break;
+            }
+            events.extend(more);
+        }
+        Self {
+            keys: from.into_keys().collect(),
+            events,
+            effects,
+        }
+    }
+}
+
+/// The records `event` stands on: its author's previous record, its typed
+/// dependencies, and for a materialized effect its evidence and subject.
+fn stands_on(event: &Event) -> Vec<EventId> {
+    let header = event.header();
+    let mut on: Vec<EventId> = header.prev.into_iter().collect();
+    on.extend(header.body.dependencies());
+    if let Body::EffectMaterialized { effect } = &header.body {
+        on.extend(effect.evidence.iter().copied());
+        if let EffectAction::RequestReview { subject, .. } = effect.action {
+            on.push(subject);
+        }
+    }
+    on
+}
+
+/// Every broken invariant. Empty when all hold. Reads through the local API
+/// as each machine's principal, and the stores for event sets. `deep` also
+/// reads the artifact's bytes back instead of asking whether it is held,
+/// which is slow enough to do once.
+pub fn violations(r: &mut Run, deep: bool) -> Vec<Violation> {
     let mut bad = Vec::new();
     let goal = r.goal();
+    let forked = Forked::of(r);
+    // The violations that follow from the fork outside the claims.
+    let mut excused = Vec::new();
     let everyone: BTreeSet<_> = r.principals.iter().copied().collect();
     let reference = held(r, 0);
     // A record only a restored machine held is held nowhere now, and so is
@@ -305,7 +405,17 @@ pub fn violations(r: &mut Run, deep: bool) -> Vec<String> {
                     summary.membership == Membership::Member && summary.halted.is_none()
                 });
                 if !fine {
-                    bad.push(format!("{name} status lists the goal as {entry:?}"));
+                    let text = format!("{name} status lists the goal as {entry:?}");
+                    let halted_by_the_fork = entry.is_some_and(|summary| {
+                        summary.membership == Membership::Member
+                            && summary.halted == Some(Halt::SignerConflict)
+                            && forked.keys.contains(&summary.member)
+                    });
+                    if halted_by_the_fork {
+                        excused.push(text);
+                    } else {
+                        bad.push(text);
+                    }
                 }
             }
             other => bad.push(format!("{name} cannot show its status: {other:?}")),
@@ -317,9 +427,19 @@ pub fn violations(r: &mut Run, deep: bool) -> Vec<String> {
                 .collect::<BTreeMap<_, _>>()
         });
         if findings.as_ref() != Some(&expected_notes) {
-            bad.push(format!(
-                "{name} shows findings {findings:?}, expected {expected_notes:?}"
-            ));
+            let text = format!("{name} shows findings {findings:?}, expected {expected_notes:?}");
+            let only_forked = findings.as_ref().is_some_and(|found| {
+                found
+                    .keys()
+                    .chain(expected_notes.keys())
+                    .filter(|id| found.get(*id) != expected_notes.get(*id))
+                    .all(|id| forked.events.contains(id))
+            });
+            if only_forked {
+                excused.push(text);
+            } else {
+                bad.push(text);
+            }
         }
         if let (Some(task), Some(result)) = (r.task, r.result) {
             match r.read(m, Request::Task { goal, task }) {
@@ -388,10 +508,15 @@ pub fn violations(r: &mut Run, deep: bool) -> Vec<String> {
         match r.read(m, feed) {
             Some(Response::Events(views)) => {
                 for view in views.iter().filter(|v| v.standing != Standing::Effective) {
-                    bad.push(format!(
+                    let text = format!(
                         "{name} holds a {} event that is {:?}",
                         view.kind, view.standing
-                    ));
+                    );
+                    if forked.events.contains(&view.event) {
+                        excused.push(text);
+                    } else {
+                        bad.push(text);
+                    }
                 }
                 let listed: BTreeSet<_> = views.iter().map(|view| view.event).collect();
                 if listed != events {
@@ -406,18 +531,27 @@ pub fn violations(r: &mut Run, deep: bool) -> Vec<String> {
             }
             other => bad.push(format!("{name} cannot list events: {other:?}")),
         }
+        // Excused, a delivery of an effect that stands on the fork, or a
+        // review of a record that does, is left waiting.
+        let settled = |work: &PendingWork, excused: bool| {
+            work.ask_first.is_empty()
+                && work.to_start.is_empty()
+                && work.claimed.is_empty()
+                && work.held_elsewhere.is_empty()
+                && work.to_acknowledge.is_empty()
+                && work.deliveries.iter().all(|delivery| {
+                    delivery.acknowledged || (excused && forked.effects.contains(&delivery.effect))
+                })
+                && work.to_review.iter().all(|item| {
+                    expected_notes.contains_key(&item.subject)
+                        || (excused && forked.events.contains(&item.subject))
+                })
+        };
         match r.read(m, Request::Pending { goal }) {
-            Some(Response::Pending(work))
-                if work.ask_first.is_empty()
-                    && work.to_start.is_empty()
-                    && work.claimed.is_empty()
-                    && work.held_elsewhere.is_empty()
-                    && work.to_acknowledge.is_empty()
-                    && work.deliveries.iter().all(|delivery| delivery.acknowledged)
-                    && work
-                        .to_review
-                        .iter()
-                        .all(|item| expected_notes.contains_key(&item.subject)) => {}
+            Some(Response::Pending(work)) if settled(&work, false) => {}
+            Some(Response::Pending(work)) if settled(&work, true) => {
+                excused.push(format!("{name} still has pending work: {work:?}"));
+            }
             other => bad.push(format!("{name} still has pending work: {other:?}")),
         }
     }
@@ -436,7 +570,22 @@ pub fn violations(r: &mut Run, deep: bool) -> Vec<String> {
             reuse.describe(r)
         ));
     }
-    bad
+    let plain = bad.into_iter().map(|text| Violation {
+        text,
+        forked: false,
+    });
+    let explained = excused
+        .into_iter()
+        .map(|text| Violation { text, forked: true });
+    plain.chain(explained).collect()
+}
+
+/// The violations in words, for a failure, and whether every one follows
+/// from the fork outside the claims.
+fn failure(violations: &[Violation]) -> (String, bool) {
+    let text: Vec<&str> = violations.iter().map(|v| v.text.as_str()).collect();
+    let forked = !violations.is_empty() && violations.iter().all(|v| v.forked);
+    (text.join("; "), forked)
 }
 
 /// Claims and generations: the claim lives only where it was taken, at the
@@ -499,7 +648,6 @@ pub fn settle(r: &mut Run) -> Result<Micros, Fail> {
         r.release(m);
     }
     let healed = r.w.now;
-    let mut last = Vec::new();
     let mut looked = 0;
     loop {
         // Review requests remain durable until the intended local recipient
@@ -528,20 +676,20 @@ pub fn settle(r: &mut Run) -> Result<Micros, Fail> {
         // the API follows once they agree, then every few seconds.
         if same_events(r) && (looked == 0 || r.w.now >= looked + 5 * SEC) {
             looked = r.w.now;
-            last = violations(r, false);
-            if last.is_empty() {
+            if violations(r, false).is_empty() {
                 break;
             }
         }
         if r.w.now - healed >= PATIENCE {
-            if last.is_empty() {
-                last = violations(r, false);
-            }
-            return r.fail(format!(
-                "not quiet {} s after the last fault ended: {}",
-                PATIENCE / SEC,
-                last.join("; ")
-            ));
+            let (text, forked) = failure(&violations(r, false));
+            return Err(Fail {
+                step: r.step,
+                what: format!(
+                    "not quiet {} s after the last fault ended: {text}",
+                    PATIENCE / SEC
+                ),
+                forked,
+            });
         }
         r.w.run_for(SEC);
     }
@@ -554,10 +702,12 @@ pub fn settle(r: &mut Run) -> Result<Micros, Fail> {
     }
     let later = violations(r, true);
     if !later.is_empty() {
-        return r.fail(format!(
-            "an invariant broke while quiet: {}",
-            later.join("; ")
-        ));
+        let (text, forked) = failure(&later);
+        return Err(Fail {
+            step: r.step,
+            what: format!("an invariant broke while quiet: {text}"),
+            forked,
+        });
     }
     Ok(converged)
 }

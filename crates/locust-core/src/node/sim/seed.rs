@@ -123,8 +123,10 @@ pub struct Report {
     /// Each position signed again, in words.
     pub reused: Vec<String>,
     /// The run signed a used position where the plan claims nothing, and
-    /// failed after it. What follows such a reuse is the fork the plan
-    /// accepts, so the failure is not the run's: it counts as a residual.
+    /// every invariant that broke follows from it: a halt of the key, or a
+    /// record that stands on its reused records and is not effective. That
+    /// is the fork the plan accepts, so the failure is not the run's: it
+    /// counts as a residual.
     pub residual: bool,
 }
 
@@ -246,6 +248,7 @@ pub fn run_seed(seed: u64, options: Options) -> Report {
             Err(Fail {
                 step: r.step,
                 what: format!("panic: {text}"),
+                forked: false,
             })
         }
     };
@@ -255,7 +258,11 @@ pub fn run_seed(seed: u64, options: Options) -> Report {
         Vec::new()
     };
     let claimed: Vec<_> = found.iter().filter(|reuse| reuse.claimed).collect();
-    let residual = result.is_err() && !found.is_empty() && claimed.is_empty();
+    // Residual only when every broken invariant follows from the positions
+    // signed again outside the claims: a timeout, a hold that never ends, a
+    // lost record or a panic beside such a reuse is still a failure.
+    let residual =
+        matches!(&result, Err(fail) if fail.forked) && !found.is_empty() && claimed.is_empty();
     if let (Err(fail), Some(first)) = (&mut result, claimed.first()) {
         // Whatever failed first, the reuse is what broke.
         fail.what = format!(
@@ -308,6 +315,12 @@ pub fn describe(report: &Report) -> String {
     }
     for reuse in &report.reused {
         text.push_str(&format!("\n  reused {reuse}"));
+    }
+    if report.residual {
+        text.push_str(
+            "\n  residual: every broken invariant follows from a position signed again \
+             outside the claims",
+        );
     }
     text
 }
