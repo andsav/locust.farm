@@ -1997,3 +1997,151 @@ fn records_that_return_raise_the_mark() {
     assert!(summary(&mut net.nodes[1], goal, member).guard.is_empty());
     post(&mut net, 1, 2, goal).unwrap();
 }
+
+/// The data directory is lost or moved aside, and the daemon starts once on
+/// a new, empty store beside the marks it kept. That start keeps them: when
+/// the old directory is put back from an older copy, its agent is behind
+/// until the record the copy lacks returns, and then signs at the next
+/// position.
+#[test]
+fn a_start_on_a_new_store_keeps_the_marks_a_later_restore_needs() {
+    let mut net = Network::with(2);
+    let (goal, host) = hosted(&mut net, 0, HOST);
+    join(&mut net, 0, 1, goal, 2);
+    let copy = snapshot(&net.nodes[0].store);
+    let lost = posted(&mut net, 0, HOST, goal);
+    settle(&mut net);
+    let signed = signed_by(&net.nodes[1], goal, host);
+    let kept = mark(&net.nodes[0], goal, host).unwrap();
+    net.down.insert(1);
+
+    // A new data directory, beside the marks of the old one.
+    let marks = net.nodes[0].store.marks_handle();
+    net.start_over(0, MemStore::new().with_marks(marks));
+    assert!(net.nodes[0].node.goals.is_empty());
+    assert_eq!(mark(&net.nodes[0], goal, host), Some(kept));
+
+    // The old directory put back from the copy.
+    net.start_over(0, copy);
+    assert_eq!(code(post(&mut net, 0, HOST, goal)), ErrorCode::ReadOnly);
+    let view = status(&mut net.nodes[0], goal);
+    assert_eq!(
+        reasons(&view.guard),
+        [(
+            host,
+            GuardReason::Behind {
+                held: lost.header().seq,
+                signed
+            }
+        )]
+    );
+    assert_eq!(view.restored, Some(0));
+
+    net.down.clear();
+    settle(&mut net);
+    assert!(status(&mut net.nodes[0], goal).guard.is_empty());
+    let after = posted(&mut net, 0, HOST, goal);
+    assert_eq!(after.header().seq, signed);
+    settle(&mut net);
+    for daemon in &net.nodes {
+        assert_eq!(daemon.node.goals[&goal].goal.fork_point(&host), None);
+    }
+}
+
+/// A new data directory whose daemon joins a goal the old one was in again,
+/// with a new agent, beside the marks the old one left. The old agent's mark
+/// names a record no computer gave back. It is not this daemon's key, so it
+/// neither makes a later start look overwritten nor is given up when every
+/// computer has answered: it still holds the old agent if the old directory
+/// is put back.
+#[test]
+fn marks_a_replaced_store_left_hold_no_key_of_the_new_one() {
+    let mut net = Network::with(2);
+    let (goal, _) = hosted(&mut net, 0, HOST);
+    let old = join(&mut net, 0, 1, goal, 2);
+    net.down.insert(0);
+    posted(&mut net, 1, 2, goal);
+    let kept = mark(&net.nodes[1], goal, old).unwrap();
+
+    let marks = net.nodes[1].store.marks_handle();
+    net.start_over(1, MemStore::new().with_marks(marks));
+    let now = PeerTime {
+        unix_ms: net.now,
+        elapsed_ms: net.now,
+    };
+    net.nodes[1].node.peer(
+        PeerInput::Endpoint {
+            endpoint: Network::endpoint(1),
+            hints: vec![],
+        },
+        now,
+        &mut Vec::new(),
+    );
+    net.down.clear();
+    let new = join(&mut net, 0, 1, goal, 3);
+    settle(&mut net);
+    assert!(!net.nodes[1].store.has_event(&kept.point.id).unwrap());
+    assert!(status(&mut net.nodes[1], goal).guard.is_empty());
+    assert_eq!(mark(&net.nodes[1], goal, old), Some(kept));
+
+    net.start_over(1, net.nodes[1].store.reopen());
+    let view = status(&mut net.nodes[1], goal);
+    assert_eq!(view.restored, None);
+    assert!(view.guard.is_empty(), "{:?}", view.guard);
+    settle(&mut net);
+    post(&mut net, 1, 3, goal).unwrap();
+    assert!(net.nodes[1].node.goals[&goal].is_member(&new));
+    assert_eq!(mark(&net.nodes[1], goal, old), Some(kept));
+}
+
+/// A goal made after a restore, while another is still behind, is not found
+/// restored by a restart: its pending invitation stands and admits.
+#[test]
+fn a_restart_while_behind_keeps_the_invitations_of_a_goal_made_since() {
+    let mut net = Network::with(2);
+    let (behind, host) = hosted(&mut net, 0, HOST);
+    join(&mut net, 0, 1, behind, 2);
+    let copy = snapshot(&net.nodes[0].store);
+    posted(&mut net, 0, HOST, behind);
+    settle(&mut net);
+    net.down.insert(1);
+    net.start_over(0, copy);
+    assert_eq!(code(post(&mut net, 0, HOST, behind)), ErrorCode::ReadOnly);
+    assert_eq!(status(&mut net.nodes[0], behind).restored, Some(0));
+
+    let owner = net.nodes[0].owner();
+    let Response::GoalCreated { goal: since } = net.nodes[0].ok(
+        owner,
+        Request::GoalCreate {
+            name: "host".into(),
+            agent: host,
+            title: "Since".into(),
+            formation_json: Some(peer_review()),
+            inputs: Default::default(),
+        },
+    ) else {
+        panic!()
+    };
+    let ticket = invite(&mut net.nodes[0], since);
+    net.start_over(0, net.nodes[0].store.reopen());
+
+    assert_eq!(code(post(&mut net, 0, HOST, behind)), ErrorCode::ReadOnly);
+    assert_eq!(status(&mut net.nodes[0], behind).restored, Some(0));
+    let view = status(&mut net.nodes[0], since);
+    assert_eq!(view.restored, None);
+    assert!(view.guard.is_empty(), "{:?}", view.guard);
+    let states: Vec<_> = invitations(&mut net.nodes[0], since)
+        .iter()
+        .map(|invitation| invitation.state)
+        .collect();
+    assert_eq!(states, [InvitationState::Pending]);
+    let late = net.nodes[0].enroll("late", 6);
+    let owner = net.nodes[0].owner();
+    assert!(matches!(
+        net.nodes[0].ok(owner, join_request(late, ticket)),
+        Response::Joined {
+            membership: Membership::Member,
+            ..
+        }
+    ));
+}

@@ -276,6 +276,19 @@ impl<S: Store, E: Entropy> Node<S, E> {
         keys
     }
 
+    /// The marks of a goal whose key this daemon signs with: a local
+    /// principal's, or the governance key where this daemon hosts the goal.
+    /// Any other mark was written by a data directory this one replaced. It
+    /// is kept, never lowered, and never read here: it holds that
+    /// directory's key if that directory is put back.
+    fn own_marks(&self, entry: &Entry) -> BTreeMap<(GoalId, PublicKey), Mark> {
+        let hosted = self.hosted_governance(entry);
+        of_goal(&self.guard.marks, entry.id())
+            .into_iter()
+            .filter(|((_, key), _)| self.principals.holds(key) || hosted == Some(*key))
+            .collect()
+    }
+
     /// What lowers the mark of `key` to the end of the key's usable log: the
     /// record the table gives up is then no longer asked for.
     fn lowered(entry: &Entry, key: &PublicKey, mark: &Mark) -> MarkWrite {
@@ -304,7 +317,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         let heard = self.heard(&goal);
         let hosts = self.hosts(entry);
         let governance = entry.state().governance;
-        let mut marks = of_goal(&self.guard.marks, goal);
+        let mut marks = self.own_marks(entry);
         let mut ended = false;
         let mut lowered_keys = BTreeSet::new();
 
@@ -435,28 +448,32 @@ impl<S: Store, E: Entropy> Node<S, E> {
         if self.identity.file != Some(found.file) {
             tx.local(Identity::file_write(&found.file));
         }
+        // A new store holds nothing and no key of it has signed. Marks found
+        // beside it are kept: they name keys of the data directory this one
+        // replaced, and are what holds those keys if that directory is put
+        // back from an older copy. No key of the new store signs under them
+        // (`own_marks`).
         let new =
             self.identity.file.is_none() && self.goals.values().all(|entry| entry.goal.is_empty());
         if new {
-            // Marks beside a new store were written for another one.
-            for mark in std::mem::take(&mut self.guard.marks).into_values() {
-                tx.commit.marks.push(MarkWrite::Clear {
-                    goal: mark.goal,
-                    key: mark.key,
-                });
-            }
             return self.land_once(tx);
         }
         let same_file = self.identity.file == Some(found.file);
-        // A goal the store does not hold at all is left out: its marks stay
-        // as the only memory of it, and would otherwise make every later
-        // start look overwritten.
+        // Only a mark of a key this daemon signs with can show the file was
+        // overwritten. A goal the store does not hold at all is left out: its
+        // marks stay as the only memory of it. So is a goal that already
+        // holds its `RESTORED` record: it was found restored, and may still
+        // be catching up. Either would otherwise make every later start look
+        // overwritten, and find restored a goal made since.
         let ahead = || {
-            self.guard.marks.values().any(|mark| {
-                self.goals
-                    .get(&mark.goal)
-                    .is_some_and(|entry| !entry.goal.holds(&mark.point.id))
-            })
+            self.goals
+                .values()
+                .filter(|entry| entry.local.restored.is_none())
+                .any(|entry| {
+                    self.own_marks(entry)
+                        .values()
+                        .any(|mark| !entry.goal.holds(&mark.point.id))
+                })
         };
         let start = match (found.kept.is_some(), same_file) {
             (true, true) if ahead() => Start::Overwritten,
@@ -481,9 +498,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                         .local
                         .restored
                         .is_some_and(|restored| restored.unheard)
-                        && of_goal(&self.guard.marks, entry.id())
-                            .values()
-                            .any(|mark| mark.unheard)
+                        && self.own_marks(entry).values().any(|mark| mark.unheard)
                 })
                 .map(|entry| entry.id())
                 .collect()
@@ -714,7 +729,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
             .local
             .restored
             .is_some_and(|restored| restored.unheard);
-        for (key, mark) in of_goal(&self.guard.marks, goal)
+        for (key, mark) in self
+            .own_marks(entry)
             .into_iter()
             .map(|((_, key), mark)| (key, mark))
         {

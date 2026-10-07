@@ -1750,7 +1750,7 @@ wrote, and is the database the file last used.
 
 | Marks | Database | The start is | What follows |
 | --- | --- | --- | --- |
-| kept | the file last used | ordinary | nothing is held. If a mark is ahead of the store all the same, the database was overwritten in place; one file holds every goal, so every goal is treated as in the next row, not only the one whose mark is ahead |
+| kept | the file last used | ordinary | nothing is held. If a mark is ahead of the store all the same, the database was overwritten in place; one file holds every goal, so every goal is treated as in the next row, not only the one whose mark is ahead. Only a mark of a key this computer signs with, in a goal that holds no `RESTORED` record, counts: a goal already found restored may still be catching up |
 | kept | another file | the data directory was replaced by a copy | each key whose mark is ahead of the store is behind; where that key is the governance key, every agent's key in that goal on this computer is held with it; every other key signs at once |
 | lost, or a copy | the file last used | ordinary | nothing is held; the marks are written again from the store. One exception: in a goal that still holds its `RESTORED` record, every local key is unheard, as in the row below |
 | lost, or a copy | another file | a copy of unknown age | every key this daemon holds is unheard in every goal; the marks are written again from the store |
@@ -1763,7 +1763,10 @@ member's computer the hold ends when the host's computer is heard. In the
 second and fourth rows, and for every goal when the database was
 overwritten in place, `restore_found` runs once per goal (below): the
 overwrite rolled the whole file back, not only the goal whose mark is
-ahead. The marks are also lost when
+ahead. A mark of a key this computer does not sign with was written by a
+data directory this one replaced. It is kept, never lowered and never read:
+it holds that directory's key if the directory is put back from a copy.
+The marks are also lost when
 their file holds a record whose checksum fails. A torn write then leads to the
 third or the fourth row, never to a key with no mark that signs at once.
 
@@ -2060,8 +2063,8 @@ second or the third "caught up".
   where the start is ordinary and no key of this daemon is held in the goal;
   and `file` when it changed. That commit syncs the marks like any other, so a
   mark raised here is on disk before the first exchange. A store that holds no
-  goal and no file record is new: `file` is written and nothing is held. The
-  parameter `_now_ms` becomes `now_ms`.
+  goal and no file record is new: `file` is written, nothing is held, and the
+  marks found beside it are kept. The parameter `_now_ms` becomes `now_ms`.
 - [authoring.rs](../crates/locust-core/src/node/authoring.rs): `next_place`
   asks `hold` after its membership test, which K1 skips for the governance
   key, and before `Goal::next`. For `Behind` and `Unheard` it answers

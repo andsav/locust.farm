@@ -83,10 +83,14 @@ read, not edited. G2 owns the words a person reads; the words here are interim.
 3. The plan counts 25 callers of `SqliteStore::open`; there are fewer. Every
    one passes a marks directory.
 4. A store that holds no goal and has no file record is new. Marks found beside
-   it are cleared, since the keys they name live in the data directory and no
-   key the new store holds can sign under them. A goal the store does not hold
-   at all is left out of the overwritten-in-place test, so its old marks do
-   not make every later start look overwritten.
+   it are kept: they hold the old directory's keys if it is put back from an
+   older copy ([review](v2-phase-g1-review-2026-10-07.md) finding 1;
+   `a_start_on_an_empty_home_keeps_the_marks_a_later_restore_needs`). The
+   guard reads only the marks of keys this daemon signs with, so they hold no
+   key of the new store and are never lowered. A goal the store does not hold
+   at all, or that already holds its `RESTORED` record, is left out of the
+   overwritten-in-place test, so its marks do not make every later start look
+   overwritten (finding 5).
 5. With the marks lost and a goal still holding its `RESTORED` record, the
    goal's keys become unheard as the plan says, and its marks are also
    rewritten from the store's tips; the unheard hold covers the goal until it

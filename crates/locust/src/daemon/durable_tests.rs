@@ -1,4 +1,5 @@
 //! The production assembly over real SQLite, Unix sockets and local Iroh.
+use std::os::unix::fs::DirBuilderExt;
 use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -1250,6 +1251,92 @@ fn an_older_directory_is_held_until_its_later_events_return_for_an_agent_record(
 #[test]
 fn an_older_directory_is_held_until_its_later_events_return_for_a_governance_record() {
     an_older_directory_is_held_until_its_later_events_return(Lost::Governance);
+}
+
+/// The data directory is moved aside and the daemon starts once on the
+/// empty home, beside the marks it kept. Put back from an older copy, the
+/// directory is held: the marks still name the agent's record the copy
+/// lacks. Moved back as it was, it is an ordinary start.
+#[test]
+fn a_start_on_an_empty_home_keeps_the_marks_a_later_restore_needs() {
+    let (original, member_home, backup, aside) =
+        (short_dir(), short_dir(), short_dir(), short_dir());
+    let mut host = Running::start(original.path());
+    let mut member = Running::start(member_home.path());
+    let shared = shared_goal(&host, &member);
+    let goal = shared.goal;
+    member.stop();
+    host.stop();
+    copy_stopped_home(original.path(), backup.path());
+
+    let mut host = Running::start(original.path());
+    let old_id = task_open(
+        &mut host.client(Credential([1; 32]), None),
+        goal,
+        "After the copy",
+    )
+    .unwrap();
+    host.stop();
+    let marks = local::marks_dir(original.path());
+    let old = header(original.path(), &marks, old_id);
+
+    // Moved aside on the same volume; the daemon starts on an empty home.
+    let parked = aside.path().join("home");
+    std::fs::rename(original.path(), &parked).unwrap();
+    let empty = |home: &Path| {
+        std::fs::DirBuilder::new().mode(0o700).create(home).unwrap();
+    };
+    empty(original.path());
+    let mut fresh = Running::start(original.path());
+    fresh.stop();
+
+    // The data directory put back from the copy.
+    std::fs::remove_dir_all(original.path()).unwrap();
+    empty(original.path());
+    copy_stopped_home(backup.path(), original.path());
+    let mut restored = Running::start(original.path());
+    let status = goal_status(&mut restored.owner(), goal);
+    assert_eq!(status.restored, Some(0), "{status:?}");
+    assert_eq!(
+        status.guard,
+        vec![GuardView {
+            key: shared.host_agent,
+            by_host: false,
+            reason: GuardReason::Behind {
+                held: old.seq,
+                signed: old.seq + 1,
+            },
+            heard: vec![],
+            waiting: vec![endpoint_of(&status, shared.member_agent)],
+        }]
+    );
+    assert_refused(
+        task_open(
+            &mut restored.client(Credential([1; 32]), None),
+            goal,
+            "Held",
+        ),
+        ErrorCode::ReadOnly,
+    );
+    restored.stop();
+
+    // The directory moved back as it was holds every marked record.
+    std::fs::remove_dir_all(original.path()).unwrap();
+    std::fs::rename(&parked, original.path()).unwrap();
+    let mut host = Running::start(original.path());
+    let status = goal_status(&mut host.owner(), goal);
+    assert!(status.guard.is_empty(), "{status:?}");
+    assert_eq!(status.restored, None, "{status:?}");
+    let new_id = task_open(
+        &mut host.client(Credential([1; 32]), None),
+        goal,
+        "Moved back",
+    )
+    .unwrap();
+    host.stop();
+    let new = header(original.path(), &marks, new_id);
+    assert_eq!(new.seq, old.seq + 1);
+    assert_eq!(new.prev, Some(old_id));
 }
 
 #[test]
