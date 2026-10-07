@@ -4437,7 +4437,9 @@ configurations under `research/tla/configs`, its entries in
 scripts/check_tla.py --suite restore`. It is a node model, not a change to
 Organization.tla: the guard is not a validity rule. Two keys on one daemon
 (the governance key and one agent key), that daemon and two peers, one
-admission and one removal allowed, bounded log length. Actions: Sign,
+admission and one removal allowed (a second only after Continue, which
+only the override trace and E2's leave trace enable), bounded log length.
+Actions: Sign,
 Admit, Remove, Sync(a, b) with an order in which a member's records can
 arrive before the admission that names it and are then dropped, Copy,
 RestoreStore (store back, marks kept), RestoreAll (both back), LoseMarks,

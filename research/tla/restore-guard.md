@@ -8,7 +8,9 @@ and [owner decisions](../../docs/master-plan.md) remain unchanged.
 
 The [retained results and full counterexample states](restore-guard-results.json)
 identify the executed module/configuration hashes, pinned TLC/JDK, counts and
-expected outcomes. These are finite model checks, not Rust conformance, filesystem
+expected outcomes. They predate E2's `Leave` action and the 2026-10-07 review
+fixes; the runs after those fixes are recorded in the
+[organization evidence](../evidence/tla/organization/README.md). These are finite model checks, not Rust conformance, filesystem
 identity measurements or a proof for arbitrary log lengths.
 
 ## State and actions
@@ -24,7 +26,9 @@ Distinct signatures at one position represent different signed bodies.
 
 `Sign`, `Admit` and `Remove` update the owning store and its marks atomically.
 There is at most one new admission and one removal, in either order; the initial
-membership is a configuration input. `Copy` separately remembers the local
+membership is a configuration input. A second removal is allowed only after
+`Continue`, which only `continue-override` and `leave` enable; no claimed
+safety or liveness case can sign two. `Copy` separately remembers the local
 store and marks. `RestoreStore` retains valid installation marks;
 `RestoreAll` restores both snapshots and invalidates their file identity.
 `LoseMarks` followed by `Start` on the unchanged database reconstructs marks
@@ -92,9 +96,17 @@ Deadlock checking is disabled because waiting while held is intentional.
 retained governance fork. It is a reachability demonstration, not a safety claim.
 
 `restore-leave` (E2) models a restored host whose only other computer belongs to a
-member that left. While held, the restored host signs no removal; the exchange with
-that leaver peer runs to its end, and after `continue` releases the host, the removal
-the host signs matches the record it signed before restoration (`RemovalMatchesBefore`).
+member that left. `Leave` records the leaver, and `Remove` of that member waits
+until an exchange with its computer, opened by the running process, has ended
+(`asked`, which `Start` clears), as E2's one-exchange rule says. The trace is
+copy, leave, exchange, removal, restore of the store, start, exchange, continue,
+removal. After the restore the governance mark names the lost removal, so the
+host stays held; nothing releases it (`Settle` is never enabled, since the
+leaver's computer never received the removal), and only `continue` ends the
+hold. The re-signed removal must equal the first (`RemovalMatchesBefore`).
+`restore-leave-witness` negates "the program ran to its end with two removals"
+(`NeverTwoRemovals`) and must reach that state, so the property is checked on
+a history that holds both removals rather than on one compared with itself.
 
 ## Liveness and runner contract
 

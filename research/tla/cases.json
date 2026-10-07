@@ -5233,6 +5233,35 @@
         "status": "proposed-restore-guard-v2-before-implementation",
         "specification": "docs/host-safety-and-ending-plan.md: Models written first; G1 and G2"
       }
+    },
+    {
+      "id": "restore-leave-witness",
+      "suite": [
+        "fast",
+        "extended",
+        "restore"
+      ],
+      "module": "RestoreGuard.tla",
+      "config": "configs/restore-leave-witness.cfg",
+      "expect": "violation",
+      "kind": "proposed-counterexample",
+      "properties": [
+        "TypeOK",
+        "NoFork",
+        "RemovalMatchesBefore",
+        "NeverTwoRemovals"
+      ],
+      "violation": "NeverTwoRemovals",
+      "trace_require": [
+        {
+          "phase": "11"
+        }
+      ],
+      "model_baseline": {
+        "source_commit": "03fe83081056d6e29a0cfc47a819ceaade7d5e75",
+        "status": "proposed-restore-guard-v2-before-implementation",
+        "specification": "docs/host-safety-and-ending-plan.md: Models written first; G1 and G2"
+      }
     }
   ]
 }

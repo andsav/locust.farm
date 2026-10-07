@@ -7,7 +7,9 @@ EXTENDS Naturals, Sequences, FiniteSets, TLC
    record stage: agent records precede governance and are dropped if the agent's
    admission is absent at its start. A second exchange can therefore add data.
    File identities are abstract facts, not a filesystem qualification.
-   One copy/restore, one admission/removal, bounded signatures; no clock. *)
+   One copy/restore, one admission and one removal, bounded signatures; no
+   clock. A second removal is possible only after Continue, which only the
+   override and leave traces enable. *)
 CONSTANTS Host, InitialPeers, InitialAgent, MaxRecords, Scenario, Mutation,
           RestoreKind, AllowContinue
 L == "local"
@@ -54,7 +56,7 @@ Init ==
          didRemove |-> FALSE, removedAfterCopy |-> FALSE,
          continued |-> FALSE, last |-> "init", signedKey |-> "none",
          signedHeld |-> FALSE, gaveHeld |-> FALSE, ordinaryBad |-> FALSE,
-         didLeave |-> FALSE]
+         left |-> "none", asked |-> FALSE]
  /\ phase = 0 /\ forkG = FALSE /\ forkA = FALSE
  /\ reusedG = FALSE /\ reusedA = FALSE /\ agentWhileHeld = FALSE
  /\ gaveWhileHeld = FALSE /\ ordinaryHeld = FALSE
@@ -84,12 +86,14 @@ Admit(p) == /\ ~s.didAdmit
     ELSE /\ p \in Peers \ Members(s.hist,s.db[Host])
          /\ SignRecord("gov","admit",Members(s.hist,s.db[Host]) \cup {p},
                        Admitted(s.hist,s.db[Host]))
+(* E2: the host signs the removal that follows a leave only once an exchange
+   with the leaver's computer, opened by this process, has ended. *)
 Remove(p) == /\ (~s.didRemove \/ s.continued) /\ p \in Members(s.hist,s.db[Host])
- /\ p # Host
+ /\ p # Host /\ (s.left # p \/ s.asked)
  /\ SignRecord("gov","remove",Members(s.hist,s.db[Host]) \ {p},
                Admitted(s.hist,s.db[Host]))
-Leave(p) == /\ ~s.didLeave /\ p \in Members(s.hist,s.db[Host]) /\ p # Host
-            /\ s' = [s EXCEPT !.didLeave = TRUE, !.last = Observe("leave")]
+Leave(p) == /\ s.left = "none" /\ p \in Members(s.hist,s.db[Host]) /\ p # Host
+            /\ s' = [s EXCEPT !.left = p, !.asked = FALSE, !.last = Observe("leave")]
 Copy == /\ s.running /\ ~s.copied
  /\ s' = [s EXCEPT !.copyDB = s.db[L], !.copyMarks = s.marks,
           !.copyShared = s.shared, !.copied = TRUE, !.last = Observe("copy")]
@@ -100,7 +104,6 @@ Restore(kind) == /\ s.copied /\ s.restored = "none"
        !.shared = IF kind = "all" THEN s.copyShared ELSE @,
        !.sameFile = FALSE, !.kept = (kind # "all" /\ s.kept),
        !.running = FALSE, !.reachable = {}, !.heard = {}, !.pending = "none",
-       !.didRemove = FALSE,
        !.last = Observe("restore")]
 RestoreStore == Restore("store")
 RestoreAll == Restore("all")
@@ -119,7 +122,7 @@ Start == /\ ~s.running
     IN s' = [s EXCEPT !.marks = marks, !.unheard = u,
         !.shared = IF s.kept THEN @ ELSE \E i \in s.db[L] : s.hist[i].members # {},
         !.kept = TRUE, !.sameFile = TRUE, !.running = TRUE,
-        !.heard = {}, !.pending = "none", !.last = Observe("start"),
+        !.heard = {}, !.pending = "none", !.asked = FALSE, !.last = Observe("start"),
         !.ordinaryBad = ordinary /\ (u \/ \E k \in Own : marks[k] # 0 /\ marks[k] \notin s.db[L])]
 
 (* Reachability is eventually permanent; honest peers send everything they hold
@@ -145,6 +148,7 @@ Sync(a,b) ==
 Hear == /\ s.pending # "none"
  /\ s' = [s EXCEPT !.heard = IF ~s.brought \/ Mutation = "hear-data"
                              THEN @ \cup {s.pending} ELSE @,
+          !.asked = @ \/ s.pending = s.left,
           !.pending = "none", !.brought = FALSE, !.last = Observe("hear")]
 Settle == /\ s.running
  /\ LET allHeard == Sources(s) \subseteq s.heard
@@ -197,11 +201,11 @@ Program == CASE Scenario = "lacking" ->
  [] Scenario = "give-recover" -> <<"copy","g","LP","a","store","start">>
  [] Scenario = "alone" -> <<"copy","g","a","store","start">>
  [] Scenario = "override" -> <<"copy","g","LP","all","start","continue","g">>
- [] Scenario = "leave" -> <<"copy","leave","removeP","store","start","PL","hear","settle","continue","removeP">>
+ [] Scenario = "leave" -> <<"copy","leave","PL","hear","removeP","store","start","PL","hear","continue","removeP">>
  [] OTHER -> <<>>
 Command(c) == CASE c = "copy" -> Copy [] c = "g" -> Sign("gov") [] c = "a" -> Sign("agent")
  [] c = "admitQ" -> Admit(Q) [] c = "admitA" -> Admit("agent") [] c = "removeP" -> Remove(P)
- [] c = "leave" -> Leave(P) [] c = "leaveP" -> Leave(P)
+ [] c = "leave" -> Leave(P)
  [] c = "LQ" -> Sync(L,Q) [] c = "LP" -> Sync(L,P) [] c = "PL" -> Sync(P,L) [] c = "QL" -> Sync(Q,L)
  [] c = "store" -> RestoreStore [] c = "all" -> RestoreAll [] c = "start" -> Start
  [] c = "hear" -> Hear [] c = "settle" -> Settle [] c = "continue" -> Continue
@@ -272,4 +276,9 @@ RemovalMatchesBefore ==
        s.hist[i].pos = s.hist[j].pos /\
        s.hist[i].members = s.hist[j].members /\
        s.hist[i].admitted = s.hist[j].admitted)
+(* Witness that the leave trace runs to its end with two removals, so
+   RemovalMatchesBefore compares the re-signed removal with the first. *)
+TwoRemovals == /\ phase = Len(Program)
+ /\ Cardinality({i \in 1..Len(s.hist) : s.hist[i].kind = "remove"}) = 2
+NeverTwoRemovals == ~TwoRemovals
 =============================================================================
