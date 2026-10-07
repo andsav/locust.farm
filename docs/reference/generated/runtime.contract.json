@@ -14590,7 +14590,7 @@
             "description": "How that agent stands in the goal."
           },
           "name": {
-            "description": "The agent's name in the goal; its local name until admitted.",
+            "description": "The agent's name in the goal; the name asked for until admitted.",
             "type": "string"
           },
           "title": {
@@ -16261,7 +16261,7 @@
         "oneOf": [
           {
             "additionalProperties": false,
-            "description": "The agent tried to take a task and its level refused.",
+            "description": "The agent tried to take a task and its level, ask, refused.",
             "properties": {
               "allow_task": {
                 "properties": {
@@ -16283,6 +16283,33 @@
             },
             "required": [
               "allow_task"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "The agent tried to take a task while set to read; an allowance would\nnot help, so the command sets it to ask.",
+            "properties": {
+              "set_ask": {
+                "properties": {
+                  "task": {
+                    "$ref": "#/$defs/TaskId"
+                  },
+                  "task_title": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "task"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "set_ask"
             ],
             "type": "object"
           }

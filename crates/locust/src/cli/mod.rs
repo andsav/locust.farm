@@ -740,7 +740,7 @@ pub(super) fn disconnected_agent(agent: &locust_proto::api::AgentView) -> String
     format!(
         "{} is disconnected. Connect it again: locust --owner agent reconnect --agent {}",
         presentation::safe(&agent.name),
-        agent.agent
+        locust_proto::api::shell_word(&agent.name)
     )
 }
 fn create_session(path: &str) -> Result<Output, Failure> {

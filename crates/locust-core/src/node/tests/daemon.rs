@@ -207,6 +207,41 @@ fn status_shows_the_owner_every_principal_and_an_agent_only_itself() {
         unreachable!()
     };
     assert_eq!(status.goals[0].invitations_open, 0);
+
+    // With two local agents in the goal, each sees only its own entry and
+    // its own waiting line; the owner sees both entries.
+    let (task, offer) = super::lifecycle::offered(&mut d, agent, goal, principal);
+    assert_eq!(
+        d.call(
+            agent,
+            Request::AttemptStart {
+                goal,
+                task,
+                offer: Some(offer),
+            },
+        )
+        .unwrap_err()
+        .code,
+        ErrorCode::LevelRequired
+    );
+    let (second, second_conn) = super::authorization::join_local(&mut d, agent, goal, 2);
+    let Response::Status(status) = d.ok(second_conn, Request::Status) else {
+        unreachable!()
+    };
+    assert_eq!(status.goals.len(), 1);
+    assert_eq!(status.goals[0].member, second);
+    assert!(status.waiting.is_empty());
+    let Response::Status(status) = d.ok(agent, Request::Status) else {
+        unreachable!()
+    };
+    assert_eq!(status.goals.len(), 1);
+    assert_eq!(status.goals[0].member, principal);
+    assert_eq!(status.waiting.len(), 1);
+    let Response::Status(status) = d.ok(owner, Request::Status) else {
+        unreachable!()
+    };
+    assert_eq!(status.goals.len(), 2);
+    assert_eq!(status.waiting.len(), 1);
 }
 
 #[test]
@@ -250,13 +285,14 @@ fn status_lists_what_waits_for_the_owner_with_a_ready_command() {
     assert_eq!(entry.title.as_deref(), Some("A test goal"));
     assert_eq!(entry.agent, Some(principal));
     assert_eq!(entry.agent_name.as_deref(), Some("host"));
-    let WaitingKind::AllowTask {
-        task: wanted,
-        task_title,
-    } = &entry.kind;
-    assert_eq!(*wanted, task);
     // The title is the task's first line, not its whole text.
-    assert_eq!(task_title.as_deref(), Some("Read and implement"));
+    assert_eq!(
+        entry.kind,
+        WaitingKind::AllowTask {
+            task,
+            task_title: Some("Read and implement".into()),
+        }
+    );
     let goal_prefix = &goal.to_string()[..8];
     let task_prefix = &task.to_string()[..13];
     assert_eq!(
@@ -347,6 +383,79 @@ fn status_lists_what_waits_for_the_owner_with_a_ready_command() {
     summaries[0].halted = None;
     summaries[0].membership = locust_proto::api::Membership::Joining;
     assert!(d.node.waiting_for(&summaries).is_empty());
+
+    // At read an allowance would not help, so the entry asks for the level.
+    set_level(&mut d, Level::Read);
+    let entries = waiting(&mut d, owner);
+    assert_eq!(entries.len(), 1);
+    assert_eq!(
+        entries[0].kind,
+        WaitingKind::SetAsk {
+            task: third,
+            task_title: Some("Read and implement".into()),
+        }
+    );
+    assert_eq!(
+        entries[0].command,
+        format!("locust --owner level --goal {goal_prefix} --agent host ask")
+    );
+    set_level(&mut d, Level::Ask);
+    assert!(matches!(
+        waiting(&mut d, owner)[0].kind,
+        WaitingKind::AllowTask { task, .. } if task == third
+    ));
+
+    // A disconnected agent gives no entry until it is connected again.
+    d.ok(owner, Request::AgentRevoke { agent: principal });
+    assert!(waiting(&mut d, owner).is_empty());
+    d.ok(owner, Request::AgentReconnect { agent: principal });
+    assert_eq!(waiting(&mut d, owner).len(), 1);
+
+    // Nor does a task the agent already holds an attempt on, even though the
+    // want stays recorded while its round is open.
+    set_level(&mut d, Level::Auto);
+    assert!(matches!(
+        d.call(
+            agent,
+            Request::AttemptStart {
+                goal,
+                task: third,
+                offer: Some(third_offer),
+            },
+        ),
+        Ok(Response::Claimed(_))
+    ));
+    set_level(&mut d, Level::Ask);
+    let Response::GoalStatus(status) = d.ok(owner, Request::GoalStatus { goal }) else {
+        unreachable!()
+    };
+    assert_eq!(status.abilities[0].wanted_tasks.len(), 1);
+    assert!(waiting(&mut d, owner).is_empty());
+
+    // Nor a task the rules no longer let it start: here, a declined offer.
+    let (fourth, fourth_offer) = super::lifecycle::offered(&mut d, agent, goal, principal);
+    assert_eq!(
+        d.call(
+            agent,
+            Request::AttemptStart {
+                goal,
+                task: fourth,
+                offer: Some(fourth_offer),
+            },
+        )
+        .unwrap_err()
+        .code,
+        ErrorCode::LevelRequired
+    );
+    assert_eq!(waiting(&mut d, owner).len(), 1);
+    d.ok(
+        agent,
+        Request::WorkDecline {
+            goal,
+            offer: fourth_offer,
+        },
+    );
+    assert!(waiting(&mut d, owner).is_empty());
 }
 
 #[test]

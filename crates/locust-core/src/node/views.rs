@@ -6,12 +6,12 @@ use std::collections::{BTreeMap, BTreeSet};
 use locust_proto::api::{
     self, ApiError, Attempting, BlobState, BlobStatus, CancelItem, ContextNews, DeliveryItem,
     EventDetail, EventView, GoalSummary, Level, Membership, PendingWork, ReviewItem, TaskDetail,
-    TaskView, Verdict, WaitingForYou, WaitingKind, WorkItem, allow_command, short,
+    TaskView, Verdict, WaitingForYou, WaitingKind, WorkItem, allow_command, level_command, short,
 };
 use locust_proto::engine::Entropy;
 use locust_proto::event::{
     AttemptStatus, Body, Context, DecisionAction, DecisionPurpose, Event, ReviewVerdict, Scope,
-    ScopeKey,
+    ScopeKey, TaskId,
 };
 use locust_proto::id::{BlobHash, GoalId, PublicKey};
 use locust_proto::organization::CompletionRule;
@@ -142,11 +142,14 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     goal: *goal,
                     title: self.title(entry, principal.as_ref()),
                     member: *member,
+                    // The name the person chose: signed into the admission,
+                    // or asked for in the join until the host admits it.
                     name: entry
                         .state()
                         .members
                         .get(member)
                         .map(|found| found.name.clone())
+                        .or_else(|| local.joins.get(member).map(|join| join.name.clone()))
                         .unwrap_or_else(|| abilities.name.clone()),
                     membership,
                     host_name: Self::host_name(entry),
@@ -160,10 +163,12 @@ impl<S: Store, E: Entropy> Node<S, E> {
         Ok(summaries)
     }
 
-    /// What a command of the person settles: one `AllowTask` per task an
-    /// agent wanted while its level is below auto, oldest first. A joining
-    /// agent waits for the host's computer and a halted goal for nobody, so
-    /// neither gives an entry.
+    /// What a command of the person settles: one entry per task an agent
+    /// wanted while its level is below auto, oldest first. At ask the command
+    /// allows the task; at read an allowance would not help, so it sets the
+    /// agent to ask. A joining or disconnected agent, a halted goal, a task
+    /// the agent already holds an attempt on and a task the rules no longer
+    /// let it start give no entry: no command of the person settles those.
     pub(super) fn waiting_for(&self, summaries: &[GoalSummary]) -> Vec<WaitingForYou> {
         let goals: Vec<String> = self.goals.keys().map(ToString::to_string).collect();
         let mut waiting = Vec::new();
@@ -171,6 +176,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             if summary.membership != Membership::Member
                 || summary.halted.is_some()
                 || summary.abilities.level >= Level::Auto
+                || self.principals.active(&summary.member).is_none()
             {
                 continue;
             }
@@ -185,6 +191,34 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 .collect();
             let goal = short(&summary.goal.to_string(), &goals);
             for wanted in &summary.abilities.wanted_tasks {
+                let holds_attempt = summary.abilities.claims.iter().any(|claim| {
+                    entry
+                        .state()
+                        .attempts
+                        .get(&claim.attempt)
+                        .is_some_and(|attempt| attempt.context.scope == Scope::Task(wanted.task))
+                });
+                if holds_attempt || !self.may_start(entry, summary.member, wanted.task) {
+                    continue;
+                }
+                let task = short(&wanted.task.to_string(), &tasks);
+                let (kind, command) = if summary.abilities.level == Level::Read {
+                    (
+                        WaitingKind::SetAsk {
+                            task: wanted.task,
+                            task_title: wanted.title.clone(),
+                        },
+                        level_command(&goal, &summary.abilities.name, "ask"),
+                    )
+                } else {
+                    (
+                        WaitingKind::AllowTask {
+                            task: wanted.task,
+                            task_title: wanted.title.clone(),
+                        },
+                        allow_command(&goal, &task, &summary.abilities.name, false),
+                    )
+                };
                 waiting.push((
                     wanted.since_ms,
                     WaitingForYou {
@@ -192,22 +226,37 @@ impl<S: Store, E: Entropy> Node<S, E> {
                         title: summary.title.clone(),
                         agent: Some(summary.member),
                         agent_name: Some(summary.name.clone()),
-                        kind: WaitingKind::AllowTask {
-                            task: wanted.task,
-                            task_title: wanted.title.clone(),
-                        },
-                        command: allow_command(
-                            &goal,
-                            &short(&wanted.task.to_string(), &tasks),
-                            &summary.abilities.name,
-                            false,
-                        ),
+                        kind,
+                        command,
                     },
                 ));
             }
         }
         waiting.sort_by_key(|(since, _)| *since);
         waiting.into_iter().map(|(_, entry)| entry).collect()
+    }
+
+    /// Whether the rules let `member` start the current round of `task`, by
+    /// itself or through an offer addressed to it on that round.
+    fn may_start(&self, entry: &Entry, member: PublicKey, task: TaskId) -> bool {
+        let Some(found) = entry.state().tasks.get(&task) else {
+            return false;
+        };
+        let round = &found.rounds[&found.current_round];
+        std::iter::once(None)
+            .chain(
+                entry
+                    .state()
+                    .offers
+                    .values()
+                    .filter(|offer| offer.context == round.context && offer.recipient == member)
+                    .map(|offer| Some(offer.id)),
+            )
+            .any(|offer| {
+                entry
+                    .goal
+                    .can_start(round.context, member, offer, &entry.definitions)
+            })
     }
 
     /// Whether the daemon can serve one content object of a goal.
@@ -394,7 +443,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
                             .collect(),
                         results: round.contributions.len() as u32,
                     };
-                    if entry.local.level(&principal)
+                    let level = entry.local.level(&principal);
+                    if level
                         >= entry
                             .local
                             .start_level(task.id, task.current_round, principal)
@@ -402,7 +452,9 @@ impl<S: Store, E: Entropy> Node<S, E> {
                         if actor.principal.is_some() {
                             work.to_start.push(item);
                         }
-                    } else {
+                    } else if level == Level::Ask {
+                        // At read an allowance would not help; only a level
+                        // change does, and that is not a per-task ask.
                         work.ask_first.push(item);
                     }
                 }
@@ -504,7 +556,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             );
             let candidates: Vec<_> = reviewable
                 .filter(|(subject, context, approved)| {
-                    // Nothing asks for a review on a round that is over:
+                    // Nothing asks for a review on a task round that is over:
                     // the engine signs no request there, so the view lists none.
                     if *approved || !wants_review(entry, *context) {
                         return false;
@@ -589,17 +641,19 @@ impl<S: Store, E: Entropy> Node<S, E> {
     }
 }
 
-/// Whether a result in `context` can still be asked about: its round is the
-/// current one and nothing has picked or closed it.
+/// Whether a result in `context` can still be asked about. A task result
+/// needs its round to be the current one with nothing picked or closed; a
+/// finding, document revision or file proposal only needs its scope open,
+/// since the engine keeps asking for their review after new rules are bound.
 fn wants_review(entry: &Entry, context: Context) -> bool {
-    if entry.goal.current_context(context.scope) != Some(context) {
-        return false;
-    }
     match context.scope {
-        Scope::Task(_) => entry
-            .state()
-            .task_round(context)
-            .is_some_and(|round| !round.closed && round.selected.is_none()),
+        Scope::Task(_) => {
+            entry.goal.current_context(context.scope) == Some(context)
+                && entry
+                    .state()
+                    .task_round(context)
+                    .is_some_and(|round| !round.closed && round.selected.is_none())
+        }
         Scope::Goal | Scope::Document(_) | Scope::Workspace => {
             let closed = entry
                 .state()

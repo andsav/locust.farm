@@ -327,6 +327,60 @@ fn results_on_a_closed_picked_or_revised_task_are_in_nobodys_review_list() {
 }
 
 #[test]
+fn findings_and_revisions_stay_in_review_lists_after_new_rules_are_bound() {
+    let (mut d, _, owner, a, goal) = setup();
+    let revision = event(d.ok(
+        a,
+        Request::DocRevise {
+            goal,
+            doc: Doc::Plan,
+            base: None,
+            text: "a plan".into(),
+        },
+    ));
+    let posted = event(d.ok(a, finding(goal, "a finding")));
+    let listed = |d: &mut Daemon, conn, subject| {
+        pending(d, conn, goal)
+            .to_review
+            .iter()
+            .any(|item| item.subject == subject)
+    };
+    assert!(listed(&mut d, a, revision) && listed(&mut d, a, posted));
+    // The engine keeps asking for their review under the rules they were
+    // posted under, so the list keeps them after a new binding too.
+    let expected = d.node.goals[&goal].state().current_rules.unwrap();
+    let formation = locust_proto::organization::presets()
+        .into_iter()
+        .find(|preset| preset.name == "directed")
+        .unwrap()
+        .formation;
+    d.ok(
+        owner,
+        Request::RulesBind {
+            goal,
+            expected,
+            formation_json: serde_json::to_string(&formation).unwrap(),
+            inputs: Default::default(),
+            no_role: false,
+        },
+    );
+    assert!(listed(&mut d, a, revision) && listed(&mut d, a, posted));
+    let (member, reviewer) = super::authorization::join_local(&mut d, a, goal, 2);
+    let holders = d.node.goals[&goal].state().roles["reviewer"].clone();
+    d.ok(
+        owner,
+        Request::RoleGive {
+            goal,
+            role: "reviewer".into(),
+            member,
+            expected: holders,
+        },
+    );
+    assert!(listed(&mut d, reviewer, revision) && listed(&mut d, reviewer, posted));
+    assert_eq!(pending(&mut d, reviewer, goal).to_review.len(), 2);
+}
+
+#[test]
 fn takeover_a_b_a_fences_old_generation_even_when_secret_returns() {
     let (mut d, p, owner, a, goal) = setup();
     let (task, offer) = offered(&mut d, a, goal, p);

@@ -1425,8 +1425,14 @@ pub struct WaitingForYou {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum WaitingKind {
-    /// The agent tried to take a task and its level refused.
+    /// The agent tried to take a task and its level, ask, refused.
     AllowTask {
+        task: TaskId,
+        task_title: Option<String>,
+    },
+    /// The agent tried to take a task while set to read; an allowance would
+    /// not help, so the command sets it to ask.
+    SetAsk {
         task: TaskId,
         task_title: Option<String>,
     },
@@ -1475,7 +1481,7 @@ pub struct GoalSummary {
     pub title: Option<String>,
     /// The local agent this entry is about.
     pub member: PublicKey,
-    /// The agent's name in the goal; its local name until admitted.
+    /// The agent's name in the goal; the name asked for until admitted.
     pub name: String,
     /// How that agent stands in the goal.
     pub membership: Membership,

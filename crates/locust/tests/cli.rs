@@ -164,7 +164,7 @@ fn level_and_allow_apply_in_one_run_and_print_an_undo_that_names_the_agent() {
     let closed_on_server = Arc::clone(&closed);
     let mut level = Level::Read;
     let mut allowed = false;
-    let handle = server(home.path(), 11, move |frame| {
+    let handle = server(home.path(), 14, move |frame| {
         // One typed connection is opened per command; the closure retains the local record.
         let current = |level, allowed| {
             let mut a = abilities(goal, agent);
@@ -329,6 +329,25 @@ fn level_and_allow_apply_in_one_run_and_print_an_undo_that_names_the_agent() {
     run_undo(&changed);
     let unchanged = run(&["--owner", "level", "--goal", &goal.to_string(), "read"]);
     assert!(!unchanged.contains("Undo:"));
+    // At read the allowance is stored but settles nothing; the level line is
+    // the way on.
+    let at_read = run(&[
+        "--owner",
+        "allow",
+        "--goal",
+        &goal.to_string(),
+        "--task",
+        &task.to_string(),
+    ]);
+    assert!(
+        at_read.contains(
+            "\"Task title\" is allowed for worker, but at read it only reads. It takes the task once it is set to ask:\n  locust --owner level --goal abababab --agent worker ask\n"
+        ),
+        "{at_read}"
+    );
+    assert!(!at_read.contains("may take"), "{at_read}");
+    run_undo(&at_read);
+    run(&["--owner", "level", "--goal", &goal.to_string(), "ask"]);
     let changed = run(&[
         "--owner",
         "allow",
@@ -3344,7 +3363,10 @@ fn disconnected_members_are_offered_reconnect_in_status_and_owner_commands() {
                 invitations_open: 0,
                 invitations_expire_ms: None,
                 halted: None,
-                abilities: abilities(goal, agent),
+                abilities: Abilities {
+                    name: "worker".into(),
+                    ..abilities(goal, agent)
+                },
             }],
         })),
         other => panic!("disconnected agent must not act: {other:?}"),
@@ -3360,9 +3382,10 @@ fn disconnected_members_are_offered_reconnect_in_status_and_owner_commands() {
         let message = result["error"]["message"].as_str().unwrap();
         assert!(message.contains("worker is disconnected"), "{message}");
         assert!(
-            message.contains(&format!("agent reconnect --agent {agent}")),
+            message.contains("agent reconnect --agent worker"),
             "{message}"
         );
+        assert!(!message.contains(&agent.to_string()), "{message}");
         assert!(!message.contains("none of your agents"), "{message}");
     }
     let output = cli(home.path())
@@ -3392,8 +3415,13 @@ fn disconnected_members_are_offered_reconnect_in_status_and_owner_commands() {
         .unwrap();
     assert!(output.status.success());
     let text = String::from_utf8(output.stdout).unwrap();
-    assert!(text.contains("\nworker is disconnected."), "{text}");
-    assert!(text.contains("agent reconnect --agent"), "{text}");
+    assert!(
+        text.contains("\n  agent (worker) · disconnected\n      worker is disconnected."),
+        "{text}"
+    );
+    assert!(!text.contains("\nworker is disconnected."), "{text}");
+    assert!(text.contains("agent reconnect --agent worker"), "{text}");
+    assert!(!text.contains(&agent.to_string()), "{text}");
     handle.join().unwrap();
 }
 

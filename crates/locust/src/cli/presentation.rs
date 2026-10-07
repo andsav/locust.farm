@@ -650,13 +650,20 @@ fn waiting_sentence(item: &WaitingForYou, goals: &[String]) -> String {
         .as_deref()
         .map(quoted)
         .unwrap_or_else(|| short(&item.goal.to_string(), goals));
+    let task_label = |task: &TaskId, task_title: &Option<String>| {
+        task_title
+            .as_deref()
+            .map(quoted)
+            .unwrap_or_else(|| short(&task.to_string(), &[]))
+    };
     match &item.kind {
         WaitingKind::AllowTask { task, task_title } => format!(
             "{who} wants to take {} in {goal}",
-            task_title
-                .as_deref()
-                .map(quoted)
-                .unwrap_or_else(|| short(&task.to_string(), &[]))
+            task_label(task, task_title)
+        ),
+        WaitingKind::SetAsk { task, task_title } => format!(
+            "{who} wants to take {} in {goal} but is set to read",
+            task_label(task, task_title)
         ),
     }
 }
@@ -693,14 +700,24 @@ fn goal_heading(summary: &GoalSummary, goal_id: &str, voice: Voice) -> String {
 }
 
 /// One local agent under its goal: its name there with its local name, its
-/// roles and level over its standing, or its membership over what to do.
-fn agent_lines(summary: &GoalSummary, voice: Voice) -> Vec<String> {
+/// roles and level over its standing, or its membership over what to do. A
+/// disconnected agent shows only that, over how to connect it again.
+fn agent_lines(summary: &GoalSummary, agents: &[AgentView], voice: Voice) -> Vec<String> {
     let local = &summary.abilities.name;
     let label = if summary.name == *local {
         safe(local)
     } else {
         format!("{} ({})", chosen_name(&summary.name), safe(local))
     };
+    if let Some(agent) = agents
+        .iter()
+        .find(|agent| agent.agent == summary.member && agent.revoked)
+    {
+        return vec![
+            format!("  {label} · disconnected"),
+            format!("      {}", super::disconnected_agent(agent)),
+        ];
+    }
     match summary.membership {
         Membership::Member => {
             let roles = if summary.abilities.roles.is_empty() {
@@ -765,7 +782,7 @@ fn status(status: &DaemonStatus, reader: &Reader) -> Vec<String> {
             .iter()
             .filter(|entry| entry.goal == summary.goal)
         {
-            lines.extend(agent_lines(entry, reader.voice));
+            lines.extend(agent_lines(entry, &status.agents, reader.voice));
         }
         if summary.invitations_open > 0 {
             let count = summary.invitations_open;
@@ -788,10 +805,10 @@ fn status(status: &DaemonStatus, reader: &Reader) -> Vec<String> {
         .agents
         .iter()
         .map(|agent| {
-            if agent.revoked {
-                super::disconnected_agent(agent)
-            } else if status.goals.iter().any(|entry| entry.member == agent.agent) {
+            if status.goals.iter().any(|entry| entry.member == agent.agent) {
                 String::new()
+            } else if agent.revoked {
+                super::disconnected_agent(agent)
             } else {
                 format!("{} is connected and in no goal.", safe(&agent.name))
             }
@@ -1777,7 +1794,7 @@ mod tests {
                 summary(
                     (search, "Static site search"),
                     1,
-                    "claude-juniper-77aa0c52",
+                    "Juniper",
                     Membership::Joining,
                     Level::Auto,
                     &[],
@@ -1812,12 +1829,46 @@ Parser cleanup (c01d55aa) · host: you
 Static site search (7f3a9c1e) · host: Harbor's owner, on another computer
   Maple (codex-maple-1a2b3c4d) · member · ask
       posts; waits for your yes before each task
-  claude-juniper-77aa0c52 · joining
+  Juniper (claude-juniper-77aa0c52) · joining
       Admission has not arrived. It comes from the host's computer when that computer is on; nothing here waits for you.
 
 codex-birch-5e6f7a8b is connected and in no goal.
 Daemon 0.1.0 · endpoint 5c0e77aa";
         assert_eq!(text, expected);
+    }
+
+    #[test]
+    fn a_disconnected_agent_shows_only_that_and_an_agent_at_read_waits_for_a_level() {
+        let mut view = p5_status();
+        view.agents[1].revoked = true;
+        view.goals.truncate(3);
+        view.waiting = vec![WaitingForYou {
+            goal: view.goals[1].goal,
+            title: view.goals[1].title.clone(),
+            agent: Some(view.goals[1].member),
+            agent_name: Some("Juniper".into()),
+            kind: WaitingKind::SetAsk {
+                task: TaskId::Authored(id("4b2d8e01")),
+                task_title: Some("Fix the parser".into()),
+            },
+            command: level_command("c01d55aa", "claude-juniper-77aa0c52", "ask"),
+        }];
+        let text = render(&Response::Status(view), None, &person()).unwrap();
+        assert!(
+            text.starts_with(
+                "Waiting for you\n  Juniper wants to take \"Fix the parser\" in \"Parser cleanup\" but is set to read\n    locust --owner level --goal c01d55aa --agent claude-juniper-77aa0c52 ask\n"
+            ),
+            "{text}"
+        );
+        assert!(
+            text.contains(
+                "\n  Juniper (claude-juniper-77aa0c52) · disconnected\n      claude-juniper-77aa0c52 is disconnected. Connect it again: locust --owner agent reconnect --agent claude-juniper-77aa0c52\n"
+            ),
+            "{text}"
+        );
+        assert!(!text.contains("· read\n"), "{text}");
+        assert!(!text.contains("reads only"), "{text}");
+        assert_eq!(text.matches("is disconnected").count(), 1, "{text}");
     }
 
     #[test]
@@ -1969,6 +2020,18 @@ Daemon 0.1.0 · endpoint 5c0e77aa";
             }],
             claims: vec![],
         };
+        // The same want at read prints the level line instead.
+        let reading = Abilities {
+            agent: PublicKey([3; 32]),
+            name: "reader".into(),
+            level: Level::Read,
+            wanted_tasks: vec![locust_proto::api::WantedTask {
+                task: TaskId::Authored(locust_proto::id::EventId([4; 32])),
+                title: Some("Fix the parser".into()),
+                since_ms: 2,
+            }],
+            ..abilities.clone()
+        };
         let status = GoalStatus {
             host_name: Some("Host".into()),
             roles: Default::default(),
@@ -1991,10 +2054,26 @@ Daemon 0.1.0 · endpoint 5c0e77aa";
             }],
             halted: None,
             workspace: None,
-            abilities: vec![abilities],
+            abilities: vec![abilities, reading],
             stalled: vec![],
             peers: vec![],
         };
+        // The status view with one agent at read waiting, one disconnected
+        // agent in a goal and one in no goal; the mockup fixture stays as is.
+        let mut disconnected = p5_status();
+        disconnected.agents[1].revoked = true;
+        disconnected.agents[2].revoked = true;
+        disconnected.waiting.push(WaitingForYou {
+            goal: disconnected.goals[1].goal,
+            title: disconnected.goals[1].title.clone(),
+            agent: Some(disconnected.goals[1].member),
+            agent_name: Some("Juniper".into()),
+            kind: WaitingKind::SetAsk {
+                task: TaskId::Authored(locust_proto::id::EventId([4; 32])),
+                task_title: Some("Fix the parser".into()),
+            },
+            command: level_command("c01d55aa", "claude-juniper-77aa0c52", "ask"),
+        });
         // A participant's view, the owner's merged view, a wait that found
         // work, the goal status view and the status view.
         let views = [
@@ -2006,6 +2085,7 @@ Daemon 0.1.0 · endpoint 5c0e77aa";
             ),
             (Response::GoalStatus(status), None),
             (Response::Status(p5_status()), None),
+            (Response::Status(disconnected), None),
         ];
         let views: Vec<String> = views
             .into_iter()
@@ -2125,6 +2205,7 @@ Daemon 0.1.0 · endpoint 5c0e77aa";
         assert_eq!(
             operations.iter().map(String::as_str).collect::<Vec<_>>(),
             [
+                "agent.reconnect",
                 "allow",
                 "attempt.start",
                 "context.read",

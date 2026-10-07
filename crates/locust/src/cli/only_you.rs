@@ -424,6 +424,12 @@ fn task_allow(
     let name = presentation::safe(&after.name);
     let mut human = if revoke {
         format!("{name} may no longer take \"{task_title}\". A running attempt is not stopped.")
+    } else if after.level == Level::Read {
+        // The allowance is stored, but at read nothing lets the agent act on it.
+        format!(
+            "\"{task_title}\" is allowed for {name}, but at read it only reads. It takes the task once it is set to ask:\n  {}",
+            locust_proto::api::level_command(&cut_goal(client, socket, goal)?, &after.name, "ask")
+        )
     } else {
         format!("{name} may take \"{task_title}\" in \"{goal_title}\" until the host revises it.")
     };
