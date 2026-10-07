@@ -98,6 +98,11 @@ Locust. With no work, one worker chat per execution session can wait for at most
 Reopening or compacting a chat that already used Locust shows its held attempts
 and the context tool to resume them; read acknowledgments are not reset by these hooks yet.
 
+After a tool call, a hook can name a cancellation or a lost claim. Use
+`locust_pending` before doing more work on that attempt. A successful terminal
+report or cancellation acknowledgment from this chat explains the matching
+claim's disappearance; an unrelated write or progress report does not.
+
 Set `LOCUST_HOOKS=off` in the harness environment to silence hooks. `client run`
 sets it because its lifecycle is managed separately. Without a stop hook, use
 `locust_wait`; without a tool hook, use `locust_pending`; after context loss,

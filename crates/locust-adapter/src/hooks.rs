@@ -9,13 +9,12 @@
 //! <https://github.com/openai/codex/blob/rust-v0.153.4/codex-rs/hooks/src/events/post_tool_use.rs>.
 
 pub mod core;
-pub use core::{Event, Outcome, OwnCall};
+pub use core::{Event, Outcome, OwnAction, OwnCall};
 
 use std::fmt;
 use std::path::Path;
 
 use locust_proto::api::{OPERATIONS, Request, Response};
-use locust_proto::event::AttemptStatus;
 use locust_proto::id::{GoalId, IdempotencyKey};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -244,7 +243,7 @@ fn own_call(client: Client, value: &Value) -> Option<OwnCall> {
         serde_json::from_value::<Option<IdempotencyKey>>(key).ok()?;
     }
     let result = successful_result(client, &value["tool_response"])?;
-    let (goal, claim, finished_attempt) = if operation.name == "context.acknowledge" {
+    let (goal, action) = if operation.name == "context.acknowledge" {
         #[derive(Deserialize)]
         #[serde(deny_unknown_fields)]
         struct Acknowledge {
@@ -266,7 +265,7 @@ fn own_call(client: Client, value: &Value) -> Option<OwnCall> {
         if ack.goal != args.goal {
             return None;
         }
-        (Some(args.goal), None, None)
+        (Some(args.goal), OwnAction::Other)
     } else {
         let request_value = if args.is_empty()
             && serde_json::from_value::<Request>(json!(operation.name)).is_ok()
@@ -303,22 +302,37 @@ fn own_call(client: Client, value: &Value) -> Option<OwnCall> {
                 _ => {}
             }
         }
-        let finished = match &request {
+        let action = match &request {
             Request::AttemptReport {
                 attempt,
-                status: AttemptStatus::Completed | AttemptStatus::Failed | AttemptStatus::Abandoned,
+                generation,
+                status,
                 ..
-            } => Some(*attempt),
-            _ => None,
+            } => OwnAction::Report {
+                attempt: *attempt,
+                generation: *generation,
+                status: *status,
+            },
+            Request::CancelAcknowledge {
+                cancel,
+                generation,
+                outcome,
+                ..
+            } => OwnAction::CancelAcknowledged {
+                cancel: *cancel,
+                generation: *generation,
+                outcome: *outcome,
+                target: None,
+            },
+            _ => claim.map_or(OwnAction::Other, OwnAction::Claimed),
         };
-        (request.goal(), claim, finished)
+        (request.goal(), action)
     };
     Some(OwnCall {
         invocation_id: value["tool_use_id"].as_str()?.to_owned(),
         operation: operation.name.to_owned(),
         goal,
-        claim,
-        finished_attempt,
+        action,
     })
 }
 
@@ -730,7 +744,7 @@ mod tests {
             };
             assert_eq!(call.operation, "wait");
             assert_eq!(call.invocation_id, "call-1");
-            assert!(call.claim.is_none());
+            assert_eq!(call.action, OwnAction::Other);
             assert_eq!(call.goal, Some(GoalId([0x11; 32])));
         }
         assert!(parse_input(Client::Codex, "stop", &native("PostToolUse")).is_err());
@@ -843,7 +857,7 @@ mod tests {
         else {
             panic!("claim expected");
         };
-        assert_eq!(call.claim, Some(claim));
+        assert_eq!(call.action, OwnAction::Claimed(claim));
         value["tool_input"]["task"] = json!("77".repeat(32));
         assert!(matches!(
             parse_input(Client::Codex, "tool", &value).unwrap().event,
@@ -885,6 +899,13 @@ mod tests {
             let ignored = decide(stop.event, &snapshot, &mut marks);
             assert!(!ignored.keep_going);
             snapshot.goals[0].pending.to_start.clear();
+            snapshot.goals[0].pending.claimed.push(Claim {
+                goal,
+                task,
+                attempt: EventId([3; 32]),
+                instance: snapshot.instance,
+                generation: 1,
+            });
             snapshot.goals[0].pending.to_acknowledge.push(CancelItem {
                 task,
                 attempt: EventId([3; 32]),
@@ -900,13 +921,6 @@ mod tests {
             );
             assert!(cancelled.keep_going);
             snapshot.goals[0].pending.to_acknowledge.clear();
-            snapshot.goals[0].pending.claimed.push(Claim {
-                goal,
-                task,
-                attempt: EventId([3; 32]),
-                instance: snapshot.instance,
-                generation: 1,
-            });
             let compacted = parse_input(
                 spec.client,
                 "start",
@@ -962,6 +976,81 @@ mod tests {
             parse_input(Client::Codex, "tool", &value).unwrap().event,
             Event::Tool { own_call: None }
         ));
+    }
+
+    #[test]
+    fn native_report_and_cancel_actions_preserve_exact_status_outcome_and_generation() {
+        use locust_proto::event::{AttemptStatus, CancelOutcome};
+        let attempt = EventId([3; 32]);
+        let cancel = EventId([4; 32]);
+        for spec in ADAPTERS {
+            for status in [
+                AttemptStatus::Progress,
+                AttemptStatus::Completed,
+                AttemptStatus::Failed,
+                AttemptStatus::Abandoned,
+                AttemptStatus::Uncertain,
+            ] {
+                let mut input = native_for(spec.client, "PostToolUse");
+                input["tool_name"] = json!("mcp__locust__locust_attempt_report");
+                input["tool_input"] = json!({"goal":GoalId([0x11;32]),"attempt":attempt,"generation":7,"status":status,"text":"TITLE\nDo not retain this text"});
+                let response =
+                    json!({"ok":true,"result":Response::Recorded {event:EventId([5;32])}});
+                input["tool_response"] = if spec.client == Client::ClaudeCode {
+                    json!(response.to_string())
+                } else {
+                    json!({"isError":false,"structuredContent":response})
+                };
+                let Event::Tool {
+                    own_call: Some(call),
+                } = parse_input(spec.client, "tool", &input).unwrap().event
+                else {
+                    panic!("validated report expected");
+                };
+                assert_eq!(
+                    call.action,
+                    OwnAction::Report {
+                        attempt,
+                        generation: 7,
+                        status
+                    }
+                );
+                assert!(!format!("{call:?}").contains("TITLE"));
+            }
+            for outcome in [
+                CancelOutcome::Stopped,
+                CancelOutcome::Completed,
+                CancelOutcome::Uncertain,
+            ] {
+                for generation in [None, Some(7)] {
+                    let mut input = native_for(spec.client, "PostToolUse");
+                    input["tool_name"] = json!("mcp__locust__locust_cancel_acknowledge");
+                    input["tool_input"] = json!({"goal":GoalId([0x11;32]),"cancel":cancel,"generation":generation,"outcome":outcome});
+                    let response =
+                        json!({"ok":true,"result":Response::Recorded {event:EventId([5;32])}});
+                    input["tool_response"] = if spec.client == Client::ClaudeCode {
+                        json!(response.to_string())
+                    } else {
+                        json!({"isError":false,"structuredContent":response})
+                    };
+                    let Event::Tool {
+                        own_call: Some(call),
+                    } = parse_input(spec.client, "tool", &input).unwrap().event
+                    else {
+                        panic!("validated acknowledgment expected");
+                    };
+                    assert_eq!(
+                        call.action,
+                        OwnAction::CancelAcknowledged {
+                            cancel,
+                            generation,
+                            outcome,
+                            target: None
+                        }
+                    );
+                }
+            }
+        }
     }
 
     #[test]

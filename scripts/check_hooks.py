@@ -492,12 +492,32 @@ def qualify(client, binary, source_commit, timeout, *, native_binary=None, real_
         require(isinstance(cancelled, dict) and cancelled.get("decision") == "block", "new cancellation did not reach stop callback")
         compacted = invoke_hook(profile, hooks["start"][1], hooks["start"][0], timeout, compacted=True)
         require(claimed["claimed"]["attempt"] in json.dumps(compacted), "compaction did not restore held attempt facts")
+        observed = call("pending", {"goal": goal})["pending"]
+        notice_args = {"goal": goal, "seen": observed["revision"], "timeout_ms": 0}
+        notice_result = call("wait", notice_args)
+        notice_call = ("wait", notice_args, notice_result, "scripted-cancel-notice")
+        notice = invoke_hook(profile, hooks["tool"][1], hooks["tool"][0], timeout,
+                             client=client, call=notice_call)
+        require(isinstance(notice, dict) and "cancellation requested" in json.dumps(notice)
+                and cancellation["recorded"]["event"] in json.dumps(notice),
+                "tool callback did not name the cancellation already observed by stop")
+        repeated = invoke_hook(profile, hooks["tool"][1], hooks["tool"][0], timeout,
+                               client=client, call=notice_call)
+        require(repeated is None, "repeated tool callback delivered the same notice twice")
         result["scripted"] = {"status": "pass", "waiting_task_blocks_once_then_passes": True,
                               "compaction_restores_held_attempt": True, "generated_setup_hook_command_executed": True,
                               "cancellation_reaches_stop_callback": True,
+                              "cancellation_reaches_tool_callback": True,
+                              "duplicate_tool_notice_suppressed": True,
                               "evidence_level": "scripted native payloads; real daemon and installed command"}
         # End the synthetic claim so a real model sees the same free task.
-        call("cancel.acknowledge", {"goal": goal, "cancel": cancellation["recorded"]["event"], "generation": claimed["claimed"]["generation"], "outcome": "stopped"})
+        ack_args = {"goal": goal, "cancel": cancellation["recorded"]["event"],
+                    "generation": claimed["claimed"]["generation"], "outcome": "stopped"}
+        acknowledged = call("cancel.acknowledge", ack_args)
+        after_ack = invoke_hook(profile, hooks["tool"][1], hooks["tool"][0], timeout,
+                                client=client, call=("cancel.acknowledge", ack_args, acknowledged, "scripted-ack"))
+        require(after_ack is None, "own terminal acknowledgment produced a false claim-loss notice")
+        result["scripted"]["own_terminal_ack_explains_claim_loss"] = True
         phase = "setup_remove"
         remove_plan = cli(profile, installed, ["setup", "remove-plan", *setup_args], timeout)
         cli(profile, installed, ["setup", "remove", *setup_args, "--expect-plan", remove_plan["plan_sha256"]], timeout)

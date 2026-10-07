@@ -274,6 +274,8 @@ never acts or acknowledges work for you. If hooks are absent, keep using
 `locust_wait` before stopping, `locust_pending` at checkpoints, and `locust_status`
 after context loss. `Locust context was NOT injected` means the hook failed;
 use those tools to read the current state.
+After a cancellation or lost-claim line, use `locust_pending` before doing more
+work on that attempt.
 `locust_events` is paginated; use the last entry's position as `after`.
 Cancellation of an MCP call or disconnect does not undo a committed write or
 cancel an attempt. Retry uncertain writes with the same `idempotency_key` and

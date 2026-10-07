@@ -136,3 +136,59 @@ execution, a consumed offer and an unsupported Codex test-config key) and the
 Claude string-envelope parser gap. Those were corrected before the final run.
 The final proof requires observed hook callbacks and natural client exit, not
 assistant-written JSON or the presence of marks alone.
+
+## H2: notices after tools
+
+Every tool callback from an associated chat reads status, then uses
+`wait(timeout_ms=0)` for each known eligible goal. An unchanged answer does not
+read pending again. A changed wait already returns the complete pending view;
+only a newly discovered goal needs a separate pending read. Omitted or halted
+goals preserve their previous baseline instead of inventing a claim loss.
+
+The pure core records cancellation IDs and unexplained lost claim generations.
+Start and stop snapshots reconcile the same baseline, so observing a change
+there cannot consume a later tool notice. The per-chat lock covers observation,
+polling, reconciliation and saving; concurrent callbacks deliver a notice once.
+An informational cancellation or held-attempt line also records its displayed
+work IDs for the stop rule. The core separately remembers an actual stop block,
+so an informational line does not disable an idle worker's wait.
+
+Native adapters only copy typed action fields. The core interprets terminal
+reports, including `uncertain`, and terminal cancellation acknowledgments;
+`uncertain` acknowledgments do not end a claim. It matches the exact goal,
+attempt and generation. An acknowledgment without a generation proves that no
+claim was held at that call, so it cannot explain an earlier claim loss.
+
+If a terminal acknowledgment's cancellation target was not observed, the
+runtime reads that exact effective cancellation event. It persists the pending
+release before resolving the target, retries after a read failure, and defers
+only that goal's reconciliation. A removed goal's unresolved release cannot
+disable other goals. Previously associated chats retain a validated successful
+own action before reconnecting, so a failed handshake does not erase that fact.
+First association still requires live agent authentication.
+
+Post-tool delivery can arrive out of order: another callback may observe a
+disappearance before the callback for this chat's successful terminal action
+has arrived. The hook cannot attribute an unseen callback. Filesystem failures
+that prevent saving observations likewise retain the fixed failure line and
+MCP fallback. These checks do not prove native callback ordering or durability
+when local storage fails.
+
+H2 verification passed all 27 binary hook tests, the pure core and adapter
+checks, 22 Python hook/profile checks, formatting and strict workspace Clippy.
+The isolated real-daemon replay passed the same scenario for both adapters,
+including a cancellation first observed at stop, one later tool notice and no
+false lost-claim notice after this chat's successful cancellation acknowledgment.
+The test-signed candidate carries the prior commit label `965426f`; it is not
+release provenance. No additional real-model run was selected for H2.
+
+The required full workspace command failed twice, and a serial full run failed
+at the same two-daemon reconciliation test named above: `agent-2`'s post was
+rejected as not applicable. Its focused rerun passed. These failures are retained
+as failures, not treated as a passing gate; this lane changes no reconciliation
+code. H2 remains unqualified by the full workspace gate until that failure is
+resolved or a complete required run passes.
+
+A separate full workspace run excluding only that named reconciliation test
+passed: 1236 tests passed, 14 ignored, one filtered out. This completes the
+remaining coverage but does not replace the failing required command.
