@@ -2494,3 +2494,57 @@ fn a_post_judged_before_the_goals_rules_arrive_is_unavailable_not_a_conflict() {
     assert!(reads_rules(&net.nodes[1], goal));
     post(&mut net, 1, 2, goal).unwrap();
 }
+
+/// After a removal the goal's rules are sealed under an older content key
+/// than the current one, and a new member can read them before the current
+/// key arrives. The host's computer dials it in that window. The key stays
+/// held as just admitted until the current key is here too, and the hold
+/// ends by itself when it lands.
+#[test]
+fn a_key_just_admitted_waits_for_the_current_content_key_as_well_as_the_rules() {
+    let mut net = Network::with(3);
+    let (goal, _) = hosted_at_ask(&mut net, 0, HOST);
+    let removed = join(&mut net, 0, 2, goal, 3);
+    let owner = net.nodes[0].owner();
+    net.nodes[0].ok(
+        owner,
+        Request::MemberRemove {
+            goal,
+            member: removed,
+        },
+    );
+    settle(&mut net);
+    for _ in 0..30 {
+        posted(&mut net, 0, HOST, goal);
+    }
+    net.down.insert(2);
+    let ticket = invite(&mut net.nodes[0], goal);
+    let agent = net.nodes[1].enroll("member", 2);
+    let owner = net.nodes[1].owner();
+    net.nodes[1].ok(owner, join_request(agent, ticket));
+    let host = Network::endpoint(0);
+    let (mut dialed, mut checked) = (false, false);
+    net.poll_only(&[1], 1);
+    while net.step() {
+        let entry = &net.nodes[1].node.goals[&goal];
+        let epoch = entry.state().epoch;
+        let keyed = entry.keys.contains_key(&epoch);
+        if !dialed && entry.is_member(&agent) && reads_rules(&net.nodes[1], goal) && !keyed {
+            assert_eq!(epoch, 1);
+            dialed = true;
+            net.poll_only(&[0], 1);
+        }
+        if !checked && net.nodes[1].node.heard(&goal).contains(&host) {
+            checked = true;
+            assert!(!keyed, "the current key arrived first");
+            assert!(reads_rules(&net.nodes[1], goal));
+            assert_eq!(
+                reasons(&summary(&mut net.nodes[1], goal, agent).guard),
+                [(agent, GuardReason::Admitted)]
+            );
+        }
+    }
+    assert!(dialed && checked);
+    assert!(summary(&mut net.nodes[1], goal, agent).guard.is_empty());
+    post(&mut net, 1, 2, goal).unwrap();
+}
