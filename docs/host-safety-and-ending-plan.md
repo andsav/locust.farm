@@ -1759,7 +1759,17 @@ The third row's exception exists because a behind hold is remembered only
 by the marks: losing them while a restore is still being caught up must not
 make that goal ordinary. Where this daemon hosts the goal it then waits
 for the person's `goal.continue`, as every unheard hold there does; on a
-member's computer the hold ends when the host's computer is heard. In the
+member's computer the hold ends when the host's computer is heard. The marks
+can keep that a goal is a copy of unknown age only in a mark, and a goal in
+which no key of this computer has a record in the copy has none. On a
+member's computer the data directory alone can then go back to the same copy
+before the hold ends, and that start is ordinary for the goal: an agent that
+signed after the copy was taken signs again at a position another member may
+hold. It is a limit of the same kind as risk (5) in the notes: it costs
+that agent's key in one goal and leaves the goal unharmed. The simulator
+leaves it out of its claim, and the run
+`a_member_whose_agent_had_no_record_in_the_copy_signs_again_after_a_second_restore`
+must end in that reused position. In the
 second and fourth rows, and for every goal when the database was
 overwritten in place, `restore_found` runs once per goal (below): the
 overwrite rolled the whole file back, not only the goal whose mark is

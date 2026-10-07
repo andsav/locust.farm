@@ -14,7 +14,7 @@
 
 use std::collections::BTreeSet;
 
-use locust_proto::id::{BlobHash, EventId};
+use locust_proto::id::{BlobHash, EventId, GoalId, PublicKey};
 use locust_proto::store::{MemStore, Store};
 
 use super::chaos::Kind;
@@ -57,6 +57,9 @@ pub struct Restore {
     /// content: content is fetched after its record, so a copy can hold a
     /// record without the text it names.
     pub lost_blobs: BTreeSet<BlobHash>,
+    /// The keys with a mark the restored copy starts with, by goal: none
+    /// when the marks are lost.
+    pub marked: BTreeSet<(GoalId, PublicKey)>,
 }
 
 impl World {
@@ -214,8 +217,17 @@ impl World {
             .into_iter()
             .filter(|hash| !copy_blobs.contains(hash) && !other_blobs.contains(hash))
             .collect();
+        let mut marked = BTreeSet::new();
         if marks == Marks::Kept {
             copy = copy.with_marks(self.machines[m].store.marks_handle());
+            let found = copy.marks().expect("memory marks read");
+            marked.extend(
+                found
+                    .kept
+                    .into_iter()
+                    .flatten()
+                    .map(|mark| (mark.goal, mark.key)),
+            );
         }
         self.machines[m].store = copy;
         self.backups[m].truncate(k + 1);
@@ -229,6 +241,7 @@ impl World {
             copy: kept,
             lost,
             lost_blobs,
+            marked,
         });
         count
     }

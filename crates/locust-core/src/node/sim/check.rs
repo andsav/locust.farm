@@ -123,6 +123,11 @@ pub fn reuses(r: &Run) -> Vec<Reuse> {
 /// the machine's next restore, which the claim judges afresh:
 ///
 /// - the machine's owner sent `goal.continue`, for any key;
+/// - on a member's machine, an agent's key of which a restore with the
+///   marks kept finds no mark (an earlier restore lost the marks and wrote
+///   them again from a copy in which the key had no record, and it has
+///   signed nothing here since): no mark names its last record or carries
+///   that the goal was a copy of unknown age;
 /// - for an agent's key on a member's machine, a restore with the marks
 ///   lost (residual 5: the host's computer may lack that agent's last
 ///   records while another member holds them);
@@ -166,7 +171,9 @@ fn claimed(r: &Run, m: usize, governance: bool, records: &BTreeSet<EventId>) -> 
                         Marks::Lost => m != HOST,
                         Marks::Kept => {
                             r.removals.iter().any(|at| *at > restore.taken)
-                                || (m != HOST && host_missed_the_same_admission(r, restore))
+                                || (m != HOST
+                                    && (host_missed_the_same_admission(r, restore)
+                                        || !restore.marked.contains(&(r.goal(), r.principals[m]))))
                         }
                     }
             });

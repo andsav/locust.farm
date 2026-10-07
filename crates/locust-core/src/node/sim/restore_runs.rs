@@ -1,9 +1,9 @@
 //! Restores built step by step rather than drawn from a seed's faults. m1
 //! hosts the goal, m2 and m3 are members.
 //!
-//! Three of them are the runs the restore guard is known to lose, kept so
+//! Four of them are the runs the restore guard is known to lose, kept so
 //! that they stay lost in the way the plan says: each must end in a
-//! position of m2's agent signed twice, outside the claims of
+//! position of a member's agent signed twice, outside the claims of
 //! `a_restored_machine_signs_at_no_used_position_unless_its_owner_continued`
 //! (residuals 5 and 6 in the notes of G1 in
 //! `docs/host-safety-and-ending-plan.md`).
@@ -200,4 +200,43 @@ fn a_restart_after_a_copy_of_unknown_age_was_caught_up_holds_nothing() {
         "m3 is held again: {:?}",
         r.read(M3, goal_status(&r))
     );
+}
+
+/// m3's agent signs a record after m3's backup, and it reaches m2 only. m3
+/// is put back whole, its marks lost: the goal is a copy of unknown age, and
+/// no mark carries that, since the agent has no record in the copy. Before
+/// m3 hears from anyone its data directory alone goes back to the same
+/// backup with the marks kept. Nothing marks the agent, so it signs at once
+/// at the position m2 holds.
+#[test]
+fn a_member_whose_agent_had_no_record_in_the_copy_signs_again_after_a_second_restore() {
+    let mut r = joined(8206);
+    let goal = r.goal();
+    let agent = r.principals[M3];
+    let log = r.w.machines[M3].store.log(&goal, 0, usize::MAX).unwrap();
+    assert!(log.iter().all(|(_, event)| event.header().author != agent));
+    cut(&mut r, M1, M2, true);
+    cut(&mut r, M1, M3, true);
+    let first = scenario::finding(&mut r, M3, "reached m2 only").unwrap();
+    let at = seq(&r, M3, first);
+    r.w.run_for(60 * SEC);
+    assert!(holds(&r, M2, first) && !holds(&r, M1, first));
+    cut(&mut r, M2, M3, true);
+    r.w.put_back(M3, 0, Marks::Lost, true);
+    r.w.start(M3);
+    assert!(!r.signs(M3), "the restored m3 is held at its start");
+    r.w.run_for(10 * SEC);
+    assert!(!r.signs(M3), "m3 has heard from nobody");
+    r.w.put_back(M3, 0, Marks::Kept, true);
+    r.w.start(M3);
+    assert!(r.signs(M3), "no mark holds the agent");
+    let again = scenario::finding(&mut r, M3, "written again after the restore").unwrap();
+    assert_eq!(seq(&r, M3, again), at);
+    let found = reuses(&r);
+    let reuse = found
+        .iter()
+        .find(|reuse| reuse.key == agent && reuse.seq == at)
+        .unwrap_or_else(|| panic!("no reuse at {at}: {found:?}"));
+    assert!(reuse.records.contains(&first) && reuse.records.contains(&again));
+    assert!(!reuse.claimed, "{}", reuse.describe(&r));
 }
