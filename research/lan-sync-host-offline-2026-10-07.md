@@ -15,9 +15,10 @@ is off.
 
 - **Neither failure reproduces on current main** (`a19a395`, with G1) when the
   harnesses run from this session. Both passed; the exact R6 binary passes
-  too. Repeated runs later showed an unrelated, intermittent failure further
-  on in the `crash` scenario, in about half of its runs, before G1 as well
-  (last section).
+  too. Repeated runs then showed an unrelated failure further on in the
+  `crash` scenario: in about half the runs on earlier builds, and in every run
+  on current main once the simulation stopped reusing state between runs. It
+  is older than G1 and is left for a separate change ("Also found").
 - **The cause is the environment R6 ran in, not the product.** R6's harnesses
   were started from the Codex app, and macOS denies that app local-network
   multicast. Every daemon the harness started inherited the denial. The
@@ -225,51 +226,87 @@ members leaving. Options, none built:
 
 ## Also found: a new member's first note refused after a restart
 
-Re-running `run.py --quick` showed a separate, intermittent failure in the
-`crash` scenario, at its `join_kill_joiner` step. That step comes after all
-three points where R6's runs stopped, and every failing run passed those
-first. A new member is killed with `kill -9` just after `goal join` answers,
-restarted, and seen as admitted, with the title, on all four computers. Its
-first `contribution publish` about 0.3 seconds later is refused: `conflict`,
-"the candidate cannot be applied yet (the goal's state). Nothing to change;
-pick other work." Just after joining its status showed G1's `admitted` hold;
-by the refused post the hold had ended, its `guard` was empty and it had
-completed no exchange with any peer (`last_sync_ms` null for all three). The
-refusal is the trial replay in `allowed_keeping`
-([access.rs](../crates/locust-core/src/node/access.rs)):
-the signed candidate came out neither effective nor excluded, so it waits on
-something the new member does not hold yet. Which dependency it waits on was
-not established; nor whether the same post succeeds a moment later.
+Re-running `run.py --quick` showed a separate failure in the `crash`
+scenario, at its `join_kill_joiner` step. That step comes after all three
+points where R6's runs stopped, and every failing run passed those first. A
+new member is killed with `kill -9` just after `goal join` answers, restarted,
+and seen as admitted, with the title, on all four computers. Its first
+`contribution publish` about 0.3 seconds later is refused, in one of two ways:
+
+- `conflict`: "the candidate cannot be applied yet (the goal's state).
+  Nothing to change; pick other work." Just after joining, the member's
+  status showed G1's `admitted` hold; by the refused post the hold had ended,
+  its `guard` was empty and it had completed no exchange with any peer
+  (`last_sync_ms` null for all three). The refusal is the trial replay in
+  `allowed_keeping` ([access.rs](../crates/locust-core/src/node/access.rs)):
+  the signed candidate came out neither effective nor excluded, so it waits
+  on something the new member does not hold yet. Which dependency was not
+  established, nor whether the same post succeeds a moment later.
+- `unavailable`: "admission has just arrived; Locust is checking with the
+  host's computer", which is G1's `admitted` hold refusing the post as
+  designed. The scenario posts at once and treats any refusal as a failure.
 
 | Binary | `crash` runs | Failed at `join_kill_joiner` |
 | --- | --- | --- |
-| main `a19a395` | 15 | 7 |
-| `28c6425`, the commit before G1 | 8 | 4 |
 | the R6 binary, `1b21c3f7cfad-dirty` | 5 | 0 |
+| `28c6425`, the commit before G1 | 8 | 4, all `conflict` |
+| main `a19a395`, stale marks directories present | 15 | 7, all `conflict` |
+| main `b83c972`, stale marks directories present | 7 | 1, `conflict` |
+| main `cb1feb8` (same Rust as `b83c972`), clean homes | 7 | 7: 6 `conflict`, 1 `unavailable` |
 
-G1 is not its cause: it fails as often on the commit before G1, which has no
-hold. G1's `admitted` hold does not prevent it either. Whether it appeared
-between the R6 binary and `28c6425` or the R6 binary was lucky in five runs
-was not settled. It is left for a separate change; the network
+The `conflict` refusal is older than G1: the commit before G1, which has no
+hold, fails the same way. On current main with clean homes the step failed in
+every run, so `run.py --quick` does not pass there. Whether the failure first
+appeared between the R6 binary and `28c6425`, or the R6 binary was lucky in
+five runs, was not settled. It is left for a separate change; the network
 cause above does not touch it. A person would meet it as a fresh member whose
-first post is refused with a message saying nothing will change.
+first post is refused, once with a message saying nothing will change.
+
+The rows marked "stale marks directories present" carry a harness fault found
+on the way. G1 keeps a daemon's marks in `<home>.marks` beside its home, and
+the simulation removed only the home: every run left `/tmp/locust-sim-N.marks`
+behind, and the next run's fresh home `/tmp/locust-sim-N` started beside an
+earlier daemon's marks. Those runs therefore did not start from clean state.
+The simulation now claims a home only when no marks directory sits beside it
+and removes both together ([simlib.py](../scripts/simulate_machines/simlib.py),
+`marks_of`), with a test in
+[test_simulate_machines.py](../scripts/tests/test_simulate_machines.py) that
+fails without the change. The commit before G1 writes no marks, so its row is
+unaffected; `check_t1.py` keeps its homes, and their marks, inside one
+temporary directory.
 
 ## Verification of this change
 
-On the branch rebased onto main `b83c972` (which includes the first G1 review
-fixes), with the harness change in `0f557a7`. Binary `674b243e06c9`, debug
-build, SHA-256 `81ccf56b…f0b69ceb`.
+The harness changes are `0f557a7` (the multicast precondition) and `163f08e`
+(marks directories in the simulation); neither touches Rust.
+
+On main `b83c972` with `0f557a7`, binary `674b243e06c9` (debug build, SHA-256
+`81ccf56b…f0b69ceb`):
 
 | Check | Result |
 | --- | --- |
 | `cargo fmt --all --check` | Passed |
 | `cargo clippy --locked --workspace --all-targets -- -D warnings` | Passed |
-| `cargo test --locked --workspace` | Passed: 1,212 tests, 14 ignored, none failed. `a_diverged_author_log_reconciles_between_two_real_daemons` passed here and in the run on the previous base |
-| `python3.13 -m unittest discover -s scripts/tests` | 307 tests passed, 3 skipped. Under the default Python 3.10, 30 tests in other files error for want of `hashlib.file_digest` and `tomllib`; the two changed test files pass |
-| `scripts/check_docs.py` | Passed |
+| `cargo test --locked --workspace` | Passed: 1,212 tests, 14 ignored, none failed. `a_diverged_author_log_reconciles_between_two_real_daemons` passed here and in the run on the previous base `565dc01` |
 | `check_t1.py --network local` | Passed, 21 checkpoints; `local_multicast: available` |
-| `run.py --quick` | Passed, 3 of 3: 7.8 s, 11.9 s, 43.5 s |
-| `run.py crash`, six more runs on the same binary | 5 passed; 1 failed at `join_kill_joiner` as in the section above, so the G1 review fixes up to `b83c972` do not remove it |
+| `run.py --quick` | Passed, 3 of 3: 7.8 s, 11.9 s, 43.5 s, with stale marks directories present |
 
-On the previous base (`565dc01`) the same checks passed, except that
-`run.py --quick` failed `crash` at `join_kill_joiner`.
+On main `cb1feb8`, which has the same Rust, with `163f08e`, binary
+`cb1feb84d32d-dirty` (dirty only in the two harness files):
+
+| Check | Result |
+| --- | --- |
+| `python3.13 -m unittest discover -s scripts/tests` | 308 tests passed, 3 skipped. Under the default Python 3.10, 30 tests in other files error for want of `hashlib.file_digest` and `tomllib`; the changed test files pass |
+| `scripts/check_docs.py` | Passed |
+| `run.py --quick` | `two-machines-complete` and `three-machines` passed; `crash` failed at `join_kill_joiner` (above). No `/tmp/locust-sim-*` left behind |
+
+Rebased for landing onto main `7ee4b52`, which changed only the in-process
+simulator's restore runs: the harness tests (308 passed, 3 skipped),
+`check_docs.py`, `cargo fmt` and `cargo clippy` passed. The first
+`cargo test --locked --workspace` failed one test,
+`a_diverged_author_log_reconciles_between_two_real_daemons`, at
+`reconcile_tests.rs:413` (the `unwrap` of the member's publish right after its
+home is copied), at load averages of 16 to 22; it stopped the run after the
+`locust` crate. That test then passed alone six times, and a full
+`--no-fail-fast` rerun passed: 1,213 tests, 14 ignored, none failed. This
+change touches no Rust and no reconciliation.
