@@ -14,6 +14,7 @@
 //! coalesce. Typed recorded events and claims distinguish authored effects.
 
 pub mod core;
+mod pi;
 pub use core::{Event, Outcome, OwnAction, OwnCall};
 
 use std::fmt;
@@ -80,6 +81,7 @@ const CLAUDE_EVENTS: &[NativeEvent] = &[
     },
 ];
 pub const ADAPTERS: &[HookAdapter] = &[
+    pi::ADAPTER,
     HookAdapter {
         client: Client::Codex,
         harness: "codex",
@@ -123,6 +125,9 @@ pub fn adapter(client: Client) -> Option<&'static HookAdapter> {
 /// serialization. JSON adapters normalize absent files to empty documents.
 pub fn parse_configuration(client: Client, bytes: Option<&[u8]>) -> Result<Value, HookError> {
     adapter(client).ok_or(HookError::UnsupportedClient)?;
+    if client == Client::Pi {
+        return pi::parse_configuration(bytes);
+    }
     let value = match bytes {
         None => json!({}),
         Some(bytes) => {
@@ -148,6 +153,9 @@ pub fn render_configuration(
     document: &Value,
 ) -> Result<Option<Vec<u8>>, HookError> {
     adapter(client).ok_or(HookError::UnsupportedClient)?;
+    if client == Client::Pi {
+        return pi::render_configuration(document);
+    }
     if !document.is_object() {
         return Err(HookError::InvalidConfiguration);
     }
@@ -247,7 +255,7 @@ pub fn parse_input(
                 required_string(value, "tool_use_id")?;
             }
             Event::Tool {
-                own_call: if native_name == "PostToolUse" {
+                own_call: if matches!(native_name, "PostToolUse" | "tool_result") {
                     own_call(client, value).map(Box::new)
                 } else {
                     None
@@ -285,6 +293,13 @@ fn optional_string(value: &Value, field: &str) -> Result<Option<String>, HookErr
 }
 
 fn own_call(client: Client, value: &Value) -> Option<OwnCall> {
+    let projected;
+    let value = if client == Client::Pi {
+        projected = pi::own_call_projection(value)?;
+        &projected
+    } else {
+        value
+    };
     // No bare tool-name or vendor/plugin prefix aliases: only the configured
     // server name and the operation registry can establish a Locust call.
     let adapter = adapter(client)?;
@@ -446,10 +461,13 @@ pub fn envelope(input: &NativeInput, outcome: &Outcome) -> Result<Option<Value>,
     {
         return Err(HookError::InvalidOutput);
     }
+    if outcome.keep_going && !matches!(input.event, Event::Stop) {
+        return Err(HookError::InvalidOutput);
+    }
+    if input.client == Client::Pi {
+        return Ok(Some(json!({"line":line,"keep_going":outcome.keep_going})));
+    }
     if outcome.keep_going {
-        if !matches!(input.event, Event::Stop) {
-            return Err(HookError::InvalidOutput);
-        }
         Ok(Some(json!({"decision":"block","reason":line})))
     } else if matches!(input.event, Event::Stop) {
         Ok(Some(json!({"systemMessage":line})))
@@ -470,17 +488,23 @@ pub struct HookEntry {
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum HookRegistration {
     JsonGroups { entries: Vec<HookEntry> },
+    OwnedSource { source: Option<String> },
 }
 
 impl HookRegistration {
     pub fn entries(&self) -> &[HookEntry] {
-        let Self::JsonGroups { entries } = self;
-        entries
+        match self {
+            Self::JsonGroups { entries } => entries,
+            Self::OwnedSource { .. } => &[],
+        }
     }
 }
 
 pub fn registration(client: Client, executable: &Path) -> Result<HookRegistration, HookError> {
     let adapter = adapter(client).ok_or(HookError::UnsupportedClient)?;
+    if client == Client::Pi {
+        return pi::registration(adapter, executable);
+    }
     let path = executable
         .to_str()
         .filter(|path| {
@@ -497,6 +521,9 @@ pub fn registration(client: Client, executable: &Path) -> Result<HookRegistratio
 /// Install only fresh own groups; existing Locust groups are conflicts. Reapply
 /// should first remove the retained exact groups, then install their replacement.
 pub fn install(current: &Value, registration: &HookRegistration) -> Result<Value, HookError> {
+    if let HookRegistration::OwnedSource { source } = registration {
+        return pi::install(current, source.as_deref());
+    }
     let mut document = current.clone();
     let hooks = document
         .as_object_mut()
@@ -524,6 +551,9 @@ pub fn retain_present(
     current: &Value,
     registration: &HookRegistration,
 ) -> Result<HookRegistration, HookError> {
+    if let HookRegistration::OwnedSource { source } = registration {
+        return pi::retain_present(current, source.as_deref());
+    }
     let root = current.as_object().ok_or(HookError::InvalidConfiguration)?;
     let Some(hooks) = root.get("hooks") else {
         return Ok(HookRegistration::JsonGroups { entries: vec![] });
@@ -573,6 +603,9 @@ pub fn remove(
     registration: &HookRegistration,
     original: &Value,
 ) -> Result<Value, HookError> {
+    if let HookRegistration::OwnedSource { source } = registration {
+        return pi::remove(current, source.as_deref(), original);
+    }
     let present = retain_present(current, registration)?;
     let mut document = current.clone();
     let root = document
@@ -638,6 +671,19 @@ mod tests {
 
     fn native_for(client: Client, event: &str) -> Value {
         let mut value = native(event);
+        if client == Client::Pi {
+            value["hook_event_name"] = json!(match event {
+                "SessionStart" => "session_start",
+                "Stop" => "agent_before_settle",
+                "PostToolUse" => "tool_result",
+                _ => event,
+            });
+            value["tool_response"] = response_for(
+                client,
+                "mcp__locust__locust_wait",
+                value["tool_response"]["structuredContent"].clone(),
+            );
+        }
         if client == Client::FactoryDroid {
             value["tool_name"] = json!("locust___locust_wait");
             value.as_object_mut().unwrap().remove("tool_use_id");
@@ -648,9 +694,21 @@ mod tests {
         value
     }
 
+    fn response_for(client: Client, tool: &str, envelope: Value) -> Value {
+        if matches!(client, Client::ClaudeCode | Client::FactoryDroid) {
+            return json!(envelope.to_string());
+        }
+        let mcp = json!({"isError":false,"content":[{"type":"text","text":envelope.to_string()}],"structuredContent":envelope});
+        if client == Client::Pi {
+            json!({"isError":false,"details":{"server":"locust","tool":tool.strip_prefix("mcp__locust__").unwrap()},"structuredContent":mcp})
+        } else {
+            mcp
+        }
+    }
+
     #[test]
     fn config_and_envelope_goldens_for_all_adapters() {
-        for spec in ADAPTERS {
+        for spec in ADAPTERS.iter().filter(|spec| spec.client != Client::Pi) {
             let registration =
                 registration(spec.client, Path::new("/tmp/lh.fixture/launch.sh")).unwrap();
             assert_eq!(
@@ -720,7 +778,7 @@ mod tests {
 
     #[test]
     fn setup_uses_native_configuration_parser_and_renderer() {
-        for spec in ADAPTERS {
+        for spec in ADAPTERS.iter().filter(|spec| spec.client != Client::Pi) {
             assert_eq!(
                 parse_configuration(spec.client, None).unwrap(),
                 if spec.client == Client::FactoryDroid {
@@ -745,14 +803,14 @@ mod tests {
             assert!(render_configuration(spec.client, &json!([])).is_err());
         }
         assert_eq!(
-            parse_configuration(Client::Pi, None),
+            parse_configuration(Client::KimiCode, None),
             Err(HookError::UnsupportedClient)
         );
     }
 
     #[test]
     fn own_groups_round_trip_preserving_original_and_unrelated_edits() {
-        for spec in ADAPTERS {
+        for spec in ADAPTERS.iter().filter(|spec| spec.client != Client::Pi) {
             let registration =
                 registration(spec.client, Path::new("/tmp/lh.fixture/launch.sh")).unwrap();
             for original in [
@@ -848,7 +906,10 @@ mod tests {
             adapter(Client::FactoryDroid).unwrap().relative_config_path,
             ".factory/hooks.json"
         );
-        assert!(adapter(Client::Pi).is_none());
+        assert_eq!(
+            adapter(Client::Pi).unwrap().relative_config_path,
+            ".pi/agent/extensions/locust.ts"
+        );
         assert!(adapter(Client::KimiCode).is_none());
     }
 
@@ -1096,11 +1157,7 @@ mod tests {
                 let response =
                     json!({"ok":true,"result":Response::Recorded {event:EventId([5;32])}});
                 input["tool_response"] =
-                    if matches!(spec.client, Client::ClaudeCode | Client::FactoryDroid) {
-                        json!(response.to_string())
-                    } else {
-                        json!({"isError":false,"structuredContent":response})
-                    };
+                    response_for(spec.client, input["tool_name"].as_str().unwrap(), response);
                 let Event::Tool {
                     own_call: Some(call),
                 } = parse_input(spec.client, "tool", &input).unwrap().event
@@ -1132,11 +1189,7 @@ mod tests {
                     let response =
                         json!({"ok":true,"result":Response::Recorded {event:EventId([5;32])}});
                     input["tool_response"] =
-                        if matches!(spec.client, Client::ClaudeCode | Client::FactoryDroid) {
-                            json!(response.to_string())
-                        } else {
-                            json!({"isError":false,"structuredContent":response})
-                        };
+                        response_for(spec.client, input["tool_name"].as_str().unwrap(), response);
                     let Event::Tool {
                         own_call: Some(call),
                     } = parse_input(spec.client, "tool", &input).unwrap().event

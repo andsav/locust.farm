@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import sys
 import subprocess
+import shutil
 import unittest
 from unittest.mock import patch
 
@@ -128,6 +129,118 @@ class HookQualificationTests(unittest.TestCase):
         row = json.loads(saved)
         self.assertEqual(row["tool_name"],"mcp__locust__locust_wait")
         self.assertEqual(row["response"]["keys"],["content","isError"])
+
+    def test_pi_replay_routes_nested_native_mcp_result_to_the_extension_driver(self):
+        projected={"envelope":None,"through_installed_extension":True,"tool_result_preserved":True}
+        with patch.object(harness,"run",return_value=(0,json.dumps(projected).encode(),b"")) as run:
+            self.assertIsNone(harness.invoke_hook(self.profile,["/node","/driver","/installed.ts"],"PostToolUse",1,
+                client="pi",call=("wait",{"goal":"g","seen":0,"timeout_ms":0},{"waited":"no_event"},"native-id")))
+        frame=run.call_args.kwargs["input_value"]
+        self.assertEqual(frame["session_id"],"scripted-root")
+        event=frame["event"]
+        self.assertEqual(event["type"],"tool_result")
+        self.assertEqual(event["toolName"],"mcp__locust__locust_wait")
+        self.assertEqual(event["toolCallId"],"native-id")
+        self.assertEqual(event["details"],{"server":"locust","tool":"locust_wait"})
+        self.assertEqual(event["structuredContent"]["structuredContent"],{"ok":True,"result":{"waited":"no_event"}})
+        self.assertEqual(event["structuredContent"]["content"],event["content"])
+        self.assertFalse(event["structuredContent"]["isError"])
+
+    def test_pi_projection_refuses_unpreserved_native_tool_result(self):
+        with patch.object(harness,"run",return_value=(0,b'{"envelope":null,"through_installed_extension":true,"tool_result_preserved":false}',b"")):
+            with self.assertRaises(harness.CheckError):
+                harness.invoke_hook(self.profile,["/node"],"PostToolUse",1,client="pi")
+
+    def test_missing_pi_is_reported_without_model_or_provider_calls(self):
+        result=harness.real_check(self.profile,"pi",None,self.profile.root,"goal",0,1,"model",{"OPENAI_API_KEY":"DO_NOT_RETAIN"})
+        self.assertEqual(result["status"],"not_run")
+        self.assertIn("Pi executable missing",result["reason"])
+        self.assertNotIn("DO_NOT_RETAIN",json.dumps(result))
+
+    def generated_pi_extension(self, line, keep_going=False):
+        launcher=self.profile.fixture / "fake-launcher"
+        script=("#!"+sys.executable+"\nimport json,sys\npayload=json.load(sys.stdin)\n"
+                +"print(json.dumps("+repr({"line":line,"keep_going":keep_going})+"))\n")
+        harness.private_write(launcher,script,0o700)
+        template=(Path(__file__).resolve().parents[2] / "crates/locust-adapter/src/hooks/pi-shim.ts").read_text()
+        source=template.replace("__LOCUST_HOOK_TIMEOUT_MS__","300000").replace("__LOCUST_FAILURE_LINE_JSON__",json.dumps("Locust context was NOT injected")).replace("__LOCUST_LAUNCHER_JSON__",json.dumps(str(launcher)))
+        extension=self.profile.home / ".pi/agent/extensions/locust.ts"
+        harness.private_write(extension,source)
+        return extension
+
+    def pi_driver(self, extension, event):
+        node="/opt/homebrew/bin/node" if Path("/opt/homebrew/bin/node").is_file() else shutil.which("node")
+        if node is None:
+            self.skipTest("Node runtime missing")
+        driver=Path(__file__).resolve().parents[1] / "check_pi_hook_driver.mjs"
+        return harness.run(self.profile,[node,"--disable-warning=ExperimentalWarning",str(driver),str(extension)],5,
+                           input_value={"session_id":"fake-session","event":event})
+
+    def test_pi_driver_loads_actual_source_and_projects_its_native_continuation(self):
+        extension=self.generated_pi_extension("Locust: canned fixture feedback",True)
+        code,stdout,stderr=self.pi_driver(extension,{"type":"agent_before_settle","outcome":"completed","entries":[],"continue":False})
+        self.assertEqual(code,0,stderr)
+        self.assertFalse(stderr)
+        projection=json.loads(stdout)
+        self.assertEqual(projection["envelope"],{"decision":"block","reason":"Locust: canned fixture feedback"})
+        self.assertTrue(projection["through_installed_extension"])
+        self.assertTrue(projection["tool_result_preserved"])
+
+    def test_pi_driver_preserves_nested_tool_result_when_source_appends_context(self):
+        extension=self.generated_pi_extension("Locust: canned tool feedback")
+        raw={"isError":False,"content":[{"type":"text","text":json.dumps({"ok":True,"result":{"waited":"no_event"}})}],
+             "structuredContent":{"ok":True,"result":{"waited":"no_event"}}}
+        event={"type":"tool_result","toolName":"mcp__locust__locust_wait","toolCallId":"native-id",
+               "input":{"goal":"g","seen":0,"timeout_ms":0},"content":raw["content"],
+               "structuredContent":raw,"details":{"server":"locust","tool":"locust_wait"},"isError":False,
+               "usage":{"inputTokens":1,"outputTokens":2}}
+        code,stdout,stderr=self.pi_driver(extension,event)
+        self.assertEqual(code,0,stderr)
+        projection=json.loads(stdout)
+        self.assertTrue(projection["tool_result_preserved"])
+        self.assertEqual(projection["envelope"]["hookSpecificOutput"]["additionalContext"],"Locust: canned tool feedback")
+        self.assertNotIn("native-id",stdout.decode())
+        self.assertNotIn("waited",stdout.decode())
+
+    def test_pi_driver_projects_session_compaction_custom_message(self):
+        extension=self.generated_pi_extension("Locust: canned restored context")
+        code,stdout,stderr=self.pi_driver(extension,{"type":"session_compact"})
+        self.assertEqual(code,0,stderr)
+        self.assertEqual(json.loads(stdout)["envelope"]["hookSpecificOutput"]["additionalContext"],"Locust: canned restored context")
+
+    def test_pi_driver_refuses_source_outside_its_isolated_home(self):
+        other=harness.Profile()
+        self.addCleanup(other.close)
+        marker=self.profile.fixture / "unexpected-execution"
+        extension=other.home / "outside.ts"
+        harness.private_write(extension,"import { writeFileSync } from 'node:fs';\nwriteFileSync("+json.dumps(str(marker))+",'unexpected');\nexport default function () {}\n")
+        code,stdout,stderr=self.pi_driver(extension,{"type":"session_start","reason":"startup"})
+        self.assertNotEqual(code,0)
+        self.assertFalse(stdout)
+        self.assertEqual(stderr,b"Fake Pi replay failed\n")
+        self.assertFalse(marker.exists())
+
+    def test_pi_driver_cannot_pass_a_changed_native_structured_result(self):
+        extension=self.profile.home / ".pi/agent/extensions/corrupt.ts"
+        source="""export default function (pi) {
+          pi.on('tool_result', async (event) => ({
+            content: [...event.content, {type:'text',text:'Locust: opaque fixture feedback'}],
+            details: event.details,
+            structuredContent: {changed: true},
+            isError: event.isError,
+            usage: event.usage,
+          }));
+        }
+        """
+        harness.private_write(extension,source)
+        event={"type":"tool_result","content":[{"type":"text","text":"DO_NOT_RETAIN"}],
+               "structuredContent":{"preserve":True},"details":{"server":"locust","tool":"locust_wait"},
+               "isError":False,"usage":{}}
+        code,stdout,stderr=self.pi_driver(extension,event)
+        self.assertNotEqual(code,0)
+        self.assertFalse(stdout)
+        self.assertEqual(stderr,b"Fake Pi replay failed\n")
+        self.assertNotIn(b"DO_NOT_RETAIN",stderr)
 
 
 if __name__ == "__main__":

@@ -255,3 +255,61 @@ Focused coverage includes 42 adapter/core, 27 hook subprocess, 31 setup and
 fixture that sent a Codex payload directly to the Droid adapter on the missing
 daemon path; the fixture now normalizes native input consistently. Production
 behavior did not change after the successful native qualification.
+
+## H1b: Pi
+
+The [Pi adapter](../crates/locust-adapter/src/hooks/pi.rs) installs one owned `.pi/agent/extensions/locust.ts` extension.
+Its API contract is pinned to `@earendil-works/pi-coding-agent` 1.0.4, commit
+`2db5e359bf84c1c0be51d2c5c5c5c7cf27072c2b`. The [event types](https://github.com/earendil-works/pi/blob/2db5e359bf84c1c0be51d2c5c5c5c7cf27072c2b/packages/coding-agent/src/core/extensions/types.ts)
+and [extension runner](https://github.com/earendil-works/pi/blob/2db5e359bf84c1c0be51d2c5c5c5c7cf27072c2b/packages/coding-agent/src/core/extensions/runner.ts)
+define the event mapping and replacement semantics. `session_start` and
+`session_compact` map to start; `tool_result` maps to tool;
+`agent_before_settle` maps to stop. Chat identity is the native session manager's
+session ID. A `parentToolCallId` identifies a nested tool call in that same
+session, not a separate child agent.
+
+The extension spawns only the setup-bound launcher with literal arguments and
+JSON stdin. It appends the core's one line to the native tool content while
+preserving the original structured result, details, error status and usage.
+Pi's [MCP projection](https://github.com/earendil-works/pi/blob/2db5e359bf84c1c0be51d2c5c5c5c7cf27072c2b/packages/coding-agent/src/extensions/mcp/tools.ts)
+nests the entire MCP result inside native structured content; the adapter checks
+the exact server/tool metadata and both error layers before accepting an own call.
+Settlement preserves prior extension entries and their continuation request.
+Abort and error outcomes do not launch a stop hook. Abort, timeout and shutdown
+reap the owned process before returning; changed sessions discard late output.
+The shim uses the adapter's 300-second timeout and the shared 270-second wait.
+
+Setup treats an existing empty source file as an occupied path. Modified owned
+source conflicts; a hand-deleted extension stays absent on reapply. Removal
+produces no file, including after a mode-only edit, because an empty `.ts` file
+is not a valid Pi extension factory. See the [native loader](https://github.com/earendil-works/pi/blob/2db5e359bf84c1c0be51d2c5c5c5c7cf27072c2b/packages/coding-agent/src/core/extensions/loader.ts).
+The generated shim receives the failure line from the core. It contains no
+Locust work decisions or model selection.
+
+Pi was not installed on this machine, so native harness and real-model checks
+are not run. Node 22.22.0 can strip the type-only imports and exercise the
+extension against a fake API without installing Pi. That evidence does not
+establish native extension discovery, interactive prompt handling or third-party
+subagent-extension routing.
+
+The installed-extension replay passed the same real-daemon scenario used by
+the other adapters: waiting work, a block, an ignored block, cancellation at
+stop and then once at a tool callback, compaction recovery, and no false claim
+loss after this chat's terminal acknowledgment. The fake Pi API loaded the
+actual setup-generated source, which spawned the bound installed launcher.
+It verified that the original nested MCP result and native tool data survived
+line injection. Setup removal restored the MCP bytes and the extension's
+original absence. The temporary profile was removed.
+
+The synthetic signed candidate carries the prior commit label `42c348d` and
+includes the uncommitted Pi adapter. This is source/process qualification, not
+release provenance. The disposable report is `output/hooks-pi-qualification.json`.
+The driver is [check_pi_hook_driver.mjs](../scripts/check_pi_hook_driver.mjs),
+called by [check_hooks.py](../scripts/check_hooks.py). Both native Pi execution
+and real-model execution remain explicitly `not_run` because Pi is missing.
+
+Before the Pi commit, formatting, strict workspace clippy and the full workspace
+test suite passed: 1,250 tests passed and 14 were ignored. Focused coverage
+includes 49 adapter/core, 28 hook subprocess, 35 setup and 12 Node fake API tests.
+The 35 Python hook/profile helper tests and staged documentation checks also
+passed. Native Pi remains unverified for the reason above.

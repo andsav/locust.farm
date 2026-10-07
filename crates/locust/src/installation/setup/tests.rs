@@ -319,7 +319,7 @@ fn unowned_removal_keeps_empty_skill_directory_and_missing_client_directories() 
 }
 #[test]
 fn interrupted_removal_resumes_after_every_write() {
-    for stop in 0..4 {
+    for stop in 0..5 {
         let (_d, s) = fixture(Client::Pi);
         let p = paths(&s).unwrap();
         let a = plan(&s, false).unwrap();
@@ -1166,4 +1166,125 @@ fn launcher_forwards_native_hook_stdin_and_bound_cli_arguments() {
         matches.get_one::<String>("session").unwrap(),
         spec.session.to_str().unwrap()
     );
+}
+
+#[test]
+fn pi_owned_extension_roundtrip_and_mode_only_edit_remove_the_file() {
+    for mode in [0o600, 0o640] {
+        let (_directory, spec) = fixture(Client::Pi);
+        let p = paths(&spec).unwrap();
+        let hook = p.hook.as_ref().unwrap();
+        assert!(hook.ends_with(".pi/agent/extensions/locust.ts"));
+        let reviewed = plan(&spec, false).unwrap();
+        assert_eq!(reviewed.review["files"].as_array().unwrap().len(), 5);
+        apply(&spec, &reviewed.digest().unwrap()).unwrap();
+        let source = fs::read_to_string(hook).unwrap();
+        assert!(source.contains("export default function locust"));
+        assert!(source.contains(p.launcher.to_str().unwrap()));
+        assert_eq!(status(&spec).unwrap()["hooks_ready"], true);
+        fs::set_permissions(hook, fs::Permissions::from_mode(mode)).unwrap();
+        let reviewed = plan(&spec, true).unwrap();
+        remove(&spec, &reviewed.digest().unwrap()).unwrap();
+        assert!(
+            !hook.exists(),
+            "an absent extension must not become an empty .ts file"
+        );
+        assert!(!p.record.exists());
+    }
+}
+
+#[test]
+fn pi_empty_unowned_and_edited_owned_extensions_conflict_without_mutation() {
+    for bytes in [b"".as_slice(), b"export default () => {};\n".as_slice()] {
+        let (_directory, spec) = fixture(Client::Pi);
+        let p = paths(&spec).unwrap();
+        let hook = p.hook.as_ref().unwrap();
+        put(hook, bytes);
+        let before = setup_images(&spec);
+        assert!(preflight_new(&spec).is_err());
+        assert!(plan(&spec, false).is_err());
+        assert_eq!(setup_images(&spec), before);
+        let reviewed = plan(&spec, true).unwrap();
+        remove(&spec, &reviewed.digest().unwrap()).unwrap();
+        assert_eq!(fs::read(hook).unwrap(), bytes);
+    }
+    let (_directory, spec) = fixture(Client::Pi);
+    let p = paths(&spec).unwrap();
+    let reviewed = plan(&spec, false).unwrap();
+    apply(&spec, &reviewed.digest().unwrap()).unwrap();
+    put(
+        p.hook.as_ref().unwrap(),
+        b"// person's own extension edit\nexport default () => {};\n",
+    );
+    let before = setup_images(&spec);
+    assert_eq!(status(&spec).unwrap()["hooks_ready"], false);
+    assert!(plan(&spec, false).is_err());
+    assert!(plan(&spec, true).is_err());
+    assert_eq!(setup_images(&spec), before);
+}
+
+#[test]
+fn pi_hand_removed_source_stays_out_and_recreated_user_source_is_preserved() {
+    for recreate in [false, true] {
+        let (_directory, spec) = fixture(Client::Pi);
+        let p = paths(&spec).unwrap();
+        let hook = p.hook.as_ref().unwrap();
+        let reviewed = plan(&spec, false).unwrap();
+        apply(&spec, &reviewed.digest().unwrap()).unwrap();
+        fs::remove_file(hook).unwrap();
+        assert_eq!(status(&spec).unwrap()["hooks_ready"], false);
+        let reviewed = plan(&spec, false).unwrap();
+        apply(&spec, &reviewed.digest().unwrap()).unwrap();
+        assert!(!hook.exists());
+        let (_, record) = read_record(&p).unwrap();
+        assert!(matches!(
+            record.unwrap().hooks[0].registration,
+            hooks::HookRegistration::OwnedSource { source: None }
+        ));
+        let user_source = b"// recreated user source\nexport default () => {};\n";
+        if recreate {
+            put(hook, user_source);
+        }
+        let reviewed = plan(&spec, true).unwrap();
+        remove(&spec, &reviewed.digest().unwrap()).unwrap();
+        if recreate {
+            assert_eq!(fs::read(hook).unwrap(), user_source);
+        } else {
+            assert!(!hook.exists());
+        }
+    }
+}
+
+#[test]
+fn pi_source_install_and_pending_cleanup_resume_every_owned_write() {
+    for stop in 0..5 {
+        for cleanup in [false, true] {
+            let (_directory, spec) = fixture(Client::Pi);
+            let p = paths(&spec).unwrap();
+            let reviewed = plan(&spec, false).unwrap();
+            let digest = reviewed.digest().unwrap();
+            assert!(
+                execute(&spec, &digest, false, |index| {
+                    if index == stop {
+                        Err(Failure::internal("source interruption"))
+                    } else {
+                        Ok(())
+                    }
+                })
+                .is_err()
+            );
+            if cleanup {
+                let reviewed = plan(&spec, true).unwrap();
+                remove(&spec, &reviewed.digest().unwrap()).unwrap();
+                assert!(!p.hook.as_ref().unwrap().exists());
+                assert!(!p.record.exists());
+            } else {
+                assert_eq!(plan(&spec, false).unwrap().digest().unwrap(), digest);
+                apply(&spec, &digest).unwrap();
+                assert!(p.hook.as_ref().unwrap().exists());
+                assert_eq!(status(&spec).unwrap()["hooks_ready"], true);
+            }
+            assert!(!p.intent.exists());
+        }
+    }
 }

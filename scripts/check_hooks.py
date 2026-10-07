@@ -31,7 +31,8 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 CLIENTS = {"codex": {"binary": "codex", "mcp": ".codex/config.toml", "hooks": ".codex/hooks.json", "provider": "openai", "key": "OPENAI_API_KEY", "real_client": "codex", "mcp_result":"call_tool_result"},
            "claude": {"binary": "claude", "mcp": ".claude.json", "hooks": ".claude/settings.json", "provider": "anthropic", "key": "ANTHROPIC_API_KEY", "real_client": "claude-code", "mcp_result":"json_text"},
-           "droid": {"binary": "droid", "mcp": ".factory/mcp.json", "hooks": ".factory/hooks.json", "provider": "openai", "key": "OPENAI_API_KEY", "real_client": "factory-droid", "mcp_result":"json_text", "tool_prefix":"locust___locust_"}}
+           "droid": {"binary": "droid", "mcp": ".factory/mcp.json", "hooks": ".factory/hooks.json", "provider": "openai", "key": "OPENAI_API_KEY", "real_client": "factory-droid", "mcp_result":"json_text", "tool_prefix":"locust___locust_"},
+           "pi": {"binary":"pi","mcp":".pi/agent/mcp.json","hooks":".pi/agent/extensions/locust.ts","provider":"openai","key":"OPENAI_API_KEY","real_client":"pi","mcp_result":"nested_call_tool_result","source_extension":True}}
 SAFE_PATH = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
 # Qualification instrumentation only: no payload text or values are persisted.
@@ -124,6 +125,7 @@ class Profile:
     def environment(self, binary):
         return {"HOME": str(self.home), "CODEX_HOME": str(self.home / ".codex"),
                 "CLAUDE_CONFIG_DIR": str(self.home / ".claude"),
+                "PI_CODING_AGENT_DIR":str(self.home / ".pi/agent"),
                 "XDG_CONFIG_HOME": str(self.home / "config"), "XDG_CACHE_HOME": str(self.home / "cache"),
                 "XDG_DATA_HOME": str(self.home / "data"), "TMPDIR": str(self.tmp),
                 "PATH": str(Path(binary).parent) + ":" + SAFE_PATH,
@@ -234,6 +236,31 @@ def selected_hook(document, launcher, event, harness):
 
 
 def invoke_hook(profile, command, native_event, timeout, *, client=None, chat="scripted-root", call=None, compacted=False, continued=False):
+    if client=="pi":
+        native_type={"SessionStart":"session_compact" if compacted else "session_start","Stop":"agent_before_settle","PostToolUse":"tool_result"}[native_event]
+        event={"type":native_type}
+        if native_type=="session_start":
+            event["reason"]="startup"
+        if native_type=="agent_before_settle":
+            event.update(outcome="completed",entries=[],**{"continue":False})
+        if call is not None:
+            operation,arguments,result,identifier=call
+            tool="locust_"+operation.replace(".","_")
+            envelope={"ok":True,"result":result}
+            content=[{"type":"text","text":json.dumps(envelope)}]
+            raw={"isError":False,"content":content,"structuredContent":envelope}
+            event.update(toolName="mcp__locust__"+tool,toolCallId=identifier,input=arguments,
+                         content=content,details={"server":"locust","tool":tool},isError=False,
+                         structuredContent=raw,usage={"inputTokens":0,"outputTokens":0})
+        code,output,errors=run(profile,command,timeout,input_value={"session_id":chat,"event":event})
+        require(code==0 and not errors,"fake Pi extension replay failed")
+        try:
+            projected=json.loads(output)
+        except ValueError:
+            raise CheckError("fake Pi extension replay returned invalid JSON") from None
+        require(projected.get("through_installed_extension") is True and projected.get("tool_result_preserved") is True,
+                "fake Pi extension replay did not preserve native tool data")
+        return projected["envelope"]
     payload = {"session_id": chat, "hook_event_name": native_event,
                "source": "compact" if compacted else "startup", "stop_hook_active": continued,
                "cwd": str(profile.workspace)}
@@ -362,6 +389,8 @@ def native_tool_projection(stdout):
 
 def real_check(profile, client, binary, home, goal, revision, timeout, model, ambient):
     spec = CLIENTS[client]
+    if client=="pi":
+        return {"status":"not_run","reason":"native Pi executable missing" if binary is None else "native Pi qualification runner is not implemented; this check only replays the extension through a fake API"}
     if not ambient.get(spec["key"]):
         return {"status": "not_run", "reason": "no API key in environment"}
     if binary is None:
@@ -495,7 +524,11 @@ def qualify(client, binary, source_commit, timeout, *, native_binary=None, real_
             baseline_hooks = b'{"Stop":[{"hooks":[{"type":"command","command":"true"}]}]}\n'
         baseline_mcp = b"# preserve comment\nmodel = 'chosen'\n" if client == "codex" else b'{"unrelated":"preserved"}\n'
         hook_path, mcp_path = profile.home / spec["hooks"], profile.home / spec["mcp"]
-        private_write(hook_path, baseline_hooks)
+        if client=="pi":
+            require(not hook_path.exists(),"Pi extension qualification must start with an absent owned source path")
+            baseline_hooks=None
+        else:
+            private_write(hook_path, baseline_hooks)
         private_write(mcp_path, baseline_mcp)
         setup_args = ["--prefix", prefix, "--client", client, "--profile-home", profile.home,
                       "--workspace", profile.workspace, "--daemon-home", home,
@@ -504,24 +537,31 @@ def qualify(client, binary, source_commit, timeout, *, native_binary=None, real_
         applied = cli(profile, installed, ["setup", "apply", *setup_args, "--expect-plan", plan["plan_sha256"]], timeout)
         launcher = Path(applied["launcher"])
         require(launcher.is_relative_to(profile.home.resolve()), "launcher escaped private profile")
-        document = json.loads(hook_path.read_text())
-        hooks = {event: selected_hook(document, launcher, event, client) for event in ("start", "stop", "tool")}
+        if client=="pi":
+            node=next((path for path in ("/opt/homebrew/bin/node",shutil.which("node")) if path and Path(path).is_file()),None)
+            require(node is not None,"Node with stripTypeScriptTypes is required for fake Pi API replay")
+            driver=ROOT / "scripts/check_pi_hook_driver.mjs"
+            command=[node,"--disable-warning=ExperimentalWarning",str(driver),str(hook_path)]
+            hooks={event:(native,command) for event,native in (("start","SessionStart"),("stop","Stop"),("tool","PostToolUse"))}
+        else:
+            document = json.loads(hook_path.read_text())
+            hooks = {event: selected_hook(document, launcher, event, client) for event in ("start", "stop", "tool")}
         phase = "scripted_hook"
         pending = call("pending", {"goal": goal})["pending"]
         require(any(item["task"] == task and item["unattended"] for item in pending["to_start"]), "fixture task is not free authoritative work")
         wait_args = {"goal": goal, "seen": pending["revision"], "timeout_ms": 0}
         wait_result = call("wait", wait_args)
         invoke_hook(profile, hooks["tool"][1], hooks["tool"][0], timeout, client=client,call=("wait", wait_args, wait_result, "scripted-wait"))
-        first = invoke_hook(profile, hooks["stop"][1], hooks["stop"][0], timeout)
-        second = invoke_hook(profile, hooks["stop"][1], hooks["stop"][0], timeout, continued=True)
+        first = invoke_hook(profile, hooks["stop"][1], hooks["stop"][0], timeout, client=client)
+        second = invoke_hook(profile, hooks["stop"][1], hooks["stop"][0], timeout, client=client, continued=True)
         require(blocks_once(first, second), "waiting work did not block exactly once then pass")
         claim_args = {"goal": goal, "task": task, "offer": offer}
         claimed = call("attempt.start", claim_args)
         invoke_hook(profile, hooks["tool"][1], hooks["tool"][0], timeout, client=client,call=("attempt.start", claim_args, claimed, "scripted-claim"))
         cancellation = call("attempt.cancel", {"goal": goal, "attempt": claimed["claimed"]["attempt"]})
-        cancelled = invoke_hook(profile, hooks["stop"][1], hooks["stop"][0], timeout)
+        cancelled = invoke_hook(profile, hooks["stop"][1], hooks["stop"][0], timeout, client=client)
         require(isinstance(cancelled, dict) and cancelled.get("decision") == "block", "new cancellation did not reach stop callback")
-        compacted = invoke_hook(profile, hooks["start"][1], hooks["start"][0], timeout, compacted=True)
+        compacted = invoke_hook(profile, hooks["start"][1], hooks["start"][0], timeout, client=client, compacted=True)
         require(claimed["claimed"]["attempt"] in json.dumps(compacted), "compaction did not restore held attempt facts")
         observed = call("pending", {"goal": goal})["pending"]
         notice_args = {"goal": goal, "seen": observed["revision"], "timeout_ms": 0}
@@ -540,7 +580,10 @@ def qualify(client, binary, source_commit, timeout, *, native_binary=None, real_
                               "cancellation_reaches_stop_callback": True,
                               "cancellation_reaches_tool_callback": True,
                               "duplicate_tool_notice_suppressed": True,
-                              "evidence_level": "scripted native payloads; real daemon and installed command"}
+                              "evidence_level": "fake Pi API replay through setup-generated extension; real daemon and installed command" if client=="pi" else "scripted native payloads; real daemon and installed command"}
+        if client=="pi":
+            result["scripted"]["through_installed_pi_extension"]=True
+            result["scripted"]["nested_mcp_tool_result_preserved"]=True
         # End the synthetic claim so a real model sees the same free task.
         ack_args = {"goal": goal, "cancel": cancellation["recorded"]["event"],
                     "generation": claimed["claimed"]["generation"], "outcome": "stopped"}
@@ -552,11 +595,18 @@ def qualify(client, binary, source_commit, timeout, *, native_binary=None, real_
         phase = "setup_remove"
         remove_plan = cli(profile, installed, ["setup", "remove-plan", *setup_args], timeout)
         cli(profile, installed, ["setup", "remove", *setup_args, "--expect-plan", remove_plan["plan_sha256"]], timeout)
-        require(hook_path.read_bytes() == baseline_hooks and mcp_path.read_bytes() == baseline_mcp, "setup remove did not restore exact original bytes")
+        require((not hook_path.exists() if baseline_hooks is None else hook_path.read_bytes()==baseline_hooks)
+                and mcp_path.read_bytes() == baseline_mcp, "setup remove did not restore exact original bytes and absence")
         result["setup_remove"] = {"status": "pass", "hook_bytes_restored": True, "mcp_bytes_restored": True}
+        if client=="pi":
+            result["setup_remove"]["owned_source_absence_restored"]=True
         phase = "native_version"
         native_binary, result["native_version"] = native_version(profile, client, timeout, native_binary)
-        if real_model:
+        if client=="pi":
+            limitation="native Pi executable missing" if native_binary is None else "native Pi qualification runner is not implemented; this check only replays the extension through a fake API"
+            result["native_hooks"]={"status":"not_run","reason":limitation}
+            result["real_model"]={"status":"not_run","reason":limitation}
+        if real_model and client!="pi":
             phase = "real_model"
             real_task = "task:" + call("task.open", {"goal": goal, "text": "Synthetic native stop qualification", "task_type": None, "inputs": {}, "parent": None})["recorded"]["event"]
             call("work.offer", {"goal": goal, "task": real_task, "recipient": principal})

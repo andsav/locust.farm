@@ -145,6 +145,25 @@ fn participant_tool(chat: &str, invocation: &str) -> Value {
 
 fn harness_input(harness: &str, input: &Value) -> Value {
     let mut input = input.clone();
+    if harness == "pi" {
+        input["hook_event_name"] = json!(match input["hook_event_name"].as_str().unwrap() {
+            "SessionStart" => "session_start",
+            "Stop" => "agent_before_settle",
+            "PostToolUse" => "tool_result",
+            other => other,
+        });
+        if input["hook_event_name"] == "tool_result" {
+            let name = input["tool_name"].as_str().unwrap();
+            let tool = name.strip_prefix("mcp__locust__").map(str::to_owned);
+            let mut mcp = input["tool_response"].clone();
+            let is_error = mcp["isError"].as_bool().unwrap_or(false);
+            if mcp.is_object() && mcp.get("content").is_none() {
+                mcp["content"] =
+                    json!([{"type":"text","text":mcp["structuredContent"].to_string()}]);
+            }
+            input["tool_response"] = json!({"isError":is_error,"details":{"server":"locust","tool":tool},"structuredContent":mcp});
+        }
+    }
     if harness == "droid" {
         if let Some(name) = input["tool_name"]
             .as_str()
@@ -183,12 +202,23 @@ fn line(envelope: &Value) -> &str {
         .as_str()
         .or_else(|| envelope["systemMessage"].as_str())
         .or_else(|| envelope["hookSpecificOutput"]["additionalContext"].as_str())
+        .or_else(|| envelope["line"].as_str())
         .expect("native envelope has exactly one Locust line");
     assert!(line.len() < 512, "{} bytes", line.len());
     assert!(line.bytes().all(|byte| (b' '..=b'~').contains(&byte)));
     assert!(!line.contains("TITLE"));
     assert!(!line.contains("Ignore previous"));
     line
+}
+
+fn keep_going(envelope: &Value) -> bool {
+    envelope.get("keep_going").map_or_else(
+        || envelope["decision"] == "block",
+        |value| value.as_bool().expect("Pi continuation is a boolean"),
+    )
+}
+fn normalized(envelope: &Value) -> (String, bool) {
+    (line(envelope).to_owned(), keep_going(envelope))
 }
 
 fn free_work(n: u8) -> PendingWork {
@@ -508,7 +538,7 @@ fn serve(mut stream: UnixStream, state: Arc<Mutex<ServerState>>, caller: Caller)
 #[test]
 fn every_adapter_blocks_once_alternating_work_and_external_tools_do_not_reset_it() {
     let mut outcomes = Vec::new();
-    for harness in ["codex", "claude", "droid"] {
+    for harness in ["codex", "claude", "droid", "pi"] {
         let fixture = Fixture::new(free_work(3));
         let chat = "same-chat";
         assert!(
@@ -520,7 +550,7 @@ fn every_adapter_blocks_once_alternating_work_and_external_tools_do_not_reset_it
         let first = fixture
             .hook(harness, "stop", &native("stop", chat))
             .unwrap();
-        assert_eq!(first["decision"], "block");
+        assert!(keep_going(&first));
         assert!(line(&first).contains("1 free tasks"));
         assert!(line(&first).contains("unless your owner asked you to stop"));
         assert!(
@@ -537,7 +567,7 @@ fn every_adapter_blocks_once_alternating_work_and_external_tools_do_not_reset_it
         let next = fixture
             .hook(harness, "stop", &native("stop", chat))
             .unwrap();
-        assert_eq!(next["decision"], "block");
+        assert!(keep_going(&next));
         line(&next);
         fixture.pending(free_work(3));
         assert!(
@@ -567,9 +597,9 @@ fn every_adapter_blocks_once_alternating_work_and_external_tools_do_not_reset_it
                 ))
         );
         assert_eq!(fixture.marks(chat).shown.len(), 2);
-        outcomes.push((first, next));
+        outcomes.push((normalized(&first), normalized(&next)));
     }
-    assert_eq!(outcomes[0], outcomes[1]);
+    assert!(outcomes.iter().all(|outcome| *outcome == outcomes[0]));
 }
 
 #[test]
@@ -606,7 +636,7 @@ fn passive_chat_does_not_block_for_unrelated_work_or_other_sessions_claims() {
     let block = fixture
         .hook("codex", "stop", &native("stop", chat))
         .unwrap();
-    assert_eq!(block["decision"], "block");
+    assert!(keep_going(&block));
     assert!(line(&block).contains("1 held attempts"));
     assert!(!line(&block).contains(&held(4, InstanceId([9; 16])).attempt.to_string()));
     assert_eq!(fixture.marks(chat).goals[&GOAL].claims, vec![own]);
@@ -669,7 +699,7 @@ fn concurrent_stops_share_one_block_and_do_not_lose_marks() {
     });
     assert_eq!(outputs.iter().filter(|output| output.is_some()).count(), 1);
     let block = outputs.into_iter().flatten().next().unwrap();
-    assert_eq!(block["decision"], "block");
+    assert!(keep_going(&block));
     line(&block);
     let marks = fixture.marks("concurrent");
     assert_eq!(marks.shown.len(), 1);
@@ -810,7 +840,7 @@ fn malformed_input_and_missing_daemon_use_fixed_native_failure_envelopes() {
     fs::create_dir(&state).unwrap();
     secret(&state.join("agent.credential"), &CREDENTIAL.0);
     secret(&state.join("session.secret"), &SESSION.0);
-    for harness in ["codex", "claude", "droid"] {
+    for harness in ["codex", "claude", "droid", "pi"] {
         let malformed = checked(&run(
             &mut command(home.path(), &state, harness, "stop"),
             b"not json TITLE\n",
@@ -887,7 +917,7 @@ fn nonmembers_and_halted_goals_do_not_contribute_pending_work() {
     let block = fixture
         .hook("codex", "stop", &native("stop", "worker"))
         .unwrap();
-    assert_eq!(block["decision"], "block");
+    assert!(keep_going(&block));
     assert!(line(&block).contains("1 free tasks"));
     let state = fixture.state.lock().unwrap();
     assert!(
@@ -935,7 +965,7 @@ fn start_restores_held_attempts_even_when_the_member_goal_is_halted() {
 
 #[test]
 fn two_chats_sharing_a_session_do_not_share_locust_participation() {
-    for harness in ["codex", "claude", "droid"] {
+    for harness in ["codex", "claude", "droid", "pi"] {
         let own = held(3, SESSION.instance());
         let fixture = Fixture::new(PendingWork {
             claimed: vec![own],
@@ -1024,7 +1054,7 @@ fn passive_chat_blocks_once_for_new_cancellation_of_its_current_attempt() {
     let canceled = fixture
         .hook("codex", "stop", &native("stop", "passive"))
         .unwrap();
-    assert_eq!(canceled["decision"], "block");
+    assert!(keep_going(&canceled));
     assert!(line(&canceled).contains("1 cancellations"));
     assert!(line(&canceled).contains(&EventId([5; 32]).to_string()));
     assert!(line(&canceled).contains("locust_cancel_acknowledge"));
@@ -1038,7 +1068,7 @@ fn passive_chat_blocks_once_for_new_cancellation_of_its_current_attempt() {
 
 #[test]
 fn tool_polls_unchanged_goals_without_pending_and_preserves_disconnected_claims() {
-    for harness in ["codex", "claude", "droid"] {
+    for harness in ["codex", "claude", "droid", "pi"] {
         let own = held(3, SESSION.instance());
         let fixture = Fixture::new(PendingWork {
             claimed: vec![own],
@@ -1080,7 +1110,7 @@ fn tool_polls_unchanged_goals_without_pending_and_preserves_disconnected_claims(
 
 #[test]
 fn concurrent_tools_deliver_one_loss_notice_and_consume_work_without_pending() {
-    for harness in ["codex", "claude", "droid"] {
+    for harness in ["codex", "claude", "droid", "pi"] {
         let own = held(3, SESSION.instance());
         let fixture = Fixture::new(PendingWork {
             claimed: vec![own],
@@ -1136,7 +1166,7 @@ fn concurrent_tools_deliver_one_loss_notice_and_consume_work_without_pending() {
 
 #[test]
 fn multiple_cancellations_deliver_once_each_even_when_the_next_goal_snapshot_is_omitted() {
-    for harness in ["codex", "claude", "droid"] {
+    for harness in ["codex", "claude", "droid", "pi"] {
         let first = held(3, SESSION.instance());
         let second = held(4, SESSION.instance());
         let mut pending = PendingWork {
@@ -1668,7 +1698,7 @@ fn immediate_cancellation_notice_counts_as_shown_for_the_next_stop() {
             );
         } else {
             let block = stop.unwrap();
-            assert_eq!(block["decision"], "block");
+            assert!(keep_going(&block));
             assert!(line(&block).contains(&own.attempt.to_string()));
             assert!(!line(&block).contains(&EventId([6; 32]).to_string()));
         }
@@ -1716,4 +1746,25 @@ fn known_chat_terminal_fact_survives_handshake_failure_and_prevents_false_loss_o
             .is_none()
     );
     assert!(fixture.marks("handshake-retry").delivered.is_empty());
+}
+
+#[test]
+fn pi_nested_tool_identity_observes_the_same_session_and_preserves_core_outcomes() {
+    let fixture = Fixture::new(free_work(3));
+    let mut nested = worker_tool("pi-nested", "codemode-call/1");
+    nested["parent_tool_call_id"] = json!("codemode-call");
+    assert!(fixture.hook("pi", "tool", &nested).is_none());
+    let marks = fixture.marks("pi-nested");
+    assert!(marks.worker);
+    assert!(marks.invocations.contains("codemode-call/1"));
+    let stop = fixture
+        .hook("pi", "stop", &native("stop", "pi-nested"))
+        .unwrap();
+    assert_eq!(stop["keep_going"], true);
+    assert!(line(&stop).contains("1 free tasks"));
+    assert!(
+        fixture
+            .hook("pi", "stop", &native("stop", "pi-nested"))
+            .is_none()
+    );
 }
