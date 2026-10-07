@@ -2621,7 +2621,7 @@
         ],
         "commands": [],
         "name": "contributions",
-        "summary": "Lists the goal's results and findings, or one task's, each with its author, attempt, text, declared sources, artifacts and whether it is approved or selected. Read it to reuse earlier work before publishing."
+        "summary": "Lists the goal's results and findings, or one task's, each with its author, attempt, text, declared sources, artifacts and whether it is approved or selected. Reuse goal-wide findings and other tasks' results; on a task you are attempting, publish your result before reading other members' results on it."
       },
       {
         "arguments": [
@@ -7398,7 +7398,7 @@
       "mcp_tool": "locust_contributions",
       "name": "contributions",
       "read_only": true,
-      "summary": "Lists the goal's results and findings, or one task's, each with its author, attempt, text, declared sources, artifacts and whether it is approved or selected. Read it to reuse earlier work before publishing."
+      "summary": "Lists the goal's results and findings, or one task's, each with its author, attempt, text, declared sources, artifacts and whether it is approved or selected. Reuse goal-wide findings and other tasks' results; on a task you are attempting, publish your result before reading other members' results on it."
     },
     {
       "audience": "agent",

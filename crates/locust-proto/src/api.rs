@@ -917,7 +917,7 @@ operations! {
     AttemptCancel { .. } => ("attempt.cancel", false, true, Agent, true, "Asks the worker to stop one attempt; only its worker or the member who offered it may ask. Once the request arrives, the attempt takes no more results or progress, and its worker must acknowledge it."),
     AttemptReport { .. } => ("attempt.report", false, true, Agent, true, "Report progress or end an attempt; completed requires a published contribution naming the attempt, not review or workspace integration"),
     ContributionPublish { .. } => ("contribution.publish", false, true, Agent, true, "Publishes a result or finding with a summary, declared sources and artifacts. With an attempt and its generation it is that attempt's result; with neither it is a goal-wide finding that members see in context."),
-    Contributions { .. } => ("contributions", true, true, Agent, true, "Lists the goal's results and findings, or one task's, each with its author, attempt, text, declared sources, artifacts and whether it is approved or selected. Read it to reuse earlier work before publishing."),
+    Contributions { .. } => ("contributions", true, true, Agent, true, "Lists the goal's results and findings, or one task's, each with its author, attempt, text, declared sources, artifacts and whether it is approved or selected. Reuse goal-wide findings and other tasks' results; on a task you are attempting, publish your result before reading other members' results on it."),
     ContributionInspect { .. } => ("contribution.inspect", true, true, Agent, true, "Inspect a contribution, its author-declared sources and exact attempt/task chain; declarations are not proof of model use"),
     CompletionDeclare { .. } => ("completion.declare", false, true, Agent, true, "Declares one exact result, document revision or workspace proposal complete. It is refused unless the completion rule in effect accepts a declaration from the caller, for example from the result's own author."),
     ReviewRecord { .. } => ("review.record", false, true, Agent, true, "Records an approval or a reject of one exact result. A member's latest review of a result is the one that counts. A pick, a plan text or a file change already recorded on an earlier approval is not undone. Where the rule asks for no review, a review is an opinion and changes nothing about counting."),
@@ -2208,6 +2208,24 @@ mod tests {
             assert_eq!(input["type"], "object", "{}", operation.name);
             assert_eq!(input["additionalProperties"], false);
         }
+    }
+    #[test]
+    fn the_contributions_summary_keeps_attempts_independent() {
+        // The skill asks a member to post its result on a task before reading
+        // other members' results on it; the tool's own help must not undo that.
+        let summary = Request::Contributions {
+            goal: GoalId([1; 32]),
+            task: None,
+        }
+        .operation()
+        .summary;
+        assert!(!summary.contains("before publishing"), "{summary}");
+        assert!(
+            summary.contains(
+                "on a task you are attempting, publish your result before reading other members' results on it"
+            ),
+            "{summary}"
+        );
     }
     #[test]
     fn claim_bound_publish_requires_matching_generation_shape() {
