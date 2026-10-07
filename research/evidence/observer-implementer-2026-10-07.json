@@ -1,0 +1,388 @@
+{
+  "inspection_date": "2026-10-07",
+  "repository": "merak8",
+  "head": "52cbf37ca033dc8f218e576c176e5d48a63ed9c6",
+  "tracked_worktree_dirty": true,
+  "scope": {
+    "result_glob": "jobs/*swe-polaris-default*/*/result.json",
+    "trace_glob": "jobs/*swe-polaris-default*/*/agent/merak-trace.json",
+    "ledger_candidates": [
+      "swe-polaris-default",
+      "smoke-normal"
+    ],
+    "limitations": [
+      "Local retained archive only; traces and campaign-ledger coverage are incomplete.",
+      "Candidate labels do not establish identical historical code, prompts or model configurations.",
+      "Inspected source configurations are not asserted to be the configurations used by saved runs.",
+      "Node completion does not imply a completed model step, delivered advice, or a passing external verifier.",
+      "No matched observer ablation, complete cost accounting, or causal benefit estimate is established.",
+      "No raw prompts, reasoning, tool payloads, model transcripts or environment values are exported."
+    ]
+  },
+  "sources": [
+    {
+      "path": "polaris/src-tauri/builtin_blueprints/swe-pipeline-gold-v2.json",
+      "sha256": "b85fa82b76b7fa307f25bfcb177bbe9df90d5dbbe74d3551ccf75d94f6d13ac4"
+    },
+    {
+      "path": "merak/fixtures/legacy/builtin_blueprints/swe-pipeline-gold-v2.json",
+      "sha256": "72f66a60fcb1f25745c03d1c53acd59e00e2d69bd9e429208ba0386701006f80"
+    },
+    {
+      "path": "merak/crates/merak-engine/tests/swe_gold_real.rs",
+      "sha256": "fb4e8e05ffa062123244cfded9048a4f846ff140bbf851affa6a813e37bd46e8"
+    },
+    {
+      "path": "merak/fixtures/parity/swe-pipeline-gold-trace.json",
+      "sha256": "9b8d6599efbbc57529ef11a6cb9152f4c73f8ac37e6c427b76974c146211b678"
+    },
+    {
+      "path": "docs/internal/TB2_HILL_CLIMB_RUNBOOK.md",
+      "sha256": "04dbd63709dfab1968a5cf3f1894821006e7a5111d3c3c1adad0b95141ce09be"
+    },
+    {
+      "path": "campaigns/tb2/runs.jsonl",
+      "sha256": "1c08ee22c72f8f0428d4a5b49cde2858c8101cc5f13ec061fdee4d6bc808401a"
+    }
+  ],
+  "configurations": [
+    {
+      "path": "polaris/src-tauri/builtin_blueprints/swe-pipeline-gold-v2.json",
+      "roles": [
+        {
+          "node_id": "executor",
+          "model": "openai/gpt-5.5",
+          "publish": [
+            "execution_log"
+          ],
+          "subscribe": [
+            "directives"
+          ],
+          "heartbeat_seconds": null,
+          "stop_feed": null,
+          "tools": [
+            "run_commands",
+            "read_file",
+            "write_file",
+            "edit_file",
+            "search_codebase",
+            "web_search",
+            "read_image",
+            "complete_task",
+            "wait",
+            "spawn_agent"
+          ]
+        },
+        {
+          "node_id": "observer",
+          "model": "anthropic/claude-opus-4-8",
+          "publish": [
+            "directives"
+          ],
+          "subscribe": [
+            "execution_log"
+          ],
+          "heartbeat_seconds": 40,
+          "stop_feed": "execution_done",
+          "tools": [
+            "read_file",
+            "read_image",
+            "web_search",
+            "search_codebase"
+          ]
+        },
+        {
+          "node_id": "superego",
+          "model": "gemini/gemini-3.1-flash-lite-preview",
+          "publish": [
+            "directives"
+          ],
+          "subscribe": [
+            "execution_log_thinking"
+          ],
+          "heartbeat_seconds": 60,
+          "stop_feed": "execution_done",
+          "tools": []
+        }
+      ]
+    },
+    {
+      "path": "merak/fixtures/legacy/builtin_blueprints/swe-pipeline-gold-v2.json",
+      "roles": [
+        {
+          "node_id": "executor",
+          "model": "openai/gpt-5.5",
+          "publish": [
+            "execution_log"
+          ],
+          "subscribe": [
+            "directives"
+          ],
+          "heartbeat_seconds": null,
+          "stop_feed": null,
+          "tools": [
+            "run_commands",
+            "read_file",
+            "write_file",
+            "edit_file",
+            "search_codebase",
+            "web_search",
+            "read_image",
+            "complete_task",
+            "wait",
+            "spawn_agent"
+          ]
+        },
+        {
+          "node_id": "observer",
+          "model": "anthropic/claude-opus-4-7",
+          "publish": [
+            "directives"
+          ],
+          "subscribe": [
+            "execution_log"
+          ],
+          "heartbeat_seconds": 40,
+          "stop_feed": "execution_done",
+          "tools": [
+            "read_file",
+            "read_image",
+            "web_search",
+            "search_codebase"
+          ]
+        },
+        {
+          "node_id": "superego",
+          "model": "gemini/gemini-3.1-flash-lite-preview",
+          "publish": [
+            "directives"
+          ],
+          "subscribe": [
+            "execution_log_thinking"
+          ],
+          "heartbeat_seconds": 60,
+          "stop_feed": "execution_done",
+          "tools": []
+        }
+      ]
+    }
+  ],
+  "ledger_total_records": 28,
+  "selected_ledger_records": [
+    {
+      "run_id": "2026-05-30__13-30-16__openssl-selfsigned-cert__smoke-normal",
+      "task": "openssl-selfsigned-cert",
+      "candidate_id": "smoke-normal",
+      "score": 0.0,
+      "failure_stage": "benchmark_failed",
+      "duration_seconds": 37
+    },
+    {
+      "run_id": "2026-05-30__13-31-18__openssl-selfsigned-cert__smoke-normal",
+      "task": "openssl-selfsigned-cert",
+      "candidate_id": "smoke-normal",
+      "score": 1.0,
+      "failure_stage": "passed",
+      "duration_seconds": 40
+    },
+    {
+      "run_id": "2026-05-30__13-37-53__openssl-selfsigned-cert__swe-polaris-default",
+      "task": "openssl-selfsigned-cert",
+      "candidate_id": "swe-polaris-default",
+      "score": 0.0,
+      "failure_stage": "agent_or_tool_error",
+      "duration_seconds": 647
+    },
+    {
+      "run_id": "2026-05-30__14-13-14__openssl-selfsigned-cert__swe-polaris-default",
+      "task": "openssl-selfsigned-cert",
+      "candidate_id": "swe-polaris-default",
+      "score": 0.0,
+      "failure_stage": "completion_guard",
+      "duration_seconds": 917
+    },
+    {
+      "run_id": "2026-05-30__14-29-20__openssl-selfsigned-cert__swe-polaris-default",
+      "task": "openssl-selfsigned-cert",
+      "candidate_id": "swe-polaris-default",
+      "score": 1.0,
+      "failure_stage": "passed",
+      "duration_seconds": 917
+    },
+    {
+      "run_id": "2026-05-30__14-51-28__openssl-selfsigned-cert__swe-polaris-default",
+      "task": "openssl-selfsigned-cert",
+      "candidate_id": "swe-polaris-default",
+      "score": 1.0,
+      "failure_stage": "passed",
+      "duration_seconds": 86
+    }
+  ],
+  "trial_results": [
+    {
+      "path": "jobs/2026-05-30__13-37-53__swe-polaris-default__openssl-selfsigned-cert/openssl-selfsigned-cert__SC4Kw8Y/result.json",
+      "sha256": "ca26134afbe1e09aceb224b70e49e3c10a1018c9d8c4ca45ccfbed6235bfccc6",
+      "task": "openssl-selfsigned-cert",
+      "rewards": {
+        "reward": 0.0
+      },
+      "exception_type": null,
+      "cost_usd": null
+    },
+    {
+      "path": "jobs/2026-05-30__14-13-14__swe-polaris-default__openssl-selfsigned-cert/openssl-selfsigned-cert__s6zumUP/result.json",
+      "sha256": "717a77b0971a47e558a3f053ba32be4b0c84e671ac01e7d9b858d456e500b3e4",
+      "task": "openssl-selfsigned-cert",
+      "rewards": {
+        "reward": 0.0
+      },
+      "exception_type": "AgentTimeoutError",
+      "cost_usd": null
+    },
+    {
+      "path": "jobs/2026-05-30__14-29-20__swe-polaris-default__openssl-selfsigned-cert/openssl-selfsigned-cert__jmzktuR/result.json",
+      "sha256": "e09a2496d21c91b668bb18975fab48a68ece335b862efed84d6cfcd7e6a72e3e",
+      "task": "openssl-selfsigned-cert",
+      "rewards": {
+        "reward": 1.0
+      },
+      "exception_type": "AgentTimeoutError",
+      "cost_usd": null
+    },
+    {
+      "path": "jobs/2026-05-30__14-51-28__swe-polaris-default__openssl-selfsigned-cert/openssl-selfsigned-cert__M8C6ZQv/result.json",
+      "sha256": "4bad504c78bfe482eab09eeb2bbb8a73139f8d0a9af70a58b3498614bbb42d3c",
+      "task": "openssl-selfsigned-cert",
+      "rewards": {
+        "reward": 1.0
+      },
+      "exception_type": null,
+      "cost_usd": null
+    },
+    {
+      "path": "jobs/2026-05-30__15-26-24__swe-polaris-default__gpt2-codegolf/gpt2-codegolf__R5tRJNs/result.json",
+      "sha256": "0a179e4076f94f66f8beac883d45da43cd344a82cede45ce610050f0bb07d718",
+      "task": "gpt2-codegolf",
+      "rewards": {
+        "reward": 0.0
+      },
+      "exception_type": null,
+      "cost_usd": null
+    },
+    {
+      "path": "jobs/2026-05-30__15-40-29__swe-polaris-default__gpt2-codegolf/gpt2-codegolf__ae24E33/result.json",
+      "sha256": "22022e6718fb844603f57c227752e0ec2981953f86b069c965a852536f60cc89",
+      "task": "gpt2-codegolf",
+      "rewards": {
+        "reward": 0.0
+      },
+      "exception_type": null,
+      "cost_usd": null
+    }
+  ],
+  "runtime_traces": [
+    {
+      "path": "jobs/2026-05-30__13-37-53__swe-polaris-default__openssl-selfsigned-cert/openssl-selfsigned-cert__SC4Kw8Y/agent/merak-trace.json",
+      "sha256": "d41ed3e38e244f5da0157efe6d298230536daaa44876c02a98f5a301edf023c1",
+      "event_count": 40,
+      "event_types": {
+        "run_done": 1,
+        "run_node_completed": 8,
+        "run_node_delta": 11,
+        "run_node_failed": 1,
+        "run_node_started": 9,
+        "run_started": 1,
+        "session_created": 1,
+        "tool_activity": 8
+      },
+      "failures": [
+        {
+          "node_id": "executor",
+          "sequence": 29,
+          "timestamp": "1780173518.526",
+          "message": "node \"executor\" requested suspension, which is not supported by the in-memory engine"
+        }
+      ],
+      "completed_nodes": [
+        {
+          "node_id": "superego",
+          "sequence": 38,
+          "timestamp": "1780174113.303",
+          "outputs": {
+            "status": "timed_out",
+            "run_status": "timed_out",
+            "steps": "2",
+            "tool_calls_count": "1",
+            "task_completed": "false"
+          },
+          "seconds_after_executor_failure": 594.777
+        },
+        {
+          "node_id": "observer",
+          "sequence": 39,
+          "timestamp": "1780174113.304",
+          "outputs": {
+            "status": "timed_out",
+            "run_status": "timed_out",
+            "steps": "2",
+            "tool_calls_count": "1",
+            "task_completed": "false"
+          },
+          "seconds_after_executor_failure": 594.778
+        }
+      ]
+    },
+    {
+      "path": "jobs/2026-05-30__14-51-28__swe-polaris-default__openssl-selfsigned-cert/openssl-selfsigned-cert__M8C6ZQv/agent/merak-trace.json",
+      "sha256": "d5a263c3e55cc253485215857a59710a380a2d697a3bd299d993fb782ae094dd",
+      "event_count": 41,
+      "event_types": {
+        "run_done": 1,
+        "run_node_completed": 9,
+        "run_node_delta": 6,
+        "run_node_started": 9,
+        "run_started": 1,
+        "session_created": 1,
+        "tool_activity": 14
+      },
+      "failures": [],
+      "completed_nodes": [
+        {
+          "node_id": "superego",
+          "sequence": 36,
+          "timestamp": "1780177968.266",
+          "outputs": {
+            "status": "success",
+            "steps": "0",
+            "tool_calls_count": "0",
+            "stopped_by_feed": "true"
+          }
+        },
+        {
+          "node_id": "observer",
+          "sequence": 38,
+          "timestamp": "1780177968.267",
+          "outputs": {
+            "status": "success",
+            "steps": "0",
+            "tool_calls_count": "0",
+            "stopped_by_feed": "true"
+          }
+        },
+        {
+          "node_id": "executor",
+          "sequence": 40,
+          "timestamp": "1780177968.290",
+          "outputs": {
+            "status": "success",
+            "steps": "5",
+            "tool_calls_count": "5",
+            "task_completed": "true",
+            "auto_completed_from_verification": "true",
+            "executor.rotation.model": "gpt-5.5"
+          }
+        }
+      ]
+    }
+  ]
+}

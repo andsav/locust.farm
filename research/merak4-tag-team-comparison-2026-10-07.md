@@ -171,6 +171,11 @@ budget on explanation, selection and reconciliation. Both can suffer from a
 persuasive but incorrect shared interpretation. Neither topology guarantees
 independent errors simply by using different model brands.
 
+The subsequent [observer/implementer assessment](observer-implementer-lessons-2026-10-07.md)
+adds a fourth condition: continuous advice during one model's implementation.
+It records Merak4's collaborative observer mode and Merak8's activity/strategy
+observers, including saved-run limits that a node's completion status can hide.
+
 Locust itself is a collaboration substrate rather than this one experimental
 topology. The pilot adapter fixed membership, isolation and exchange timing.
 A tag-team policy could also be studied using Locust's signed artifacts, with

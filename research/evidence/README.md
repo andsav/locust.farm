@@ -9,6 +9,8 @@ it. Sanitization does not imply rerunning a check or qualifying a newer artifact
 
 ## Experiment records
 
+- [Merak8 observer/implementer evidence](observer-implementer-2026-10-07.json): saved trial outcomes, adviser step/shutdown status and source hashes; [lessons and limits](../observer-implementer-lessons-2026-10-07.md).
+
 - [Merak4 historical tag-team and hypothesis-swarm inventory](merak4-tag-team-2026-10-07.json): source hashes, retained result metadata and model-switch/completion fields; [comparison and limits](../merak4-tag-team-comparison-2026-10-07.md).
 
 - [Agents without work roles](role-free-board-2026-10-05/README.md): two real three-client trials, signed task choices, automatic review requests, duplicate work and permission friction; [findings](../role-free-board-2026-10-05.md).

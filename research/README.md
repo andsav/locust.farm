@@ -7,6 +7,8 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 
 ## Investigations and experiments
 
+- [Observer and implementer: useful lessons from Merak4 and Merak8](observer-implementer-lessons-2026-10-07.md)
+
 - [Heterogeneous collaboration: pilot lessons and Merak4 tag team](merak4-tag-team-comparison-2026-10-07.md)
 
 - [Strong solo versus heterogeneous negotiation: first pilot results](negotiation-pilot-results-2026-10-07.md)
