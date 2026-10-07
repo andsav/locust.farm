@@ -7,6 +7,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 
 ## Investigations and experiments
 
+- [OpenAI mathematics methodology and its relevance to Locust](openai-math-methodology-2026-10-07.md)
 - [Locust v2 R6: documents, site and scripts](v2-phase-r6-build-notes-2026-10-06.md)
 
 - [A2A and Locust](a2a-assessment.md)
