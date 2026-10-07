@@ -2372,8 +2372,9 @@ second or the third "caught up".
   admission only because it was taken before the admission existed does not
   count: the host's computer learns of the admission again and answers for
   that member. Three runs built step by step are kept that must end in a
-  reused position, one for each case left out, all under risk (5) in the
-  notes: a member's machine restored with its marks lost, whose agent's last
+  reused position, one for each of these cases, all under risk (5) in the
+  notes (the limit of a goal with no mark, under the start table above, has
+  its own): a member's machine restored with its marks lost, whose agent's last
   record reached another member's machine and not the host's; an agent's
   record that reached only a machine whose removal the restored copy does
   not hold, given up with the marks kept; and a member's machine and the
