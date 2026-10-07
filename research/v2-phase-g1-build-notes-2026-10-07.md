@@ -172,7 +172,8 @@ read, not edited. G2 owns the words a person reads; the words here are interim.
 - A member opening a task right after a restart can get `conflict` ("the
   candidate cannot be applied yet") until the content of records it already
   holds arrives. Refused candidates sign nothing; the real-daemon helper
-  retries.
+  retries. Since `5e71dc7` a candidate that waits on the rules definition is
+  refused as `unavailable` instead, saying the rules have not arrived.
 - On a joined member `events` lists the first `rules_bound` twice. This is the
   feed's intended behaviour (it numbers standing changes,
   [feed.rs](../crates/locust-core/src/node/feed.rs)): the record is pending
@@ -353,8 +354,8 @@ Three defects found after the review fixes were fixed on 7 October
   change". The hold now also waits until the goal's current rules are
   readable and its current content key is held (`ready` in
   [guard.rs](../crates/locust-core/src/node/guard.rs)). `guard_admissions`,
-  run by every landing, ends the hold once that content lands after the
-  hearing. The restore-guard model carries no content, and this condition
+  which `Node::land` runs for each goal it touches, ends the hold once that
+  content lands after the hearing. The restore-guard model carries no content, and this condition
   only lengthens a hold. The plan's `Admitted` row says so.
   `a_key_just_admitted_waits_for_the_goals_rules_as_well_as_the_hosts_computer`
   steps the test network one input at a time (`Network::step`). Without the
@@ -373,6 +374,24 @@ fix the new member's first post was refused in 4 of 7 `crash` runs with the
 kill and 2 of 6 without it. With the simulation's new wait and the old
 daemon, five of five runs failed with `conflict`. With the fix, nine of nine
 passed, one of them after the rebase.
+
+A second review of those fixes found the cause under the second defect
+([follow-up defects](v2-phase-g1-review-fixes-2026-10-07.md#follow-up-defects)).
+A candidate whose rules definition had not arrived was refused as a
+permanent `conflict`, so the admission hold was the only defence, and an
+owner's `goal continue` or a restart before the content arrived still
+reached it. Since `5e71dc7` such a candidate is refused as `unavailable` and
+says the rules have not arrived. Only a missing definition is treated so: a
+first version also mapped every other pending kind, and two existing tests
+showed why not. A pick whose evidence was cancelled waits on evidence for
+good, and a delivery acknowledgement whose effect stands on a fork waits on
+a reference for good. Both stay `conflict`. `17591de` pins the content-key
+half of the admission hold in a goal whose rules predate a removal, and
+`e94a83a` makes the hold's refusal and the API's `admitted` description name
+the rules and key it also waits for. The plan's mockup, function list,
+`finish_joins` note and E2 risks follow. The 10,000-seed release sweep on
+that tree: no failure, 30 positions signed again outside the claims and none
+inside, the same 14 residual runs.
 
 ## Verification
 

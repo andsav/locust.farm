@@ -182,7 +182,8 @@ without its fix, that is the lane's report. It also did not check
 
 ## Follow-up defects
 
-Fixed on the branch `fix-g1-more` after this record, 7 October 2026. The
+Dealt with on the branch `fix-g1-more` after this record, 7 October 2026,
+and on `fix-g1-more2` after a review of that branch. The
 [G1 build notes](v2-phase-g1-build-notes-2026-10-07.md), "After the review",
 give the detail.
 
@@ -191,3 +192,20 @@ give the detail.
 | The second-restore gap under [Guard lane](#guard-lane): a member restored with its marks lost, caught up by the host's computer alone, then restored again with its marks kept, signs at a position another member holds, and the simulator claimed it | Reproduced. Not held by the guard: nothing on the computer remembers the record, which was lost with the marks. Holding it would mean waiting for every member's computer after every copy of unknown age. The plan states it under the first way of risk (5), and the simulator no longer claims it | `3ae5cae` | `a_member_restored_with_its_marks_lost_and_then_kept_signs_again_what_only_another_member_holds` and `a_record_that_came_back_after_the_marks_were_lost_leaves_the_claim_standing` ([kept runs](../crates/locust-core/src/node/sim/restore_runs.rs)); `a_record_lost_with_the_marks_is_signed_over_after_a_later_restore_with_the_marks_kept` ([guard tests](../crates/locust-core/src/node/tests/guard.rs)) |
 | A new member's first post refused as `conflict` ([local-profile sync note](lan-sync-host-offline-2026-10-07.md), "Also found") | Fixed in the daemon. The admission hold ended on hearing the host's computer while the member could not yet read the goal's rules. It now also waits for the rules and the current content key. The restart was incidental: without the kill, 2 of 6 runs were refused too. The simulation now waits for the new member's `guard` to clear before acting, as the Rust tests already did | `a0dff5e` | `a_key_just_admitted_waits_for_the_goals_rules_as_well_as_the_hosts_computer`; `test_a_member_signs_only_once_the_restore_guard_holds_nothing` |
 | The second copy of the owner-only mode check under [Marks lane](#marks-lane) | Fixed: one rule, `locust_proto::local::owner_only`, called by the marks file and the state directory | `79ce9cb` | `only_modes_without_group_or_other_bits_are_owner_only` ([local.rs](../crates/locust-proto/src/local.rs)); the existing marks and state-directory mode tests |
+| Review of `fix-g1-more`, finding 1: a candidate waiting on the rules definition was refused as a permanent `conflict`, so `goal continue` or a restart before the content arrived still reached the defect the admission hold covers | Fixed: such a candidate is refused as `unavailable` and says the rules have not arrived, in the trial before signing and in the check after it. Other pending kinds stay `conflict`: a missing reference or evidence can be for good, as two existing tests show | `5e71dc7` | `a_post_judged_before_the_goals_rules_arrive_is_unavailable_not_a_conflict` ([guard tests](../crates/locust-core/src/node/tests/guard.rs)) |
+| Finding 2: the content-key half of the admission hold was untested | Fixed: a goal whose rules predate a removal lets the new member read them before the current key arrives, and the host's computer is heard in that window | `17591de` | `a_key_just_admitted_waits_for_the_current_content_key_as_well_as_the_rules` |
+| Finding 3: the hold's refusal, the API's `admitted` description and the plan still said the hold waits only for the host's computer | Fixed: the refusal and the description name the rules and content key; the plan's G-6 text and mockup, `finish_joins` note, render reason, status line and function list (`guard_admissions`) follow | `e94a83a`; the plan in the commit adding these rows | The same test, on the refusal's words |
+| Finding 5: a member admitted moments ago cannot leave until the rules and key arrive, where before the follow-up fix it could once the host's computer was heard | Kept, and stated under E2's risks: every gate reads only `Node::hold` | The commit adding these rows | None; a liveness note |
+| Finding 6: the build notes said every landing runs `guard_admissions`, two plan lines were unwrapped, and this section said "Fixed" for a defect that was a limit | Fixed: `Node::land` runs it, in the notes and the code comment; the lines are rewrapped; this section says "Dealt with" | `e94a83a` (comment); the commit adding these rows | None; text |
+
+Finding 4 of that review was refuted. It held that `lost_with_the_marks` in
+[check.rs](../crates/locust-core/src/node/sim/check.rs) misses a record lost
+by a marks-kept restore and then by a marks-lost one, because the second
+restore's `before` set would lack it. But `Restore::before` is every record
+any machine held just before the restore (`World::everywhere` in
+[restore.rs](../crates/locust-core/src/node/sim/restore.rs)), not the
+restored machine's. A record held nowhere at that moment cannot be held at
+the end either, since a store loses records only through a restore and
+restoring truncates the later backups, and `reuses` counts only positions
+whose records some machine still holds. So whenever the reuse is counted the
+clause fires.

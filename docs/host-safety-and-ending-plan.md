@@ -636,8 +636,9 @@ Parser cleanup (c01d55aa) · host: you
 Proposed output, three separate cases in `locust --owner status`. First, after
 the goals: the copy put back is older than goals this computer took part in;
 the line lasts until the next ordinary start. Second: an agent that was just
-admitted while the host's computer has not answered yet; it prints one line,
-no block and no command. Third: an agent with two records at one position in a
+admitted while the host's computer has not answered yet, or while the goal's
+rules or current content key have not arrived; it prints one line, no block
+and no command. Third: an agent with two records at one position in a
 goal; the goal is not halted, and the host's agent gets the second sentence.
 
 ```text
@@ -646,7 +647,7 @@ hosted cannot be brought back from it. A goal you joined needs its ticket again.
 
 Static site search (7f3a9c1e) · host: Harbor's owner, on another computer
   Juniper (claude-juniper-77aa0c52) · member · auto
-      Just admitted: checking with the host's computer.
+      Just admitted: checking with the host's computer and fetching the goal's rules.
 
 Parser cleanup (c01d55aa) · host: you
   Juniper (claude-juniper-77aa0c52)
@@ -1790,7 +1791,7 @@ When a hold ends by itself:
 | Behind, an agent's key | also when this daemon has heard from every other computer in the goal and its own governance key, if it holds one there, is not held. No computer that can be asked has the record, and the mark is lowered |
 | Any agent's key on the host's computer, held because the governance key is | when the governance key's hold ends |
 | Unheard after a copy of unknown age, on a member's computer | it has heard from the host's computer; or from every other computer that is not the host's, when there is at least one |
-| Admitted | it has heard from the host's computer and can read the goal's current rules and seal under its current content key. A new member's records arrive before the content they name, and the host's computer can be heard through an exchange it opened, which brings no content; until both have arrived every record the key signs would be refused |
+| Admitted | it has heard from the host's computer and can read the goal's current rules and seal under its current content key. A new member's records arrive before the content they name, and the host's computer can be heard through an exchange it opened, which brings no content; until both have arrived most records the key signs would be refused as `unavailable`, since they cannot be judged or sealed yet. The hold ends by itself when that content lands |
 
 Two holds end only on the person's command (`goal.continue`, below).
 
@@ -1966,7 +1967,8 @@ second or the third "caught up".
   `Unheard` answers; `failure.rs` already maps it to exit 9. `Admitted` is the
   reason of a key that was just admitted. A signature held for it is refused
   as `unavailable` with `admission has just arrived; Locust is checking with
-  the host's computer`. It sets no halt. New `Request::GoalContinue { goal }`
+  the host's computer and fetching the goal's rules and content key`. It sets
+  no halt. New `Request::GoalContinue { goal }`
   (`goal.continue`; goal-scoped; audience `Owner`; not a tool), answered by
   new `Response::Continued { keys: u32 }`, the number of keys released. The
   contract lists one more operation than the tree this phase starts from and
@@ -1992,6 +1994,12 @@ second or the third "caught up".
     of who is in, the rules and whether the goal has ended is then known to be
     old. Else `Unheard` when the goal's `RESTORED` record says so. Else
     `Admitted` when `entry.local.unheard` holds the key. Else none.
+  - `Node::guard_admissions(&mut self, goal)`: deletes the goal's `UNHEARD`
+    records of keys admitted here once the host's computer has been heard and
+    `ready(entry)` holds: the goal's current rules are readable and the
+    content key of its current epoch is held. `guard_settle` applies the same
+    test when it hears the host's computer. `Node::land` runs it for every
+    goal it touches, because content and keys land outside any hearing.
   - `Node::admission_hold(&self, entry) -> Option<Hold>`: `hold` for the key
     that signs admissions in this goal, the governance key. This is the hook
     `plan_join` calls, and the one a public door reads for its state. A join
@@ -2112,7 +2120,9 @@ second or the third "caught up".
   joiner. `finish_joins` also writes `UNHEARD` for the admitted key
   unless `hosts(entry)`; that key is then held as `Admitted`. In a healthy
   join that hold lasts until the next exchange with the host's computer, about
-  a second. The second is by reading, not measured: the admission changes the
+  a second, and until the goal's current rules and content key have arrived
+  (`guard_admissions`), which is later when the goal holds many records. The
+  second is by reading, not measured: the admission changes the
   goal, so the driver opens the next exchange at once, and the shell polls the
   driver every second. Where that exchange does not come, the next is the
   ordinary one: in a quiet goal each pair exchanges every 30 seconds
@@ -2367,9 +2377,10 @@ second or the third "caught up".
   lost, and that stays so after a later restore of the same machine with its
   marks kept, at a position the marks have not named since the marks were
   lost: they were written again from a copy without that record, so the
-  later restore finds nothing missing. Nor is it claimed for an agent's key on a member's machine restored
-  with its marks kept to a copy older than an admission, when the host's
-  computer held that admission and was itself restored to a copy without it:
+  later restore finds nothing missing. Nor is it claimed for an agent's key
+  on a member's machine restored with its marks kept to a copy older than an
+  admission, when the host's computer held that admission and was itself
+  restored to a copy without it:
   no computer that answers knows the admitted member, so the mark is given
   up once every computer the copy lists has answered, and a record only the
   admitted member holds can be signed over. A host copy that lacks the
@@ -2506,9 +2517,10 @@ second or the third "caught up".
   later: if the data directory alone is then put back with the marks kept,
   that start finds nothing missing and the agent signs at the same position.
   Holding it would mean waiting for every member's computer after every copy
-  of unknown age, which the second table does not ask. A key is admitted again and the host's computer lacks its later
-  records. With the marks kept, a record reached only a computer removed
-  since: it is given up once every other computer has answered, and the
+  of unknown age, which the second table does not ask. A key is admitted
+  again and the host's computer lacks its later records. With the marks
+  kept, a record reached only a computer removed since: it is given up once
+  every other computer has answered, and the
   removed computer brings it back if it is ever admitted again. For the host's
   agent this third way also stops the goal's first files. Or, on a member's
   computer with the marks kept, the copy is older than an admission and the
@@ -2746,7 +2758,8 @@ explanation is tested once, and before Phases 8 and 9, which extend `Stall`.
   `Stall` gains `CatchingUp`. `render` words it. The reason is "the Locust
   data here is older than what this computer signed in the goal" for `Behind`,
   "the Locust data here may be an old copy" for `Unheard` and "admission has
-  just arrived; Locust is checking with the host's computer" for `Admitted`;
+  just arrived; Locust is checking with the host's computer and fetching the
+  goal's rules and content key" for `Admitted`;
   the side is "(this computer)". The fix says what the hold waits for. Where
   it waits for a computer, the fix in the person's voice is "It catches up by
   itself. To go on without waiting: LINE", with LINE from new
@@ -2853,7 +2866,8 @@ explanation is tested once, and before Phases 8 and 9, which extend `Stall`.
   line. In `status` the block is built from `GoalSummary.guard` and printed
   once per goal. No text names the governance key, and a heading reads `host:
   you` (K1's rule on words). An `Admitted` hold prints no block; under the
-  agent it prints `Just admitted: checking with the host's computer.` Under
+  agent it prints `Just admitted: checking with the host's computer and fetching
+  the goal's rules.` Under
   any goal with `restored`, the line of mockup G-1 on revoked invitations and
   local settings, whether or not anything is held. An agent whose `halted` is
   `signer_conflict` gets the standing line `NAME can sign nothing more here:
@@ -4156,6 +4170,14 @@ peer that holds it refuses that computer.
   The next removal by hand draws a new key, as today. After the automatic
   removal no command gives the goal a new key by itself. That is put to the
   owner.
+- A member admitted moments ago. G1 holds its key as `Admitted` until this
+  computer has heard from the host's computer and can read the goal's current
+  rules and holds its current content key. A leave needs neither, but every
+  gate reads only `Node::hold`, so such a member cannot leave until that
+  content arrives from any member's computer, or until its owner runs `goal
+  continue`. Before G1's follow-up fix (`a0dff5e`) the hold ended on hearing
+  the host's computer alone. Kept so: one gate, and the wait covers only the
+  first moments after admission.
 - One exchange first. It is this daemon's own timing and nothing shared
   depends on it. In the ordinary case the exchange opens at once, because the
   leave changed the goal, and the removal follows within seconds. After a
