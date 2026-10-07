@@ -110,12 +110,26 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
         except_author: bool,
         reason: &'static str,
     ) -> Standing {
+        self.rule_invalid_by(event, rule, qualifies, except_author, false, reason)
+    }
+    /// As [`Self::rule_invalid`], for a rule on a subject: `author` says
+    /// whether the refused member wrote that subject or one of its sources.
+    fn rule_invalid_by(
+        &self,
+        event: EventId,
+        rule: Rule,
+        qualifies: Selector,
+        except_author: bool,
+        author: bool,
+        reason: &'static str,
+    ) -> Standing {
         self.rule_refusals.borrow_mut().insert(
             event,
             RuleRefusal {
                 rule,
                 qualifies,
                 except_author,
+                author,
             },
         );
         invalid(reason)
@@ -573,11 +587,12 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                         Rule::Declare,
                         None,
                     );
-                    return Err(self.rule_invalid(
+                    return Err(self.rule_invalid_by(
                         id,
                         Rule::Declare,
                         qualifies,
                         except_author,
+                        author == h.author,
                         "principal may not declare this candidate complete",
                     ));
                 }
@@ -587,27 +602,29 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
             } => {
                 let author = self.subject(*subject, *context, h.anchor.unwrap())?;
                 let resolved = self.resolve(*context, h.anchor.unwrap())?;
-                if rules::asks_for_review(&resolved.effective.decisions.completion)
-                    && !rules::may_review_with_authors(
+                if rules::asks_for_review(&resolved.effective.decisions.completion) {
+                    let source_authors = self.source_authors(*subject)?;
+                    if !rules::may_review_with_authors(
                         &resolved.effective.decisions.completion,
                         h.author,
                         &resolved.effective,
                         author,
-                        &self.source_authors(*subject)?,
-                    )
-                {
-                    let (qualifies, except_author) = rules::completion_qualifies(
-                        &resolved.effective.decisions.completion,
-                        Rule::Review,
-                        None,
-                    );
-                    return Err(self.rule_invalid(
-                        id,
-                        Rule::Review,
-                        qualifies,
-                        except_author,
-                        "reviewer is not eligible for this exact candidate",
-                    ));
+                        &source_authors,
+                    ) {
+                        let (qualifies, except_author) = rules::completion_qualifies(
+                            &resolved.effective.decisions.completion,
+                            Rule::Review,
+                            None,
+                        );
+                        return Err(self.rule_invalid_by(
+                            id,
+                            Rule::Review,
+                            qualifies,
+                            except_author,
+                            author == h.author || source_authors.contains(&h.author),
+                            "reviewer is not eligible for this exact candidate",
+                        ));
+                    }
                 }
             }
             Body::CheckAttested {
@@ -630,11 +647,12 @@ impl<'a, D: DefinitionLookup + ?Sized> Verifier<'a, D> {
                         Rule::Attest,
                         Some(name),
                     );
-                    return Err(self.rule_invalid(
+                    return Err(self.rule_invalid_by(
                         id,
                         Rule::Attest,
                         qualifies,
                         except_author,
+                        author == h.author,
                         "attestor or check name is not authorized",
                     ));
                 }

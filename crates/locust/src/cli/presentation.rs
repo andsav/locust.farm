@@ -2075,8 +2075,10 @@ Daemon 0.1.0 · endpoint 5c0e77aa";
                     name: "reviewer".into(),
                 },
                 except_author: true,
+                author: false,
                 host: PublicKey([8; 32]),
                 host_name: Some("Harbor".into()),
+                hosted_here: false,
             }),
             Voice::Person,
         ));

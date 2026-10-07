@@ -7875,6 +7875,10 @@
           },
           {
             "properties": {
+              "author": {
+                "description": "The refused member wrote the subject, or one of its sources.",
+                "type": "boolean"
+              },
               "except_author": {
                 "type": "boolean"
               },
@@ -7886,6 +7890,10 @@
                   "string",
                   "null"
                 ]
+              },
+              "hosted_here": {
+                "description": "This computer hosts the goal: the person reading is the host.",
+                "type": "boolean"
               },
               "qualifies": {
                 "$ref": "#/$defs/Selector"
@@ -7903,7 +7911,9 @@
               "rule",
               "qualifies",
               "except_author",
-              "host"
+              "author",
+              "host",
+              "hosted_here"
             ],
             "type": "object"
           },

@@ -250,8 +250,10 @@ impl<S: Store, E: Entropy> Node<S, E> {
                                 rule: rule.rule,
                                 qualifies: rule.qualifies.clone(),
                                 except_author: rule.except_author,
+                                author: rule.author,
                                 host: entry.state().host.unwrap_or(principal),
                                 host_name: Self::host_name(entry),
+                                hosted_here: self.hosts(entry),
                             },
                         ));
                     }

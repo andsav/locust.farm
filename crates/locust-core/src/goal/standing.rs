@@ -45,6 +45,8 @@ pub struct RuleRefusal {
     pub rule: Rule,
     pub qualifies: Selector,
     pub except_author: bool,
+    /// The refused member wrote the subject, or one of its sources.
+    pub author: bool,
 }
 
 impl Exclusion {

@@ -79,8 +79,12 @@ pub enum Why {
         #[schemars(with = "Selector")]
         qualifies: Selector,
         except_author: bool,
+        /// The refused member wrote the subject, or one of its sources.
+        author: bool,
         host: PublicKey,
         host_name: Option<String>,
+        /// This computer hosts the goal: the person reading is the host.
+        hosted_here: bool,
     },
     State {
         reason: String,
@@ -250,16 +254,24 @@ pub fn render(refused: &Refused, voice: Voice) -> String {
             rule,
             qualifies,
             except_author,
+            author,
             host_name,
+            hosted_here,
             ..
         } => (
-            rule_sentence(*rule, qualifies, *except_author, &who, voice),
+            rule_sentence(*rule, qualifies, *except_author, *author, &who, voice),
             "the goal's rules".to_owned(),
-            if !names_a_role(qualifies) {
+            // A role helps only a member who lacks one; an author is barred
+            // whatever it holds, and under rules that hand work out a task
+            // is taken once it is handed out.
+            if *rule == Rule::Start && is_empty_any(qualifies) {
+                "A task can be taken once it is handed out.".to_owned()
+            } else if !names_a_role(qualifies) || (*except_author && *author) {
                 "Nothing to change; pick other work.".to_owned()
             } else {
-                match (voice, host_name) {
-                    (Voice::Person, Some(host)) => {
+                match (voice, hosted_here, host_name) {
+                    (Voice::Person, true, _) => "You give roles.".to_owned(),
+                    (Voice::Person, false, Some(host)) => {
                         format!("The host, {}'s owner, gives roles.", safe(host))
                     }
                     _ => "The host gives roles.".to_owned(),
@@ -326,12 +338,14 @@ fn act_phrase(act: Act, goal: Option<&str>, task: &str) -> String {
         Act::OpenTask => format!("open a task{in_goal}"),
         Act::TakeTask => format!("take {task}{in_goal}"),
         Act::Resume => format!("resume {task}{in_goal}"),
-        Act::Approve => format!("approve this result{in_goal}"),
+        Act::Approve => format!("review this result{in_goal}"),
         Act::Attest => format!("report a check{in_goal}"),
         Act::DeclareDone => format!("declare {task} done{in_goal}"),
         Act::Pick => format!("pick a result{in_goal}"),
-        Act::Close => format!("close {task}{in_goal}"),
-        Act::Reopen => format!("reopen {task}{in_goal}"),
+        // A close or reopen may name the goal, a document or the shared
+        // files as well as a task, and the refusal carries no scope.
+        Act::Close => format!("close work{in_goal}"),
+        Act::Reopen => format!("reopen work{in_goal}"),
         Act::HandOut => format!("hand out {task}{in_goal}"),
         Act::Cancel => format!("cancel an attempt{in_goal}"),
         Act::MergeFiles => format!("merge files{in_goal}"),
@@ -379,7 +393,7 @@ fn rule_gerund(rule: Rule) -> &'static str {
         Rule::Start => "taking a task",
         Rule::Offer => "handing out a task",
         Rule::Declare => "declaring a task done",
-        Rule::Review => "approving",
+        Rule::Review => "reviewing",
         Rule::Attest => "reporting a check",
         Rule::Select => "picking",
         Rule::Finish => "closing",
@@ -396,17 +410,33 @@ fn names_a_role(selector: &Selector) -> bool {
     }
 }
 
+/// The verifier's record of a rule that no selector satisfies: a start with
+/// no independent rule, or a hand-out no rule lets reach its recipient.
+fn is_empty_any(selector: &Selector) -> bool {
+    matches!(selector, Selector::Any { selectors } if selectors.is_empty())
+}
+
 /// "GERUND needs WHAT and WHO is not one", from the rule that refused.
+/// `author` says the refused member wrote the subject, so a rule that bars
+/// the author refused it for that, whatever role it holds.
 fn rule_sentence(
     rule: Rule,
     qualifies: &Selector,
     except_author: bool,
+    author: bool,
     who: &str,
     voice: Voice,
 ) -> String {
     let gerund = rule_gerund(rule);
     if matches!(qualifies, Selector::Nobody) {
         return format!("{gerund} is nobody's under these rules");
+    }
+    if is_empty_any(qualifies) {
+        return match rule {
+            Rule::Start => "nobody takes a task here without being handed it".to_owned(),
+            Rule::Offer => "these rules let nobody hand a task to that member".to_owned(),
+            _ => format!("{gerund} is nobody's under these rules"),
+        };
     }
     let other = if except_author {
         " other than the author"
@@ -416,16 +446,29 @@ fn rule_sentence(
     let (needs, tail) = match (qualifies, voice) {
         (Selector::Role { name }, Voice::Person) => (
             format!("{}{other}", with_article(&safe(name))),
-            format!("{who} is not one"),
-        ),
-        (Selector::Role { .. }, Voice::Agent) => (
-            format!("a role {who} does not hold"),
-            if except_author {
-                format!("{who} may be its author")
+            if except_author && author {
+                format!("{who} is the author")
             } else {
-                String::new()
+                format!("{who} is not one")
             },
         ),
+        (Selector::Role { .. }, Voice::Agent) => {
+            if except_author && author {
+                (
+                    "a role held by a member other than the author".to_owned(),
+                    format!("{who} is the author"),
+                )
+            } else {
+                (
+                    format!("a role {who} does not hold"),
+                    if except_author {
+                        format!("{who} may be its author")
+                    } else {
+                        String::new()
+                    },
+                )
+            }
+        }
         (Selector::Members, _) => {
             if except_author {
                 (
@@ -578,6 +621,7 @@ pub fn safe(text: &str) -> String {
                         | '\u{034f}'
                         | '\u{061c}'
                         | '\u{115f}'..='\u{1160}'
+                        | '\u{17b4}'..='\u{17b5}'
                         | '\u{180b}'..='\u{180f}'
                         | '\u{200b}'..='\u{200f}'
                         | '\u{2028}'..='\u{202e}'
@@ -586,6 +630,9 @@ pub fn safe(text: &str) -> String {
                         | '\u{fe00}'..='\u{fe0f}'
                         | '\u{feff}'
                         | '\u{ffa0}'
+                        | '\u{fff0}'..='\u{fff8}'
+                        | '\u{1bca0}'..='\u{1bca3}'
+                        | '\u{1d173}'..='\u{1d17a}'
                         | '\u{e0000}'..='\u{e0fff}'
                 )
             {
@@ -693,8 +740,10 @@ mod tests {
                 name: "reviewer".into(),
             },
             except_author: false,
+            author: false,
             host: PublicKey([8; 32]),
             host_name: Some("Harbor".into()),
+            hosted_here: false,
         }
     }
 
@@ -733,11 +782,89 @@ mod tests {
         let three = maple(Act::Approve, reviewer_rule());
         assert_eq!(
             render(&three, Voice::Person),
-            "Maple can't approve this result in \"Static site search\": approving needs a reviewer and Maple is not one (the goal's rules). The host, Harbor's owner, gives roles."
+            "Maple can't review this result in \"Static site search\": reviewing needs a reviewer and Maple is not one (the goal's rules). The host, Harbor's owner, gives roles."
         );
         assert_eq!(
             render(&three, Voice::Agent),
-            "codex-maple-1a2b3c4d can't approve this result in this goal: approving needs a role codex-maple-1a2b3c4d does not hold (the goal's rules). The host gives roles."
+            "codex-maple-1a2b3c4d can't review this result in this goal: reviewing needs a role codex-maple-1a2b3c4d does not hold (the goal's rules). The host gives roles."
+        );
+        // On the goal this computer hosts, the person is the host.
+        let mut hosted = three.clone();
+        if let Why::Rules { hosted_here, .. } = &mut hosted.why {
+            *hosted_here = true;
+        }
+        assert_eq!(
+            render(&hosted, Voice::Person),
+            "Maple can't review this result in \"Static site search\": reviewing needs a reviewer and Maple is not one (the goal's rules). You give roles."
+        );
+        assert_eq!(render(&hosted, Voice::Agent), render(&three, Voice::Agent));
+        // A reviewer refused as the author of its own result holds the role;
+        // no role the host could give would help.
+        let mut own = three.clone();
+        if let Why::Rules {
+            except_author,
+            author,
+            ..
+        } = &mut own.why
+        {
+            *except_author = true;
+            *author = true;
+        }
+        assert_eq!(
+            render(&own, Voice::Person),
+            "Maple can't review this result in \"Static site search\": reviewing needs a reviewer other than the author and Maple is the author (the goal's rules). Nothing to change; pick other work."
+        );
+        assert_eq!(
+            render(&own, Voice::Agent),
+            "codex-maple-1a2b3c4d can't review this result in this goal: reviewing needs a role held by a member other than the author and codex-maple-1a2b3c4d is the author (the goal's rules). Nothing to change; pick other work."
+        );
+        // No start rule covers the act: nothing is named, and the fix is
+        // the hand-out, not other work.
+        let unoffered = maple(
+            Act::TakeTask,
+            Why::Rules {
+                rule: Rule::Start,
+                qualifies: Selector::Any { selectors: vec![] },
+                except_author: false,
+                author: false,
+                host: PublicKey([8; 32]),
+                host_name: Some("Harbor".into()),
+                hosted_here: false,
+            },
+        );
+        assert_eq!(
+            render(&unoffered, Voice::Agent),
+            "codex-maple-1a2b3c4d can't take this task in this goal: nobody takes a task here without being handed it (the goal's rules). A task can be taken once it is handed out."
+        );
+        let mut unoffered_handout = unoffered.clone();
+        unoffered_handout.act = Act::HandOut;
+        if let Why::Rules { rule, .. } = &mut unoffered_handout.why {
+            *rule = Rule::Offer;
+        }
+        assert_eq!(
+            render(&unoffered_handout, Voice::Person),
+            "Maple can't hand out \"Fix the parser\" in \"Static site search\": these rules let nobody hand a task to that member (the goal's rules). Nothing to change; pick other work."
+        );
+        // A close names no scope, so its phrase holds for a goal or a document too.
+        let mut close = juniper(
+            Act::Close,
+            Why::Rules {
+                rule: Rule::Finish,
+                qualifies: Selector::Role {
+                    name: "lead".into(),
+                },
+                except_author: false,
+                author: false,
+                host: PublicKey([8; 32]),
+                host_name: None,
+                hosted_here: false,
+            },
+        );
+        close.task = None;
+        close.task_title = None;
+        assert_eq!(
+            render(&close, Voice::Agent),
+            "claude-juniper-77aa0c52 can't close work in this goal: closing needs a role claude-juniper-77aa0c52 does not hold (the goal's rules). The host gives roles."
         );
         let four = maple(
             Act::TakeTask,
@@ -778,7 +905,7 @@ mod tests {
             render(&six, Voice::Agent),
             "claude-juniper-77aa0c52 can't join a goal: no agent can (only claude-juniper-77aa0c52's owner). claude-juniper-77aa0c52's owner can run: locust --owner goal join --help"
         );
-        for refused in [one, two, three, four, five, six] {
+        for refused in [one, two, three, hosted, own, unoffered, four, five, six] {
             let agent = render(&refused, Voice::Agent);
             assert!(
                 !agent
@@ -822,19 +949,22 @@ mod tests {
                     Selector::OnlyMember,
                 ],
             },
+            Selector::Any { selectors: vec![] },
         ];
         let mut whys = vec![Why::State {
             reason: "the task is closed".into(),
         }];
         for rule in rules {
             for qualifies in &selectors {
-                for except_author in [false, true] {
+                for (except_author, author) in [(false, false), (true, false), (true, true)] {
                     whys.push(Why::Rules {
                         rule,
                         qualifies: qualifies.clone(),
                         except_author,
+                        author,
                         host: PublicKey([8; 32]),
                         host_name: None,
+                        hosted_here: false,
                     });
                 }
             }
@@ -846,6 +976,9 @@ mod tests {
                     assert!(!text.contains(word), "{text}");
                 }
                 assert!(text.ends_with('.'), "{text}");
+                // Nothing the sentence names is ever blank.
+                assert!(!text.contains("  "), "{text}");
+                assert!(!text.contains("needs and"), "{text}");
             }
         }
     }
@@ -890,8 +1023,10 @@ mod tests {
                 name: "ROLE".into(),
             },
             except_author: true,
+            author: false,
             host: PublicKey([8; 32]),
             host_name: Some("HOST".into()),
+            hosted_here: false,
         };
         let text = render(&refused, Voice::Agent);
         for word in ["MEMBER", "GOAL", "TASK", "ROLE", "HOST", "\""] {
@@ -901,6 +1036,35 @@ mod tests {
         let person = render(&refused, Voice::Person);
         for word in ["MEMBER", "\"GOAL\"", "\"TASK\"", "a ROLE", "HOST's owner"] {
             assert!(person.contains(word), "{person}");
+        }
+        // The person's voice makes a bidi override in a role or host name
+        // visible, alone and inside an any-of choice.
+        for qualifies in [
+            Selector::Role {
+                name: "ROLE\u{202e}".into(),
+            },
+            Selector::Any {
+                selectors: vec![
+                    Selector::Role {
+                        name: "ROLE\u{202e}".into(),
+                    },
+                    Selector::Members,
+                ],
+            },
+        ] {
+            refused.why = Why::Rules {
+                rule: Rule::Start,
+                qualifies,
+                except_author: false,
+                author: false,
+                host: PublicKey([8; 32]),
+                host_name: Some("HOST\u{202e}".into()),
+                hosted_here: false,
+            };
+            let person = render(&refused, Voice::Person);
+            assert!(!person.contains('\u{202e}'), "{person}");
+            assert!(person.contains("a ROLE\\u{202e}"), "{person}");
+            assert!(person.contains("HOST\\u{202e}'s owner"), "{person}");
         }
     }
 
@@ -1053,7 +1217,17 @@ mod tests {
         assert!(rendered.contains("\\u{1b}"));
         assert!(rendered.contains("secret"));
         assert_eq!(safe("ordinary café"), "ordinary café");
-        for hidden in ['\u{ad}', '\u{34f}', '\u{fe0f}', '\u{3164}', '\u{e0001}'] {
+        for hidden in [
+            '\u{ad}',
+            '\u{34f}',
+            '\u{fe0f}',
+            '\u{3164}',
+            '\u{e0001}',
+            '\u{17b4}',
+            '\u{fff0}',
+            '\u{1bca0}',
+            '\u{1d173}',
+        ] {
             let name = format!("Juniper{hidden}");
             assert_ne!(safe(&name), name);
             assert!(safe(&name).starts_with("Juniper\\u{"), "{}", safe(&name));

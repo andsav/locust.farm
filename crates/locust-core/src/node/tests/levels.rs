@@ -114,11 +114,28 @@ fn replay_refusal_precedes_local_level_and_owner_act_persists() {
         )
         .unwrap_err();
     assert_eq!(error.code, ErrorCode::NotEligible);
+    // Under directed rules no rule lets a member start by itself: the refusal
+    // names no selector, and the sentence says so instead of naming nothing.
+    assert_eq!(
+        error.message,
+        "host can't take this task in this goal: nobody takes a task here without being handed it (the goal's rules). A task can be taken once it is handed out."
+    );
     let refused: locust_proto::api::Refused =
         serde_json::from_str(error.details_json.as_deref().unwrap()).unwrap();
-    let Why::Rules { host, .. } = refused.why else {
+    let Why::Rules {
+        host,
+        qualifies,
+        hosted_here,
+        ..
+    } = refused.why
+    else {
         panic!()
     };
+    assert_eq!(
+        qualifies,
+        locust_proto::organization::Selector::Any { selectors: vec![] }
+    );
+    assert!(hosted_here);
     assert_eq!(Some(host), d.node.goals[&goal].state().host);
     assert_ne!(Some(host), d.node.goals[&goal].state().governance);
     assert_eq!(d.store.log(&goal, 0, usize::MAX).unwrap().len(), before);

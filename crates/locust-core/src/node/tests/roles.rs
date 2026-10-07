@@ -596,10 +596,84 @@ fn a_rules_refusal_names_the_member_and_the_host() {
         .unwrap_err();
     let refused = error.refused().unwrap();
     assert_eq!(refused.member_name.as_deref(), Some("Maple"));
-    assert!(
-        matches!(&refused.why, locust_proto::api::Why::Rules { host_name: Some(name), .. } if name == "Harbor")
-    );
+    // The daemon hosts the goal, and Maple wrote the result it tried to review.
+    assert!(matches!(
+        &refused.why,
+        locust_proto::api::Why::Rules {
+            host_name: Some(name),
+            hosted_here: true,
+            except_author: true,
+            author: true,
+            ..
+        } if name == "Harbor"
+    ));
     assert!(!error.message.contains("Maple"));
+    assert!(
+        error
+            .message
+            .ends_with("Nothing to change; pick other work."),
+        "{}",
+        error.message
+    );
+    // A reviewer who did hold the role is refused for its authorship alone.
+    let (_, reviewer) = join(&mut d, owner, goal, 3, "Cedar", Some("reviewer"));
+    let own = event(d.ok(reviewer, finding(goal, "own result")));
+    let error = d
+        .call(
+            reviewer,
+            Request::ReviewRecord {
+                goal,
+                subject: own,
+                verdict: ReviewVerdict::Approve,
+                text: "mine".into(),
+            },
+        )
+        .unwrap_err();
+    assert!(
+        error.message.contains("is the author") && !error.message.contains("does not hold"),
+        "{}",
+        error.message
+    );
+}
+
+#[test]
+fn an_offer_no_rule_covers_is_refused_without_a_blank() {
+    let (mut d, _, owner, agent, goal) = setup(Some("open"));
+    let (member, _) = join(&mut d, owner, goal, 2, "Maple", None);
+    let task = locust_proto::event::TaskId::Authored(event(d.ok(
+        agent,
+        Request::TaskOpen {
+            goal,
+            text: "Fix the parser".into(),
+            task_type: None,
+            inputs: Default::default(),
+            parent: None,
+        },
+    )));
+    let error = d
+        .call(
+            agent,
+            Request::WorkOffer {
+                goal,
+                task,
+                recipient: member,
+            },
+        )
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::NotEligible);
+    assert_eq!(
+        error.message,
+        "host can't hand out this task in this goal: these rules let nobody hand a task to that member (the goal's rules). Nothing to change; pick other work."
+    );
+    let refused = error.refused().unwrap();
+    assert!(matches!(
+        &refused.why,
+        locust_proto::api::Why::Rules {
+            rule: locust_proto::api::Rule::Offer,
+            qualifies: Selector::Any { selectors },
+            ..
+        } if selectors.is_empty()
+    ));
 }
 
 #[test]
