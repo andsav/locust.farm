@@ -2,9 +2,12 @@
 
 import contextlib
 import io
+import itertools
 from pathlib import Path
 import sys
+import tempfile
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "simulate_machines"))
 import run  # noqa: E402
@@ -32,6 +35,27 @@ class CommandLine(unittest.TestCase):
         self.assertTrue(run.simlib.multicast_only(profiles["lan"]))
         self.assertFalse(run.simlib.multicast_only(profiles["isolated"]))
         self.assertFalse(run.simlib.multicast_only(profiles["defaults"]))
+
+    def test_a_home_is_fresh_with_its_marks_and_both_are_removed(self):
+        simlib = run.simlib
+        with tempfile.TemporaryDirectory(dir="/tmp") as directory, \
+                patch.object(simlib, "HOME_PREFIX", f"{directory}/sim-"), \
+                patch.object(simlib, "_homes", itertools.count(1)), \
+                patch.dict(simlib.BINARIES, {"candidate": Path(sys.executable)}), \
+                patch.object(simlib.base, "binary_facts", return_value={}):
+            # An earlier daemon's marks beside an unused home number.
+            Path(f"{directory}/sim-1.marks").mkdir()
+            cluster = simlib.Cluster("fixture", Path(directory) / "artifacts", profile="isolated")
+
+            def body(c):
+                machine = c.add()
+                self.assertEqual(machine.home, Path(f"{directory}/sim-2"))
+                self.assertFalse(Path(f"{directory}/sim-1").exists())
+                Path(f"{machine.home}.marks").mkdir()
+
+            self.assertTrue(cluster.run_scenario(body))
+            self.assertFalse(Path(f"{directory}/sim-2").exists())
+            self.assertFalse(Path(f"{directory}/sim-2.marks").exists())
 
     def test_mixed_build_without_a_second_binary_is_a_usage_error(self):
         with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as stop:

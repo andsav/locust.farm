@@ -49,13 +49,23 @@ def multicast_only(env):
     return env.get("LOCUST_RELAY") == "none" and env.get("LOCUST_LOOKUP") == "local"
 
 
+def marks_of(home):
+    """The marks directory a daemon keeps beside its home (`marks_dir` in
+    crates/locust-proto/src/local.rs). It is part of the home's state."""
+    return home.with_name(home.name + ".marks")
+
+
 def fresh_home():
-    """A short private home, claimed atomically; an existing one is never reused."""
+    """A short private home, claimed atomically; an existing one is never reused,
+    nor one beside an earlier daemon's marks directory."""
     while True:
         home = Path(f"{HOME_PREFIX}{next(_homes)}")
         try:
             home.mkdir(mode=0o700)
         except FileExistsError:
+            continue
+        if marks_of(home).exists():
+            home.rmdir()
             continue
         return home
 
@@ -328,6 +338,7 @@ class Cluster(base.Qualification):
             for machine in self.machines:
                 self.reap(machine)
                 shutil.rmtree(machine.home, ignore_errors=True)
+                shutil.rmtree(marks_of(machine.home), ignore_errors=True)
 
     def cleanup(self):
         for machine in self.machines:
