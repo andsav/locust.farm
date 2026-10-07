@@ -110,7 +110,11 @@ pub fn parse_configuration(client: Client, bytes: Option<&[u8]>) -> Result<Value
     Ok(value)
 }
 
-pub fn render_configuration(client: Client, document: &Value) -> Result<Vec<u8>, HookError> {
+/// `None` removes an adapter-owned file; an empty source file is not absence.
+pub fn render_configuration(
+    client: Client,
+    document: &Value,
+) -> Result<Option<Vec<u8>>, HookError> {
     adapter(client).ok_or(HookError::UnsupportedClient)?;
     if !document.is_object() {
         return Err(HookError::InvalidConfiguration);
@@ -118,7 +122,7 @@ pub fn render_configuration(client: Client, document: &Value) -> Result<Vec<u8>,
     let mut bytes =
         serde_json::to_vec_pretty(document).map_err(|_| HookError::InvalidConfiguration)?;
     bytes.push(b'\n');
-    Ok(bytes)
+    Ok(Some(bytes))
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -647,7 +651,9 @@ mod tests {
         for spec in ADAPTERS {
             assert_eq!(parse_configuration(spec.client, None).unwrap(), json!({}));
             let document = json!({"hooks":{},"unrelated":7});
-            let bytes = render_configuration(spec.client, &document).unwrap();
+            let bytes = render_configuration(spec.client, &document)
+                .unwrap()
+                .unwrap();
             assert_eq!(
                 parse_configuration(spec.client, Some(&bytes)).unwrap(),
                 document

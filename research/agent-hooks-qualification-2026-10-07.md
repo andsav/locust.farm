@@ -192,3 +192,10 @@ resolved or a complete required run passes.
 A separate full workspace run excluding only that named reconciliation test
 passed: 1236 tests passed, 14 ignored, one filtered out. This completes the
 remaining coverage but does not replace the failing required command.
+
+The subsequent complete required workspace run, after the generic adapter
+renderer gained an explicit absent-file result, passed (1,237 passed, 14 ignored).
+Formatting and strict workspace Clippy also passed. That run includes H2 and the
+previously failing reconciliation test; the earlier failures above remain part
+of the qualification record. The renderer change lets an adapter remove an
+owned source file without leaving an invalid empty extension on disk.

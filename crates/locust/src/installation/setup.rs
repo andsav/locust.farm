@@ -449,9 +449,12 @@ fn hook_image(client: Client, before: &Image, value: &Value) -> Result<Image, Fa
     let bytes =
         hooks::render_configuration(adapter_client(client).expect("hook adapter client"), value)
             .map_err(hook_error)?;
-    Ok(Image {
-        bytes: Some(bytes),
-        mode: Some(before.mode.unwrap_or(0o600)),
+    Ok(match bytes {
+        Some(bytes) => Image {
+            bytes: Some(bytes),
+            mode: Some(before.mode.unwrap_or(0o600)),
+        },
+        None => Image::absent(),
     })
 }
 fn restore_hooks(client: Client, owned: &HookOwnership, current: &Image) -> Result<Image, Failure> {
