@@ -17,7 +17,7 @@ events, identity and successful tool-envelope parsing, output envelopes,
 timeouts, config paths and owned entry installation/removal.
 
 The [runtime](../crates/locust/src/hook.rs) authenticates an agent and only
-reads status, pending or wait. [Private marks](../crates/locust/src/hook/marks.rs)
+reads status, pending, wait and cancellation events. [Private marks](../crates/locust/src/hook/marks.rs)
 are scoped by credential, execution session and a hash of native chat identity.
 They use private owned directories and files, reject symlinks, serialize chat
 updates and atomically replace their JSON. An unassociated native chat stays silent even when the shared profile session
@@ -313,3 +313,26 @@ test suite passed: 1,250 tests passed and 14 were ignored. Focused coverage
 includes 49 adapter/core, 28 hook subprocess, 35 setup and 12 Node fake API tests.
 The 35 Python hook/profile helper tests and staged documentation checks also
 passed. Native Pi remains unverified for the reason above.
+
+## Combined verification after A1
+
+The hook commits were rebased onto main at `8f27419`, including A1's operation
+descriptions and context-page limit. The resulting source at `da387ad` passed
+formation export verification, all six bundled examples and diagnostic
+conformance vectors without regenerating artifacts.
+
+A fresh candidate carrying `da387ad` replayed the shared real-daemon scenario
+through all four adapters. Each passed waiting work, one block and an ignored
+block, cancellation at stop and once after a tool, compaction recovery, and
+own-terminal acknowledgment without false claim loss. All setup removals
+restored original MCP/hook bytes or the Pi extension's original absence, and
+all temporary profiles were removed. The report is
+`output/hooks-rebased-qualification.json`. Pi used the actual installed extension
+with a fake API; the other three used scripted native payloads and their
+installed commands. This combined run did not repeat model calls. Earlier
+native/model results and their candidate labels remain recorded above.
+
+The final rebased formatting and strict workspace clippy checks passed. The
+full workspace suite passed with 1,251 tests passed and 14 ignored, including
+the reconciliation case that had failed in the earlier H2 runs. The 35 Python
+hook/profile tests, 12 Node fake API tests and documentation check passed.
