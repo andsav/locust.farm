@@ -155,7 +155,9 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     host_name: Self::host_name(entry),
                     invitations_open,
                     invitations_expire_ms,
-                    halted: entry.halted(),
+                    halted: self.halt(entry, Some(member)),
+                    guard: self.guard_views(entry, [*member]),
+                    restored: local.restored.map(|restored| restored.revoked),
                     abilities,
                 });
             }

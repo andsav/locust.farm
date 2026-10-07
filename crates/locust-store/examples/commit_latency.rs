@@ -71,6 +71,7 @@ fn main() {
                 id: event.id(),
             },
             shared: true,
+            unheard: false,
         });
         marked.push(commit(&mut store, vec![event], vec![mark]));
     }

@@ -1,7 +1,8 @@
 //! Who this daemon is and the principals it holds keys for.
 //!
 //! `Space::Identity` holds the endpoint secret, the digest of the owner
-//! credential and the transport's last reported endpoint and hints.
+//! credential, the transport's last reported endpoint and hints, and the
+//! identity of the database file this daemon last ran on.
 //! `Space::Agent` holds one record per principal, keyed by its public key,
 //! The index
 //! from a principal's credential digest to the principal is rebuilt from the
@@ -12,7 +13,7 @@ use std::collections::{BTreeMap, HashMap};
 use locust_proto::api::{AgentView, Caller};
 use locust_proto::crypto::Keypair;
 use locust_proto::id::{EndpointId, PublicKey};
-use locust_proto::store::{LocalWrite, Space, StoreError};
+use locust_proto::store::{FileId, LocalWrite, Space, StoreError};
 use serde::{Deserialize, Serialize};
 
 use super::records;
@@ -20,6 +21,7 @@ use super::records;
 const ENDPOINT_SECRET: &[u8] = b"endpoint-secret";
 const OWNER_CREDENTIAL: &[u8] = b"owner-credential";
 const ENDPOINT: &[u8] = b"endpoint";
+const FILE: &[u8] = b"file";
 
 const PRINCIPAL: u8 = b'p';
 
@@ -41,6 +43,8 @@ pub(super) struct Identity {
     pub owner: [u8; 32],
     /// Absent until the transport has reported once.
     pub endpoint: Option<EndpointRecord>,
+    /// The database file this daemon last ran on; absent in a new store.
+    pub file: Option<FileId>,
 }
 
 impl Identity {
@@ -56,6 +60,10 @@ impl Identity {
         records::put(Space::Identity, ENDPOINT.to_vec(), record)
     }
 
+    pub fn file_write(file: &FileId) -> LocalWrite {
+        records::put(Space::Identity, FILE.to_vec(), file)
+    }
+
     /// Applies one committed write of `Space::Identity`.
     pub fn absorb(&mut self, key: &[u8], value: Option<&[u8]>) -> Result<(), StoreError> {
         let Some(value) = value else { return Ok(()) };
@@ -63,6 +71,7 @@ impl Identity {
             ENDPOINT_SECRET => self.endpoint_secret = records::read(value)?,
             OWNER_CREDENTIAL => self.owner = records::read(value)?,
             ENDPOINT => self.endpoint = Some(records::read(value)?),
+            FILE => self.file = Some(records::read(value)?),
             _ => return Err(records::bad_key()),
         }
         Ok(())

@@ -11,7 +11,7 @@ use locust_proto::codec;
 use locust_proto::crypto::content_hash;
 use locust_proto::engine::Entropy;
 use locust_proto::id::{BlobHash, EventId, GoalId, IdempotencyKey, PublicKey};
-use locust_proto::store::{Commit, LocalWrite, Space, Store};
+use locust_proto::store::{Commit, LocalWrite, Mark, MarkWrite, Space, Store};
 use serde::{Deserialize, Serialize};
 
 use super::feed::Feed;
@@ -80,7 +80,10 @@ impl Tx {
 
     fn is_empty(&self) -> bool {
         let commit = &self.commit;
-        commit.events.is_empty() && commit.blobs.is_empty() && commit.local.is_empty()
+        commit.events.is_empty()
+            && commit.blobs.is_empty()
+            && commit.local.is_empty()
+            && commit.marks.is_empty()
     }
 }
 
@@ -174,6 +177,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             let mut deliveries = Tx::none();
             self.project_deliveries(goal, &mut deliveries);
             self.land_once(deliveries)?;
+            self.forget_callers(goal);
             self.drive_flow(goal)?;
         }
         Ok(())
@@ -239,10 +243,79 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 return Err(error);
             }
         }
+        let mut admitted = Vec::new();
         for goal in &goals {
-            self.finish_joins(*goal, &mut tx);
+            if self.finish_joins(*goal, &mut tx) {
+                admitted.push(*goal);
+            }
             self.clear_removed(*goal, &mut tx);
             self.project_deliveries(*goal, &mut tx);
+        }
+        // A local key's own records that land raise its mark to their tip:
+        // a daemon that caught up after a restore must not read as behind,
+        // or as a copy of unknown age, at a later start whose marks were
+        // kept. The raise may pass a gap in the key's log: with one the key
+        // signs nothing anyway. Only commits that land such records carry
+        // these marks.
+        let signed: std::collections::BTreeSet<(GoalId, PublicKey)> = tx
+            .commit
+            .events
+            .iter()
+            .map(|event| (event.header().goal, event.header().author))
+            .collect();
+        let mut raised = Vec::new();
+        for (goal, key) in signed {
+            let Some(entry) = self.goals.get(&goal) else {
+                continue;
+            };
+            if entry.goal.fork_point(&key).is_some() || !self.local_keys(entry).contains(&key) {
+                continue;
+            }
+            let Some(tip) = entry.goal.points(&key).last().copied() else {
+                continue;
+            };
+            let current = tx
+                .commit
+                .marks
+                .iter()
+                .rev()
+                .find_map(|write| match *write {
+                    MarkWrite::Set(mark) if mark.goal == goal && mark.key == key => {
+                        Some(mark.point.seq)
+                    }
+                    MarkWrite::Clear { goal: g, key: k } if g == goal && k == key => Some(0),
+                    _ => None,
+                })
+                .or_else(|| self.guard.mark(&goal, &key).map(|mark| mark.point.seq));
+            if current.is_none_or(|seq| seq < tip.seq) {
+                raised.push(MarkWrite::Set(Mark {
+                    goal,
+                    key,
+                    point: tip,
+                    shared: false,
+                    unheard: false,
+                }));
+            }
+        }
+        tx.commit.marks.extend(raised);
+        // Read from the goals as advanced, so the admission that first
+        // shares a goal carries the bit to disk before it can leave. The
+        // unheard bit reads the goal as this commit leaves it, so a mark
+        // written while the data is a copy of unknown age says so.
+        let bits: Vec<_> = tx
+            .commit
+            .marks
+            .iter()
+            .map(|write| match write {
+                MarkWrite::Set(mark) => (self.shared(mark), self.unheard_after(&mark.goal, &tx)),
+                MarkWrite::Clear { .. } => (false, false),
+            })
+            .collect();
+        for (write, (shared, unheard)) in tx.commit.marks.iter_mut().zip(bits) {
+            if let MarkWrite::Set(mark) = write {
+                mark.shared = shared;
+                mark.unheard = unheard;
+            }
         }
         tx.commit.local.extend(revisions);
         if !tx.is_empty() {
@@ -250,6 +323,10 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 self.failed = true;
                 self.rollback(backups);
                 return Err(error.into());
+            }
+            self.guard.apply(&tx.commit.marks);
+            for goal in &admitted {
+                self.guard.unhear(goal);
             }
             for write in &tx.commit.local {
                 let result = match write {
@@ -282,6 +359,36 @@ impl<S: Store, E: Entropy> Node<S, E> {
         self.changed.extend(tx.touched);
         self.stop |= tx.stop;
         Ok(())
+    }
+
+    /// Whether `goal` is unheard once `tx` has landed: the commit's own
+    /// `RESTORED` write where it carries one, else the record as it stands.
+    fn unheard_after(&self, goal: &GoalId, tx: &Tx) -> bool {
+        let key = local::restored_key(goal);
+        for write in tx.commit.local.iter().rev() {
+            match write {
+                LocalWrite::Put {
+                    space: Space::Goal,
+                    key: at,
+                    value,
+                } if *at == key => {
+                    let restored: local::Restored =
+                        records::read(value).expect("this node wrote the record");
+                    return restored.unheard;
+                }
+                LocalWrite::Delete {
+                    space: Space::Goal,
+                    key: at,
+                } if *at == key => return false,
+                _ => {}
+            }
+        }
+        self.goals.get(goal).is_some_and(|entry| {
+            entry
+                .local
+                .restored
+                .is_some_and(|restored| restored.unheard)
+        })
     }
 
     fn rollback(
@@ -372,10 +479,16 @@ impl<S: Store, E: Entropy> Node<S, E> {
         Ok(())
     }
 
-    fn finish_joins(&self, goal: GoalId, tx: &mut Tx) {
+    /// A key admitted on another computer is then held until this daemon
+    /// hears from the host's computer: the admission alone does not show
+    /// that the key's own earlier records, if any, are here. Answers whether
+    /// such a key was admitted.
+    fn finish_joins(&self, goal: GoalId, tx: &mut Tx) -> bool {
         let Some(entry) = self.goals.get(&goal) else {
-            return;
+            return false;
         };
+        let hosts = self.hosts(entry);
+        let mut admitted = false;
         for (principal, join) in &entry.local.joins {
             if entry.is_member(principal)
                 && super::requests::invitations::publication_matches(
@@ -387,8 +500,13 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 tx.commit
                     .local
                     .push(local::part_write(&goal, principal, false));
+                if !hosts {
+                    tx.commit.local.push(local::unheard_write(&goal, principal));
+                    admitted = true;
+                }
             }
         }
+        admitted
     }
 
     /// A removal and its local level cleanup land in one store commit. A

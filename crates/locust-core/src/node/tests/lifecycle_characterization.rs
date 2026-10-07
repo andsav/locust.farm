@@ -21,6 +21,7 @@ fn revoking_the_hosts_agent_stops_that_agent_and_not_governance() {
         .unwrap()
         .name
         .clone();
+    // Marks kept: the data directory is put back, its marks directory survives.
     let backup = snapshot(&d.store);
     let before = d.store.log(&goal, 0, usize::MAX).unwrap().len();
     d.ok(owner, Request::AgentRevoke { agent: host });

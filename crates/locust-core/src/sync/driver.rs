@@ -124,6 +124,14 @@ pub trait Host {
     /// accepted exchange that never named one.
     fn exchange_ended(&mut self, report: Report);
 
+    /// An exchange with `endpoint` about `goal` ran its record stage to the
+    /// end and brought no event this daemon did not hold. Called at most
+    /// once per exchange.
+    fn reconciled(&mut self, _goal: &GoalId, _endpoint: &EndpointId) {}
+
+    /// `endpoint` named `goal` in a `Hello` without speaking for a member.
+    fn note_caller(&mut self, _goal: &GoalId, _endpoint: &EndpointId) {}
+
     /// A number drawn from the node's entropy, which spreads retries so that
     /// two daemons whose exchange failed together do not retry together.
     fn random(&mut self) -> u64;
@@ -170,6 +178,17 @@ struct Dialed {
     proof: Option<[WireEvent; 2]>,
     proof_sent: bool,
     admitted: bool,
+    /// `Host::reconciled` was called for this exchange.
+    heard: bool,
+}
+
+impl Dialed {
+    fn hear(&mut self, host: &mut dyn Host) {
+        if !self.heard && self.initiator.reconciled() {
+            self.heard = true;
+            host.reconciled(&self.goal, &self.endpoint);
+        }
+    }
 }
 
 /// One (goal, endpoint) pair this daemon opens exchanges for.
@@ -371,6 +390,7 @@ impl Driver {
                     proof,
                     proof_sent: false,
                     admitted: false,
+                    heard: false,
                 },
             );
             out.push(PeerOutput::Open {
@@ -443,6 +463,7 @@ impl Driver {
                     Some(frame) => dialed.initiator.receive(replica, frame, &mut self.frames),
                 }
                 send(exchange, &mut self.frames, out);
+                dialed.hear(host);
                 dialed.initiator.ended()
             }
             // The goal is gone; end without a word.
@@ -568,6 +589,9 @@ impl Driver {
                 (ended, responder.goal(), responder.is_admitted())
             {
                 let (endpoint, received) = (responder.remote(), responder.received());
+                if !received {
+                    host.reconciled(&goal, &endpoint);
+                }
                 self.peer_completed(host, goal, endpoint, received, now_ms, out);
             }
         }
@@ -606,6 +630,7 @@ impl Driver {
         if let Some(replica) = host.replica(&dialed.goal) {
             dialed.initiator.writable(replica, &mut self.frames);
             send(exchange, &mut self.frames, out);
+            dialed.hear(host);
             if let Some(ended) = dialed.initiator.ended() {
                 dialed.finishing = Some(ended);
                 out.push(PeerOutput::Finish(exchange));

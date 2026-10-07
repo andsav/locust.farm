@@ -1930,6 +1930,8 @@ mod tests {
     #[test]
     fn add_retry_keys_distinguish_the_invited_role() {
         let view = GoalStatus {
+            guard: vec![],
+            restored: None,
             goal: GoalId([1; 32]),
             title: None,
             governance: PublicKey([2; 32]),

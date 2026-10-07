@@ -24,7 +24,8 @@
 //!   answered with `Refused(UnsupportedVersion)` and ends the exchange.
 //! - `Join` is answered with the responder's `Frontier` once the key is
 //!   admitted, also when the same key repeats it from the same endpoint
-//!   (the signed admission keeps its name), and otherwise with
+//!   (the signed admission keeps its name), with `Refused(CatchingUp)` while
+//!   the responder admits nobody yet, and otherwise with
 //!   `Refused(InvitationRefused)`.
 //! - `Frontier(mine)` is answered with zero or more `Events` and `Inventory`
 //!   frames, chosen by the reconciliation rule below for every author either
@@ -276,6 +277,9 @@ pub enum Refusal {
     /// The responder holds no content key for the requested epoch; another
     /// member may.
     KeyUnavailable,
+    /// The responder is catching up after a restore and admits nobody yet;
+    /// the joiner's computer asks it again.
+    CatchingUp,
 }
 
 impl fmt::Display for Refusal {
@@ -287,6 +291,7 @@ impl fmt::Display for Refusal {
             Self::LimitExceeded => "a frame, batch or object exceeds a limit",
             Self::ProtocolError => "a frame is malformed or out of order",
             Self::KeyUnavailable => "the peer holds no key for that epoch",
+            Self::CatchingUp => "the host is catching up and admits nobody yet",
         })
     }
 }
@@ -1081,6 +1086,7 @@ mod tests {
             (Refusal::LimitExceeded, "limit_exceeded"),
             (Refusal::ProtocolError, "protocol_error"),
             (Refusal::KeyUnavailable, "key_unavailable"),
+            (Refusal::CatchingUp, "catching_up"),
         ] {
             assert_eq!(
                 serde_json::to_string(&refusal).unwrap(),

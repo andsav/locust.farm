@@ -14,6 +14,8 @@
 //! | `o` | goal, event | signed at the owner's direct request |
 //! | `m` | goal, principal | the principal takes or took part; whether it left |
 //! | `K` | goal | the seed of the goal's governance key, held by its host |
+//! | `R` | goal | this daemon's data was found put back from a copy ([`Restored`]) |
+//! | `u` | goal, principal | admitted here; the host's computer not heard from since |
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -39,6 +41,20 @@ const ALLOWANCE: u8 = b'a';
 const BY_OWNER: u8 = b'o';
 const PART: u8 = b'm';
 const GOVERNANCE: u8 = b'K';
+const RESTORED: u8 = b'R';
+const UNHEARD: u8 = b'u';
+
+/// A start found this goal's data put back from a copy. It lasts until the
+/// first ordinary start with no key of this daemon held in the goal.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub(super) struct Restored {
+    /// Pending invitations of the goal the restore revoked.
+    pub revoked: u32,
+    /// The copy was of unknown age: every key of this daemon in the goal is
+    /// held until the computers the guard names are heard from or, where
+    /// this daemon hosts the goal, until the person continues.
+    pub unheard: bool,
+}
 
 /// A redeemed invitation whose admission has not arrived, or was refused.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -84,6 +100,10 @@ pub(super) struct Local {
     pub part: BTreeMap<PublicKey, bool>,
     /// The goal's governance key, on the computer that hosts the goal.
     pub governance: Option<Keypair>,
+    pub restored: Option<Restored>,
+    /// Local principals admitted while this daemon has not heard from the
+    /// host's computer since.
+    pub unheard: BTreeSet<PublicKey>,
 }
 
 fn key(tag: u8, goal: &GoalId, rest: &[u8]) -> Vec<u8> {
@@ -201,6 +221,26 @@ pub(super) fn governance_write(goal: &GoalId, seed: &[u8; 32]) -> LocalWrite {
     records::put(Space::Goal, key(GOVERNANCE, goal, &[]), seed)
 }
 
+pub(super) fn restored_key(goal: &GoalId) -> Vec<u8> {
+    key(RESTORED, goal, &[])
+}
+
+pub(super) fn restored_write(goal: &GoalId, restored: &Restored) -> LocalWrite {
+    records::put(Space::Goal, restored_key(goal), restored)
+}
+
+pub(super) fn restored_delete(goal: &GoalId) -> LocalWrite {
+    records::delete(Space::Goal, restored_key(goal))
+}
+
+pub(super) fn unheard_write(goal: &GoalId, principal: &PublicKey) -> LocalWrite {
+    records::put(Space::Goal, key(UNHEARD, goal, &principal.0), &())
+}
+
+pub(super) fn unheard_delete(goal: &GoalId, principal: &PublicKey) -> LocalWrite {
+    records::delete(Space::Goal, key(UNHEARD, goal, &principal.0))
+}
+
 /// The goal a `Space::Goal` key is about.
 pub(super) fn goal_of(key: &[u8]) -> Result<GoalId, StoreError> {
     records::part(key, 1)
@@ -274,6 +314,14 @@ impl Local {
             (GOVERNANCE, Some(value)) => {
                 let seed: [u8; 32] = records::read(value)?;
                 self.governance = Some(Keypair::from_seed(seed));
+            }
+            (RESTORED, Some(value)) => self.restored = Some(records::read(value)?),
+            (RESTORED, None) => self.restored = None,
+            (UNHEARD, Some(_)) => {
+                self.unheard.insert(PublicKey(subject()?));
+            }
+            (UNHEARD, None) => {
+                self.unheard.remove(&PublicKey(subject()?));
             }
             (REVISION | TITLE | PART | GOVERNANCE, None) => {}
             _ => return Err(records::bad_key()),

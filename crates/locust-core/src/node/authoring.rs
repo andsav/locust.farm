@@ -10,17 +10,18 @@ use locust_proto::PROTOCOL_VERSION;
 use locust_proto::api::{ApiError, ErrorCode};
 use locust_proto::crypto::{ContentKey, Keypair};
 use locust_proto::engine::Entropy;
-use locust_proto::event::{Body, Event, Header, PayloadRef};
+use locust_proto::event::{AuthorPoint, Body, Event, Header, PayloadRef};
 use locust_proto::id::{EventId, GoalId, PublicKey};
 use locust_proto::limits::MAX_PAYLOAD_BYTES;
 use locust_proto::seal;
-use locust_proto::store::{Blob, Store};
+use locust_proto::store::{Blob, Mark, MarkWrite, Store};
 
 use super::Node;
 use super::access::Attempted;
 use super::callers::Actor;
 use super::commit::Tx;
 use super::entry::Entry;
+use super::guard::CONFLICT;
 use super::local;
 
 /// Where an event sits: its place in its author's log and the decision it
@@ -85,6 +86,16 @@ pub(super) fn sign_at(
         body,
     };
     let event = Event::sign(header, key)?;
+    tx.commit.marks.push(MarkWrite::Set(Mark {
+        goal,
+        key: key.public(),
+        point: AuthorPoint {
+            seq: place.seq,
+            id: event.id(),
+        },
+        shared: false,
+        unheard: false,
+    }));
     tx.commit.events.push(event.clone());
     tx.authored = true;
     tx.touch(goal);
@@ -125,6 +136,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         tx.commit.events.append(&mut candidate.commit.events);
         tx.commit.blobs.append(&mut candidate.commit.blobs);
         tx.commit.local.append(&mut candidate.commit.local);
+        tx.commit.marks.append(&mut candidate.commit.marks);
         tx.authored = true;
         tx.touch(entry.id());
         if actor.owner_act {
@@ -199,8 +211,9 @@ impl<S: Store, E: Entropy> Node<S, E> {
     }
 
     /// Where `author`'s next event in the goal goes, after the checks every
-    /// signature needs: the goal is not halted and the author is a member.
-    /// The governance key is no member and has not left; it skips both tests.
+    /// signature needs: the goal is not halted, the author is a member, and
+    /// the restore guard does not hold the author's key. The governance key
+    /// is no member and has not left; it skips the second test.
     pub(super) fn next_place(&self, entry: &Entry, author: &PublicKey) -> Result<Place, ApiError> {
         let governance = entry.state().governance.as_ref() == Some(author);
         if governance && entry.goal.evaluation().host_halt.is_some() {
@@ -215,6 +228,12 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 ErrorCode::Denied,
                 "the principal is not a current member of the goal",
             ));
+        }
+        if let Some(hold) = self.hold(entry, author) {
+            return Err(hold.refusal());
+        }
+        if !governance && entry.goal.fork_point(author).is_some() {
+            return Err(ApiError::new(ErrorCode::Halted, CONFLICT));
         }
         let next = entry.goal.next(author).ok_or_else(|| {
             ApiError::new(

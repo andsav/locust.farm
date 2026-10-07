@@ -929,3 +929,199 @@ fn historical_proof_refusal_survives_close_before_finish_and_rotates() {
         }));
     }
 }
+
+/// A dialed exchange counts as hearing from the remote endpoint once its
+/// record stage ran to the end and brought nothing this replica lacked,
+/// whatever this side pushed. One that brought records does not; the next
+/// one, opened because the goal changed, does.
+#[test]
+fn a_dialed_exchange_is_heard_only_when_it_brought_nothing() {
+    use super::net::Net;
+    use locust_proto::testkit::Author;
+    let founded = Founded::new();
+    let goal = founded.goal;
+    let theirs = founded.notes(&mut Author::new(2), 3);
+    let mine = founded.notes(&mut Author::new(3), 2);
+    for brings in [true, false] {
+        let held = if brings {
+            mine.clone()
+        } else {
+            [mine.clone(), theirs.clone()].concat()
+        };
+        let mut net = Net::new(vec![
+            host(1, founded.replica(&held), &[1, 2]),
+            host(2, founded.replica(&theirs), &[1, 2]),
+        ]);
+        net.poll(&[0]);
+        assert_eq!(net.host(0).ids(&goal), net.host(1).ids(&goal));
+        if brings {
+            assert!(net.host(0).heard.is_empty());
+            // The goal changed, so the next poll opens another exchange at
+            // once, and it brings nothing.
+            net.poll(&[0]);
+        }
+        assert_eq!(net.host(0).heard, [(goal, endpoint(2))]);
+        // A poll that opens nothing hears nothing more.
+        net.poll(&[0]);
+        assert_eq!(net.host(0).heard, [(goal, endpoint(2))]);
+    }
+}
+
+/// An accepted exchange counts as hearing from the endpoint that opened it
+/// when its `Done` arrives and the initiator pushed nothing this replica
+/// lacked. An endpoint that does not speak for a member is never heard.
+#[test]
+fn an_accepted_exchange_is_heard_at_done_when_nothing_was_pushed() {
+    use locust_proto::engine::PeerTime;
+    use locust_proto::testkit::Author;
+    for (remote, pushed) in [(2, false), (2, true), (3, false)] {
+        let founded = Founded::new();
+        let goal = founded.goal;
+        let mut host = host(
+            1,
+            founded.replica(&founded.notes(&mut Author::new(2), 2)),
+            &[1, 2],
+        );
+        let mut driver = Driver::new();
+        let mut out = Vec::new();
+        let exchange = ExchangeId::Accepted(1);
+        let time = PeerTime {
+            unix_ms: 1,
+            elapsed_ms: 1,
+        };
+        driver.handle(
+            &mut host,
+            PeerInput::Accepted {
+                exchange,
+                remote: endpoint(remote),
+            },
+            time,
+            &mut out,
+        );
+        let frontier = host.replica_mut(&goal).frontier();
+        let mut frames = vec![
+            SyncMessage::Hello {
+                version: locust_proto::PROTOCOL_VERSION,
+                goal,
+            },
+            SyncMessage::Frontier(frontier),
+        ];
+        if pushed {
+            let note = founded.notes(&mut Author::new(4), 1);
+            frames.push(SyncMessage::Events(vec![note[0].to_wire()]));
+        }
+        for frame in frames {
+            driver.handle(
+                &mut host,
+                PeerInput::Frame { exchange, frame },
+                time,
+                &mut out,
+            );
+            while !driver.readable(exchange) {
+                driver.handle(&mut host, PeerInput::Writable(exchange), time, &mut out);
+            }
+        }
+        assert!(host.heard.is_empty(), "heard before Done");
+        driver.handle(
+            &mut host,
+            PeerInput::Frame {
+                exchange,
+                frame: SyncMessage::Done,
+            },
+            time,
+            &mut out,
+        );
+        let heard = remote == 2 && !pushed;
+        assert_eq!(
+            host.heard,
+            if heard {
+                vec![(goal, endpoint(2))]
+            } else {
+                vec![]
+            }
+        );
+        assert_eq!(
+            host.callers,
+            if remote == 3 {
+                vec![(goal, endpoint(3))]
+            } else {
+                vec![]
+            }
+        );
+    }
+}
+
+/// An endpoint that names a goal without speaking for a member is noted as a
+/// caller, and a host that dials callers dials it like a peer. Until this
+/// daemon's own records name it a member, that exchange sends `Hello` and an
+/// empty frontier, pushes nothing, still takes what the caller sends, and is
+/// never heard. Once a member, it is reconciled and heard as any peer.
+#[test]
+fn an_unknown_caller_is_dialed_back_with_an_empty_frontier() {
+    use super::net::Net;
+    use locust_proto::sync::{Frontier, Refusal};
+    use locust_proto::testkit::Author;
+    let founded = Founded::new();
+    let goal = founded.goal;
+    let theirs = founded.notes(&mut Author::new(2), 3);
+    let mine = founded.notes(&mut Author::new(3), 2);
+    let mut caught_up = host(1, founded.replica(&mine), &[1]);
+    caught_up.dial_callers = true;
+    let mut net = Net::new(vec![caught_up, host(2, founded.replica(&theirs), &[1, 2])]);
+    // The caller's exchange is refused, and its endpoint is remembered.
+    net.poll(&[1]);
+    assert_eq!(net.host(0).callers, [(goal, endpoint(2))]);
+    assert_eq!(net.host(0).ids(&goal), founded.replica(&mine).ids());
+    let sent_by_0 = |net: &Net, from: usize| -> Vec<SyncMessage> {
+        net.log[from..]
+            .iter()
+            .filter(|(to, _)| *to == 1)
+            .map(|(_, frame)| frame.clone())
+            .collect()
+    };
+    assert_eq!(
+        sent_by_0(&net, 0),
+        [SyncMessage::Refused(Refusal::NotAMember)]
+    );
+    let from = net.log.len();
+    net.poll(&[0]);
+    assert_eq!(
+        sent_by_0(&net, from),
+        [
+            SyncMessage::Hello {
+                version: locust_proto::PROTOCOL_VERSION,
+                goal,
+            },
+            SyncMessage::Frontier(Frontier::default()),
+            SyncMessage::Refused(Refusal::NotAMember),
+        ]
+    );
+    // The caller's records arrived; this daemon's own did not leave.
+    assert!(
+        theirs
+            .iter()
+            .all(|event| net.host(0).ids(&goal).contains(&event.id()))
+    );
+    assert!(
+        mine.iter()
+            .all(|event| !net.host(1).ids(&goal).contains(&event.id()))
+    );
+    assert!(net.host(0).heard.is_empty());
+    let report = net.host(0).reports.last().unwrap();
+    assert!(report.dialed);
+    assert_eq!(report.endpoint, endpoint(2));
+    assert_eq!(report.ended, Ended::Refused(Refusal::NotAMember));
+    // This daemon's own records now name the caller a member.
+    net.host(0)
+        .members
+        .get_mut(&goal)
+        .unwrap()
+        .insert(endpoint(2));
+    net.now_ms += crate::sync::MAX_BACKOFF_MS;
+    let from = net.log.len();
+    net.poll(&[0]);
+    let frontier = net.host(0).replica_mut(&goal).frontier();
+    assert!(sent_by_0(&net, from).contains(&SyncMessage::Frontier(frontier)));
+    assert_eq!(net.host(0).ids(&goal), net.host(1).ids(&goal));
+    assert_eq!(net.host(0).heard, [(goal, endpoint(2))]);
+}

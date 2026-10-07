@@ -1,11 +1,13 @@
 //! Fault injection, chosen by the seed: stops and restarts, sleep, routes
-//! lost one way or both, and exchanges cut mid-way.
+//! lost one way or both, exchanges cut mid-way, and a store put back from
+//! an older backup ([`super::restore`]).
 //!
 //! Faults start at seeded moments while the scenario runs, so they land
 //! between its steps and during them. Each ends by itself after a seeded
 //! time. The scenario can also ask for a fault at an exact point.
 
 use super::machine::Power;
+use super::restore::Marks;
 use super::rng::Rng;
 use super::world::{Ev, MS, Micros, SEC, World};
 
@@ -15,6 +17,10 @@ pub(super) enum Kind {
     Down { m: usize },
     /// The machine sleeps; healing wakes it.
     Asleep { m: usize },
+    /// The process is not running and its store was put back from an older
+    /// backup, with its marks kept or lost; healing starts it again. Waking
+    /// from sleep is never this.
+    Restored { m: usize, marks: Marks },
     /// Packets from the first machine of each pair to the second are lost.
     Partition { pairs: Vec<(usize, usize)> },
     /// New exchanges are cut after a few frames.
@@ -47,12 +53,19 @@ pub struct Chaos {
     chain: bool,
     /// Also step wall clocks while machines run. Off unless asked for.
     pub clock_steps: bool,
+    /// Backups and restores are drawn from their own generator, so a run
+    /// with them turned off is the run it was before they existed.
+    pub backup_rng: Rng,
+    /// Whether this run takes backups and restores machines at all.
+    pub allow_restores: bool,
+    /// Whether injected faults include restores now. The scenario turns this
+    /// on where nobody waits for a write to arrive.
+    pub restores: bool,
 }
 
 impl Chaos {
     pub fn new(rng: Rng) -> Self {
         Self {
-            rng,
             enabled: false,
             budget: 0,
             mean_gap_ms: 20_000,
@@ -63,12 +76,27 @@ impl Chaos {
             cap: None,
             chain: false,
             clock_steps: false,
+            backup_rng: rng.fork(0xBAC0),
+            allow_restores: false,
+            restores: false,
+            rng,
         }
     }
 
     /// True while no injected fault is in effect.
     pub fn quiet(&self) -> bool {
         self.active.is_empty()
+    }
+
+    /// A new fault in effect.
+    pub(super) fn fault(&mut self, kind: Kind) -> Fault {
+        self.next_id += 1;
+        let fault = Fault {
+            id: self.next_id,
+            kind,
+        };
+        self.active.push(fault.clone());
+        fault
     }
 }
 
@@ -96,6 +124,12 @@ impl World {
         if !self.chaos.enabled || self.chaos.budget == 0 {
             return;
         }
+        if self.chaos.allow_restores {
+            let m = self.chaos.backup_rng.below(self.machines.len() as u64) as usize;
+            if self.chaos.backup_rng.chance(1, 2) {
+                self.backup(m);
+            }
+        }
         self.inject();
         self.schedule_chaos();
     }
@@ -116,6 +150,14 @@ impl World {
     fn inject(&mut self) {
         if self.chaos.cap == Some(0) {
             return;
+        }
+        if self.chaos.allow_restores && self.chaos.restores && self.chaos.backup_rng.chance(1, 4) {
+            let targets = self.restorable();
+            if !targets.is_empty() {
+                let m = self.chaos.backup_rng.pick(&targets);
+                let (kind, heal_ms, text) = self.restore(m);
+                return self.begin(kind, heal_ms, text);
+            }
         }
         let targets = self.candidates();
         let roll = self.chaos.rng.below(100);
@@ -216,17 +258,10 @@ impl World {
                 )
             }
         };
-        self.chaos.next_id += 1;
-        let fault = Fault {
-            id: self.chaos.next_id,
-            kind,
-        };
-        self.chaos.active.push(fault.clone());
-        self.record(text);
-        self.schedule(self.now + heal_ms * MS, Ev::Heal(fault));
+        self.begin(kind, heal_ms, text);
     }
 
-    fn record(&mut self, text: String) {
+    pub(super) fn record(&mut self, text: String) {
         self.chaos.budget = self.chaos.budget.saturating_sub(1);
         self.chaos.cap = self.chaos.cap.map(|cap| cap.saturating_sub(1));
         self.stats.faults += 1;
@@ -254,6 +289,7 @@ impl World {
                     self.wake(m);
                 }
             }
+            Kind::Restored { m, .. } => self.heal_restored(m),
             Kind::Partition { pairs } => {
                 for (from, to) in pairs {
                     self.set_blocked(from, to, false);

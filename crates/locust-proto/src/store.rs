@@ -177,6 +177,10 @@ pub struct Mark {
     pub point: AuthorPoint,
     /// The governance log held here admits a member on another computer.
     pub shared: bool,
+    /// The goal was unheard when this mark was written: this daemon's data
+    /// was a copy of unknown age. The bit keeps that memory for a start whose
+    /// store is an older copy still, whose `RESTORED` record never said so.
+    pub unheard: bool,
 }
 
 /// A change to the marks: one key's mark set, or cleared.
@@ -366,6 +370,12 @@ type MarksByKey = BTreeMap<(GoalId, PublicKey), Mark>;
 impl MemMarks {
     fn cell(&self) -> MutexGuard<'_, Option<MarksByKey>> {
         self.0.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// Marks that read as these read now and share nothing with them: the
+    /// marks file as it stood before later commits wrote to it.
+    pub fn copy(&self) -> Self {
+        Self(Arc::new(Mutex::new(self.cell().clone())))
     }
 }
 
@@ -806,6 +816,7 @@ pub mod conformance {
                 id: EventId([seq as u8; 32]),
             },
             shared,
+            unheard: seq.is_multiple_of(2),
         };
         let (late, early, raised) = (
             mark(2, 1, 4, true),
@@ -1389,6 +1400,7 @@ mod tests {
                 id: EventId([3; 32]),
             },
             shared: false,
+            unheard: false,
         };
         store
             .commit(&Commit {

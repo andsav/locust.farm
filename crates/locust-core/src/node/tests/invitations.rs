@@ -7,6 +7,7 @@ use crate::sync::Host;
 use locust_proto::api::{InvitationState, InvitationSummary, Membership};
 use locust_proto::crypto::Keypair;
 use locust_proto::engine::{PeerEngine, PeerInput};
+use locust_proto::event::Body;
 use locust_proto::id::{EndpointId, GoalId};
 use locust_proto::invite::{Invitation, JoinRequest, Ticket};
 use locust_proto::store::{Space, Store};
@@ -436,26 +437,60 @@ fn an_admission_signed_twice_for_one_request_is_one_record() {
     let joiner = Keypair::from_seed([44; 32]);
     let request = JoinRequest::sign(goal, remote, "member".into(), first.secret, &joiner);
     let before = daemon.store.log(&goal, 0, usize::MAX).unwrap();
+    // Marks kept: the data directory is put back, its marks directory survives.
     let copy = snapshot(&daemon.store);
     daemon.node.join(&remote, &request, 1_000).unwrap();
     let admitted = daemon.node.goals[&goal].state().members[&joiner.public()].admission;
-    // The same request reaches the other copy of the store later, from a
-    // daemon with a different clock and different random draws.
+    let body = daemon.node.goals[&goal]
+        .goal
+        .event(&admitted)
+        .unwrap()
+        .header()
+        .body
+        .clone();
+    // The same admission is signed again from the other copy of the store,
+    // by a daemon with a different clock and different random draws.
     daemon.store = copy;
     daemon.restart();
     assert_eq!(daemon.store.log(&goal, 0, usize::MAX).unwrap(), before);
-    daemon.node.join(&remote, &request, 987_654).unwrap();
-    assert_eq!(
-        daemon.node.goals[&goal].state().members[&joiner.public()].admission,
-        admitted
-    );
-    let other = Keypair::from_seed([45; 32]);
-    let different = JoinRequest::sign(goal, remote, "member".into(), second.secret, &other);
-    daemon.node.join(&remote, &different, 987_654).unwrap();
-    assert_ne!(
-        daemon.node.goals[&goal].state().members[&other.public()].admission,
-        admitted
-    );
+    // The restore revoked both tickets the copy lists as pending.
+    for (secret, joiner) in [
+        (first.secret, joiner),
+        (second.secret, Keypair::from_seed([45; 32])),
+    ] {
+        let request = JoinRequest::sign(goal, remote, "member".into(), secret, &joiner);
+        assert_eq!(
+            daemon.node.join(&remote, &request, 987_654),
+            Err(Refusal::InvitationRefused)
+        );
+    }
+    let owner = daemon.owner();
+    daemon.ok(owner, Request::GoalContinue { goal });
+    let governance = governance_key(&daemon, goal).public();
+    let sign = |daemon: &Daemon, body: Body| {
+        let mut tx = crate::node::commit::Tx::none();
+        daemon
+            .node
+            .author_alone(&daemon.node.goals[&goal], &governance, body, &mut tx)
+            .unwrap()
+    };
+    assert_eq!(sign(&daemon, body.clone()), admitted);
+    let Body::MemberAdmitted {
+        endpoint,
+        name,
+        role,
+        ..
+    } = body
+    else {
+        panic!("an admission")
+    };
+    let other = Body::MemberAdmitted {
+        member: Keypair::from_seed([45; 32]).public(),
+        endpoint,
+        name,
+        role,
+    };
+    assert_ne!(sign(&daemon, other), admitted);
 }
 
 /// A daemon on another computer that holds no goal yet.

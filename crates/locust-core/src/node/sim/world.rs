@@ -13,6 +13,7 @@ use locust_proto::engine::{Engine, ExchangeId, PeerEngine, PeerInput, PeerOutput
 use super::chaos::{Chaos, Fault};
 use super::machine::{Machine, Power, Who};
 use super::net::Net;
+use super::restore::{Backup, Restore};
 use super::rng::Rng;
 use super::{EPOCH_MS, POLL_MS};
 
@@ -91,6 +92,12 @@ pub struct World {
     /// Human-readable lines of the same, when asked for.
     pub log: Option<Vec<String>>,
     pub stats: Stats,
+    /// Per machine, the backups a restore can put back, oldest first.
+    pub backups: Vec<Vec<Backup>>,
+    /// Per machine, whether the scenario allows backups of it yet.
+    pub ready: Vec<bool>,
+    /// Every restore so far, in order.
+    pub restores: Vec<Restore>,
 }
 
 impl World {
@@ -110,6 +117,9 @@ impl World {
             digest: seed,
             log: None,
             stats: Stats::default(),
+            backups: (0..machines).map(|_| Vec::new()).collect(),
+            ready: vec![false; machines],
+            restores: Vec::new(),
         }
     }
 
@@ -152,7 +162,8 @@ impl World {
         // A restart shows local callers exactly what they could read when
         // the process ended, however it ended.
         if let Some(before) = self.machines[m].last_view.take() {
-            let after = self.machines[m].visible(now_ms);
+            let revisions = self.machines[m].last_revisions;
+            let after = self.machines[m].visible(now_ms, revisions);
             assert!(
                 after.as_ref() == Some(&before),
                 "m{} shows something else after a restart:\nbefore {before}\nafter  {after:?}",

@@ -1,6 +1,8 @@
 //! Production Nodes over reopenable Stores, driven through their public seams.
 use crate::node::Node;
-use locust_proto::api::{ClientHello, Credential, Request, RequestFrame, Response, ServerHello};
+use locust_proto::api::{
+    ApiError, ClientHello, Credential, Request, RequestFrame, Response, ServerHello,
+};
 use locust_proto::engine::{
     ConnId, Engine, Entropy, ExchangeId, PeerEngine, PeerInput, PeerOutput, Step,
 };
@@ -46,6 +48,13 @@ fn request(
     principal: Option<PublicKey>,
     request: Request,
 ) -> Response {
+    attempt(node, principal, request).expect("public operation succeeds")
+}
+fn attempt(
+    node: &mut Node<MemStore, Random>,
+    principal: Option<PublicKey>,
+    request: Request,
+) -> Result<Response, ApiError> {
     match node.request(
         ConnId(1),
         RequestFrame {
@@ -56,7 +65,7 @@ fn request(
         },
         10,
     ) {
-        Step::Reply(reply) => reply.result.expect("public operation succeeds"),
+        Step::Reply(reply) => reply.result,
         Step::Park(_) => panic!("unexpected wait"),
     }
 }
@@ -103,12 +112,15 @@ impl Peer {
         }
     }
     fn call(&mut self, operation: Request) -> Response {
+        self.try_call(operation).expect("public operation succeeds")
+    }
+    fn try_call(&mut self, operation: Request) -> Result<Response, ApiError> {
         let on_behalf = matches!(
             operation.operation().audience,
             locust_proto::api::Audience::Agent | locust_proto::api::Audience::Author
         )
         .then_some(self.principal);
-        request(&mut self.node, on_behalf, operation)
+        attempt(&mut self.node, on_behalf, operation)
     }
     fn restart(&mut self) {
         self.node = Node::open(
@@ -1408,14 +1420,18 @@ fn same_key_rejoin_recovers_own_log_before_signing_when_sync_finishes() {
 }
 
 #[test]
-fn same_key_rejoin_can_sign_at_zero_if_membership_and_content_arrive_before_own_log() {
+fn a_rejoined_key_signs_nothing_until_its_own_log_returns() {
     same_key_rejoin(true);
 }
 
+/// The member's computer loses the goal and joins it again with the same
+/// key. With `sign_during_recovery`, its agent asks to sign after the
+/// membership and content arrived and before its own record did.
 fn same_key_rejoin(sign_during_recovery: bool) {
-    use crate::sync::Host;
     let mut peers = [Peer::new(1), Peer::new(2)];
-    // Reverting this snapshot loses the goal completely but retains the identity.
+    // Reverting this snapshot loses the goal completely but retains the
+    // identity. Marks kept: the data directory is put back from this copy
+    // while the marks beside it survive.
     let before_join = crate::node::tests::snapshot(&peers[1].store);
     let agent = peers[0].principal;
     let Response::GoalCreated { goal } = peers[0].call(Request::GoalCreate {
@@ -1446,14 +1462,7 @@ fn same_key_rejoin(sign_during_recovery: bool) {
         reconcile(&mut peers, now);
     }
     let publish = |peer: &mut Peer, text: &str| {
-        let Response::Recorded { event } = peer.call(Request::ContributionPublish {
-            goal,
-            attempt: None,
-            generation: None,
-            sources: vec![],
-            artifacts: vec![],
-            summary: text.into(),
-        }) else {
+        let Response::Recorded { event } = peer.call(publication(goal, text)) else {
             panic!()
         };
         peer.store.event(&event).unwrap().unwrap()
@@ -1475,58 +1484,27 @@ fn same_key_rejoin(sign_during_recovery: bool) {
     });
     assert!(peers[1].node.goals[&goal].goal.next(&principal).is_none());
     if sign_during_recovery {
-        // Controlled adapter ordering: governance and founding content are
-        // available while this principal's old event has not arrived yet.
-        let events: Vec<_> = peers[0]
-            .store
-            .log(&goal, 0, usize::MAX)
-            .unwrap()
-            .into_iter()
-            .map(|(_, e)| e)
-            .filter(|e| e.header().author != principal)
-            .collect();
-        let key = Host::replica(&mut peers[0].node, &goal)
-            .unwrap()
-            .key(0)
-            .unwrap();
-        Host::replica(&mut peers[1].node, &goal)
-            .unwrap()
-            .receive(events.iter().map(|e| e.to_wire()).collect())
-            .unwrap();
-        for event in events {
-            for hash in event.header().blobs() {
-                if let Some(bytes) = peers[0].store.blob(&hash).unwrap() {
-                    assert!(matches!(
-                        Host::replica(&mut peers[1].node, &goal).unwrap().stage(
-                            &hash,
-                            0,
-                            bytes.len() as u64,
-                            &bytes
-                        ),
-                        crate::sync::Staged::Complete
-                    ));
-                }
-            }
-        }
-        assert!(
-            Host::replica(&mut peers[1].node, &goal)
-                .unwrap()
-                .offer_key(0, key)
-        );
+        deliver_all_but(&mut peers, goal, &principal);
         assert!(peers[1].node.goals[&goal].is_member(&principal));
         assert!(!peers[1].store.has_event(&old.id()).unwrap());
-    } else {
-        for now in [140000, 175000, 210000] {
-            reconcile(&mut peers, now);
-        }
-        assert!(peers[1].store.has_event(&old.id()).unwrap());
+        // The mark names the record at position 0 the copy lacks.
+        let entry = &peers[1].node.goals[&goal];
+        assert!(matches!(
+            peers[1].node.hold(entry, &principal),
+            Some(crate::node::guard::Hold::Behind { mark }) if mark.id == old.id() && mark.seq == 0
+        ));
+        let refused = peers[1]
+            .try_call(publication(goal, "would sign at zero again"))
+            .unwrap_err();
+        assert_eq!(refused.code, locust_proto::api::ErrorCode::ReadOnly);
     }
+    for now in [140000, 175000, 210000] {
+        reconcile(&mut peers, now);
+    }
+    assert!(peers[1].store.has_event(&old.id()).unwrap());
     let new = publish(&mut peers[1], "after losing goal");
-    assert_eq!(new.header().seq, if sign_during_recovery { 0 } else { 1 });
-    assert_eq!(
-        new.header().prev,
-        (!sign_during_recovery).then_some(old.id())
-    );
+    assert_eq!(new.header().seq, 1);
+    assert_eq!(new.header().prev, Some(old.id()));
     // One ordinary round carries both records to both daemons. A missing
     // key is an answer inside an exchange, not a refusal of it.
     use locust_proto::sync::{Refusal, SyncMessage};
@@ -1539,12 +1517,149 @@ fn same_key_rejoin(sign_during_recovery: bool) {
         assert!(peer.store.has_event(&old.id()).unwrap());
         assert!(peer.store.has_event(&new.id()).unwrap());
         let folded = &peer.node.goals[&goal].goal;
-        assert_eq!(
-            folded.fork_point(&principal),
-            sign_during_recovery.then_some(0)
-        );
+        assert_eq!(folded.fork_point(&principal), None);
         assert!(folded.evaluation().host_halt.is_none());
     }
+}
+
+#[test]
+fn a_newly_admitted_key_waits_for_the_hosts_computer_once() {
+    use crate::node::guard::Hold;
+    let mut peers = [Peer::new(1), Peer::new(2)];
+    // Marks lost: a whole-computer copy from before the goal, so nothing
+    // shows that this key ever signed in it.
+    let before_join = crate::node::tests::snapshot_all(&peers[1].store);
+    let agent = peers[0].principal;
+    let Response::GoalCreated { goal } = peers[0].call(Request::GoalCreate {
+        name: "host".into(),
+        agent,
+        title: "Rejoin ordering".into(),
+        formation_json: Some("{\"schema_version\":2}".into()),
+        inputs: BTreeMap::new(),
+    }) else {
+        panic!()
+    };
+    let Response::Invited { ticket } = peers[0].call(Request::GoalInvite {
+        role: None,
+        goal,
+        expires_ms: 1_000_000,
+    }) else {
+        panic!()
+    };
+    let join = Request::GoalJoin {
+        name: "member".into(),
+        agent: peers[1].principal,
+        ticket,
+        level: locust_proto::api::Level::Auto,
+    };
+    peers[1].call(join.clone());
+    for now in [1000, 35000, 70000] {
+        reconcile(&mut peers, now);
+    }
+    let Response::Recorded { event } = peers[1].call(publication(goal, "before losing goal"))
+    else {
+        panic!()
+    };
+    let old = peers[1].store.event(&event).unwrap().unwrap();
+    reconcile(&mut peers, 105000);
+    assert!(peers[0].store.has_event(&old.id()).unwrap());
+    let principal = peers[1].principal;
+    peers[1].store = before_join;
+    peers[1].restart();
+    assert!(!peers[1].node.goals.contains_key(&goal));
+    peers[1].call(join);
+    deliver_all_but(&mut peers, goal, &principal);
+    assert!(peers[1].node.goals[&goal].is_member(&principal));
+    assert!(!peers[1].store.has_event(&old.id()).unwrap());
+    let hold = |peer: &Peer| peer.node.hold(&peer.node.goals[&goal], &principal);
+    let held = |peer: &mut Peer| {
+        let refused = peer
+            .try_call(publication(goal, "would sign at zero again"))
+            .unwrap_err();
+        assert_eq!(refused.code, locust_proto::api::ErrorCode::Unavailable);
+        assert!(refused.message.contains("host's computer"), "{refused}");
+    };
+    assert_eq!(hold(&peers[1]), Some(Hold::Admitted));
+    held(&mut peers[1]);
+    // An exchange with the host's computer that brings records is no
+    // hearing, though it brought this key's own record back.
+    reconcile_from(&mut peers, 140000, &[1]);
+    assert!(peers[1].store.has_event(&old.id()).unwrap());
+    assert_eq!(hold(&peers[1]), Some(Hold::Admitted));
+    held(&mut peers[1]);
+    // The next one brings nothing new, and the hold ends.
+    reconcile_from(&mut peers, 175000, &[1]);
+    assert_eq!(hold(&peers[1]), None);
+    // Once: a start holds nothing more.
+    peers[1].restart();
+    assert_eq!(hold(&peers[1]), None);
+    let Response::Recorded { event } = peers[1].call(publication(goal, "after losing goal")) else {
+        panic!()
+    };
+    let new = peers[1].store.event(&event).unwrap().unwrap();
+    assert_eq!(new.header().seq, 1);
+    assert_eq!(new.header().prev, Some(old.id()));
+    reconcile(&mut peers, 210000);
+    for peer in &peers {
+        assert!(peer.store.has_event(&new.id()).unwrap());
+        let folded = &peer.node.goals[&goal].goal;
+        assert_eq!(folded.fork_point(&principal), None);
+        assert!(folded.evaluation().host_halt.is_none());
+    }
+}
+
+fn publication(goal: GoalId, summary: &str) -> Request {
+    Request::ContributionPublish {
+        goal,
+        attempt: None,
+        generation: None,
+        sources: vec![],
+        artifacts: vec![],
+        summary: summary.into(),
+    }
+}
+
+/// Controlled adapter ordering: the host's governance records and founding
+/// content reach the rejoined member while `principal`'s own records have
+/// not, outside any exchange, so no computer is heard from.
+fn deliver_all_but(peers: &mut [Peer; 2], goal: GoalId, principal: &PublicKey) {
+    use crate::sync::Host;
+    let events: Vec<_> = peers[0]
+        .store
+        .log(&goal, 0, usize::MAX)
+        .unwrap()
+        .into_iter()
+        .map(|(_, e)| e)
+        .filter(|e| e.header().author != *principal)
+        .collect();
+    let key = Host::replica(&mut peers[0].node, &goal)
+        .unwrap()
+        .key(0)
+        .unwrap();
+    Host::replica(&mut peers[1].node, &goal)
+        .unwrap()
+        .receive(events.iter().map(|e| e.to_wire()).collect())
+        .unwrap();
+    for event in events {
+        for hash in event.header().blobs() {
+            if let Some(bytes) = peers[0].store.blob(&hash).unwrap() {
+                assert!(matches!(
+                    Host::replica(&mut peers[1].node, &goal).unwrap().stage(
+                        &hash,
+                        0,
+                        bytes.len() as u64,
+                        &bytes
+                    ),
+                    crate::sync::Staged::Complete
+                ));
+            }
+        }
+    }
+    assert!(
+        Host::replica(&mut peers[1].node, &goal)
+            .unwrap()
+            .offer_key(0, key)
+    );
 }
 
 #[test]

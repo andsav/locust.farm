@@ -21,12 +21,11 @@
 //! join takes when nothing is wrong. It is cheap enough to run by the
 //! hundred thousand, which is what finding a rare ordering takes.
 
-use locust_proto::api::{Request, Response};
+use locust_proto::api::Request;
 use locust_proto::id::EventId;
 
 use super::check::settle;
-use super::machine::Who;
-use super::run::{Acked, Fail, Run};
+use super::run::{Fail, Run};
 use super::scenario::{create, finding, join, setup};
 use super::world::{MS, Micros, SEC};
 
@@ -41,6 +40,10 @@ pub fn storm(r: &mut Run) -> Result<(), Fail> {
         let budget = r.rng.range(2, 8) as u32;
         let gap = r.rng.pick(&[2_000, 5_000, 15_000]);
         r.w.enable_chaos(budget, gap);
+        // Nobody waits here for a write to arrive, so a restore may lose
+        // one everywhere.
+        r.w.chaos.restores = true;
+        r.w.backups();
     }
     let without_coordinator = r.rng.chance(1, 3);
     if without_coordinator {
@@ -50,7 +53,10 @@ pub fn storm(r: &mut Run) -> Result<(), Fail> {
     for round in 0..r.rng.range(3, 10) {
         let m = r.rng.below(3) as usize;
         r.w.chaos_point();
-        // Someone can only type on a machine that is up.
+        r.tend();
+        // Someone can only type on a machine that is up. An agent writes
+        // whether or not its machine is catching up, and is refused while it
+        // is.
         if r.w.machines[m].running() {
             let text = format!("storm finding {round} from m{}", m + 1);
             let request = Request::ContributionPublish {
@@ -61,16 +67,8 @@ pub fn storm(r: &mut Run) -> Result<(), Fail> {
                 sources: Vec::new(),
                 artifacts: Vec::new(),
             };
-            match r.w.call(m, Who::Agent, request) {
-                Ok(Response::Recorded { event }) => {
-                    r.acked.push(Acked {
-                        what: "finding",
-                        machine: m,
-                        event,
-                    });
-                    r.findings.push((event, text));
-                }
-                other => return r.fail(format!("m{} finding.add answered {other:?}", m + 1)),
+            if let Some(event) = r.attempt_write(m, "finding", request)? {
+                r.findings.push((event, text));
             }
         }
         let pause = r.rng.range(0, 15_000);

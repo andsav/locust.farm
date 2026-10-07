@@ -190,10 +190,10 @@ impl State {
         match frame.request {
             Request::Status => Ok(Response::Status(DaemonStatus { daemon_version:"fixture".into(), endpoint:None, waiting:vec![],
                 agents:vec![AgentView { agent:PRINCIPAL,name:"worker".into(),author_only:false,revoked:self.agent_revoked }],
-                goals:vec![GoalSummary { goal:GOAL,title:Some("workspace".into()),member:PRINCIPAL,membership:Membership::Member,name:"agent".into(),host_name:None,invitations_open:0,invitations_expire_ms:None,halted:None,abilities:Self::abilities() }] })),
+                goals:vec![GoalSummary { guard: vec![], restored: None, goal:GOAL,title:Some("workspace".into()),member:PRINCIPAL,membership:Membership::Member,name:"agent".into(),host_name:None,invitations_open:0,invitations_expire_ms:None,halted:None,abilities:Self::abilities() }] })),
             Request::GoalStatus { goal } => Ok(Response::GoalStatus(serde_json::from_value(json!({
                 "goal":goal,"title":"workspace","governance":GOVERNANCE,"hosted_here":self.hosted_here,"host_name":"Host","roles":{},"deciding":[],"acting_alone":[],"host":PRINCIPAL,"governance_head":self.rules,"current_rules":self.rules,
-                "scope_halts":[],"members":self.members(),"halted":null,"abilities":[Self::abilities()],"stalled":[],"peers":[]
+                "scope_halts":[],"members":self.members(),"halted":null,"guard":[],"restored":null,"abilities":[Self::abilities()],"stalled":[],"peers":[]
             })).unwrap())),
             Request::AgentRevoke { agent } => { assert_eq!(agent, PRINCIPAL); self.agent_revoked = true; Ok(Response::Done) }
             Request::AgentReconnect { agent } => { assert_eq!(agent, PRINCIPAL); self.agent_revoked = false; Ok(Response::Done) }

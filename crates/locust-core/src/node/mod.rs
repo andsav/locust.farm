@@ -26,6 +26,7 @@ mod entry;
 mod farm;
 mod feed;
 mod flow;
+mod guard;
 mod identity;
 mod local;
 mod peers;
@@ -110,6 +111,7 @@ pub struct Node<S, E> {
     peer_connections: BTreeSet<locust_proto::id::EndpointId>,
     replica_goal: Option<GoalId>,
     blob_index: content_graph::BlobIndex,
+    guard: guard::Guard,
     failed: bool,
     stop: bool,
 }
@@ -128,13 +130,14 @@ impl<S: Store, E: Entropy> Node<S, E> {
         mut entropy: E,
         owner_credential_digest: [u8; 32],
         daemon_version: String,
-        _now_ms: u64,
+        now_ms: u64,
     ) -> Result<Self, StoreError> {
         let mut first = Commit::default();
         let mut identity = Identity {
             endpoint_secret: [0; 32],
             owner: [0; 32],
             endpoint: None,
+            file: None,
         };
         for (key, value) in store.scan(Space::Identity, &[])? {
             identity.absorb(&key, Some(&value))?;
@@ -169,6 +172,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             peer_connections: BTreeSet::new(),
             replica_goal: None,
             blob_index: content_graph::BlobIndex::default(),
+            guard: guard::Guard::default(),
             failed: false,
             stop: false,
         };
@@ -201,9 +205,15 @@ impl<S: Store, E: Entropy> Node<S, E> {
             entry.note_named(&events);
         }
         node.rebuild_blob_index()?;
+        // Before any signature: the first `drive_flow` below signs with no
+        // peer heard, so the guard must already hold what it holds.
+        let found = node.store.marks()?;
+        node.guard_start(found, now_ms)
+            .map_err(|error| StoreError::Failed(error.to_string()))?;
         let ids: Vec<_> = node.goals.keys().copied().collect();
         for id in ids {
             let mut tx = commit::Tx::none();
+            node.guard_settle(id, &mut tx);
             node.project_deliveries(id, &mut tx);
             node.land_once(tx)
                 .map_err(|error| StoreError::Failed(error.to_string()))?;

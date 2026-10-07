@@ -510,7 +510,12 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 members.sort_by_key(|member| (member.admitted, member.member));
                 members
             },
-            halted: entry.halted(),
+            halted: self.halt(entry, self.hosted_governance(entry).as_ref()),
+            guard: match actor.principal {
+                Some(agent) => self.guard_views(entry, [agent]),
+                None => self.guard_views(entry, self.local_keys(entry)),
+            },
+            restored: entry.local.restored.map(|restored| restored.revoked),
             workspace: Some(self.workspace_view(entry, actor)?),
             abilities: actor.principal.map_or_else(
                 || {
@@ -543,6 +548,21 @@ impl<S: Store, E: Entropy> Node<S, E> {
 }
 
 impl<S: Store, E: Entropy> Node<S, E> {
+    /// `goal.continue`: the owner's word that this daemon has caught up in a
+    /// goal. It proves nothing; the guard simply stops holding.
+    pub(super) fn goal_continue(&self, goal: GoalId) -> Plan {
+        let entry = self
+            .goals
+            .get(&goal)
+            .ok_or_else(|| not_found("no such goal"))?;
+        let mut tx = Tx::none();
+        let keys = self.guard_continue(entry, &mut tx);
+        Ok(Planned {
+            response: Response::Continued { keys },
+            tx,
+        })
+    }
+
     pub(super) fn goal_leave(
         &self,
         actor: &Actor,

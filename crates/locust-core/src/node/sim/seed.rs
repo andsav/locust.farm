@@ -5,7 +5,8 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Instant;
 
-use super::check::settle;
+use super::check::{reuses, settle};
+use super::restore::Marks;
 use super::run::{Fail, Run};
 use super::scenario::{setup, t1};
 use super::storm::{joins, lag, prompt, storm};
@@ -42,6 +43,8 @@ pub struct Options {
     pub no_background: bool,
     /// Injected faults also step wall clocks forward and back.
     pub clock_steps: bool,
+    /// No backups and no restores.
+    pub no_restores: bool,
 }
 
 impl Options {
@@ -64,6 +67,7 @@ impl Options {
             no_stalls: set("LOCUST_SIM_NO_STALLS"),
             no_background: set("LOCUST_SIM_NO_BACKGROUND"),
             clock_steps: set("LOCUST_SIM_CLOCK_STEPS"),
+            no_restores: set("LOCUST_SIM_NO_RESTORES"),
         }
     }
 
@@ -94,6 +98,9 @@ impl Options {
         if self.clock_steps {
             text.push_str(" LOCUST_SIM_CLOCK_STEPS=1");
         }
+        if self.no_restores {
+            text.push_str(" LOCUST_SIM_NO_RESTORES=1");
+        }
         text
     }
 }
@@ -112,6 +119,69 @@ pub struct Report {
     pub longest_wait: Micros,
     pub longest_wait_for: &'static str,
     pub log: Vec<String>,
+    pub restores: Restores,
+    /// Each position signed again, in words.
+    pub reused: Vec<String>,
+    /// The run signed a used position where the plan claims nothing, and
+    /// failed after it. What follows such a reuse is the fork the plan
+    /// accepts, so the failure is not the run's: it counts as a residual.
+    pub residual: bool,
+}
+
+/// What the restores of a run did.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Restores {
+    /// The host's machine and a member's, each with the marks kept or lost.
+    pub host_kept: u32,
+    pub host_lost: u32,
+    pub member_kept: u32,
+    pub member_lost: u32,
+    /// Restores that lost a record everywhere.
+    pub losing: u32,
+    /// Times the owner continued.
+    pub continued: u32,
+    /// Positions signed again where the plan claims nothing, and where it
+    /// claims they are not.
+    pub unclaimed: u32,
+    pub claimed: u32,
+}
+
+impl Restores {
+    fn add(&mut self, other: &Self) {
+        self.host_kept += other.host_kept;
+        self.host_lost += other.host_lost;
+        self.member_kept += other.member_kept;
+        self.member_lost += other.member_lost;
+        self.losing += other.losing;
+        self.continued += other.continued;
+        self.unclaimed += other.unclaimed;
+        self.claimed += other.claimed;
+    }
+}
+
+fn restores(r: &Run) -> Restores {
+    let mut counts = Restores::default();
+    for restore in &r.w.restores {
+        let count = match (restore.m == 0, restore.marks) {
+            (true, Marks::Kept) => &mut counts.host_kept,
+            (true, Marks::Lost) => &mut counts.host_lost,
+            (false, Marks::Kept) => &mut counts.member_kept,
+            (false, Marks::Lost) => &mut counts.member_lost,
+        };
+        *count += 1;
+        counts.losing += u32::from(!restore.lost.is_empty());
+    }
+    counts.continued = r.continued.len() as u32;
+    if r.goal.is_some() {
+        for reuse in reuses(r) {
+            if reuse.claimed {
+                counts.claimed += 1;
+            } else {
+                counts.unclaimed += 1;
+            }
+        }
+    }
+    counts
 }
 
 /// One whole run under the faults the seed chooses.
@@ -123,6 +193,7 @@ pub fn run_seed(seed: u64, options: Options) -> Report {
     r.faults = !options.calm && options.scenario == Scenario::Guide;
     r.w.chaos.cap = options.max_faults;
     r.w.chaos.clock_steps = options.clock_steps;
+    r.w.chaos.allow_restores = r.faults && !options.no_restores;
     let outcome = catch_unwind(AssertUnwindSafe(|| {
         for m in 0..3 {
             // A third of the machines keep true time; the rest are up to a
@@ -164,7 +235,7 @@ pub fn run_seed(seed: u64, options: Options) -> Report {
         storm(&mut r)?;
         settle(&mut r)
     }));
-    let result = match outcome {
+    let mut result = match outcome {
         Ok(result) => result,
         Err(panic) => {
             let text = panic
@@ -178,6 +249,22 @@ pub fn run_seed(seed: u64, options: Options) -> Report {
             })
         }
     };
+    let found = if r.goal.is_some() {
+        reuses(&r)
+    } else {
+        Vec::new()
+    };
+    let claimed: Vec<_> = found.iter().filter(|reuse| reuse.claimed).collect();
+    let residual = result.is_err() && !found.is_empty() && claimed.is_empty();
+    if let (Err(fail), Some(first)) = (&mut result, claimed.first()) {
+        // Whatever failed first, the reuse is what broke.
+        fail.what = format!(
+            "a_restored_machine_signs_at_no_used_position_unless_its_owner_continued: {}; \
+             then: {}",
+            first.describe(&r),
+            fail.what
+        );
+    }
     Report {
         seed,
         options,
@@ -189,6 +276,9 @@ pub fn run_seed(seed: u64, options: Options) -> Report {
         longest_wait: r.longest_wait,
         longest_wait_for: r.longest_wait_for,
         log: r.w.log.take().unwrap_or_default(),
+        restores: restores(&r),
+        reused: found.iter().map(|reuse| reuse.describe(&r)).collect(),
+        residual,
     }
 }
 
@@ -216,6 +306,9 @@ pub fn describe(report: &Report) -> String {
     for fault in &report.faults {
         text.push_str(&format!("\n  fault {fault}"));
     }
+    for reuse in &report.reused {
+        text.push_str(&format!("\n  reused {reuse}"));
+    }
     text
 }
 
@@ -237,7 +330,7 @@ pub fn shrink(failing: Report) -> Report {
         options.trace = false;
         simplify(&mut options);
         let report = run_seed(seed, options);
-        if report.result.is_err() {
+        if report.result.is_err() && !report.residual {
             best = report;
         }
     }
@@ -245,7 +338,7 @@ pub fn shrink(failing: Report) -> Report {
         let mut options = best.options;
         options.max_faults = Some(n);
         let report = run_seed(seed, options);
-        if report.result.is_err() {
+        if report.result.is_err() && !report.residual {
             return report;
         }
     }
@@ -282,11 +375,13 @@ pub fn sweep(seeds: std::ops::Range<u64>, options: Options) -> Vec<Report> {
     let seconds = started.elapsed().as_secs_f64();
 
     let mut totals = Stats::default();
+    let mut restored = Restores::default();
     let mut simulated = 0;
     let (mut value_max, mut value_seed) = (0, 0);
     let mut values = Vec::new();
     let (mut wait_max, mut wait_seed, mut wait_for) = (0, 0, "");
     let mut failures = Vec::new();
+    let mut residuals = Vec::new();
     for report in reports {
         totals.faults += report.stats.faults;
         totals.frames += report.stats.frames;
@@ -294,6 +389,7 @@ pub fn sweep(seeds: std::ops::Range<u64>, options: Options) -> Vec<Report> {
         totals.closed += report.stats.closed;
         totals.open_failed += report.stats.open_failed;
         totals.oversized += report.stats.oversized;
+        restored.add(&report.restores);
         simulated += report.simulated;
         if report.longest_wait > wait_max {
             wait_max = report.longest_wait;
@@ -306,6 +402,7 @@ pub fn sweep(seeds: std::ops::Range<u64>, options: Options) -> Vec<Report> {
                     (value_max, value_seed) = (value, report.seed);
                 }
             }
+            Err(_) if report.residual => residuals.push(report.seed),
             Err(_) => failures.push(report),
         }
     }
@@ -333,6 +430,23 @@ pub fn sweep(seeds: std::ops::Range<u64>, options: Options) -> Vec<Report> {
         totals.oversized,
         secs(simulated) / 3_600.0,
     );
+    if !options.no_restores && options.scenario == Scenario::Guide {
+        let r = restored;
+        eprintln!(
+            "sim: restores of the host's machine {} with marks kept and {} lost, of a \
+             member's {} kept and {} lost; {} lost a record everywhere; the owner continued \
+             {} times; positions signed again: {} outside the claims, {} inside; runs that \
+             failed after a reuse outside the claims: {residuals:?}",
+            r.host_kept,
+            r.host_lost,
+            r.member_kept,
+            r.member_lost,
+            r.losing,
+            r.continued,
+            r.unclaimed,
+            r.claimed,
+        );
+    }
     match options.scenario {
         Scenario::Guide => eprintln!(
             "sim: time to quiet after the last fault ended: median {:.1} s, 90th percentile \

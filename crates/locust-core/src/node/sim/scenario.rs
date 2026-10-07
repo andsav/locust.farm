@@ -79,8 +79,14 @@ fn durable_view(r: &mut Run, m: usize) -> Result<String, Fail> {
     else {
         return r.fail("goal status: unexpected answer");
     };
-    // Which peers are connected is the one thing a restart may change.
+    // Which peers are connected, which computers the guard heard from and
+    // whether the data was restored are what a restart may change.
     status.peers.clear();
+    status.restored = None;
+    for view in &mut status.guard {
+        view.heard.clear();
+        view.waiting.clear();
+    }
     let board = r.now(m, Who::Agent, Request::Board { goal })?;
     let findings = r.now(m, Who::Agent, Request::Contributions { goal, task: None })?;
     Ok(format!("{status:?}\n{board:?}\n{findings:?}"))
@@ -136,6 +142,10 @@ pub fn join(r: &mut Run, m: usize, expect: usize) -> Result<(), Fail> {
     }
     r.wait("every member to list every principal and the title", |r| {
         (0..expect).all(|m| r.members(m) == Some(expect))
+    })?;
+    // A key just admitted signs once its computer has heard from the host's.
+    r.wait("the new member to hear from the host's computer", |r| {
+        r.signs(m)
     })?;
     set_ask(r, m)
 }
@@ -352,7 +362,9 @@ pub fn create(r: &mut Run) -> Result<(), Fail> {
         return r.fail("create: unexpected answer");
     };
     r.goal = Some(goal);
-    set_ask(r, M1)
+    set_ask(r, M1)?;
+    r.w.ready[M1] = true;
+    Ok(())
 }
 
 /// The whole guide. Faults, when enabled, land between and during steps.
@@ -360,7 +372,11 @@ pub fn t1(r: &mut Run) -> Result<(), Fail> {
     create(r)?;
     r.step = "m2 joins";
     join(r, M2, 2)?;
+    r.w.backups();
     task(r)?;
+    // From here on a copy of m2 holds its claim at its last generation.
+    r.w.ready[M2] = true;
+    r.w.backups();
 
     r.step = "write while m1 is offline";
     r.hold_stopped(M1)?;
@@ -389,8 +405,18 @@ pub fn t1(r: &mut Run) -> Result<(), Fail> {
         r.shows_finding(M2, during, "M1 wrote this while M2 was asleep")
     })?;
 
+    r.w.backups();
+    let restored = r.w.restore_point();
+
     r.step = "m3 joins";
     join(r, M3, 3)?;
+    if let Some(m) = restored {
+        // The guide signs with it next, without the coordinator.
+        r.step = "catch up after a restore";
+        r.wait("the restored machine to sign again", |r| r.signs(m))?;
+    }
+    r.w.ready[M3] = true;
+    r.w.backups();
     let (attempt, result) = (r.attempt, r.result);
     r.wait(
         "m3 to show the earlier task, its result and its text",

@@ -74,10 +74,12 @@
 //! over.
 
 pub mod context;
+pub mod guard;
 pub mod invitations;
 pub mod level;
 mod schema;
 pub use context::*;
+pub use guard::*;
 pub use invitations::*;
 pub use level::*;
 
@@ -431,6 +433,8 @@ pub enum Request {
     },
     #[serde(rename = "goal.leave")]
     GoalLeave { goal: GoalId, agent: PublicKey },
+    #[serde(rename = "goal.continue")]
+    GoalContinue { goal: GoalId },
     #[serde(rename = "level.set")]
     LevelSet {
         goal: GoalId,
@@ -874,6 +878,7 @@ operations! {
     GoalJoin { .. } => ("goal.join", false, false, Owner, false, "goal join"),
     GoalInvite { .. } => ("goal.invite", false, true, Host, false, "goal invite"),
     GoalLeave { .. } => ("goal.leave", false, true, Owner, false, "goal leave"),
+    GoalContinue { .. } => ("goal.continue", false, true, Owner, false, "goal continue"),
     LevelSet { .. } => ("level.set", false, true, Owner, false, "Set this agent's local level in a goal"),
     TaskAllow { .. } => ("task.allow", false, true, Owner, false, "Allow this agent to take one task in its current round"),
     TaskDisallow { .. } => ("task.disallow", false, true, Owner, false, "Remove this agent's task allowance or request"),
@@ -977,6 +982,7 @@ impl Request {
             Self::GoalJoin { .. } => None,
             Self::GoalInvite { goal, .. } => Some(*goal),
             Self::GoalLeave { goal, .. } => Some(*goal),
+            Self::GoalContinue { goal } => Some(*goal),
             Self::LevelSet { goal, .. }
             | Self::TaskAllow { goal, .. }
             | Self::TaskDisallow { goal, .. } => Some(*goal),
@@ -1145,6 +1151,7 @@ impl Request {
             Self::GoalJoin { .. } => matches!(response, Response::Joined { .. }),
             Self::GoalInvite { .. } => matches!(response, Response::Invited { .. }),
             Self::GoalLeave { .. } => matches!(response, Response::Recorded { .. }),
+            Self::GoalContinue { .. } => matches!(response, Response::Continued { .. }),
             Self::GoalStatus { .. } => matches!(response, Response::GoalStatus(_)),
             Self::MemberRemove { .. } => matches!(response, Response::Recorded { .. }),
             Self::RoleGive { .. } => matches!(response, Response::Recorded { .. }),
@@ -1268,6 +1275,9 @@ pub fn contract() -> serde_json::Value {
 }
 /// What a request answers with when it succeeds; which variant answers which
 /// request is [`Request::is_answered_by`]. No response ever carries a secret.
+// One response is built per request and moved into its frame; boxing the
+// goal status would add an allocation to the most common read.
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Response {
@@ -1318,6 +1328,12 @@ pub enum Response {
     },
     /// Answers `goal.status`.
     GoalStatus(GoalStatus),
+    /// Answers `goal.continue`: how many of this daemon's keys in the goal
+    /// were held and are not now. The person's word, not proof that this
+    /// daemon caught up.
+    Continued {
+        keys: u32,
+    },
     /// Answers `board`: every task of the goal.
     Board(Vec<TaskView>),
     /// Answers `task.show`.
@@ -1503,9 +1519,16 @@ pub struct GoalSummary {
     pub invitations_open: u32,
     /// When the latest open invitation expires, in ms since the Unix epoch.
     pub invitations_expire_ms: Option<u64>,
-    /// Set while the goal's decisions cannot advance here.
+    /// Set while the goal's decisions cannot advance here, or this agent
+    /// cannot sign in it.
     pub halted: Option<Halt>,
     pub abilities: Abilities,
+    /// The hold on this agent and, where this daemon hosts the goal, on the
+    /// governance key.
+    pub guard: Vec<GuardView>,
+    /// Set while this daemon is catching up after its data was put back
+    /// from a copy: the number of invitations that restore revoked.
+    pub restored: Option<u32>,
 }
 
 /// Why a goal's decisions cannot advance on this daemon.
@@ -1516,10 +1539,13 @@ pub enum Halt {
     /// readable and exportable; requests that sign fail with
     /// [`ErrorCode::Halted`].
     AuthorityConflict,
-    /// This daemon's signer for the goal is in restore recovery: it cannot
-    /// yet show what it already signed, so it signs nothing. Requests that
-    /// sign fail with [`ErrorCode::ReadOnly`].
+    /// This daemon's signer for the goal is catching up after its data was
+    /// put back from a copy: it cannot yet show what it already signed, so it
+    /// signs nothing. Requests that sign fail with [`ErrorCode::ReadOnly`].
     SignerRecovery,
+    /// This agent has two records at one position in the goal and signs
+    /// nothing more in it. The goal itself is not halted.
+    SignerConflict,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -1555,6 +1581,13 @@ pub struct GoalStatus {
     pub abilities: Vec<Abilities>,
     pub stalled: Vec<Stalled>,
     pub peers: Vec<PeerView>,
+    /// For the owner, every key of this daemon held in the goal for its own
+    /// reason; for an agent, its own and, where this daemon hosts the goal,
+    /// the governance key's.
+    pub guard: Vec<GuardView>,
+    /// Set while this daemon is catching up after its data was put back
+    /// from a copy: the number of invitations that restore revoked.
+    pub restored: Option<u32>,
 }
 /// One current member of a goal.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

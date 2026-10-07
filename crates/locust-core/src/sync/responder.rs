@@ -148,13 +148,16 @@ impl Responder {
         }
     }
 
-    fn hello(&mut self, host: &dyn Host, version: u8, goal: GoalId) -> Result<(), Refusal> {
+    fn hello(&mut self, host: &mut dyn Host, version: u8, goal: GoalId) -> Result<(), Refusal> {
         if version != PROTOCOL_VERSION {
             return Err(Refusal::UnsupportedVersion);
         }
         self.goal = Some(goal);
         self.admitted = host.speaks_for_member(&goal, &self.remote);
         self.evidence = host.accepts_halt_proof(&goal, &self.remote);
+        if !self.admitted {
+            host.note_caller(&goal, &self.remote);
+        }
         Ok(())
     }
 

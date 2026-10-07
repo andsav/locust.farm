@@ -304,7 +304,7 @@ impl PeerEngine for Observed {
 
 fn observed(home: &Path, trace: &Arc<Trace>, daemon: &'static str, part: Part) -> Running {
     let trace = trace.clone();
-    Running::start_observed(home, move |node| Observed {
+    Running::start_observed(home, &local::marks_dir(home), move |node| Observed {
         node,
         daemon,
         part,
@@ -387,13 +387,16 @@ fn a_diverged_author_log_reconciles_between_two_real_daemons() {
             level: Level::Auto,
         })
         .unwrap();
+    // Admitted, and no longer held for having just been admitted: that hold
+    // is durable and would outlast the restart below.
     eventually_observed(
         "the member's admission",
         || agent.call(Request::GoalStatus { goal }),
         |observed| match observed {
             Ok(Response::GoalStatus(status))
                 if status.title.is_some()
-                    && status.members.iter().any(|entry| entry.member == author) =>
+                    && status.members.iter().any(|entry| entry.member == author)
+                    && status.guard.is_empty() =>
             {
                 Some(())
             }
@@ -419,6 +422,18 @@ fn a_diverged_author_log_reconciles_between_two_real_daemons() {
 
     let mut restored = observed(copy.path(), &trace, "restored member", Part::Isolated);
     let mut agent = restored.client(Credential([2; 32]), None);
+    // A copy of unknown age signs nothing while the host is out of reach.
+    // Its owner continues anyway, too early: the record the copy lacks is
+    // on the host.
+    assert!(matches!(
+        publish(&mut agent, goal, RIVAL),
+        Err(ClientError::Api(error)) if error.code == ErrorCode::ReadOnly
+    ));
+    let Ok(Response::Continued { keys }) = restored.owner().call(Request::GoalContinue { goal })
+    else {
+        panic!("goal.continue was not answered")
+    };
+    assert_eq!(keys, 1);
     let rival = publish(&mut agent, goal, RIVAL).unwrap();
     assert_ne!(rival, lost);
     assert_eq!(held(&mut agent, goal, rival), effective(RIVAL));
@@ -449,7 +464,7 @@ fn a_diverged_author_log_reconciles_between_two_real_daemons() {
     // The member's own daemon reports the fork by signing nothing more.
     assert!(matches!(
         publish(&mut agent, goal, "after the fork is known"),
-        Err(ClientError::Api(error)) if error.code == ErrorCode::Unavailable
+        Err(ClientError::Api(error)) if error.code == ErrorCode::Halted
     ));
     for client in [&mut host_agent_client, &mut agent] {
         let Ok(Response::GoalStatus(status)) = client.call(Request::GoalStatus { goal }) else {

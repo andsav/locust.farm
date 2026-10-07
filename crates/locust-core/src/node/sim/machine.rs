@@ -65,6 +65,10 @@ pub struct Machine {
     pub next_poll: u64,
     /// What local callers could read when the process last stopped.
     pub last_view: Option<String>,
+    /// Whether `last_view` shows each goal's revision. Not while a goal
+    /// still holds its restore record: the start that forgets it touches
+    /// the goal.
+    pub last_revisions: bool,
     next_conn: u64,
     next_request: u64,
     entropy: Rng,
@@ -92,6 +96,7 @@ impl Machine {
             next_accepted: 0,
             next_poll: 0,
             last_view: None,
+            last_revisions: true,
             next_conn: 0,
             next_request: 0,
             entropy: rng.fork(0xE270 + index as u64),
@@ -188,13 +193,28 @@ impl Machine {
 
     /// Everything the owner and the principal can read, as text: status,
     /// and for every goal its status, board, findings and pending work. Which
-    /// peers are connected is left out, because only that may differ after
-    /// a restart. `None` before the principal is enrolled.
-    pub fn visible(&mut self, now_ms: u64) -> Option<String> {
+    /// peers are connected, which computers the restore guard has heard
+    /// from, and whether the data was restored, are left out, because only
+    /// those may differ after a restart: the first ordinary start with
+    /// nothing held forgets the restore.
+    /// `revisions: false` also leaves out the revision of pending work.
+    /// `None` before the principal is enrolled.
+    pub fn visible(&mut self, now_ms: u64, revisions: bool) -> Option<String> {
         self.principal?;
-        let Ok(Response::Status(status)) = self.call(Who::Owner, Request::Status, now_ms) else {
+        let Ok(Response::Status(mut status)) = self.call(Who::Owner, Request::Status, now_ms)
+        else {
             return None;
         };
+        let unheard = |views: &mut Vec<locust_proto::api::GuardView>| {
+            for view in views {
+                view.heard.clear();
+                view.waiting.clear();
+            }
+        };
+        for summary in &mut status.goals {
+            unheard(&mut summary.guard);
+            summary.restored = None;
+        }
         let mut text = format!("{status:?}");
         for goal in status.goals.iter().map(|summary| summary.goal) {
             let reads = [
@@ -207,11 +227,28 @@ impl Machine {
                 let mut answer = self.call(Who::Agent, request, now_ms);
                 if let Ok(Response::GoalStatus(status)) = &mut answer {
                     status.peers.clear();
+                    unheard(&mut status.guard);
+                    status.restored = None;
+                }
+                if let Ok(Response::Pending(work)) = &mut answer
+                    && !revisions
+                {
+                    work.revision = 0;
                 }
                 text.push_str(&format!("\n{answer:?}"));
             }
         }
         Some(text)
+    }
+
+    /// Whether a goal still holds its restore record, which the next
+    /// ordinary start with nothing held deletes.
+    pub fn restore_remembered(&self) -> bool {
+        self.node.as_ref().is_some_and(|node| {
+            node.goals
+                .values()
+                .any(|entry| entry.local.restored.is_some())
+        })
     }
 
     /// How many events the store holds, over every goal.

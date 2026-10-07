@@ -3,10 +3,12 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use locust_proto::api::{BlobState, ErrorCode, Membership, Request, Response, Standing};
-use locust_proto::id::EventId;
+use locust_proto::event::{Body, TaskId};
+use locust_proto::id::{EventId, PublicKey};
 use locust_proto::store::Store;
 
 use super::machine::Who;
+use super::restore::{Marks, Restore};
 use super::run::{Fail, PATIENCE, Run};
 use super::scenario::{RESULT_TEXT, TASK_TEXT, TITLE};
 use super::world::{Micros, SEC};
@@ -27,6 +29,178 @@ fn same_events(r: &Run) -> bool {
     (1..r.w.machines.len()).all(|m| held(r, m) == first)
 }
 
+/// The machine that hosts the goal in every scenario.
+const HOST: usize = 0;
+
+/// Two or more records of one key at one position, each held by some
+/// machine now.
+#[derive(Debug)]
+pub struct Reuse {
+    pub key: PublicKey,
+    pub seq: u64,
+    pub records: BTreeSet<EventId>,
+    /// The machine whose key it is.
+    pub m: usize,
+    /// Whether the plan claims that this cannot happen.
+    pub claimed: bool,
+}
+
+impl Reuse {
+    /// The reuse in words, for a report.
+    pub fn describe(&self, r: &Run) -> String {
+        let whose = if r.principals.contains(&self.key) {
+            "agent"
+        } else {
+            "governance key"
+        };
+        let claim = if self.claimed {
+            "claimed"
+        } else {
+            "outside the claims"
+        };
+        let holders: Vec<String> = self
+            .records
+            .iter()
+            .map(|id| {
+                let on: Vec<String> = (0..r.w.machines.len())
+                    .filter(|m| {
+                        let store = &r.w.machines[*m].store;
+                        store.event(id).expect("a memory store reads").is_some()
+                    })
+                    .map(|m| format!("m{}", m + 1))
+                    .collect();
+                on.join("+")
+            })
+            .collect();
+        format!(
+            "{} records of m{}'s {whose} at position {}, held on {} ({claim})",
+            self.records.len(),
+            self.m + 1,
+            self.seq,
+            holders.join(" and ")
+        )
+    }
+}
+
+/// Every used position signed again: one at which a machine holds a record
+/// while another machine holds a different one, which is the model's
+/// `StoreNoFork`. A position whose record no machine holds any more is not
+/// used, so signing it again is no reuse.
+pub fn reuses(r: &Run) -> Vec<Reuse> {
+    let goal = r.goal();
+    let mut at: BTreeMap<(PublicKey, u64), BTreeSet<EventId>> = BTreeMap::new();
+    for machine in &r.w.machines {
+        let log = machine.store.log(&goal, 0, usize::MAX);
+        for (_, event) in log.expect("a memory store reads") {
+            let header = event.header();
+            at.entry((header.author, header.seq))
+                .or_default()
+                .insert(event.id());
+        }
+    }
+    at.into_iter()
+        .filter(|(_, records)| records.len() > 1)
+        .map(|((key, seq), records)| {
+            // Every key that is no principal's is the governance key.
+            let agent = r.principals.iter().position(|p| *p == key);
+            let m = agent.unwrap_or(HOST);
+            let claimed = claimed(r, m, agent.is_none(), &records);
+            Reuse {
+                key,
+                seq,
+                records,
+                m,
+                claimed,
+            }
+        })
+        .collect()
+}
+
+/// Where the plan claims that a restored machine signs at no used position
+/// (the simulator bullet of G1's tests in
+/// `docs/host-safety-and-ending-plan.md`). A reuse is left out when one of
+/// its records was signed after an event that the claim excludes and before
+/// the machine's next restore, which the claim judges afresh:
+///
+/// - the machine's owner sent `goal.continue`, for any key;
+/// - for an agent's key on a member's machine, a restore with the marks
+///   lost (residual 5: the host's computer may lack that agent's last
+///   records while another member holds them);
+/// - for any agent's key, a restore with the marks kept in a run where a
+///   member was removed after the backup was taken (residual 5: the record
+///   may have reached only the removed computer, and is given up once every
+///   other computer has answered);
+/// - for an agent's key on a member's machine, a restore with the marks
+///   kept whose copy predates an admission that a restore of the host's
+///   computer also missed (residual 6: the member's copy does not wait for
+///   the computer it does not know, and no computer in the know could
+///   answer for it, so the give-up lowers the mark).
+///
+/// It stays claimed for the governance key whatever the marks and the
+/// members admitted or removed since, and for the host's agent whenever
+/// the marks were lost, since that key is held with the governance key.
+fn claimed(r: &Run, m: usize, governance: bool, records: &BTreeSet<EventId>) -> bool {
+    let next = |at: Micros| {
+        r.w.restores
+            .iter()
+            .find(|restore| restore.m == m && restore.at > at)
+            .map(|restore| &restore.before)
+    };
+    let signed_after = |at: Micros, before: &BTreeSet<EventId>| {
+        let until = next(at);
+        records
+            .iter()
+            .any(|id| !before.contains(id) && until.is_none_or(|until| until.contains(id)))
+    };
+    let continued = r
+        .continued
+        .iter()
+        .any(|continued| continued.m == m && signed_after(continued.at, &continued.before));
+    let excluded =
+        r.w.restores
+            .iter()
+            .filter(|restore| restore.m == m && signed_after(restore.at, &restore.before))
+            .any(|restore| {
+                !governance
+                    && match restore.marks {
+                        Marks::Lost => m != HOST,
+                        Marks::Kept => {
+                            r.removals.iter().any(|at| *at > restore.taken)
+                                || (m != HOST && host_missed_the_same_admission(r, restore))
+                        }
+                    }
+            });
+    !continued && !excluded
+}
+
+/// Residual 6: `restore` put a member's computer back with its marks kept
+/// to a copy that predates an admission, and the host's computer was itself
+/// restored to a copy that missed the same admission. The member's copy
+/// does not wait for the computer it does not know, and no computer in the
+/// know could answer for it, so the give-up lowers the mark.
+fn host_missed_the_same_admission(r: &Run, restore: &Restore) -> bool {
+    let goal = r.goal();
+    let admissions: BTreeSet<EventId> =
+        r.w.machines
+            .iter()
+            .flat_map(|machine| {
+                machine
+                    .store
+                    .log(&goal, 0, usize::MAX)
+                    .expect("a memory store reads")
+            })
+            .filter(|(_, event)| matches!(event.header().body, Body::MemberAdmitted { .. }))
+            .map(|(_, event)| event.id())
+            .collect();
+    admissions.iter().any(|admission| {
+        !restore.copy.contains(admission)
+            && r.w
+                .restores
+                .iter()
+                .any(|host| host.m == HOST && !host.copy.contains(admission))
+    })
+}
+
 /// Every broken invariant, in words. Empty when all hold. Reads through the
 /// local API as each machine's principal, and the stores for event sets.
 /// `deep` also reads the artifact's bytes back instead of asking whether it
@@ -36,11 +210,33 @@ pub fn violations(r: &mut Run, deep: bool) -> Vec<String> {
     let goal = r.goal();
     let everyone: BTreeSet<_> = r.principals.iter().copied().collect();
     let reference = held(r, 0);
+    // A record only a restored machine held is held nowhere now, and so is
+    // a text only it held.
+    let lost = r.w.lost();
+    let lost_blobs = r.w.lost_blobs();
+    let text_lost = |id: &EventId| {
+        r.w.machines.iter().any(|machine| {
+            let event = machine.store.event(id).expect("a memory store reads");
+            event.is_some_and(|event| {
+                event
+                    .header()
+                    .blobs()
+                    .iter()
+                    .any(|hash| lost_blobs.contains(hash))
+            })
+        })
+    };
     let expected_notes: BTreeMap<EventId, Option<String>> = r
         .findings
         .iter()
-        .map(|(id, text)| (*id, Some(text.clone())))
+        .filter(|(id, _)| !lost.contains(id))
+        .map(|(id, text)| (*id, Some(text.clone()).filter(|_| !text_lost(id))))
         .collect();
+    let task_text = match r.task {
+        Some(TaskId::Authored(id)) if text_lost(&id) => None,
+        _ => Some(TASK_TEXT),
+    };
+    let result_text = Some(RESULT_TEXT).filter(|_| !r.result.is_some_and(|id| text_lost(&id)));
     let mut boards = Vec::new();
     let mut heads = Vec::new();
     for m in 0..r.w.machines.len() {
@@ -57,7 +253,7 @@ pub fn violations(r: &mut Run, deep: bool) -> Vec<String> {
                 reference.len()
             ));
         }
-        for acked in &r.acked {
+        for acked in r.acked.iter().filter(|acked| !lost.contains(&acked.event)) {
             if !events.contains(&acked.event) {
                 bad.push(format!(
                     "{name} lacks the {} acknowledged on m{}",
@@ -84,6 +280,9 @@ pub fn violations(r: &mut Run, deep: bool) -> Vec<String> {
                 }
                 if let Some(halt) = status.halted {
                     bad.push(format!("{name} reports the goal halted: {halt:?}"));
+                }
+                if !status.guard.is_empty() {
+                    bad.push(format!("{name} is still catching up: {:?}", status.guard));
                 }
                 if status.host != Some(r.principals[0]) {
                     bad.push(format!("{name} names another host"));
@@ -117,10 +316,10 @@ pub fn violations(r: &mut Run, deep: bool) -> Vec<String> {
         }
         if let (Some(task), Some(result)) = (r.task, r.result) {
             match r.read(m, Request::Task { goal, task }) {
-                Some(Response::Task(detail)) if detail.text.as_deref() == Some(TASK_TEXT) => {}
+                Some(Response::Task(detail)) if detail.text.as_deref() == task_text => {}
                 other => bad.push(format!("{name} cannot read the task text: {other:?}")),
             }
-            if r.event_text(m, result).as_deref() != Some(RESULT_TEXT) {
+            if r.event_text(m, result).as_deref() != result_text {
                 bad.push(format!("{name} cannot read the result text"));
             }
             let board = r.board(m).unwrap_or_default();
@@ -138,7 +337,8 @@ pub fn violations(r: &mut Run, deep: bool) -> Vec<String> {
             }
             boards.push(board);
         }
-        if let Some(hash) = r.artifact.as_ref().map(|(hash, _)| *hash) {
+        let artifact = r.artifact.as_ref().map(|(hash, _)| *hash);
+        if let Some(hash) = artifact.filter(|hash| !lost_blobs.contains(hash)) {
             let hashes = vec![hash];
             let held = match r.read(m, Request::BlobStat { goal, hashes }) {
                 Some(Response::BlobStates(states)) => {
@@ -162,6 +362,7 @@ pub fn violations(r: &mut Run, deep: bool) -> Vec<String> {
         let acked: Vec<_> = r
             .acked
             .iter()
+            .filter(|acked| !lost.contains(&acked.event))
             .map(|acked| (acked.what, acked.event))
             .collect();
         for (what, event) in acked {
@@ -222,6 +423,12 @@ pub fn violations(r: &mut Run, deep: bool) -> Vec<String> {
         ));
     }
     claims(r, &mut bad);
+    for reuse in reuses(r).into_iter().filter(|reuse| reuse.claimed) {
+        bad.push(format!(
+            "a_restored_machine_signs_at_no_used_position_unless_its_owner_continued: {}",
+            reuse.describe(r)
+        ));
+    }
     bad
 }
 
@@ -290,6 +497,7 @@ pub fn settle(r: &mut Run) -> Result<Micros, Fail> {
     loop {
         // Review requests remain durable until the intended local recipient
         // explicitly acknowledges them, including requests whose review is done.
+        r.tend();
         for m in 0..r.w.machines.len() {
             let goal = r.goal();
             if let Some(Response::Pending(work)) = r.read(m, Request::Pending { goal }) {
@@ -298,9 +506,8 @@ pub fn settle(r: &mut Run) -> Result<Micros, Fail> {
                     .iter()
                     .filter(|delivery| !delivery.acknowledged)
                 {
-                    r.record(
+                    r.attempt_write(
                         m,
-                        Who::Agent,
                         "delivery acknowledgement",
                         Request::DeliveryAcknowledge {
                             goal,

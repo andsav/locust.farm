@@ -66,6 +66,7 @@ fn later_consent_with_missing_predecessor_suspends_but_replayed_old_consent_does
     acknowledge(&mut d, &first, 2000);
     let old = d.node.goals[&goal].state().publication_consents[&member].0;
     let old = d.store.event(&old).unwrap().unwrap();
+    // Marks kept: the data directory is put back, its marks directory survives.
     let copy = snapshot(&d.store);
     d.ok(owner, consent(goal, member, true));
     let preceding = d.node.goals[&goal].state().publication_consents[&member].0;
@@ -131,6 +132,7 @@ fn excluded_consent_arriving_after_removal_suspends_even_when_it_accepts() {
         let first = d.node.farm_poll(2000).remove(0);
         assert_eq!(first.request.operation, FarmOperation::Upload);
         acknowledge(&mut d, &first, 2000);
+        // Marks kept: the data directory is put back, its marks directory survives.
         let copy = snapshot(&d.store);
         d.ok(owner, consent(goal, member, accept));
         let late = d.node.goals[&goal].state().publication_consents[&member].0;

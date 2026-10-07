@@ -51,7 +51,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 host_name: Self::host_name(entry),
                 governance_head: entry.state().head,
                 current_rules: entry.state().current_rules,
-                halted: entry.halted(),
+                halted: self.halt(entry, actor.principal.as_ref()),
                 context,
                 documents: entry
                     .state()

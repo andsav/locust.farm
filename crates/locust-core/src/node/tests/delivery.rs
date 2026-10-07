@@ -1,18 +1,24 @@
 //! Real Node + Driver delivery across encoded transport frames, with a lost receipt.
 use super::authorization::{governance_key, join_local};
 use super::*;
+use crate::node::guard::Hold;
 use locust_proto::engine::{ExchangeId, PeerEngine, PeerInput, PeerOutput, PeerTime};
 use locust_proto::id::{EffectId, EndpointId, GoalId};
 use locust_proto::store::{Space, Store};
 use locust_proto::sync::SyncMessage;
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 type Side = (usize, ExchangeId);
 pub(super) struct Network {
     pub(super) nodes: Vec<Daemon>,
+    /// Daemons that are stopped or cut off: never polled, and an exchange
+    /// opened to one fails.
+    pub(super) down: BTreeSet<usize>,
+    /// Every exchange opened, as (dialer, dialed), in order.
+    pub(super) opened: Vec<(usize, usize)>,
     routes: BTreeMap<Side, Side>,
     queue: VecDeque<(usize, PeerInput)>,
-    now: u64,
+    pub(super) now: u64,
     accepted: u64,
     drop_receipt: bool,
     receipts_dropped: usize,
@@ -20,8 +26,14 @@ pub(super) struct Network {
 }
 impl Network {
     pub(super) fn new() -> Self {
+        Self::with(2)
+    }
+    /// `n` daemons on `n` computers, each knowing its endpoint.
+    pub(super) fn with(n: usize) -> Self {
         let mut net = Self {
-            nodes: vec![Daemon::new(71), Daemon::new(72)],
+            nodes: (0..n).map(|i| Daemon::new(71 + i as u8)).collect(),
+            down: BTreeSet::new(),
+            opened: vec![],
             routes: BTreeMap::new(),
             queue: VecDeque::new(),
             now: 1000,
@@ -30,7 +42,7 @@ impl Network {
             receipts_dropped: 0,
             sent: vec![],
         };
-        for i in 0..2 {
+        for i in 0..n {
             net.input(
                 i,
                 PeerInput::Endpoint {
@@ -59,7 +71,13 @@ impl Network {
                 PeerOutput::Open {
                     exchange, endpoint, ..
                 } => {
-                    let j = (0..2).find(|j| Self::endpoint(*j) == endpoint).unwrap();
+                    let Some(j) = (0..self.nodes.len())
+                        .find(|j| Self::endpoint(*j) == endpoint && !self.down.contains(j))
+                    else {
+                        self.queue.push_back((i, PeerInput::OpenFailed(exchange)));
+                        continue;
+                    };
+                    self.opened.push((i, j));
                     self.accepted += 1;
                     let accepted = ExchangeId::Accepted(self.accepted);
                     self.routes.insert((i, exchange), (j, accepted));
@@ -109,10 +127,21 @@ impl Network {
         }
     }
     pub(super) fn poll(&mut self, elapsed: u64) {
+        let up: Vec<_> = (0..self.nodes.len())
+            .filter(|i| !self.down.contains(i))
+            .collect();
+        self.poll_from(&up, elapsed);
+    }
+    /// Lets time pass and polls only `dialers`, so only they open exchanges;
+    /// every daemon that is up still answers.
+    pub(super) fn poll_from(&mut self, dialers: &[usize], elapsed: u64) {
         self.now += elapsed;
-        for i in 0..2 {
+        for &i in dialers {
             self.input(i, PeerInput::Poll);
         }
+        self.settle();
+    }
+    fn settle(&mut self) {
         let mut steps = 0;
         while let Some((i, input)) = self.queue.pop_front() {
             steps += 1;
@@ -135,6 +164,14 @@ impl Network {
         for node in &mut self.nodes {
             node.restart();
         }
+    }
+    /// Stops daemon `i` and starts it again over `store`: its own store
+    /// reopened, or a copy put in its place.
+    pub(super) fn start_over(&mut self, i: usize, store: MemStore) {
+        self.routes.clear();
+        self.queue.clear();
+        self.nodes[i].store = store;
+        self.nodes[i].restart();
     }
 }
 
@@ -459,8 +496,13 @@ pub(super) fn failure_fixture() -> FailureFixture {
     }
 }
 
-/// The host's agent publishes a finding: its own work, signed by its own key.
-fn host_note(net: &mut Network, goal: GoalId, summary: &str) -> locust_proto::event::Event {
+/// The host's agent asks to publish a finding: its own work, signed by its
+/// own key.
+fn try_host_note(
+    net: &mut Network,
+    goal: GoalId,
+    summary: &str,
+) -> Result<locust_proto::event::Event, ApiError> {
     let a = net.nodes[0].connect(credential(1), None);
     let owner = net.nodes[0].owner();
     let host = net.nodes[0].node.goals[&goal].state().host.unwrap();
@@ -472,7 +514,7 @@ fn host_note(net: &mut Network, goal: GoalId, summary: &str) -> locust_proto::ev
             level: locust_proto::api::Level::Ask,
         },
     );
-    let Response::Recorded { event } = net.nodes[0].ok(
+    let Response::Recorded { event } = net.nodes[0].call(
         a,
         Request::ContributionPublish {
             goal,
@@ -482,12 +524,18 @@ fn host_note(net: &mut Network, goal: GoalId, summary: &str) -> locust_proto::ev
             artifacts: vec![],
             summary: summary.into(),
         },
-    ) else {
+    )?
+    else {
         panic!()
     };
     let event = net.nodes[0].store.event(&event).unwrap().unwrap();
     assert_eq!(event.header().author, host);
-    event
+    Ok(event)
+}
+
+/// The host's agent publishes a finding.
+fn host_note(net: &mut Network, goal: GoalId, summary: &str) -> locust_proto::event::Event {
+    try_host_note(net, goal, summary).unwrap_or_else(|error| panic!("publish failed: {error}"))
 }
 
 /// A principal enrolled on the hosting daemon joins there; the admission is
@@ -508,174 +556,110 @@ fn host_admits(
     (member, event)
 }
 
+/// Stops the host and starts it again over `backup` in place of its data
+/// directory. Which marks it finds is the backup's choice: `snapshot` keeps
+/// the original's, `snapshot_all` loses them.
 fn restore_host(net: &mut Network, backup: MemStore) {
-    net.nodes[0].store = backup;
-    net.restart();
+    net.start_over(0, backup);
 }
 
-#[test]
-fn a_restored_hosts_agent_forks_only_its_own_log() {
-    for recover_first in [false, true] {
-        let (mut net, goal, source, _) = unbound_network();
-        for _ in 0..2 {
-            net.poll(31_000);
-        }
-        let governance = net.nodes[0].node.goals[&goal].state().governance.unwrap();
-        assert_ne!(governance, source);
-        let backup = snapshot(&net.nodes[0].store);
-        let old = host_note(&mut net, goal, "held by peer, absent from backup");
-        net.poll(31_000);
-        assert!(net.nodes[1].store.has_event(&old.id()).unwrap());
-        restore_host(&mut net, backup);
-        assert!(!net.nodes[0].store.has_event(&old.id()).unwrap());
-        if recover_first {
-            for _ in 0..2 {
-                net.poll(31_000);
-            }
-            assert!(net.nodes[0].store.has_event(&old.id()).unwrap());
-        }
-        let new = host_note(&mut net, goal, "signed after restore");
-        assert_ne!(old.id(), new.id());
-        if recover_first {
-            assert_eq!(new.header().seq, old.header().seq + 1);
-            assert_eq!(new.header().prev, Some(old.id()));
-        } else {
-            assert_eq!(new.header().seq, old.header().seq);
-            assert_eq!(new.header().prev, old.header().prev);
-        }
-        for _ in 0..3 {
-            net.poll(31_000);
-        }
-        for node in &net.nodes {
-            let folded = &node.node.goals[&goal].goal;
-            assert_eq!(
-                folded.fork_point(&source),
-                (!recover_first).then_some(old.header().seq)
-            );
-            // The agent's fork costs what any member's fork costs: its records
-            // from that position on are pending. Governance is untouched.
-            assert_eq!(folded.fork_point(&governance), None);
-            assert!(folded.evaluation().host_halt.is_none());
-            for id in [old.id(), new.id()] {
-                assert_eq!(
-                    folded.standing(&id).unwrap().is_pending(),
-                    !recover_first,
-                    "{id}"
-                );
-            }
-        }
-        if !recover_first {
-            // The forked agent signs nothing more in this goal.
-            let a = net.nodes[0].connect(credential(1), None);
-            assert_eq!(
-                code(net.nodes[0].call(
-                    a,
-                    Request::ContributionPublish {
-                        goal,
-                        attempt: None,
-                        generation: None,
-                        sources: vec![],
-                        artifacts: vec![],
-                        summary: "known fork blocks signing".into(),
-                    }
-                )),
-                ErrorCode::Unavailable
-            );
-        }
-        // The governance key still signs: the restored daemon admits a joiner
-        // and nothing forks.
-        let newcomer = net.nodes[1].enroll("newcomer", 3);
-        let owner = net.nodes[0].owner();
-        let Response::Invited { ticket } = net.nodes[0].ok(
-            owner,
-            Request::GoalInvite {
-                role: None,
-                goal,
-                expires_ms: 604_801_000,
-            },
-        ) else {
-            panic!()
-        };
-        let joining_owner = net.nodes[1].owner();
-        net.nodes[1].ok(
-            joining_owner,
-            Request::GoalJoin {
-                name: "member".into(),
-                agent: newcomer,
-                ticket,
-                level: locust_proto::api::Level::Auto,
-            },
-        );
-        for _ in 0..3 {
-            net.poll(31_000);
-        }
-        for node in &net.nodes {
-            let entry = &node.node.goals[&goal];
-            assert!(entry.is_member(&newcomer));
-            assert_eq!(entry.goal.fork_point(&governance), None);
-            assert!(entry.goal.evaluation().host_halt.is_none());
-            assert_eq!(
-                entry.goal.fork_point(&source),
-                (!recover_first).then_some(old.header().seq)
-            );
-        }
-    }
-}
-
-#[test]
-fn restored_host_automatic_stage_replay_is_identical_unless_another_event_used_its_position() {
-    use locust_proto::event::Body;
-    for intervening_work in [false, true] {
-        let (mut net, goal, _, _) = unbound_network();
-        for _ in 0..2 {
-            net.poll(31_000);
-        }
-        let backup = snapshot(&net.nodes[0].store);
-        // Another governance record uses the position: an admission.
-        let old_work = intervening_work.then(|| host_admits(&mut net, goal, 3).1);
-        let enable = |net: &mut Network| {
-            bind_stages(net, goal);
-            net.nodes[0]
-                .store
-                .log(&goal, 0, usize::MAX)
-                .unwrap()
-                .into_iter()
-                .map(|(_, e)| e)
-                .find(|e| matches!(e.header().body, Body::EffectMaterialized { .. }))
-                .unwrap()
-        };
-        let old_effect = enable(&mut net);
-        for _ in 0..2 {
-            net.poll(31_000);
-        }
-        assert!(net.nodes[1].store.has_event(&old_effect.id()).unwrap());
-        restore_host(&mut net, backup);
-        let replay = enable(&mut net);
-        assert_eq!(replay.id() == old_effect.id(), !intervening_work);
-        if let Some(old_work) = old_work {
-            assert_eq!(replay.header().seq, old_work.header().seq + 1);
-            assert_ne!(replay.id(), old_work.id());
-        }
-        for _ in 0..3 {
-            net.poll(31_000);
-        }
-        for node in &net.nodes {
-            assert_eq!(
-                node.node.goals[&goal].goal.evaluation().host_halt.is_some(),
-                intervening_work
-            );
-        }
-    }
-}
-
-#[test]
-fn restored_host_redeems_outstanding_invitation_before_recovery_at_an_already_used_position() {
+/// Hands `events` to `node` as one received batch, then the content they
+/// name from `source`, as an exchange would in its record and content
+/// stages; no computer is heard from.
+fn deliver(
+    node: &mut TestNode,
+    source: &MemStore,
+    goal: GoalId,
+    events: &[locust_proto::event::Event],
+) {
     use crate::sync::Host;
-    use locust_proto::invite::{Invitation, JoinRequest};
-    let (mut net, goal, source, target) = unbound_network();
+    Host::replica(node, &goal)
+        .unwrap()
+        .receive(events.iter().map(|event| event.to_wire()).collect())
+        .unwrap();
+    for event in events {
+        for hash in event.header().blobs() {
+            if let Some(bytes) = source.blob(&hash).unwrap() {
+                Host::replica(node, &goal)
+                    .unwrap()
+                    .stage(&hash, 0, bytes.len() as u64, &bytes);
+            }
+        }
+    }
+}
+
+/// Every record of `goal` that `store` holds and `older` does not, in log
+/// order.
+fn lost_since(store: &MemStore, older: &MemStore, goal: GoalId) -> Vec<locust_proto::event::Event> {
+    store
+        .log(&goal, 0, usize::MAX)
+        .unwrap()
+        .into_iter()
+        .map(|(_, event)| event)
+        .filter(|event| !older.has_event(&event.id()).unwrap())
+        .collect()
+}
+
+fn hold(net: &Network, i: usize, goal: GoalId, key: &PublicKey) -> Option<Hold> {
+    let node = &net.nodes[i].node;
+    node.hold(&node.goals[&goal], key)
+}
+
+#[test]
+fn a_restored_hosts_agent_is_held_until_its_own_records_return_and_then_extends() {
+    let (mut net, goal, source, _) = unbound_network();
     for _ in 0..2 {
         net.poll(31_000);
     }
+    let governance = net.nodes[0].node.goals[&goal].state().governance.unwrap();
+    assert_ne!(governance, source);
+    // Marks kept: the data directory is put back from this copy while the
+    // marks beside it survive.
+    let backup = snapshot(&net.nodes[0].store);
+    let old = host_note(&mut net, goal, "held by peer, absent from backup");
+    net.poll(31_000);
+    assert!(net.nodes[1].store.has_event(&old.id()).unwrap());
+    restore_host(&mut net, backup);
+    assert!(!net.nodes[0].store.has_event(&old.id()).unwrap());
+    // The agent's mark names a record the copy lacks; the governance key
+    // signed nothing since the copy and is not held.
+    assert_eq!(
+        hold(&net, 0, goal, &source),
+        Some(Hold::Behind {
+            mark: locust_proto::event::AuthorPoint {
+                seq: old.header().seq,
+                id: old.id(),
+            }
+        })
+    );
+    assert_eq!(hold(&net, 0, goal, &governance), None);
+    let refused = try_host_note(&mut net, goal, "would reuse the lost position").unwrap_err();
+    assert_eq!(refused.code, ErrorCode::ReadOnly);
+    assert!(refused.message.contains("older than what it signed"));
+    assert!(!net.nodes[0].node.failed);
+    // The member's computer sends the record back; the mark is met.
+    for _ in 0..2 {
+        net.poll(31_000);
+    }
+    assert!(net.nodes[0].store.has_event(&old.id()).unwrap());
+    assert_eq!(hold(&net, 0, goal, &source), None);
+    let new = host_note(&mut net, goal, "signed after restore");
+    assert_eq!(new.header().seq, old.header().seq + 1);
+    assert_eq!(new.header().prev, Some(old.id()));
+    for _ in 0..3 {
+        net.poll(31_000);
+    }
+    for node in &net.nodes {
+        let folded = &node.node.goals[&goal].goal;
+        assert_eq!(folded.fork_point(&source), None);
+        assert_eq!(folded.fork_point(&governance), None);
+        assert!(folded.evaluation().host_halt.is_none());
+        for id in [old.id(), new.id()] {
+            assert!(!folded.standing(&id).unwrap().is_pending(), "{id}");
+        }
+    }
+    // The governance key was never held: the restored daemon admits a
+    // joiner and nothing forks.
     let newcomer = net.nodes[1].enroll("newcomer", 3);
     let owner = net.nodes[0].owner();
     let Response::Invited { ticket } = net.nodes[0].ok(
@@ -688,131 +672,343 @@ fn restored_host_redeems_outstanding_invitation_before_recovery_at_an_already_us
     ) else {
         panic!()
     };
-    let invitation = Invitation::from_ticket(ticket.as_str()).unwrap();
-    let governance = net.nodes[0].node.goals[&goal].state().governance.unwrap();
-    let backup = snapshot(&net.nodes[0].store);
-    // The record lost to the restore is an admission: a governance record at
-    // the position the outstanding invitation's admission will take.
-    let (earlier, old) = host_admits(&mut net, goal, 3);
-    net.poll(31_000);
-    assert!(net.nodes[1].store.has_event(&old.id()).unwrap());
-    assert!(net.nodes[1].node.goals[&goal].is_member(&earlier));
-    restore_host(&mut net, backup);
-    assert!(!net.nodes[0].store.has_event(&old.id()).unwrap());
-    let request = JoinRequest::sign(
-        goal,
-        Network::endpoint(1),
-        "member".into(),
-        invitation.secret,
-        net.nodes[1].node.signer(&newcomer).unwrap(),
+    let joining_owner = net.nodes[1].owner();
+    net.nodes[1].ok(
+        joining_owner,
+        Request::GoalJoin {
+            name: "member".into(),
+            agent: newcomer,
+            ticket,
+            level: locust_proto::api::Level::Auto,
+        },
     );
-    // The authenticated Join handler runs before any peer recovery input.
-    Host::join(
-        &mut net.nodes[0].node,
-        &Network::endpoint(1),
-        &request,
-        net.now,
-    )
-    .unwrap();
-    let admission = net.nodes[0].node.goals[&goal].state().members[&newcomer].admission;
-    let admitted = net.nodes[0].store.event(&admission).unwrap().unwrap();
-    assert_eq!(admitted.header().author, governance);
-    assert_eq!(admitted.header().seq, old.header().seq);
-    assert_ne!(admitted.id(), old.id());
-    assert!(net.nodes[0].node.goals[&goal].is_member(&newcomer));
     for _ in 0..3 {
         net.poll(31_000);
     }
-    // Two governance records at one position halt governance for good and
-    // cut the chain there: neither admission stands, on either daemon.
     for node in &net.nodes {
         let entry = &node.node.goals[&goal];
-        assert_eq!(entry.goal.fork_point(&governance), Some(old.header().seq));
+        assert!(entry.is_member(&newcomer));
+        assert_eq!(entry.goal.fork_point(&governance), None);
         assert_eq!(entry.goal.fork_point(&source), None);
-        assert!(matches!(
-            entry.goal.evaluation().host_halt,
-            Some(crate::goal::Halt::Fork { seq, .. }) if seq == old.header().seq
-        ));
-        assert!(!entry.is_member(&newcomer));
-        assert!(!entry.is_member(&earlier));
+        assert!(entry.goal.evaluation().host_halt.is_none());
     }
-    // The halted governance key signs nothing more.
-    let owner = net.nodes[0].owner();
+}
+
+#[test]
+fn a_restored_host_signs_no_stage_step_until_caught_up() {
+    use locust_proto::event::Body;
+    for intervening_work in [false, true] {
+        let (mut net, goal, _, _) = unbound_network();
+        for _ in 0..2 {
+            net.poll(31_000);
+        }
+        let governance = net.nodes[0].node.goals[&goal].state().governance.unwrap();
+        // Marks kept: the data directory is put back from this copy while
+        // the marks beside it survive.
+        let backup = snapshot(&net.nodes[0].store);
+        // Another governance record takes the step's position in the copy
+        // unless the guard holds: an admission before the rules.
+        if intervening_work {
+            host_admits(&mut net, goal, 3);
+        }
+        bind_stages(&mut net, goal);
+        let lost = lost_since(&net.nodes[0].store, &backup, goal);
+        let (step, input): (Vec<_>, Vec<_>) = lost
+            .into_iter()
+            .partition(|event| matches!(event.header().body, Body::EffectMaterialized { .. }));
+        let [step] = step.as_slice() else {
+            panic!("one stage step")
+        };
+        assert_eq!(step.header().author, governance);
+        for _ in 0..2 {
+            net.poll(31_000);
+        }
+        assert!(net.nodes[1].store.has_event(&step.id()).unwrap());
+        restore_host(&mut net, backup);
+        // The records the step follows from return first, as a responder
+        // that sends them in one batch and the step in the next would.
+        let member = net.nodes[1].store.reopen();
+        deliver(&mut net.nodes[0].node, &member, goal, &input);
+        let waiting = |net: &Network| {
+            let entry = &net.nodes[0].node.goals[&goal];
+            entry
+                .goal
+                .evaluation()
+                .desired_effects
+                .values()
+                .any(|desired| {
+                    desired.runner == governance && !entry.state().effects.contains_key(&desired.id)
+                })
+        };
+        assert!(waiting(&net), "the step is due here");
+        assert!(matches!(
+            hold(&net, 0, goal, &governance),
+            Some(Hold::Behind { mark }) if mark.id == step.id()
+        ));
+        // Neither landing the batch nor a start signs it.
+        net.nodes[0].restart();
+        assert!(waiting(&net));
+        assert!(!net.nodes[0].node.failed);
+        let tip = |net: &Network| {
+            *net.nodes[0].node.goals[&goal]
+                .goal
+                .points(&governance)
+                .last()
+                .unwrap()
+        };
+        assert_eq!(tip(&net).id, input.last().unwrap().id());
+        deliver(
+            &mut net.nodes[0].node,
+            &member,
+            goal,
+            std::slice::from_ref(step),
+        );
+        assert_eq!(hold(&net, 0, goal, &governance), None);
+        assert!(!waiting(&net));
+        assert_eq!(tip(&net).id, step.id());
+        for _ in 0..3 {
+            net.poll(31_000);
+        }
+        for node in &net.nodes {
+            let entry = &node.node.goals[&goal];
+            assert_eq!(entry.goal.fork_point(&governance), None);
+            assert!(entry.goal.evaluation().host_halt.is_none());
+        }
+    }
+}
+
+#[test]
+fn a_stage_step_signed_twice_from_one_input_is_one_record() {
+    use crate::sync::Host;
+    use locust_proto::event::Body;
+    let (mut net, goal, _, _) = unbound_network();
+    for _ in 0..2 {
+        net.poll(31_000);
+    }
+    // Marks lost: a whole-computer copy, the second store that holds the
+    // governance key. Its owner continues, since a copy of unknown age on
+    // the host's computer waits for the person.
+    let mut twin = Daemon::new(90);
+    twin.store = snapshot_all(&net.nodes[0].store);
+    twin.restart();
+    let owner = twin.owner();
+    assert!(matches!(
+        twin.ok(owner, Request::GoalContinue { goal }),
+        Response::Continued { keys } if keys > 0
+    ));
+    bind_stages(&mut net, goal);
+    let lost = lost_since(&net.nodes[0].store, &twin.store, goal);
+    let (step, input): (Vec<_>, Vec<_>) = lost
+        .into_iter()
+        .partition(|event| matches!(event.header().body, Body::EffectMaterialized { .. }));
+    let [step] = step.as_slice() else {
+        panic!("one stage step")
+    };
+    // The second store receives the input and signs the step itself.
+    let original = net.nodes[0].store.reopen();
+    deliver(&mut twin.node, &original, goal, &input);
+    let replay = lost_since(&twin.store, &net.nodes[1].store, goal)
+        .into_iter()
+        .find(|event| matches!(event.header().body, Body::EffectMaterialized { .. }))
+        .expect("the second store signed the step");
+    assert_eq!(replay.id(), step.id());
+    assert_eq!(replay.header().seq, step.header().seq);
+    // Both copies of the step are one record wherever they meet.
     assert_eq!(
-        code(net.nodes[0].call(
+        Host::replica(&mut net.nodes[0].node, &goal)
+            .unwrap()
+            .receive(vec![replay.to_wire()]),
+        Ok(0)
+    );
+    for _ in 0..2 {
+        net.poll(31_000);
+    }
+    let member = &mut net.nodes[1].node;
+    assert!(member.goals[&goal].goal.holds(&step.id()));
+    assert_eq!(
+        Host::replica(member, &goal)
+            .unwrap()
+            .receive(vec![replay.to_wire()]),
+        Ok(0)
+    );
+    let governance = member.goals[&goal].state().governance.unwrap();
+    assert_eq!(member.goals[&goal].goal.fork_point(&governance), None);
+    assert!(member.goals[&goal].goal.evaluation().host_halt.is_none());
+}
+
+#[test]
+fn a_restored_host_admits_nobody_until_caught_up_and_its_old_invitation_is_revoked() {
+    use crate::sync::Host;
+    use locust_proto::invite::{Invitation, JoinRequest, Ticket};
+    use locust_proto::sync::Refusal;
+    let (mut net, goal, _, _) = unbound_network();
+    for _ in 0..2 {
+        net.poll(31_000);
+    }
+    let newcomer = net.nodes[1].enroll("newcomer", 3);
+    let invite = |net: &mut Network| {
+        let owner = net.nodes[0].owner();
+        let Response::Invited { ticket } = net.nodes[0].ok(
             owner,
             Request::GoalInvite {
                 role: None,
                 goal,
                 expires_ms: 604_801_000,
-            }
-        )),
-        ErrorCode::Halted
-    );
+            },
+        ) else {
+            panic!()
+        };
+        ticket
+    };
+    let join = |net: &mut Network, ticket: &Ticket| {
+        let invitation = Invitation::from_ticket(ticket.as_str()).unwrap();
+        let request = JoinRequest::sign(
+            goal,
+            Network::endpoint(1),
+            "member".into(),
+            invitation.secret,
+            net.nodes[1].node.signer(&newcomer).unwrap(),
+        );
+        let now = net.now;
+        Host::join(&mut net.nodes[0].node, &Network::endpoint(1), &request, now)
+    };
+    let old_ticket = invite(&mut net);
+    let governance = net.nodes[0].node.goals[&goal].state().governance.unwrap();
+    // Marks kept: the data directory is put back from this copy while the
+    // marks beside it survive. The copy holds the old ticket as pending.
+    let backup = snapshot(&net.nodes[0].store);
+    // The record lost to the restore is an admission: a governance record at
+    // the position the next admission would take.
+    let (earlier, lost) = host_admits(&mut net, goal, 4);
+    net.poll(31_000);
+    assert!(net.nodes[1].store.has_event(&lost.id()).unwrap());
+    assert!(net.nodes[1].node.goals[&goal].is_member(&earlier));
+    restore_host(&mut net, backup);
+    assert!(!net.nodes[0].store.has_event(&lost.id()).unwrap());
+    let entry = &net.nodes[0].node.goals[&goal];
     assert_eq!(
-        code(net.nodes[0].call(
-            owner,
-            Request::MemberRemove {
-                goal,
-                member: target
-            }
-        )),
-        ErrorCode::Halted
+        entry.local.restored.map(|restored| restored.revoked),
+        Some(1)
     );
+    assert!(matches!(
+        hold(&net, 0, goal, &governance),
+        Some(Hold::Behind { mark }) if mark.id == lost.id()
+    ));
+    // The copy cannot know whether the old ticket was used or revoked after
+    // it was taken, so the start revoked it for good.
+    assert_eq!(join(&mut net, &old_ticket), Err(Refusal::InvitationRefused));
+    // Issuing a ticket signs no record at a position and is not held;
+    // admitting on it is, and uses up nothing.
+    let new_ticket = invite(&mut net);
+    assert_eq!(join(&mut net, &new_ticket), Err(Refusal::CatchingUp));
+    let joining_owner = net.nodes[1].owner();
+    net.nodes[1].ok(
+        joining_owner,
+        Request::GoalJoin {
+            name: "member".into(),
+            agent: newcomer,
+            ticket: new_ticket.clone(),
+            level: locust_proto::api::Level::Auto,
+        },
+    );
+    // The joiner's computer asks; it is told to ask again, not refused.
+    net.poll_from(&[1], 1);
+    assert_eq!(net.opened.last(), Some(&(1, 0)));
+    assert!(!net.nodes[0].node.goals[&goal].is_member(&newcomer));
+    assert!(!net.nodes[1].node.goals[&goal].local.joins[&newcomer].refused);
+    // An exchange the host opens brings its admission back; the mark is met.
+    net.poll_from(&[0], 1);
+    assert!(net.nodes[0].store.has_event(&lost.id()).unwrap());
+    assert_eq!(hold(&net, 0, goal, &governance), None);
+    assert_eq!(join(&mut net, &old_ticket), Err(Refusal::InvitationRefused));
+    // The joiner's computer asks again and is admitted at the next free
+    // position.
+    for _ in 0..3 {
+        net.poll(31_000);
+    }
+    let admission = net.nodes[0].node.goals[&goal].state().members[&newcomer].admission;
+    let admitted = net.nodes[0].store.event(&admission).unwrap().unwrap();
+    assert_eq!(admitted.header().author, governance);
+    assert_eq!(admitted.header().seq, lost.header().seq + 1);
+    assert_eq!(admitted.header().prev, Some(lost.id()));
+    for node in &net.nodes {
+        let entry = &node.node.goals[&goal];
+        assert!(entry.is_member(&newcomer));
+        assert!(entry.is_member(&earlier));
+        assert_eq!(entry.goal.fork_point(&governance), None);
+        assert!(entry.goal.evaluation().host_halt.is_none());
+    }
 }
 
 #[test]
-fn restored_host_known_gap_blocks_signing_until_missing_predecessor_arrives() {
-    use crate::sync::Host;
+fn a_restored_host_with_a_gap_stays_held_until_the_missing_record_arrives() {
     let (mut net, goal, source, target) = unbound_network();
     let governance = net.nodes[0].node.goals[&goal].state().governance.unwrap();
+    // Marks kept: the data directory is put back from this copy while the
+    // marks beside it survive.
     let backup = snapshot(&net.nodes[0].store);
     // The gap is in the governance log: two admissions, of which only the
-    // second arrives before the host signs again.
+    // second arrives first.
     let (_, first) = host_admits(&mut net, goal, 3);
     let (_, second) = host_admits(&mut net, goal, 4);
     assert_eq!(second.header().seq, first.header().seq + 1);
+    let original = net.nodes[0].store.reopen();
     restore_host(&mut net, backup);
-    Host::replica(&mut net.nodes[0].node, &goal)
-        .unwrap()
-        .receive(vec![second.to_wire()])
-        .unwrap();
-    let entry = &net.nodes[0].node.goals[&goal];
-    assert!(entry.goal.next(&governance).is_none());
-    assert!(entry.goal.evaluation().host_halt.is_none());
-    // The governance key signs nothing while a later record of its own waits
-    // for a predecessor; the host's agent's log is intact and it still signs.
-    let owner = net.nodes[0].owner();
-    assert_eq!(
-        code(net.nodes[0].call(
-            owner,
-            Request::MemberRemove {
-                goal,
-                member: target
-            }
-        )),
-        ErrorCode::Unavailable
+    deliver(
+        &mut net.nodes[0].node,
+        &original,
+        goal,
+        std::slice::from_ref(&second),
     );
-    let aside = host_note(&mut net, goal, "the agent's log has no gap");
-    assert_eq!(aside.header().author, source);
-    Host::replica(&mut net.nodes[0].node, &goal)
-        .unwrap()
-        .receive(vec![first.to_wire()])
-        .unwrap();
+    let entry = &net.nodes[0].node.goals[&goal];
+    assert!(entry.goal.holds(&second.id()));
+    assert!(entry.goal.evaluation().host_halt.is_none());
+    // The marked record is held but not usable: it waits for its
+    // predecessor.
+    assert!(matches!(
+        hold(&net, 0, goal, &governance),
+        Some(Hold::Behind { mark }) if mark.id == second.id()
+    ));
     let owner = net.nodes[0].owner();
-    let Response::Recorded { event } = net.nodes[0].ok(
-        owner,
-        Request::MemberRemove {
-            goal,
-            member: target,
-        },
-    ) else {
+    let remove = Request::MemberRemove {
+        goal,
+        member: target,
+    };
+    assert_eq!(
+        code(net.nodes[0].call(owner, remove.clone())),
+        ErrorCode::ReadOnly
+    );
+    // The host's agent's own log is whole, but on the host's computer it is
+    // held with the governance key: this copy of who is in is known to be
+    // old.
+    assert_eq!(
+        try_host_note(&mut net, goal, "the governance log has a gap")
+            .unwrap_err()
+            .code,
+        ErrorCode::ReadOnly
+    );
+    assert!(matches!(
+        hold(&net, 0, goal, &source),
+        Some(Hold::Behind { mark }) if mark.id == second.id()
+    ));
+    deliver(
+        &mut net.nodes[0].node,
+        &original,
+        goal,
+        std::slice::from_ref(&first),
+    );
+    assert_eq!(hold(&net, 0, goal, &governance), None);
+    assert_eq!(hold(&net, 0, goal, &source), None);
+    let owner = net.nodes[0].owner();
+    let Response::Recorded { event } = net.nodes[0].ok(owner, remove) else {
         panic!()
     };
     let new = net.nodes[0].store.event(&event).unwrap().unwrap();
     assert_eq!(new.header().author, governance);
     assert_eq!(new.header().seq, second.header().seq + 1);
     assert_eq!(new.header().prev, Some(second.id()));
+    let aside = host_note(&mut net, goal, "the agent signs again");
+    assert_eq!(aside.header().author, source);
     assert!(
         net.nodes[0].node.goals[&goal]
             .goal

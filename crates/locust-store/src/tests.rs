@@ -5,6 +5,7 @@ use std::os::unix::fs::{FileExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 
 use locust_proto::PROTOCOL_VERSION;
+use locust_proto::crypto::content_hash;
 use locust_proto::event::{AuthorPoint, Body, Context, Event, Header, PayloadRef, Scope};
 use locust_proto::id::{BlobHash, EventId, GoalId, PublicKey};
 use locust_proto::limits::{
@@ -1112,6 +1113,7 @@ fn mark(goal: u8, key: u8, seq: u64) -> Mark {
             id: EventId([seq as u8; 32]),
         },
         shared: seq % 2 == 1,
+        unheard: false,
     }
 }
 
@@ -1178,6 +1180,37 @@ fn marks_survive_reopen_and_a_torn_record_makes_them_lost() {
     assert_eq!(store.marks().unwrap().kept, None, "what the open found");
     drop(store);
     assert_eq!(reopen(&dir).marks().unwrap().kept, Some(vec![raised]));
+}
+
+#[test]
+fn a_marks_unheard_bit_survives_reopen_and_a_nonzero_reserved_byte_is_lost() {
+    let (dir, mut store) = scratch();
+    let unheard = Mark {
+        unheard: true,
+        ..mark(1, 1, 0)
+    };
+    let ordinary = mark(1, 2, 0);
+    store
+        .commit(&marking(vec![
+            MarkWrite::Set(unheard),
+            MarkWrite::Set(ordinary),
+        ]))
+        .unwrap();
+    drop(store);
+    assert_eq!(
+        reopen(&dir).marks().unwrap().kept,
+        Some(vec![unheard, ordinary])
+    );
+
+    // A nonzero byte past the used ones reads as a torn write, checksum
+    // notwithstanding.
+    let mut file = fs::read(dir.marks_file()).unwrap();
+    let slot = 32;
+    file[slot + 107] = 1;
+    let sum = content_hash(&file[slot..slot + 108]);
+    file[slot + 108..slot + 112].copy_from_slice(&sum.0[..4]);
+    fs::write(dir.marks_file(), file).unwrap();
+    assert_eq!(reopen(&dir).marks().unwrap().kept, None);
 }
 
 #[test]

@@ -71,6 +71,8 @@ impl State {
                     revoked: false,
                 }],
                 goals: vec![GoalSummary {
+                    guard: vec![],
+                    restored: None,
                     goal: GOAL,
                     title: None,
                     member: KEY,

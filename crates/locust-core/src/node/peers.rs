@@ -192,6 +192,13 @@ impl<S: Store, E: Entropy> Host for Node<S, E> {
                     .filter(|member| member.is_active())
                     .map(|member| &member.endpoint)
                     .filter(move |endpoint| Some(**endpoint) != own)
+                    .chain(
+                        self.admission_hold(entry)
+                            .is_some()
+                            .then(|| self.guard.callers(goal))
+                            .into_iter()
+                            .flatten(),
+                    )
                     .map(move |endpoint| (*goal, *endpoint))
             })
             .collect()
@@ -295,6 +302,16 @@ impl<S: Store, E: Entropy> Host for Node<S, E> {
         }
         let _ = self.land(tx);
     }
+    fn reconciled(&mut self, goal: &GoalId, endpoint: &EndpointId) {
+        if !self.failed {
+            self.guard_heard(*goal, *endpoint);
+        }
+    }
+    fn note_caller(&mut self, goal: &GoalId, endpoint: &EndpointId) {
+        if !self.failed {
+            self.guard_caller(*goal, *endpoint);
+        }
+    }
     fn random(&mut self) -> u64 {
         let mut bytes = [0; 8];
         self.entropy.borrow_mut().fill(&mut bytes);
@@ -349,6 +366,9 @@ impl<S: Store, E: Entropy> Node<S, E> {
         {
             return Err(refused);
         }
+        if self.admission_hold(entry).is_some() {
+            return Err(Refusal::CatchingUp);
+        }
         let mut tx = Tx::none();
         self.author_alone(
             entry,
@@ -371,7 +391,9 @@ impl<S: Store, E: Entropy> Node<S, E> {
 
 /// Signed admission contacts remain eligible for conflict evidence only.
 /// This never changes the current member/endpoint projection.
-fn historical_endpoints(entry: &super::entry::Entry) -> std::collections::BTreeSet<EndpointId> {
+pub(super) fn historical_endpoints(
+    entry: &super::entry::Entry,
+) -> std::collections::BTreeSet<EndpointId> {
     let Some(governance) = entry.state().governance else {
         return Default::default();
     };

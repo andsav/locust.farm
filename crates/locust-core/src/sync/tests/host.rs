@@ -33,6 +33,13 @@ pub struct TestHost {
     pub received_halt_proofs: Vec<(GoalId, EndpointId, [WireEvent; 2])>,
     /// What [`Host::random`] returns, in turn and then again from the start.
     pub random: Vec<u64>,
+    /// Every [`Host::reconciled`] call, in order.
+    pub heard: Vec<(GoalId, EndpointId)>,
+    /// Every [`Host::note_caller`] call, in order.
+    pub callers: Vec<(GoalId, EndpointId)>,
+    /// List callers among the peers, as the node does while it is catching
+    /// up in a goal it hosts.
+    pub dial_callers: bool,
     draws: usize,
     seen: BTreeMap<GoalId, u64>,
 }
@@ -52,6 +59,9 @@ impl TestHost {
             halt_accepts: BTreeSet::new(),
             received_halt_proofs: Vec::new(),
             random: vec![0],
+            heard: Vec::new(),
+            callers: Vec::new(),
+            dial_callers: false,
             draws: 0,
             seen: BTreeMap::new(),
         }
@@ -91,6 +101,9 @@ impl Host for TestHost {
                     .filter(|endpoint| **endpoint != self.endpoint)
                     .map(move |endpoint| (*goal, *endpoint))
             })
+            .chain(self.callers.iter().filter(|_| self.dial_callers).copied())
+            .collect::<BTreeSet<_>>()
+            .into_iter()
             .collect()
     }
 
@@ -212,6 +225,14 @@ impl Host for TestHost {
             }
         }
         self.reports.push(report);
+    }
+
+    fn reconciled(&mut self, goal: &GoalId, endpoint: &EndpointId) {
+        self.heard.push((*goal, *endpoint));
+    }
+
+    fn note_caller(&mut self, goal: &GoalId, endpoint: &EndpointId) {
+        self.callers.push((*goal, *endpoint));
     }
 
     fn random(&mut self) -> u64 {

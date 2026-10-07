@@ -186,6 +186,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             Request::Sessions => self.sessions_list(actor),
             Request::SessionDrop { instance } => self.session_drop(actor, instance),
             Request::GoalLeave { goal, agent } => self.goal_leave(actor, goal, agent, now),
+            Request::GoalContinue { goal } => self.goal_continue(goal),
             Request::MemberRemove { goal, member } => self.member_remove(actor, goal, member, now),
             Request::GoalJoin {
                 agent,

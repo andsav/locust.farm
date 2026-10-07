@@ -20,7 +20,8 @@
 //! | 72..104 | the record's event id |
 //! | 104 | 1 for a mark, 0 for a cleared slot (all else zero) |
 //! | 105 | 1 when the mark is shared, else 0 |
-//! | 106..108 | zero |
+//! | 106 | 1 when the mark was written while its goal was unheard, else 0 |
+//! | 107..108 | zero |
 //! | 108..112 | the first four bytes of BLAKE3 over bytes 0..108 |
 //!
 //! A changed mark is rewritten in its slot, a cleared one is overwritten as
@@ -200,6 +201,7 @@ fn encode(mark: Option<&Mark>) -> [u8; RECORD] {
         record[72..104].copy_from_slice(&mark.point.id.0);
         record[104] = 1;
         record[105] = u8::from(mark.shared);
+        record[106] = u8::from(mark.unheard);
     }
     let sum = checksum(&record);
     record[SUMMED..].copy_from_slice(&sum);
@@ -233,13 +235,16 @@ fn decode(bytes: &[u8], id: FileId) -> Option<Vec<Option<Mark>>> {
 
 /// `Some(None)` for a cleared slot.
 fn decode_record(record: &[u8]) -> Option<Option<Mark>> {
-    if record[SUMMED..] != checksum(record) || record[106..SUMMED] != [0; 2] {
+    if record[SUMMED..] != checksum(record) || record[107..SUMMED] != [0; 1] {
         return None;
     }
-    let shared = match record[105] {
-        0 => false,
-        1 => true,
-        _ => return None,
+    let bit = |byte: u8| match byte {
+        0 => Some(false),
+        1 => Some(true),
+        _ => None,
+    };
+    let (Some(shared), Some(unheard)) = (bit(record[105]), bit(record[106])) else {
+        return None;
     };
     match record[104] {
         0 if record[..SUMMED].iter().all(|byte| *byte == 0) => Some(None),
@@ -251,6 +256,7 @@ fn decode_record(record: &[u8]) -> Option<Option<Mark>> {
                 id: EventId(record[72..104].try_into().ok()?),
             },
             shared,
+            unheard,
         })),
         _ => None,
     }

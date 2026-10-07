@@ -336,7 +336,9 @@ impl World {
         );
         if self.machines[m].running() {
             let now_ms = self.wall_ms(m);
-            self.machines[m].last_view = self.machines[m].visible(now_ms);
+            let revisions = !self.machines[m].restore_remembered();
+            self.machines[m].last_revisions = revisions;
+            self.machines[m].last_view = self.machines[m].visible(now_ms, revisions);
         }
         self.machines[m].stop();
     }

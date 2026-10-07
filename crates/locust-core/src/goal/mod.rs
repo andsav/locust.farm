@@ -257,6 +257,12 @@ impl Goal {
     pub fn fork_point(&self, author: &PublicKey) -> Option<u64> {
         self.history.log(author).and_then(|log| log.fork)
     }
+    /// Whether `point` is in the usable prefix of `author`'s log.
+    pub fn holds_usable(&self, author: &PublicKey, point: AuthorPoint) -> bool {
+        self.history
+            .log(author)
+            .is_some_and(|log| log.contains_usable(point))
+    }
     pub fn frontier(&self) -> Frontier {
         self.history.frontier()
     }

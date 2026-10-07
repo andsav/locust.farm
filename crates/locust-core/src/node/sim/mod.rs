@@ -29,7 +29,9 @@
 //!   delayed independently, can be cut after any frame, or fail to open.
 //!   What was sent while a route is down is kept and arrives when it
 //!   returns, unless an end gave up first.
-//! - **Faults** ([`chaos`]) chosen by the seed, between and during steps.
+//! - **Faults** ([`chaos`]) chosen by the seed, between and during steps,
+//!   among them a store put back from an older backup with its marks kept
+//!   or lost ([`restore`]).
 //! - **Scenarios** ([`scenario`], [`storm`]) through `Engine::connect` and
 //!   `Engine::request` only, with real credentials and sessions.
 //! - **Invariants** ([`check`]) once faults stop and the network is quiet.
@@ -48,6 +50,8 @@ mod check;
 mod conn;
 mod machine;
 mod net;
+mod restore;
+mod restore_runs;
 mod rng;
 mod run;
 mod scenario;

@@ -329,7 +329,10 @@ fn halt(reason: Halt) -> &'static str {
             "Blocked: conflicting authority history. Inspect the retained events with the goal host; decisions cannot advance."
         }
         Halt::SignerRecovery => {
-            "Blocked: this daemon's signer is recovering. Restore its signed history before making further writes; reads remain available."
+            "Catching up: nothing is signed here until this computer has caught up."
+        }
+        Halt::SignerConflict => {
+            "Conflict: two of this agent's records sit at one position. It signs nothing more here."
         }
     }
 }
@@ -1304,6 +1307,8 @@ mod tests {
             closed: false,
         };
         let status = GoalStatus {
+            guard: vec![],
+            restored: None,
             host_name: Some("Host".into()),
             roles: Default::default(),
             deciding: Default::default(),
@@ -1849,6 +1854,8 @@ mod tests {
             });
         }
         GoalSummary {
+            guard: vec![],
+            restored: None,
             goal,
             title: Some(title.into()),
             member: agent.agent,
@@ -2170,6 +2177,8 @@ Daemon 0.1.0 · endpoint 5c0e77aa";
             ..abilities.clone()
         };
         let status = GoalStatus {
+            guard: vec![],
+            restored: None,
             host_name: Some("Host".into()),
             roles: Default::default(),
             deciding: Default::default(),

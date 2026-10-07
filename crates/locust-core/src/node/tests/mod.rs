@@ -270,12 +270,27 @@ mod authorization;
 
 mod delivery;
 
+mod guard;
+
 mod provenance;
+
+/// A copy of a stopped data directory, put in place of the original while the
+/// marks directory beside it survives: the copy is another file and shares
+/// the original's marks, as they are when it is started.
+pub(super) fn snapshot(store: &MemStore) -> MemStore {
+    copy_records(store).with_marks(store.marks_handle())
+}
+
+/// A copy of both the data directory and the marks directory, as a
+/// whole-computer restore makes: another file, and marks that read as lost.
+pub(super) fn snapshot_all(store: &MemStore) -> MemStore {
+    copy_records(store)
+}
 
 /// Independent stopped-store copy for rollback experiments. Copies all local
 /// spaces and goal logs, plus held content directly referenced by those logs.
 /// These fixtures have no unreferenced or partially transferred content.
-pub(super) fn snapshot(store: &MemStore) -> MemStore {
+fn copy_records(store: &MemStore) -> MemStore {
     use locust_proto::store::{Blob, Commit, LocalWrite, Space, Store};
     let mut commit = Commit::default();
     for goal in store.goals().unwrap() {

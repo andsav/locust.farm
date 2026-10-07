@@ -34,6 +34,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     !entry.state().effects.contains_key(&desired.id)
                         && !entry.failed_effects.contains(&desired.id)
                         && can_sign_here
+                        && self.hold(entry, runner).is_none()
                         && entry.goal.next(runner).is_some()
                 })
                 .cloned();

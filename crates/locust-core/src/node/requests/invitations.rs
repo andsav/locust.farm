@@ -7,6 +7,7 @@ use locust_proto::engine::Entropy;
 use locust_proto::id::{BlobHash, EndpointId, GoalId, PublicKey};
 use locust_proto::invite::{Invitation, InviteError, InviteSecret, MAX_HINTS, Ticket};
 use locust_proto::store::{Space, Store};
+use locust_proto::sync::Refusal;
 use serde::{Deserialize, Serialize};
 
 use super::{Plan, Planned, answer};
@@ -60,6 +61,27 @@ impl InviteRecord {
 }
 
 impl<S: Store, E: Entropy> Node<S, E> {
+    /// Revokes every pending invitation of `goal` in `tx` and answers how many.
+    pub(in crate::node) fn revoke_pending(
+        &self,
+        goal: GoalId,
+        now_ms: u64,
+        tx: &mut Tx,
+    ) -> Result<u32, ApiError> {
+        let mut count = 0u32;
+        for (digest, bytes) in self.store.scan(Space::Invite, &[])? {
+            let mut record: InviteRecord = records::read(&bytes)?;
+            if record.goal == goal
+                && record.summary(&digest, now_ms).state == InvitationState::Pending
+            {
+                record.revoked_ms = Some(now_ms);
+                tx.local(records::put(Space::Invite, digest, &record));
+                count += 1;
+            }
+        }
+        Ok(count)
+    }
+
     pub(super) fn invitation_inspect(&self, ticket: Ticket, now_ms: u64) -> Plan {
         let invitation = Invitation::from_ticket(ticket.as_str()).map_err(invite_error)?;
         answer(Response::InvitationInspected {
@@ -101,17 +123,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         }
         let Some(invitation) = invitation else {
             let mut tx = Tx::none();
-            let mut count = 0u32;
-            for (digest, bytes) in self.store.scan(Space::Invite, &[])? {
-                let mut record: InviteRecord = records::read(&bytes)?;
-                if record.goal == goal
-                    && record.summary(&digest, now_ms).state == InvitationState::Pending
-                {
-                    record.revoked_ms = Some(now_ms);
-                    tx.local(records::put(Space::Invite, digest, &record));
-                    count += 1;
-                }
-            }
+            let count = self.revoke_pending(goal, now_ms, &mut tx)?;
             return Ok(Planned {
                 response: Response::InvitationsRevoked { count },
                 tx,
@@ -366,9 +378,16 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 invitation.secret,
                 self.signer(&principal)?,
             );
-            let mut tx = self
-                .plan_join(&own, &request, now_ms)
-                .map_err(|_| denied("the inviter refused this invitation; it may be revoked, expired or used; request a fresh invitation from the host"))?;
+            let mut tx = self.plan_join(&own, &request, now_ms).map_err(|refusal| {
+                match self
+                    .goals
+                    .get(&goal)
+                    .and_then(|entry| self.admission_hold(entry))
+                {
+                    Some(hold) if refusal == Refusal::CatchingUp => hold.refusal(),
+                    _ => denied("the inviter refused this invitation; it may be revoked, expired or used; request a fresh invitation from the host"),
+                }
+            })?;
             tx.local(local::part_write(&goal, &principal, false))
                 .local(local::level_write(&goal, &principal, &level))
                 .touch(goal);

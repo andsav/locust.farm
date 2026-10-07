@@ -200,6 +200,8 @@ fn level_and_allow_apply_in_one_run_and_print_an_undo_that_names_the_agent() {
                     revoked: false,
                 }],
                 goals: vec![GoalSummary {
+                    guard: vec![],
+                    restored: None,
                     goal,
                     title: Some("Goal title".into()),
                     member: agent,
@@ -215,6 +217,8 @@ fn level_and_allow_apply_in_one_run_and_print_an_undo_that_names_the_agent() {
             Request::GoalStatus { goal: selected } => {
                 assert_eq!(selected, goal);
                 Ok(Response::GoalStatus(GoalStatus {
+                    guard: vec![],
+                    restored: None,
                     host_name: Some("Host".into()),
                     roles: Default::default(),
                     deciding: Default::default(),
@@ -796,6 +800,8 @@ fn goal_prefixes_are_resolved_uniquely_and_duplicate_memberships_are_one_goal() 
     write_secret(&home.path().join("owner.credential"), &[1; 32]);
     let goal = GoalId([0xab; 32]);
     let summary = GoalSummary {
+        guard: vec![],
+        restored: None,
         goal,
         title: None,
         member: PublicKey([2; 32]),
@@ -834,6 +840,8 @@ fn ambiguous_goal_prefix_is_invalid_and_does_not_send_the_operation() {
             [GoalId([0xab; 32]), GoalId(other)]
                 .into_iter()
                 .map(|goal| GoalSummary {
+                    guard: vec![],
+                    restored: None,
                     goal,
                     title: None,
                     member: PublicKey([2; 32]),
@@ -1052,7 +1060,7 @@ fn goal_invite_defaults_to_seven_days_and_never_impersonates_the_host_agent() {
                 serde_json::from_value(json!({
                     "goal":goal,"title":"Demo","governance":PublicKey([9;32]),"hosted_here":true,"host_name":"Host","roles":{},"deciding":[],"acting_alone":[],"host":PublicKey([2;32]),
                     "governance_head":null,"current_rules":null,"scope_halts":[],
-                    "members":[],"halted":null,"abilities":[],"stalled":[],"peers":[]
+                    "members":[],"halted":null,"guard":[],"restored":null,"abilities":[],"stalled":[],"peers":[]
                 }))
                 .unwrap(),
             ));
@@ -1146,7 +1154,7 @@ fn changed_goal_title_refuses_an_invitation_confirm_without_issuing_a_ticket() {
                 serde_json::from_value(json!({
                     "goal":goal,"title":if reads < 3 {"Demo"} else {"Renamed"},
                     "governance":PublicKey([9;32]),"hosted_here":true,"host_name":"Host","roles":{},"deciding":[],"acting_alone":[],"host":PublicKey([2;32]),"governance_head":null,"current_rules":null,
-                    "scope_halts":[],"members":[],"halted":null,
+                    "scope_halts":[],"members":[],"halted":null,"guard":[],"restored":null,
                     "abilities":[],"stalled":[],"peers":[]
                 }))
                 .unwrap(),
@@ -1245,7 +1253,7 @@ fn member_selector_resolves_local_name_and_visible_key_prefix() {
                     "goal":goal,"title":"Demo","governance":PublicKey([9;32]),"hosted_here":true,"host_name":"Host","roles":{},"deciding":[],"acting_alone":[],"host":PublicKey([2;32]),
                     "governance_head":null,"current_rules":null,"scope_halts":[],
                     "members":[{"member":worker,"name":"Member","endpoint":EndpointId([3;32]),"local":true,"admitted":0}],
-                    "halted":null,"abilities":[],"stalled":[],"peers":[]
+                    "halted":null,"guard":[],"restored":null,"abilities":[],"stalled":[],"peers":[]
                 }))
                 .unwrap(),
             ))
@@ -1290,6 +1298,8 @@ fn hosted_goal_status(
     use locust_proto::api::{GoalStatus, MemberView};
     use locust_proto::id::EndpointId;
     GoalStatus {
+        guard: vec![],
+        restored: None,
         host_name: Some("Host".into()),
         roles: Default::default(),
         deciding: Default::default(),
@@ -1417,6 +1427,8 @@ fn agent_revoke_applies_at_once_and_prints_the_command_that_undoes_it() {
                 revoked: revoked_on_server.load(Ordering::SeqCst),
             }],
             goals: vec![GoalSummary {
+                guard: vec![],
+                restored: None,
                 goal,
                 title: Some("Demo".into()),
                 member: agent,
@@ -1629,7 +1641,7 @@ fn subtask_revision_plan_names_parent_rules() {
                 serde_json::from_value(json!({
                     "goal":goal,"title":"Demo","governance":PublicKey([9;32]),"hosted_here":true,"host_name":"Host","roles":{},"deciding":[],"acting_alone":[],"host":PublicKey([2;32]),
                     "governance_head":null,"current_rules":null,"scope_halts":[],
-                    "members":[],"halted":null,"abilities":[],"stalled":[],"peers":[]
+                    "members":[],"halted":null,"guard":[],"restored":null,"abilities":[],"stalled":[],"peers":[]
                 }))
                 .unwrap(),
             ))
@@ -1733,7 +1745,7 @@ fn invitation_revoke_all_runs_immediately_and_reports_count() {
                 serde_json::from_value(json!({
                     "goal":goal,"title":"Demo","governance":PublicKey([9;32]),"hosted_here":true,"host_name":"Host","roles":{},"deciding":[],"acting_alone":[],"host":PublicKey([2;32]),
                     "governance_head":null,"current_rules":null,"scope_halts":[],
-                    "members":[],"halted":null,"abilities":[],"stalled":[],"peers":[]
+                    "members":[],"halted":null,"guard":[],"restored":null,"abilities":[],"stalled":[],"peers":[]
                 }))
                 .unwrap(),
             ))
@@ -1850,6 +1862,8 @@ fn an_owner_reads_a_refusal_in_the_persons_voice_and_json_keeps_the_daemons() {
         };
         let handle = server(home.path(), 1, move |frame| match frame.request {
             Request::Status => Ok(status(vec![GoalSummary {
+                guard: vec![],
+                restored: None,
                 goal,
                 title: Some("Static site search".into()),
                 member: agent,
@@ -2292,6 +2306,8 @@ fn a_repeated_join_says_an_admitted_name_stays() {
         let handle = server(home.path(), 2, move |frame| match frame.request {
             Request::Status => Ok(status(if waiting {
                 vec![GoalSummary {
+                    guard: vec![],
+                    restored: None,
                     goal,
                     title: Some("Harbor work".into()),
                     member: agent,
@@ -2372,6 +2388,8 @@ fn human_status_names_membership_and_halt_with_stable_tags() {
     let handle = server(home.path(), 1, |_| {
         let Response::Status(mut view) = status(vec![
             GoalSummary {
+                guard: vec![],
+                restored: None,
                 goal: GoalId([3; 32]),
                 member: PublicKey([4; 32]),
                 title: Some("a goal".into()),
@@ -2387,6 +2405,8 @@ fn human_status_names_membership_and_halt_with_stable_tags() {
                 },
             },
             GoalSummary {
+                guard: vec![],
+                restored: None,
                 goal: GoalId([5; 32]),
                 member: PublicKey([4; 32]),
                 title: None,
@@ -2470,6 +2490,8 @@ fn a_role_refusal_names_the_role_and_the_goals_roles_for_the_person() {
     let host = PublicKey([2; 32]);
     let handle = server(home.path(), 1, move |frame| match frame.request {
         Request::Status => Ok(status(vec![GoalSummary {
+            guard: vec![],
+            restored: None,
             goal,
             title: Some("Demo".into()),
             member: host,
@@ -2855,6 +2877,8 @@ fn human_goal_and_task_titles_resolve_to_exact_authorized_write() {
     let agent = PublicKey([0x51; 32]);
     let handle = server(home.path(), 1, move |frame| match frame.request {
         Request::Status => Ok(status(vec![GoalSummary {
+            guard: vec![],
+            restored: None,
             goal,
             title: Some("Demo".into()),
             member: agent,
@@ -2926,6 +2950,8 @@ fn duplicate_goal_titles_refuse_writes_instead_of_guessing() {
             [1, 2]
                 .into_iter()
                 .map(|n| GoalSummary {
+                    guard: vec![],
+                    restored: None,
                     goal: GoalId([n; 32]),
                     title: Some("Demo".into()),
                     member: PublicKey([3; 32]),
@@ -3142,6 +3168,8 @@ fn role_undo_lines_put_the_holders_back_and_name_the_member_by_key() {
     let server_holders = holders.clone();
     let handle = server(home.path(), 6, move |frame| match frame.request {
         Request::Status => Ok(status(vec![GoalSummary {
+            guard: vec![],
+            restored: None,
             goal,
             title: Some("Demo".into()),
             member: host,
@@ -3310,6 +3338,8 @@ fn a_role_named_like_a_flag_prints_a_runnable_line_and_hidden_characters_print_n
     let server_holders = holders.clone();
     let handle = server(home.path(), 3, move |frame| match frame.request {
         Request::Status => Ok(status(vec![GoalSummary {
+            guard: vec![],
+            restored: None,
             goal,
             title: Some("Demo".into()),
             member: host,
@@ -3878,6 +3908,8 @@ fn disconnected_members_are_offered_reconnect_in_status_and_owner_commands() {
                 author_only: false,
             }],
             goals: vec![GoalSummary {
+                guard: vec![],
+                restored: None,
                 goal,
                 title: Some("Demo".into()),
                 member: agent,
@@ -3975,6 +4007,8 @@ fn a_leads_undo_restores_its_previous_holder_and_role_duties_are_explained() {
     let server_holders = holders.clone();
     let handle = server(home.path(), 4, move |frame| match frame.request {
         Request::Status => Ok(status(vec![GoalSummary {
+            guard: vec![],
+            restored: None,
             goal,
             title: Some("Demo".into()),
             member: host,

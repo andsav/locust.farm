@@ -121,12 +121,13 @@ fn sim_text_lag_after_wake_is_bounded() {
 /// in ten simulated minutes. The shell now keeps a connection that carries
 /// an exchange it opened, and the driver jitters its backoff. The shell rule
 /// is modelled here from `crates/locust/src/daemon/network.rs`; confirm
-/// against real daemons.
+/// against real daemons. The run is the one found before restores existed.
 #[test]
 fn sim_join_survives_the_coordinators_dial() {
     let options = Options {
         max_faults: Some(4),
         true_clocks: true,
+        no_restores: true,
         ..Options::default()
     };
     let report = run_seed(5252, options);

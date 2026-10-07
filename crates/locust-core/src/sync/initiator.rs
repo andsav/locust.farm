@@ -39,6 +39,8 @@ pub struct Initiator {
     /// The authenticated endpoint is a current member according to signed
     /// local state. An invitation or an answering frontier is not proof.
     outbound_authorized: bool,
+    /// The responder sent an event this replica did not hold.
+    received: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -108,6 +110,7 @@ impl Initiator {
             outbox: Outbox::default(),
             ended: None,
             outbound_authorized: true,
+            received: false,
         }
     }
 
@@ -136,6 +139,15 @@ impl Initiator {
     /// The goal this exchange is about.
     pub fn goal(&self) -> GoalId {
         self.goal
+    }
+
+    /// True once the record stage ran to its end with the remote endpoint
+    /// a member and brought no event this replica did not hold: this replica
+    /// then holds every record the responder was willing to send.
+    pub fn reconciled(&self) -> bool {
+        !matches!(self.stage, Stage::Start | Stage::Reconcile)
+            && self.outbound_authorized
+            && !self.received
     }
 
     /// How the exchange ended, once it has. After `Completed` the last frame
@@ -230,7 +242,9 @@ impl Initiator {
                 self.expect.pop_front();
                 self.send_frontier(replica);
             }
-            (Expect::Answer, SyncMessage::Events(events)) => receive(replica, events)?,
+            (Expect::Answer, SyncMessage::Events(events)) => {
+                self.received |= receive(replica, events)?;
+            }
             (
                 Expect::Answer,
                 SyncMessage::Inventory {
@@ -249,7 +263,7 @@ impl Initiator {
                 self.push_prefixes(replica, &theirs);
             }
             (Expect::Events(left), SyncMessage::Events(events)) => {
-                receive(replica, events)?;
+                self.received |= receive(replica, events)?;
                 match self.expect.front_mut() {
                     Some(Expect::Events(count)) if left > 1 => *count -= 1,
                     _ => drop(self.expect.pop_front()),
@@ -497,6 +511,10 @@ impl Initiator {
     }
 }
 
-fn receive(replica: &mut dyn Replica, events: Vec<WireEvent>) -> Result<(), Fault> {
-    replica.receive(events).map(drop).map_err(Fault::Sent)
+/// Whether `events` held one this replica did not.
+fn receive(replica: &mut dyn Replica, events: Vec<WireEvent>) -> Result<bool, Fault> {
+    replica
+        .receive(events)
+        .map(|count| count > 0)
+        .map_err(Fault::Sent)
 }

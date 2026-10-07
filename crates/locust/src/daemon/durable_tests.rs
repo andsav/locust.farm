@@ -1,18 +1,27 @@
 //! The production assembly over real SQLite, Unix sockets and local Iroh.
 use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
-use std::sync::mpsc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, mpsc};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 use locust_net::{Endpoint, EndpointConfig, IpTransport, Lookup, RelayConfig, TransportBudget};
-use locust_proto::api::{Caller, Credential, Level, Request, Response, SessionSecret};
-use locust_proto::client::Client;
-use locust_proto::engine::{Engine, PeerEngine};
-use locust_proto::event::{AttemptStatus, ReviewVerdict, TaskId};
-use locust_proto::id::{EventId, GoalId, IdempotencyKey, PublicKey};
+use locust_proto::api::{
+    ApiError, ClientHello, Credential, ErrorCode, GoalStatus, GuardReason, GuardView, Halt, Level,
+    Request, RequestFrame, Response, ServerHello, SessionSecret,
+};
+use locust_proto::client::{Client, ClientError};
+use locust_proto::engine::{
+    ConnId, Engine, ExchangeId, Parked, PeerEngine, PeerInput, PeerOutput, PeerTime, Step,
+};
+use locust_proto::event::{AttemptStatus, Header, ReviewVerdict, TaskId};
+use locust_proto::farm::{FarmUpload, FarmUploadResult};
+use locust_proto::id::{EndpointId, EventId, GoalId, IdempotencyKey, PublicKey};
 use locust_proto::invite::Invitation;
 use locust_proto::local;
+use locust_proto::store::{FileId, Store};
+use locust_store::SqliteStore;
 
 use super::{ProductionNode, run_networked_with};
 use crate::failure::Failure;
@@ -40,10 +49,17 @@ pub(super) struct Running {
 }
 impl Running {
     pub(super) fn start(home: &Path) -> Self {
-        Self::start_observed(home, std::convert::identity)
+        Self::start_with_marks(home, &local::marks_dir(home))
+    }
+    /// A daemon on `home` whose marks directory is `marks`. Given the marks
+    /// of the directory `home` was copied from, it is that daemon with its
+    /// data directory put back from the copy. A copied marks file reads as
+    /// lost, so the marks are handed over, not copied.
+    pub(super) fn start_with_marks(home: &Path, marks: &Path) -> Self {
+        Self::start_observed(home, marks, std::convert::identity)
     }
     /// The same daemon, with its node handed to `observe` on the engine thread.
-    pub(super) fn start_observed<E, O>(home: &Path, observe: O) -> Self
+    pub(super) fn start_observed<E, O>(home: &Path, marks: &Path, observe: O) -> Self
     where
         E: Engine + PeerEngine + 'static,
         O: FnOnce(ProductionNode) -> E + Send + 'static,
@@ -51,19 +67,14 @@ impl Running {
         let (shutdown, stopped) = tokio::sync::oneshot::channel();
         let (ready, waiting) = mpsc::channel();
         let state = home.to_path_buf();
+        let marks = marks.to_path_buf();
         let thread = thread::spawn(move || {
-            run_networked_with(
-                &state,
-                &local::marks_dir(&state),
-                observe,
-                local_endpoint,
-                move |_| {
-                    ready.send(()).unwrap();
-                    Ok(async move {
-                        let _ = stopped.await;
-                    })
-                },
-            )
+            run_networked_with(&state, &marks, observe, local_endpoint, move |_| {
+                ready.send(()).unwrap();
+                Ok(async move {
+                    let _ = stopped.await;
+                })
+            })
         });
         waiting
             .recv_timeout(Duration::from_secs(15))
@@ -531,12 +542,15 @@ fn two_real_daemons_join_claim_sync_large_payload_and_accept() {
             level: Level::Auto,
         })
         .unwrap();
+    // Admitted, and heard from the host's computer since: until then the
+    // worker's key is held, and exchanges that bring records do not count.
     eventually(|| match w.call(Request::GoalStatus { goal }) {
         Ok(Response::GoalStatus(status))
             if status
                 .members
                 .iter()
-                .any(|member| member.member == worker_key) =>
+                .any(|member| member.member == worker_key)
+                && status.guard.is_empty() =>
         {
             Some(())
         }
@@ -950,164 +964,671 @@ fn replay(home: &Path, events: Vec<locust_proto::event::Event>) {
 
 /// The current rules, rebound unchanged: a record only the goal's own key
 /// signs, on the governance log rather than any member's.
-fn rebind_rules(owner: &mut LocalClient, goal: GoalId, _agent: PublicKey) -> EventId {
-    let Response::GoalStatus(status) = owner.call(Request::GoalStatus { goal }).unwrap() else {
+fn rebind_rules(owner: &mut LocalClient, goal: GoalId) -> Result<EventId, ClientError> {
+    let status = goal_status(owner, goal);
+    owner
+        .call(Request::RulesBind {
+            no_role: false,
+            goal,
+            expected: status.current_rules.unwrap(),
+            formation_json: serde_json::to_string(
+                &locust_proto::organization::presets()
+                    .into_iter()
+                    .find(|p| p.name == "directed")
+                    .unwrap()
+                    .formation,
+            )
+            .unwrap(),
+            inputs: Default::default(),
+        })
+        .map(recorded)
+}
+
+fn task_open(client: &mut LocalClient, goal: GoalId, text: &str) -> Result<EventId, ClientError> {
+    client
+        .call(Request::TaskOpen {
+            goal,
+            text: text.into(),
+            task_type: None,
+            inputs: Default::default(),
+            parent: None,
+        })
+        .map(recorded)
+}
+
+fn goal_status(client: &mut LocalClient, goal: GoalId) -> GoalStatus {
+    let Response::GoalStatus(status) = client.call(Request::GoalStatus { goal }).unwrap() else {
         panic!()
     };
-    recorded(
-        owner
-            .call(Request::RulesBind {
-                no_role: false,
-                goal,
-                expected: status.current_rules.unwrap(),
-                formation_json: serde_json::to_string(
-                    &locust_proto::organization::presets()
-                        .into_iter()
-                        .find(|p| p.name == "directed")
-                        .unwrap()
-                        .formation,
-                )
-                .unwrap(),
-                inputs: Default::default(),
-            })
+    status
+}
+
+#[track_caller]
+fn assert_refused<T: std::fmt::Debug>(result: Result<T, ClientError>, code: ErrorCode) {
+    assert!(
+        matches!(&result, Err(ClientError::Api(error)) if error.code == code),
+        "expected {code:?}: {result:?}"
+    );
+}
+
+fn continue_goal(owner: &mut LocalClient, goal: GoalId) -> u32 {
+    let Response::Continued { keys } = owner.call(Request::GoalContinue { goal }).unwrap() else {
+        panic!()
+    };
+    keys
+}
+
+/// The header of an event a stopped daemon's store holds.
+fn header(home: &Path, marks: &Path, event: EventId) -> Header {
+    SqliteStore::open(home, marks)
+        .unwrap()
+        .event(&event)
+        .unwrap()
+        .unwrap()
+        .header()
+        .clone()
+}
+
+/// A goal one daemon hosts for its agent, with another computer's agent
+/// admitted on both.
+struct Shared {
+    goal: GoalId,
+    /// Agent 1, on the host's computer.
+    host_agent: PublicKey,
+    /// Agent 2, on the member's computer.
+    member_agent: PublicKey,
+}
+
+fn shared_goal(host: &Running, member: &Running) -> Shared {
+    let host_agent = host.enroll(1);
+    let member_agent = member.enroll(2);
+    let goal = goal(&mut host.owner(), host_agent);
+    let Response::Invited { ticket } = host
+        .owner()
+        .call(Request::GoalInvite {
+            role: None,
+            goal,
+            expires_ms: u64::MAX,
+        })
+        .unwrap()
+    else {
+        panic!()
+    };
+    member
+        .owner()
+        .call(Request::GoalJoin {
+            name: "Member".into(),
+            agent: member_agent,
+            ticket,
+            level: Level::Auto,
+        })
+        .unwrap();
+    let mut agent = member.client(Credential([2; 32]), None);
+    // Admitted, and no longer held for having just been admitted.
+    eventually_observed(
+        "the member's admission",
+        || agent.call(Request::GoalStatus { goal }),
+        |observed| match observed {
+            Ok(Response::GoalStatus(status))
+                if status.members.iter().any(|m| m.member == member_agent)
+                    && status.guard.is_empty() =>
+            {
+                Some(())
+            }
+            _ => None,
+        },
+    );
+    Shared {
+        goal,
+        host_agent,
+        member_agent,
+    }
+}
+
+/// The computer `key` is bound to in `status`.
+fn endpoint_of(status: &GoalStatus, key: PublicKey) -> EndpointId {
+    status
+        .members
+        .iter()
+        .find(|member| member.member == key)
+        .unwrap()
+        .endpoint
+}
+
+/// The production node, opening no exchange until `open` is set: a daemon
+/// whose peers are out of reach. They cannot call it either, since every
+/// start binds a new port that no peer has been told.
+struct Gated {
+    node: ProductionNode,
+    open: Arc<AtomicBool>,
+}
+
+impl Engine for Gated {
+    fn connect(&mut self, conn: ConnId, hello: &ClientHello, now_ms: u64) -> ServerHello {
+        self.node.connect(conn, hello, now_ms)
+    }
+    fn request(&mut self, conn: ConnId, frame: RequestFrame, now_ms: u64) -> Step {
+        self.node.request(conn, frame, now_ms)
+    }
+    fn resume(&mut self, conn: ConnId, parked: &Parked, timed_out: bool, now_ms: u64) -> Step {
+        self.node.resume(conn, parked, timed_out, now_ms)
+    }
+    fn take_changed(&mut self) -> Vec<GoalId> {
+        Engine::take_changed(&mut self.node)
+    }
+    fn disconnect(&mut self, conn: ConnId) {
+        self.node.disconnect(conn);
+    }
+    fn stop_requested(&self) -> bool {
+        self.node.stop_requested()
+    }
+    fn failure(&self) -> Option<ApiError> {
+        self.node.failure()
+    }
+    fn farm_poll(&mut self, now_ms: u64) -> Vec<FarmUpload> {
+        self.node.farm_poll(now_ms)
+    }
+    fn farm_complete(&mut self, result: FarmUploadResult, now_ms: u64) -> Result<(), ApiError> {
+        self.node.farm_complete(result, now_ms)
+    }
+}
+
+impl PeerEngine for Gated {
+    fn endpoint_secret(&self) -> [u8; 32] {
+        self.node.endpoint_secret()
+    }
+    fn peer_readable(&self, exchange: ExchangeId) -> bool {
+        self.node.peer_readable(exchange)
+    }
+    fn peer(&mut self, input: PeerInput, time: PeerTime, out: &mut Vec<PeerOutput>) {
+        if matches!(input, PeerInput::Poll) && !self.open.load(Ordering::Acquire) {
+            return;
+        }
+        self.node.peer(input, time, out);
+    }
+}
+
+/// Which of the host's records the older copy lacks.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Lost {
+    /// A task the host's agent opened.
+    Agent,
+    /// A rules record the goal's own key signed.
+    Governance,
+}
+
+/// The host's data directory is put back from a copy older than one of its
+/// records, beside the marks it kept. The key that signed the record signs
+/// nothing in the goal until the record is held again, and then signs at
+/// the next position. The member's computer, which holds the record, stays
+/// out of reach, so no hearing ends the hold: a goal never shared would be
+/// given up at once.
+fn an_older_directory_is_held_until_its_later_events_return(lost: Lost) {
+    let (original, member_home, backup) = (short_dir(), short_dir(), short_dir());
+    let mut host = Running::start(original.path());
+    let mut member = Running::start(member_home.path());
+    let shared = shared_goal(&host, &member);
+    let goal = shared.goal;
+    member.stop();
+    host.stop();
+    copy_stopped_home(original.path(), backup.path());
+
+    let mut host = Running::start(original.path());
+    let mut owner = host.owner();
+    let mut agent = host.client(Credential([1; 32]), None);
+    let member_endpoint = endpoint_of(&goal_status(&mut owner, goal), shared.member_agent);
+    let old_id = match lost {
+        Lost::Agent => task_open(&mut agent, goal, "After the copy").unwrap(),
+        Lost::Governance => rebind_rules(&mut owner, goal).unwrap(),
+    };
+    drop((owner, agent));
+    host.stop();
+    let marks = local::marks_dir(original.path());
+    let old = header(original.path(), &marks, old_id);
+    let held = held_events(original.path(), goal);
+
+    let mut restored = Running::start_with_marks(backup.path(), &marks);
+    let mut owner = restored.owner();
+    let mut agent = restored.client(Credential([1; 32]), None);
+    let status = goal_status(&mut owner, goal);
+    assert_eq!(status.restored, Some(0), "{status:?}");
+    assert_eq!(
+        status.guard,
+        vec![GuardView {
+            key: old.author,
+            by_host: lost == Lost::Governance,
+            reason: GuardReason::Behind {
+                held: old.seq,
+                signed: old.seq + 1,
+            },
+            heard: vec![],
+            waiting: vec![member_endpoint],
+        }]
+    );
+    match lost {
+        Lost::Agent => {
+            assert_eq!(status.halted, None, "{status:?}");
+            assert_refused(task_open(&mut agent, goal, "Held"), ErrorCode::ReadOnly);
+            // Every other key signs at once.
+            rebind_rules(&mut owner, goal).unwrap();
+        }
+        Lost::Governance => {
+            assert_eq!(status.halted, Some(Halt::SignerRecovery), "{status:?}");
+            assert_refused(rebind_rules(&mut owner, goal), ErrorCode::ReadOnly);
+            // On the host's computer every agent is held with the goal's key.
+            assert_refused(task_open(&mut agent, goal, "Held"), ErrorCode::ReadOnly);
+        }
+    }
+    drop((owner, agent));
+    restored.stop();
+
+    replay(backup.path(), held);
+    let mut restored = Running::start_with_marks(backup.path(), &marks);
+    let mut owner = restored.owner();
+    let mut agent = restored.client(Credential([1; 32]), None);
+    let status = goal_status(&mut owner, goal);
+    assert!(status.guard.is_empty(), "{status:?}");
+    assert_eq!(status.halted, None, "{status:?}");
+    assert_eq!(status.restored, None, "{status:?}");
+    let new_id = match lost {
+        Lost::Agent => task_open(&mut agent, goal, "After the events returned").unwrap(),
+        Lost::Governance => rebind_rules(&mut owner, goal).unwrap(),
+    };
+    drop((owner, agent));
+    restored.stop();
+    let new = header(backup.path(), &marks, new_id);
+    assert_eq!(new.author, old.author);
+    assert_eq!(new.seq, old.seq + 1);
+    assert_eq!(new.prev, Some(old_id));
+}
+
+#[test]
+fn an_older_directory_is_held_until_its_later_events_return_for_an_agent_record() {
+    an_older_directory_is_held_until_its_later_events_return(Lost::Agent);
+}
+
+#[test]
+fn an_older_directory_is_held_until_its_later_events_return_for_a_governance_record() {
+    an_older_directory_is_held_until_its_later_events_return(Lost::Governance);
+}
+
+#[test]
+fn a_lost_marks_directory_is_an_ordinary_start_and_a_copy_of_both_is_not() {
+    let (home, copy) = (short_dir(), short_dir());
+    let marks = local::marks_dir(home.path());
+    let mut running = Running::start(home.path());
+    let principal = running.enroll(1);
+    let goal = goal(&mut running.owner(), principal);
+    let before = task_open(
+        &mut running.client(Credential([1; 32]), None),
+        goal,
+        "Before the marks are lost",
+    )
+    .unwrap();
+    running.stop();
+    std::fs::remove_dir_all(&marks).unwrap();
+
+    // The database is the file last used: an ordinary start.
+    let mut running = Running::start(home.path());
+    let status = goal_status(&mut running.owner(), goal);
+    assert!(status.guard.is_empty(), "{status:?}");
+    assert_eq!(status.halted, None, "{status:?}");
+    assert_eq!(status.restored, None, "{status:?}");
+    let governance = status.governance;
+    running.stop();
+    // That start wrote the marks again from the store, before anything signed.
+    {
+        let found = SqliteStore::open(home.path(), &marks)
+            .unwrap()
+            .marks()
+            .unwrap();
+        let kept = found.kept.expect("the marks are written again");
+        let mark = |key| {
+            kept.iter()
+                .find(|mark| mark.goal == goal && mark.key == key)
+        };
+        assert_eq!(mark(principal).unwrap().point.id, before);
+        assert!(mark(governance).is_some(), "{kept:?}");
+    }
+    let mut running = Running::start(home.path());
+    let after = task_open(
+        &mut running.client(Credential([1; 32]), None),
+        goal,
+        "After the marks are lost",
+    )
+    .unwrap();
+    running.stop();
+    assert_eq!(
+        header(home.path(), &marks, after).seq,
+        header(home.path(), &marks, before).seq + 1
+    );
+
+    // Both directories copied, as a whole computer is restored: the copied
+    // marks are lost and the database is another file, so the copy is of
+    // unknown age. Where this daemon hosts the goal it waits for the person,
+    // with no other computer to hear from.
+    copy_stopped_home(home.path(), copy.path());
+    copy_stopped_home(&marks, &local::marks_dir(copy.path()));
+    let mut restored = Running::start(copy.path());
+    let mut owner = restored.owner();
+    let mut agent = restored.client(Credential([1; 32]), None);
+    let status = goal_status(&mut owner, goal);
+    assert_eq!(status.restored, Some(0), "{status:?}");
+    assert_eq!(status.halted, Some(Halt::SignerRecovery), "{status:?}");
+    let unheard = |key, by_host| GuardView {
+        key,
+        by_host,
+        reason: GuardReason::Unheard,
+        heard: vec![],
+        waiting: vec![],
+    };
+    let mut expected = vec![unheard(governance, true), unheard(principal, false)];
+    expected.sort_by_key(|view| view.key);
+    assert_eq!(status.guard, expected);
+    assert_refused(task_open(&mut agent, goal, "Held"), ErrorCode::ReadOnly);
+    assert_refused(rebind_rules(&mut owner, goal), ErrorCode::ReadOnly);
+    // An agent cannot end the hold.
+    assert_refused(
+        agent.call(Request::GoalContinue { goal }),
+        ErrorCode::Denied,
+    );
+    assert_eq!(continue_goal(&mut owner, goal), 2);
+    let status = goal_status(&mut owner, goal);
+    assert!(status.guard.is_empty(), "{status:?}");
+    assert_eq!(status.halted, None, "{status:?}");
+    let next = task_open(&mut agent, goal, "After continuing").unwrap();
+    drop((owner, agent));
+    restored.stop();
+    let copy_marks = local::marks_dir(copy.path());
+    assert_eq!(
+        header(copy.path(), &copy_marks, next).prev,
+        Some(after),
+        "the copy held every record, so continuing reused no position"
+    );
+}
+
+/// Writes a stopped daemon's database files from `from` over those of `to`
+/// in place, as a restore that rewrites a file's bytes does: the database
+/// keeps its inode and creation time, so it is still the file last used.
+fn overwrite_database_in_place(from: &Path, to: &Path) {
+    use std::io::Write;
+    for suffix in ["", "-wal", "-shm"] {
+        let path = |home: &Path| {
+            let mut path = local::database_path(home).into_os_string();
+            path.push(suffix);
+            PathBuf::from(path)
+        };
+        let (source, target) = (path(from), path(to));
+        if source.exists() {
+            let mut file = std::fs::OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .open(&target)
+                .unwrap();
+            file.write_all(&std::fs::read(&source).unwrap()).unwrap();
+            file.sync_all().unwrap();
+        } else if target.exists() {
+            std::fs::remove_file(&target).unwrap();
+        }
+    }
+}
+
+/// The database file is overwritten in place by an older copy, beside the
+/// marks it kept. One file holds every goal, so every goal is treated as
+/// restored, not only the one whose mark is ahead.
+#[test]
+fn a_database_overwritten_in_place_is_found_by_its_marks() {
+    use locust_proto::api::InvitationState;
+    let (home, member_home, backup) = (short_dir(), short_dir(), short_dir());
+    let mut host = Running::start(home.path());
+    let mut member = Running::start(member_home.path());
+    let shared = shared_goal(&host, &member);
+    member.stop();
+    let mut owner = host.owner();
+    let other = goal(&mut owner, shared.host_agent);
+    let Response::Invited { .. } = owner
+        .call(Request::GoalInvite {
+            role: None,
+            goal: other,
+            expires_ms: u64::MAX,
+        })
+        .unwrap()
+    else {
+        panic!()
+    };
+    drop(owner);
+    host.stop();
+    copy_stopped_home(home.path(), backup.path());
+
+    let mut host = Running::start(home.path());
+    let lost = task_open(
+        &mut host.client(Credential([1; 32]), None),
+        shared.goal,
+        "After the copy",
+    )
+    .unwrap();
+    host.stop();
+    let database = local::database_path(home.path());
+    let file = FileId::of(&database).unwrap();
+    overwrite_database_in_place(backup.path(), home.path());
+    assert_eq!(FileId::of(&database).unwrap(), file);
+    assert_eq!(
+        SqliteStore::open(home.path(), &local::marks_dir(home.path()))
+            .unwrap()
+            .event(&lost)
             .unwrap(),
+        None
+    );
+
+    let mut host = Running::start(home.path());
+    let mut owner = host.owner();
+    let mut agent = host.client(Credential([1; 32]), None);
+    // The goal whose mark is ahead: its agent is behind.
+    let status = goal_status(&mut owner, shared.goal);
+    assert_eq!(status.restored, Some(0), "{status:?}");
+    assert!(
+        matches!(
+            status.guard.as_slice(),
+            [GuardView { key, by_host: false, reason: GuardReason::Behind { .. }, .. }]
+                if *key == shared.host_agent
+        ),
+        "{status:?}"
+    );
+    assert_refused(
+        task_open(&mut agent, shared.goal, "Held"),
+        ErrorCode::ReadOnly,
+    );
+    // The other goal has no mark ahead and is restored all the same: its
+    // pending invitation is revoked, and none of its keys is held.
+    let status = goal_status(&mut owner, other);
+    assert_eq!(status.restored, Some(1), "{status:?}");
+    assert!(status.guard.is_empty(), "{status:?}");
+    assert_eq!(status.halted, None, "{status:?}");
+    let Response::Invitations { invitations } = owner
+        .call(Request::GoalInvitations { goal: other })
+        .unwrap()
+    else {
+        panic!()
+    };
+    assert_eq!(
+        invitations
+            .iter()
+            .map(|invitation| invitation.state)
+            .collect::<Vec<_>>(),
+        vec![InvitationState::Revoked]
+    );
+    task_open(&mut agent, other, "Signed at once").unwrap();
+    rebind_rules(&mut owner, other).unwrap();
+    drop((owner, agent));
+    host.stop();
+}
+
+/// A restore found while its marks were kept is remembered as the goal's
+/// `RESTORED` record. Losing the marks before the next ordinary start must
+/// not make that goal ordinary: its keys become unheard instead.
+#[test]
+fn lost_marks_while_a_restore_is_caught_up_make_the_goal_unheard() {
+    on_the_hosts_computer_the_goal_waits_for_the_person();
+    on_a_members_computer_the_hold_ends_when_the_hosts_computer_is_heard();
+}
+
+fn on_the_hosts_computer_the_goal_waits_for_the_person() {
+    let (original, member_home, backup) = (short_dir(), short_dir(), short_dir());
+    let mut host = Running::start(original.path());
+    let mut member = Running::start(member_home.path());
+    let shared = shared_goal(&host, &member);
+    let goal = shared.goal;
+    member.stop();
+    host.stop();
+    copy_stopped_home(original.path(), backup.path());
+    let mut host = Running::start(original.path());
+    let lost = task_open(
+        &mut host.client(Credential([1; 32]), None),
+        goal,
+        "After the copy",
+    )
+    .unwrap();
+    host.stop();
+    let marks = local::marks_dir(original.path());
+    let held = held_events(original.path(), goal);
+
+    let mut restored = Running::start_with_marks(backup.path(), &marks);
+    let status = goal_status(&mut restored.owner(), goal);
+    assert_eq!(status.restored, Some(0), "{status:?}");
+    assert!(
+        matches!(
+            status.guard.as_slice(),
+            [GuardView {
+                reason: GuardReason::Behind { .. },
+                ..
+            }]
+        ),
+        "{status:?}"
+    );
+    restored.stop();
+    std::fs::remove_dir_all(&marks).unwrap();
+
+    let mut restored = Running::start_with_marks(backup.path(), &marks);
+    let mut owner = restored.owner();
+    let mut agent = restored.client(Credential([1; 32]), None);
+    let status = goal_status(&mut owner, goal);
+    assert_eq!(status.restored, Some(0), "{status:?}");
+    assert_eq!(status.halted, Some(Halt::SignerRecovery), "{status:?}");
+    assert_eq!(status.guard.len(), 2, "{status:?}");
+    assert!(
+        status
+            .guard
+            .iter()
+            .all(|view| view.reason == GuardReason::Unheard),
+        "{status:?}"
+    );
+    assert_refused(task_open(&mut agent, goal, "Held"), ErrorCode::ReadOnly);
+    drop((owner, agent));
+    restored.stop();
+
+    // Every record returns, and the hold lasts: on the host's computer only
+    // the person ends it.
+    replay(backup.path(), held);
+    let mut restored = Running::start_with_marks(backup.path(), &marks);
+    let mut owner = restored.owner();
+    let mut agent = restored.client(Credential([1; 32]), None);
+    let status = goal_status(&mut owner, goal);
+    assert!(
+        !status.guard.is_empty()
+            && status
+                .guard
+                .iter()
+                .all(|view| view.reason == GuardReason::Unheard),
+        "{status:?}"
+    );
+    assert_refused(task_open(&mut agent, goal, "Held"), ErrorCode::ReadOnly);
+    assert_eq!(continue_goal(&mut owner, goal), 2);
+    let next = task_open(&mut agent, goal, "After continuing").unwrap();
+    drop((owner, agent));
+    restored.stop();
+    let next = header(backup.path(), &marks, next);
+    assert_eq!(next.prev, Some(lost));
+}
+
+/// Opens a task as a member's agent once its daemon can: content arrives
+/// after the records that name it, and a candidate that cannot be applied
+/// yet is refused and signs nothing.
+fn member_task_open(agent: &mut LocalClient, goal: GoalId, text: &str) -> EventId {
+    eventually_observed(
+        "a task the member's agent may open",
+        || task_open(agent, goal, text),
+        |opened| opened.as_ref().ok().copied(),
     )
 }
 
-#[test]
-fn sqlite_older_directory_forks_only_the_hosts_agent_when_its_own_work_was_lost() {
-    use locust_proto::store::Store;
-    use locust_store::SqliteStore;
-    for recover_first in [false, true] {
-        let original = short_dir();
-        let backup = short_dir();
-        let mut running = Running::start(original.path());
-        let principal = running.enroll(1);
-        let agent = running.client(Credential([1; 32]), None);
-        let goal = goal(&mut running.owner(), principal);
-        drop(agent);
-        running.stop();
-        copy_stopped_home(original.path(), backup.path());
+fn on_a_members_computer_the_hold_ends_when_the_hosts_computer_is_heard() {
+    let (host_home, original, copy) = (short_dir(), short_dir(), short_dir());
+    let host = Running::start(host_home.path());
+    let mut member = Running::start(original.path());
+    let shared = shared_goal(&host, &member);
+    let goal = shared.goal;
+    member.stop();
+    copy_stopped_home(original.path(), copy.path());
+    let mut member = Running::start(original.path());
+    let lost = member_task_open(
+        &mut member.client(Credential([2; 32]), None),
+        goal,
+        "After the copy",
+    );
+    let mut host_agent = host.client(Credential([1; 32]), None);
+    eventually(|| {
+        matches!(
+            host_agent.call(Request::Event { goal, event: lost }),
+            Ok(Response::Event(_))
+        )
+        .then_some(())
+    });
+    member.stop();
+    let marks = local::marks_dir(original.path());
 
-        let mut running = Running::start(original.path());
-        let mut agent = running.client(Credential([1; 32]), None);
-        let TaskId::Authored(old_id) = propose(&mut agent, goal, "After backup".into()) else {
-            panic!()
-        };
-        drop(agent);
-        running.stop();
-        let held = held_events(original.path(), goal);
-        let old = held.iter().find(|e| e.id() == old_id).unwrap();
-        if recover_first {
-            replay(backup.path(), held.clone());
-        }
-        let mut restored = Running::start(backup.path());
-        let mut agent = restored.client(Credential([1; 32]), None);
-        assert_eq!(agent.caller(), Caller::Agent(principal));
-        let TaskId::Authored(new_id) = propose(&mut agent, goal, "After restoring backup".into())
-        else {
-            panic!()
-        };
-        drop(agent);
-        restored.stop();
-        {
-            let store = SqliteStore::open(backup.path(), &local::marks_dir(backup.path())).unwrap();
-            let new = store.event(&new_id).unwrap().unwrap();
-            assert_ne!(new_id, old_id);
-            assert_eq!(
-                new.header().seq,
-                old.header().seq + u64::from(recover_first)
-            );
-            assert_eq!(
-                new.header().prev,
-                if recover_first {
-                    Some(old_id)
-                } else {
-                    old.header().prev
-                }
-            );
-        }
-        replay(backup.path(), held);
-        let mut restored = Running::start(backup.path());
-        let mut agent = restored.client(Credential([1; 32]), None);
-        let Response::GoalStatus(status) = agent.call(Request::GoalStatus { goal }).unwrap() else {
-            panic!()
-        };
-        // The agent's own log forked, not the goal's: governance goes on.
-        assert_eq!(status.halted, None, "{status:?}");
-        let Response::Invited { .. } = restored
-            .owner()
-            .call(Request::GoalInvite {
-                role: None,
-
-                goal,
-                expires_ms: u64::MAX,
-            })
-            .unwrap()
-        else {
-            panic!()
-        };
-        if recover_first {
-            propose(
-                &mut agent,
-                goal,
-                "Still extends after another restart".into(),
-            );
-        } else {
-            let result = agent.call(Request::TaskOpen {
-                goal,
-                text: "Known fork".into(),
-                task_type: None,
-                inputs: Default::default(),
-                parent: None,
-            });
-            assert!(
-                matches!(&result, Err(locust_proto::client::ClientError::Api(error))
-                if error.code == locust_proto::api::ErrorCode::Unavailable),
-                "{result:?}"
-            );
-        }
-        drop(agent);
-        restored.stop();
-    }
-}
-
-#[test]
-fn sqlite_older_directory_halts_governance_when_a_governance_record_was_lost() {
-    use locust_proto::store::Store;
-    use locust_store::SqliteStore;
-    let original = short_dir();
-    let backup = short_dir();
-    let mut running = Running::start(original.path());
-    let principal = running.enroll(1);
-    let goal = goal(&mut running.owner(), principal);
-    running.stop();
-    copy_stopped_home(original.path(), backup.path());
-
-    let mut running = Running::start(original.path());
-    let old_id = rebind_rules(&mut running.owner(), goal, principal);
-    running.stop();
-    let held = held_events(original.path(), goal);
-    let old = held.iter().find(|e| e.id() == old_id).unwrap();
-
-    let mut restored = Running::start(backup.path());
-    let new_id = rebind_rules(&mut restored.owner(), goal, principal);
-    restored.stop();
-    {
-        let store = SqliteStore::open(backup.path(), &local::marks_dir(backup.path())).unwrap();
-        let new = store.event(&new_id).unwrap().unwrap();
-        assert_ne!(new_id, old_id);
-        assert_eq!(new.header().author, old.header().author);
-        assert_eq!(new.header().seq, old.header().seq);
-        assert_eq!(new.header().prev, old.header().prev);
-    }
-    replay(backup.path(), held);
-    let mut restored = Running::start(backup.path());
-    let mut agent = restored.client(Credential([1; 32]), None);
-    let Response::GoalStatus(status) = agent.call(Request::GoalStatus { goal }).unwrap() else {
-        panic!()
-    };
-    assert!(status.halted.is_some(), "{status:?}");
+    // Beside the marks it kept, the copy is behind until the host's computer
+    // returns the record. The goal's `RESTORED` record outlives the hold.
+    let mut restored = Running::start_with_marks(copy.path(), &marks);
+    let mut agent = restored.client(Credential([2; 32]), None);
+    eventually_observed(
+        "the copy catching up",
+        || goal_status(&mut agent, goal),
+        |status| status.guard.is_empty().then_some(()),
+    );
+    let status = goal_status(&mut agent, goal);
+    assert_eq!(status.restored, Some(0), "{status:?}");
+    let host_endpoint = endpoint_of(&status, shared.host_agent);
     drop(agent);
     restored.stop();
+    std::fs::remove_dir_all(&marks).unwrap();
+
+    let open = Arc::new(AtomicBool::new(false));
+    let gate = open.clone();
+    let mut restored =
+        Running::start_observed(copy.path(), &marks, move |node| Gated { node, open: gate });
+    let mut agent = restored.client(Credential([2; 32]), None);
+    let status = goal_status(&mut agent, goal);
+    assert_eq!(
+        status.guard,
+        vec![GuardView {
+            key: shared.member_agent,
+            by_host: false,
+            reason: GuardReason::Unheard,
+            heard: vec![],
+            waiting: vec![host_endpoint],
+        }]
+    );
+    assert_refused(task_open(&mut agent, goal, "Held"), ErrorCode::ReadOnly);
+    open.store(true, Ordering::Release);
+    eventually_observed(
+        "the host's computer heard",
+        || goal_status(&mut agent, goal),
+        |status| status.guard.is_empty().then_some(()),
+    );
+    let next = member_task_open(&mut agent, goal, "After hearing the host");
+    drop((agent, host_agent));
+    restored.stop();
+    let next = header(copy.path(), &marks, next);
+    assert_eq!(next.prev, Some(lost));
 }
