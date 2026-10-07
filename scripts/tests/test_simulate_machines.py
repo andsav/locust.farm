@@ -57,6 +57,22 @@ class CommandLine(unittest.TestCase):
             self.assertFalse(Path(f"{directory}/sim-2").exists())
             self.assertFalse(Path(f"{directory}/sim-2.marks").exists())
 
+    def test_a_member_signs_only_once_the_restore_guard_holds_nothing(self):
+        import flows
+
+        class Cluster:
+            def __init__(self, state):
+                self.state = state
+
+            def goal_status(self, machine, goal):
+                return self.state
+
+        admitted = {"key": "k", "by_host": False, "reason": "admitted", "heard": [], "waiting": []}
+        self.assertFalse(flows.signs(Cluster({"guard": [admitted]}), None, "g"))
+        self.assertFalse(flows.signs(Cluster(None), None, "g"))
+        self.assertFalse(flows.signs(Cluster({}), None, "g"))
+        self.assertTrue(flows.signs(Cluster({"guard": []}), None, "g"))
+
     def test_mixed_build_without_a_second_binary_is_a_usage_error(self):
         with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as stop:
             run.main(["--binary", "/nonexistent/locust", "mixed-build"])

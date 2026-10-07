@@ -2397,3 +2397,59 @@ fn a_record_lost_with_the_marks_is_signed_over_after_a_later_restore_with_the_ma
     assert_eq!(again.header().seq, lost.header().seq);
     assert_ne!(again.id(), lost.id());
 }
+
+/// Whether a member's daemon can read the rules the goal is bound to now.
+fn reads_rules(daemon: &Daemon, goal: GoalId) -> bool {
+    let entry = &daemon.node.goals[&goal];
+    entry
+        .goal
+        .current_context(Scope::Goal)
+        .and_then(|context| entry.goal.effective_rules(context, &entry.definitions))
+        .is_some()
+}
+
+/// A new member's records arrive in its own join exchange before the
+/// content they name, which it fetches one object at a time. The host's
+/// computer dials it meanwhile, and that exchange brings nothing new, so
+/// the member has heard from the host's computer while it cannot yet read
+/// the goal's rules. Its key stays held until it can: every post before
+/// then would be refused, and was refused as a conflict that "nothing will
+/// change", with the guard already empty.
+#[test]
+fn a_key_just_admitted_waits_for_the_goals_rules_as_well_as_the_hosts_computer() {
+    let mut net = Network::with(2);
+    let (goal, _) = hosted_at_ask(&mut net, 0, HOST);
+    for _ in 0..30 {
+        posted(&mut net, 0, HOST, goal);
+    }
+    let ticket = invite(&mut net.nodes[0], goal);
+    let agent = net.nodes[1].enroll("member", 2);
+    let owner = net.nodes[1].owner();
+    net.nodes[1].ok(owner, join_request(agent, ticket));
+    let host = Network::endpoint(0);
+    let (mut dialed, mut checked) = (false, false);
+    net.poll_only(&[1], 1);
+    while net.step() {
+        let entry = &net.nodes[1].node.goals[&goal];
+        if !dialed && entry.is_member(&agent) && !entry.keys.is_empty() {
+            // The member's records and key are here; its exchange is still
+            // fetching content. The host's computer dials it now.
+            assert!(!reads_rules(&net.nodes[1], goal));
+            dialed = true;
+            net.poll_only(&[0], 1);
+        }
+        if !checked && net.nodes[1].node.heard(&goal).contains(&host) {
+            checked = true;
+            assert!(!reads_rules(&net.nodes[1], goal), "the rules arrived first");
+            assert_eq!(
+                reasons(&summary(&mut net.nodes[1], goal, agent).guard),
+                [(agent, GuardReason::Admitted)]
+            );
+            assert_eq!(code(post(&mut net, 1, 2, goal)), ErrorCode::Unavailable);
+        }
+    }
+    assert!(dialed && checked);
+    assert!(reads_rules(&net.nodes[1], goal));
+    assert!(summary(&mut net.nodes[1], goal, agent).guard.is_empty());
+    post(&mut net, 1, 2, goal).unwrap();
+}

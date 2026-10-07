@@ -52,8 +52,15 @@ def members_ok(cluster, machines, goal, title, expected):
     return True
 
 
+def signs(cluster, machine, goal):
+    """No hold of the restore guard on any key of this machine in the goal."""
+    state = cluster.goal_status(machine, goal)
+    return bool(state) and state.get("guard") == []
+
+
 def invite_join(cluster, coordinator, joiner, goal, title, everyone, timeout=None, after_join=None):
-    """Invite, join, and wait until every listed replica admits everyone.
+    """Invite, join, and wait until every listed replica admits everyone and
+    the joiner can sign.
     Returns seconds from the join command's answer to full admission."""
     ticket = variant(cluster.cli(coordinator, ["goal", "invite", "--goal", goal], owner=True), "invited")["ticket"]
     cluster.summary.setdefault("ticket_hint_kinds", {})[f"M{joiner.number}"] = hint_kinds(ticket)
@@ -71,6 +78,10 @@ def invite_join(cluster, coordinator, joiner, goal, title, everyone, timeout=Non
         set_ask_level(cluster, machine, goal)
     seconds = round(time.monotonic() - sent, 2)
     cluster.summary.setdefault("join_seconds", {})[f"M{joiner.number}"] = seconds
+    # A new member signs nothing until its daemon has heard from the host's
+    # computer and can read the goal's rules: the restore guard's admission
+    # hold, which status lists under `guard` until it ends.
+    cluster.wait(f"M{joiner.number} can sign in the goal", lambda: signs(cluster, joiner, goal), timeout)
     return seconds
 
 

@@ -1741,9 +1741,10 @@ criteria.
 - A key is *held* in a goal while `Node::hold` answers a reason. *Behind*: the
   marks name a record the store does not hold. *Unheard*: the data is a copy
   of unknown age. *Admitted*: the key was just admitted here and this daemon
-  has not yet heard from the host's computer. Where this daemon hosts the
-  goal, an agent's key is also held whenever the governance key is, for the
-  governance key's reason.
+  has not yet heard from the host's computer, or cannot yet read the goal's
+  current rules or seal under its current content key. Where this daemon
+  hosts the goal, an agent's key is also held whenever the governance key
+  is, for the governance key's reason.
 
 What a start finds, from two facts: are the marks the file this installation
 wrote, and is the database the file last used.
@@ -1789,7 +1790,7 @@ When a hold ends by itself:
 | Behind, an agent's key | also when this daemon has heard from every other computer in the goal and its own governance key, if it holds one there, is not held. No computer that can be asked has the record, and the mark is lowered |
 | Any agent's key on the host's computer, held because the governance key is | when the governance key's hold ends |
 | Unheard after a copy of unknown age, on a member's computer | it has heard from the host's computer; or from every other computer that is not the host's, when there is at least one |
-| Admitted | it has heard from the host's computer |
+| Admitted | it has heard from the host's computer and can read the goal's current rules and seal under its current content key. A new member's records arrive before the content they name, and the host's computer can be heard through an exchange it opened, which brings no content; until both have arrived every record the key signs would be refused |
 
 Two holds end only on the person's command (`goal.continue`, below).
 

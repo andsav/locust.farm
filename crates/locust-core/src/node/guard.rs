@@ -16,7 +16,7 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use locust_proto::api::{ApiError, ErrorCode, GuardReason, GuardView, Halt};
 use locust_proto::engine::Entropy;
-use locust_proto::event::AuthorPoint;
+use locust_proto::event::{AuthorPoint, Scope};
 use locust_proto::id::{EndpointId, GoalId, PublicKey};
 use locust_proto::store::{Mark, MarkWrite, Marks, Store};
 
@@ -44,8 +44,9 @@ pub(super) enum Hold {
     Behind { mark: AuthorPoint },
     /// This daemon's data is a copy of unknown age.
     Unheard,
-    /// The key was just admitted here and the host's computer has not been
-    /// heard from since.
+    /// The key was just admitted here, and the host's computer has not been
+    /// heard from since or this daemon cannot yet read the goal's rules or
+    /// seal under its current content key.
     Admitted,
 }
 
@@ -389,15 +390,46 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 ended = true;
             }
         }
-        if host_heard {
-            for key in &entry.local.unheard {
-                tx.local(local::unheard_delete(&goal, key));
-                ended = true;
-            }
-        }
+        ended |= Self::end_admissions(entry, host_heard, tx);
         if ended {
             tx.touch(goal);
         }
+    }
+
+    /// Ends the holds of keys just admitted in `entry`'s goal once the
+    /// host's computer has been heard and this daemon can judge and seal
+    /// what they would sign ([`ready`]). Answers whether it ended any.
+    fn end_admissions(entry: &Entry, host_heard: bool, tx: &mut Tx) -> bool {
+        if !host_heard || !ready(entry) {
+            return false;
+        }
+        for key in &entry.local.unheard {
+            tx.local(local::unheard_delete(&entry.id(), key));
+        }
+        !entry.local.unheard.is_empty()
+    }
+
+    /// Ends the admission holds of `goal` that waited only for content to
+    /// arrive after the host's computer was heard. Run by every landing that
+    /// touches a goal with such a hold, since content lands outside any
+    /// hearing.
+    pub(super) fn guard_admissions(&mut self, goal: GoalId) -> Result<(), ApiError> {
+        let Some(entry) = self.goals.get(&goal) else {
+            return Ok(());
+        };
+        if entry.local.unheard.is_empty() || self.hosts(entry) {
+            return Ok(());
+        }
+        let host_heard = self
+            .guard_sources(entry)
+            .host
+            .is_some_and(|host| self.heard(&goal).contains(&host));
+        let mut tx = Tx::none();
+        if Self::end_admissions(entry, host_heard, &mut tx) {
+            tx.touch(goal);
+            self.land_once(tx)?;
+        }
+        Ok(())
     }
 
     /// Writes the goal's `RESTORED` record. Where this daemon hosts the goal
@@ -760,6 +792,23 @@ fn behind(
     let mark = marks.get(&(entry.id(), *key))?;
     (entry.goal.fork_point(key).is_none() && !entry.goal.holds_usable(key, mark.point))
         .then_some(Hold::Behind { mark: mark.point })
+}
+
+/// Whether this daemon can judge and seal what a member signs in the goal:
+/// the rules the goal is bound to now are readable here, and the content
+/// key of the current epoch is held. A new member's records arrive before
+/// the content they name, so until then every candidate it signs is refused.
+fn ready(entry: &Entry) -> bool {
+    entry.keys.contains_key(&entry.state().epoch)
+        && entry
+            .goal
+            .current_context(Scope::Goal)
+            .is_none_or(|context| {
+                entry
+                    .goal
+                    .effective_rules(context, &entry.definitions)
+                    .is_some()
+            })
 }
 
 fn unheard(entry: &Entry, key: &PublicKey) -> Option<Hold> {

@@ -178,6 +178,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             self.project_deliveries(goal, &mut deliveries);
             self.land_once(deliveries)?;
             self.forget_callers(goal);
+            self.guard_admissions(goal)?;
             self.drive_flow(goal)?;
         }
         Ok(())

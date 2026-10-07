@@ -143,20 +143,35 @@ impl Network {
     }
     fn settle(&mut self) {
         let mut steps = 0;
-        while let Some((i, input)) = self.queue.pop_front() {
+        while self.step() {
             steps += 1;
             assert!(steps < 100_000, "test transport failed to settle");
-            if let PeerInput::Frame { exchange, .. } = &input {
-                if !self.routes.contains_key(&(i, *exchange)) {
-                    continue;
-                }
-                if !self.nodes[i].node.peer_readable(*exchange) {
-                    self.queue.push_back((i, input));
-                    continue;
-                }
-            }
-            self.input(i, input);
         }
+    }
+    /// Lets time pass and polls only `dialers`, delivering nothing yet:
+    /// [`Network::step`] then delivers the inputs one at a time.
+    pub(super) fn poll_only(&mut self, dialers: &[usize], elapsed: u64) {
+        self.now += elapsed;
+        for &i in dialers {
+            self.input(i, PeerInput::Poll);
+        }
+    }
+    /// Delivers the next queued input. False when none is left.
+    pub(super) fn step(&mut self) -> bool {
+        let Some((i, input)) = self.queue.pop_front() else {
+            return false;
+        };
+        if let PeerInput::Frame { exchange, .. } = &input {
+            if !self.routes.contains_key(&(i, *exchange)) {
+                return true;
+            }
+            if !self.nodes[i].node.peer_readable(*exchange) {
+                self.queue.push_back((i, input));
+                return true;
+            }
+        }
+        self.input(i, input);
+        true
     }
     pub(super) fn restart(&mut self) {
         self.routes.clear();
