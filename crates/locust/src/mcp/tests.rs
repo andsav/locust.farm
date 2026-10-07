@@ -299,9 +299,12 @@ fn strings_written_for_a_model_name_listed_tools_and_no_operation() {
     }
 
     // Everything the bridge itself writes: the instructions, the listing,
-    // and its own argument and receipt-reference errors. Daemon answers are
-    // not written here.
-    let mut written = vec![INSTRUCTIONS.to_owned()];
+    // and its own argument and receipt-reference errors, plus the packaged
+    // skill a model reads beside them. Daemon answers are not written here.
+    let mut written = vec![
+        INSTRUCTIONS.to_owned(),
+        include_str!("../../../../skills/locust/SKILL.md").to_owned(),
+    ];
     for tool in &tools {
         strings(tool, &mut written);
     }
@@ -331,6 +334,23 @@ fn strings_written_for_a_model_name_listed_tools_and_no_operation() {
                 operation.name
             );
         }
+    }
+    // Every operation an agent or author can call says what it does, not
+    // just its name: the summary is the tool description and the command's
+    // help.
+    for operation in OPERATIONS.iter().filter(|op| {
+        matches!(
+            op.audience,
+            locust_proto::api::Audience::Agent | locust_proto::api::Audience::Author
+        )
+    }) {
+        let bare = operation.name.replace(['.', '_'], " ");
+        assert!(
+            !operation.summary.eq_ignore_ascii_case(&bare)
+                && !operation.summary.eq_ignore_ascii_case(operation.name),
+            "{} has only its name as its summary",
+            operation.name
+        );
     }
     // The old words are gone from the instructions and every description.
     let descriptions: Vec<String> = std::iter::once(INSTRUCTIONS.to_owned())

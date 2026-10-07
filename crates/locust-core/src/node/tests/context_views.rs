@@ -163,6 +163,73 @@ fn context_continuations_bind_view_preview_limit_and_session() {
 }
 
 #[test]
+fn a_context_limit_above_the_page_maximum_is_capped_and_continues() {
+    use locust_proto::api::MAX_CONTEXT_PAGE;
+    let (mut d, _, _, agent, goal) = setup();
+    let findings: Vec<_> = (0..=MAX_CONTEXT_PAGE)
+        .map(|index| event(d.ok(agent, finding(goal, &format!("Finding {index}")))))
+        .collect();
+    assert_eq!(findings.len(), 33);
+    let first = context(
+        &mut d,
+        agent,
+        read(goal, ContextViewMode::Full, None, u32::MAX),
+    );
+    assert_eq!(first.items.len(), MAX_CONTEXT_PAGE as usize);
+    let next = first.next.clone().unwrap();
+    assert_eq!(next.limit, MAX_CONTEXT_PAGE);
+    // The capped cursor also follows with any other limit at or above the cap.
+    let other = context(
+        &mut d,
+        agent,
+        read(goal, ContextViewMode::Full, Some(next), 1000),
+    );
+    let mut seen = Vec::new();
+    let mut page = first;
+    let mut pages = 1;
+    loop {
+        assert!(page.items.len() <= MAX_CONTEXT_PAGE as usize);
+        let delivered: Vec<_> = page
+            .items
+            .iter()
+            .map(|item| item.event.view.event)
+            .collect();
+        // Each receipt lists only what its own page delivered.
+        let receipt = page.receipt.unwrap();
+        assert!(
+            receipt
+                .entries
+                .iter()
+                .all(|entry| delivered.contains(&entry.event))
+        );
+        for finding in delivered.iter().filter(|id| findings.contains(id)) {
+            assert!(receipt.entries.iter().any(|entry| entry.event == *finding));
+        }
+        seen.extend(delivered);
+        let Some(after) = page.next else {
+            break;
+        };
+        page = context(
+            &mut d,
+            agent,
+            read(goal, ContextViewMode::Full, Some(after), u32::MAX),
+        );
+        if pages == 1 {
+            assert_eq!(page, other);
+        }
+        pages += 1;
+    }
+    assert!(pages >= 2);
+    for finding in &findings {
+        assert_eq!(seen.iter().filter(|id| *id == finding).count(), 1);
+    }
+    let mut unique = seen.clone();
+    unique.sort();
+    unique.dedup();
+    assert_eq!(unique.len(), seen.len());
+}
+
+#[test]
 fn pending_delivery_page_roundtrips_native_codec() {
     use locust_proto::api::DeliveryItem;
     use locust_proto::event::{Context, Scope};
@@ -447,18 +514,26 @@ fn compact_seen_context_size_does_not_repeat_review_obligations() {
             );
         }
     }
-    let all = context(
-        &mut d,
-        agent,
-        read(goal, ContextViewMode::Full, None, u32::MAX),
-    );
-    d.ok(
-        agent,
-        Request::ContextAcknowledge {
-            goal,
-            receipt: all.receipt.unwrap(),
-        },
-    );
+    // Acknowledge every page, so the unread read below has seen it all.
+    let mut after = None;
+    loop {
+        let page = context(
+            &mut d,
+            agent,
+            read(goal, ContextViewMode::Full, after, u32::MAX),
+        );
+        d.ok(
+            agent,
+            Request::ContextAcknowledge {
+                goal,
+                receipt: page.receipt.unwrap(),
+            },
+        );
+        after = page.next;
+        if after.is_none() {
+            break;
+        }
+    }
     let mut request = read(goal, ContextViewMode::Compact, None, 16);
     let Request::Context { unread_only, .. } = &mut request else {
         unreachable!()

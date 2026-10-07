@@ -45,6 +45,8 @@ fn context(
     let Response::Context(context) = d.ok(conn, read(goal, task, None, 1000, None, unread)) else {
         panic!()
     };
+    // Callers treat this as the whole context, so it must fit in one page.
+    assert!(context.next.is_none(), "context spans more than one page");
     *context
 }
 
@@ -767,8 +769,20 @@ fn context_read_performance() {
             "context_unread_page",
             read(goal, None, None, 16, None, true),
         );
-        let receipt = context(&mut d, agent, goal, None, true).receipt.unwrap();
-        acknowledge(&mut d, agent, receipt);
+        let mut after = None;
+        loop {
+            let Response::Context(page) = d.ok(agent, read(goal, None, after, 1000, None, true))
+            else {
+                panic!()
+            };
+            if let Some(receipt) = page.receipt {
+                acknowledge(&mut d, agent, receipt);
+            }
+            after = page.next;
+            if after.is_none() {
+                break;
+            }
+        }
         measure(
             &mut d,
             agent,

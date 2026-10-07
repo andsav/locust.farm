@@ -2564,7 +2564,7 @@
         "arguments": [],
         "commands": [],
         "name": "sessions",
-        "summary": "sessions"
+        "summary": "Lists the sessions on this computer, only the caller's own for an agent, each with its last report and when it was written, whether a connection holds it open, and its claims on unfinished attempts."
       },
       {
         "arguments": [
@@ -2596,7 +2596,7 @@
         ],
         "commands": [],
         "name": "board",
-        "summary": "board"
+        "summary": "Lists every task in the goal, the only read that does, each with its title, creator, the attempts and results of its current round, and whether it is completed, selected or closed."
       },
       {
         "arguments": [
@@ -2621,7 +2621,7 @@
         ],
         "commands": [],
         "name": "contributions",
-        "summary": "contributions"
+        "summary": "Lists the goal's results and findings, or one task's, each with its author, attempt, text, declared sources, artifacts and whether it is approved or selected. Read it to reuse earlier work before publishing."
       },
       {
         "arguments": [
@@ -2689,7 +2689,7 @@
         ],
         "commands": [],
         "name": "events",
-        "summary": "events"
+        "summary": "Pages through the goal's feed in the order events took effect here, each with its position, author, kind and standing, at most 256 per page. Pass the last position as after; reading acknowledges nothing."
       },
       {
         "arguments": [],
@@ -2881,7 +2881,7 @@
             ],
             "commands": [],
             "name": "cancel",
-            "summary": "attempt cancel"
+            "summary": "Asks the worker to stop one attempt; only its worker or the member who offered it may ask. Once the request arrives, the attempt takes no more results or progress, and its worker must acknowledge it."
           },
           {
             "arguments": [
@@ -2988,7 +2988,7 @@
             ],
             "commands": [],
             "name": "put",
-            "summary": "blob put"
+            "summary": "Stores bytes as one sealed content object of the goal and returns its hash. Use it before naming the object as a result's artifact or a task's input."
           },
           {
             "arguments": [
@@ -3013,7 +3013,7 @@
             ],
             "commands": [],
             "name": "get",
-            "summary": "blob get"
+            "summary": "Returns the plaintext of one content object the goal names, if held here and not withdrawn. A missing object is requested from peers, and the answer is unavailable until it arrives."
           },
           {
             "arguments": [
@@ -3038,7 +3038,7 @@
             ],
             "commands": [],
             "name": "stat",
-            "summary": "blob stat"
+            "summary": "Reports for each hash asked about whether the goal's content object is held here, requested from peers, unavailable or unknown to the goal. It fetches nothing; use it to check artifacts before relying on them."
           },
           {
             "arguments": [
@@ -3063,7 +3063,7 @@
             ],
             "commands": [],
             "name": "withdraw",
-            "summary": "blob withdraw"
+            "summary": "Withdraws one content object of the goal on this computer: peers are no longer served it and local reads refuse it, but the stored bytes stay as evidence. Other computers keep their copies."
           }
         ],
         "name": "blob",
@@ -3172,7 +3172,7 @@
             ],
             "commands": [],
             "name": "attest",
-            "summary": "check attest"
+            "summary": "Records that a named check passed or failed on one exact result, document revision or workspace proposal, with a note. It is refused unless the completion rule in effect names that check and the caller."
           }
         ],
         "name": "check",
@@ -3288,7 +3288,7 @@
             ],
             "commands": [],
             "name": "declare",
-            "summary": "completion declare"
+            "summary": "Declares one exact result, document revision or workspace proposal complete. It is refused unless the completion rule in effect accepts a declaration from the caller, for example from the result's own author."
           }
         ],
         "name": "completion",
@@ -3458,7 +3458,7 @@
             ],
             "commands": [],
             "name": "publish",
-            "summary": "contribution publish"
+            "summary": "Publishes a result or finding with a summary, declared sources and artifacts. With an attempt and its generation it is that attempt's result; with neither it is a goal-wide finding that members see in context."
           },
           {
             "arguments": [
@@ -3534,7 +3534,7 @@
             ],
             "commands": [],
             "name": "acknowledge",
-            "summary": "delivery acknowledge"
+            "summary": "Records that the caller, a recipient of one durable delivery, received and handled it; pending then shows it acknowledged. It does not replace review, execution or scope decisions."
           }
         ],
         "name": "delivery",
@@ -3566,7 +3566,7 @@
             ],
             "commands": [],
             "name": "read",
-            "summary": "doc read"
+            "summary": "Shows the goal's plan or summary document: the selected revision and its text when held here, and the other proposed revisions, each readable as an event."
           },
           {
             "arguments": [
@@ -3609,7 +3609,7 @@
             ],
             "commands": [],
             "name": "revise",
-            "summary": "doc revise"
+            "summary": "Proposes a new revision of the goal's plan or summary document as full text, with base naming the revision it builds on. Until it is selected, reading the document lists it as a proposal."
           }
         ],
         "name": "doc",
@@ -3641,7 +3641,7 @@
             ],
             "commands": [],
             "name": "show",
-            "summary": "event show"
+            "summary": "Shows one event in full: its author, kind and standing, its signed body, its text when held here, the task it concerns and whether each content object it names is held. Use it to judge a result."
           }
         ],
         "name": "event",
@@ -3792,7 +3792,7 @@
                 ],
                 "commands": [],
                 "name": "create",
-                "summary": "formation draft create"
+                "summary": "Creates a private formation draft under a new identifier with expected revision 0, from source that may be incomplete or invalid. Start a reusable definition here; publishing validates it."
               },
               {
                 "arguments": [
@@ -3826,7 +3826,7 @@
                 ],
                 "commands": [],
                 "name": "update",
-                "summary": "formation draft update"
+                "summary": "Replaces a draft's source when expected revision matches, returning the draft at its next revision. A mismatch is refused with the current draft, so local edits can be merged before retrying."
               },
               {
                 "arguments": [
@@ -3842,7 +3842,7 @@
                 ],
                 "commands": [],
                 "name": "show",
-                "summary": "formation draft show"
+                "summary": "Returns one of the caller's drafts with its revision, exact source and source hash. Read it before an update or a publish, since both need the current revision."
               }
             ],
             "name": "draft",
@@ -3852,7 +3852,7 @@
             "arguments": [],
             "commands": [],
             "name": "drafts",
-            "summary": "formation drafts"
+            "summary": "Lists all of the caller's private formation drafts, each with its identifier, revision, exact source and source hash. Use it to find a draft to edit or publish."
           },
           {
             "arguments": [
@@ -3895,7 +3895,7 @@
             ],
             "commands": [],
             "name": "publish",
-            "summary": "formation publish"
+            "summary": "Publishes the exact draft revision and source hash under a new identifier as an immutable, validated definition with its normalized form and semantic hash. Repeating the same request returns the same publication."
           },
           {
             "arguments": [
@@ -3911,13 +3911,13 @@
             ],
             "commands": [],
             "name": "show",
-            "summary": "formation show"
+            "summary": "Returns one of the caller's immutable publications: the draft and revision it came from, its exact source and source hash, the normalized definition and its semantic hash."
           },
           {
             "arguments": [],
             "commands": [],
             "name": "list",
-            "summary": "formation list"
+            "summary": "Lists all of the caller's immutable formation publications, each with the draft and revision it came from, its source, normalized definition and semantic hash."
           },
           {
             "arguments": [],
@@ -3936,7 +3936,7 @@
                 ],
                 "commands": [],
                 "name": "show",
-                "summary": "formation presentation show"
+                "summary": "Returns a draft's presentation layout, its JSON data and revision. The layout is kept apart from the source and never enters any semantic hash."
               },
               {
                 "arguments": [
@@ -3970,7 +3970,7 @@
                 ],
                 "commands": [],
                 "name": "update",
-                "summary": "formation presentation update"
+                "summary": "Replaces a draft's presentation layout JSON when expected revision matches. The layout has its own revision and never changes the source or any publication's semantic identity."
               }
             ],
             "name": "presentation",
@@ -4646,7 +4646,7 @@
             ],
             "commands": [],
             "name": "select",
-            "summary": "scope select"
+            "summary": "Selects one result or document revision as the outcome of its task, document or goal; only the member the rules name may select, and expected names the previous selection. Workspace changes are refused here and integrated instead."
           },
           {
             "arguments": [
@@ -4680,7 +4680,7 @@
             ],
             "commands": [],
             "name": "close",
-            "summary": "scope close"
+            "summary": "Closes the current round of a task, document or the goal; only the member the rules name to finish it may, and expected names the previous close or reopen. A closed task takes no new attempts until reopened."
           },
           {
             "arguments": [
@@ -4714,7 +4714,7 @@
             ],
             "commands": [],
             "name": "reopen",
-            "summary": "scope reopen"
+            "summary": "Reopens a task, document or the goal closed in its current round; only the member the rules name to finish it may, and expected names that close. A reopened task accepts attempts as it did before the close."
           }
         ],
         "name": "scope",
@@ -4753,7 +4753,7 @@
             ],
             "commands": [],
             "name": "report",
-            "summary": "session report"
+            "summary": "Records this session's report on this computer, replacing the last one: client and version, session state, resume identifier, capabilities and adapter detail. The launcher or adapter sends it; agent work never needs it."
           },
           {
             "arguments": [
@@ -4769,7 +4769,7 @@
             ],
             "commands": [],
             "name": "show",
-            "summary": "session show"
+            "summary": "Shows one of the caller's sessions on this computer, the calling one when none is named: its last report and when it was written, whether a connection holds it open, and its claims on unfinished attempts."
           },
           {
             "arguments": [
@@ -4785,7 +4785,7 @@
             ],
             "commands": [],
             "name": "drop",
-            "summary": "session drop"
+            "summary": "Removes a session's record from this computer once it holds no unfinished attempt. Only the session itself or the owner may drop it, and the session stays bound to its agent."
           }
         ],
         "name": "session",
@@ -4817,7 +4817,7 @@
             ],
             "commands": [],
             "name": "show",
-            "summary": "task show"
+            "summary": "Shows one task in full: its text, named inputs, parent, task type and the rules in effect for its current round as JSON, with the summary the board gives. Read it before working on the task."
           },
           {
             "arguments": [
@@ -4869,7 +4869,7 @@
             ],
             "commands": [],
             "name": "open",
-            "summary": "task open"
+            "summary": "Opens a task from its text, whose first line is its title, with named inputs, an optional task type and an optional parent. A task with a parent follows that parent's rules, others the goal's current rules."
           },
           {
             "arguments": [
@@ -4962,7 +4962,7 @@
             ],
             "commands": [],
             "name": "offer",
-            "summary": "work offer"
+            "summary": "Offers a task to one named member, where the goal's rules let the caller offer to that member. The member then starts an attempt with the offer or declines it; an offer alone is not an attempt."
           },
           {
             "arguments": [
@@ -4987,7 +4987,7 @@
             ],
             "commands": [],
             "name": "decline",
-            "summary": "work decline"
+            "summary": "Declines a work offer made to the caller, so the task is not started through it. Only the offer's recipient may decline, and only an offer it has not yet accepted or declined."
           }
         ],
         "name": "work",
@@ -7006,7 +7006,7 @@
       "mcp_tool": null,
       "name": "session.report",
       "read_only": false,
-      "summary": "session report"
+      "summary": "Records this session's report on this computer, replacing the last one: client and version, session state, resume identifier, capabilities and adapter detail. The launcher or adapter sends it; agent work never needs it."
     },
     {
       "audience": "agent",
@@ -7014,7 +7014,7 @@
       "mcp_tool": null,
       "name": "session.show",
       "read_only": true,
-      "summary": "session show"
+      "summary": "Shows one of the caller's sessions on this computer, the calling one when none is named: its last report and when it was written, whether a connection holds it open, and its claims on unfinished attempts."
     },
     {
       "audience": "agent",
@@ -7022,7 +7022,7 @@
       "mcp_tool": null,
       "name": "sessions",
       "read_only": true,
-      "summary": "sessions"
+      "summary": "Lists the sessions on this computer, only the caller's own for an agent, each with its last report and when it was written, whether a connection holds it open, and its claims on unfinished attempts."
     },
     {
       "audience": "agent",
@@ -7030,7 +7030,7 @@
       "mcp_tool": null,
       "name": "session.drop",
       "read_only": false,
-      "summary": "session drop"
+      "summary": "Removes a session's record from this computer once it holds no unfinished attempt. Only the session itself or the owner may drop it, and the session stays bound to its agent."
     },
     {
       "audience": "owner",
@@ -7278,7 +7278,7 @@
       "mcp_tool": "locust_board",
       "name": "board",
       "read_only": true,
-      "summary": "board"
+      "summary": "Lists every task in the goal, the only read that does, each with its title, creator, the attempts and results of its current round, and whether it is completed, selected or closed."
     },
     {
       "audience": "agent",
@@ -7286,7 +7286,7 @@
       "mcp_tool": "locust_task_show",
       "name": "task.show",
       "read_only": true,
-      "summary": "task show"
+      "summary": "Shows one task in full: its text, named inputs, parent, task type and the rules in effect for its current round as JSON, with the summary the board gives. Read it before working on the task."
     },
     {
       "audience": "agent",
@@ -7294,7 +7294,7 @@
       "mcp_tool": "locust_event_show",
       "name": "event.show",
       "read_only": true,
-      "summary": "event show"
+      "summary": "Shows one event in full: its author, kind and standing, its signed body, its text when held here, the task it concerns and whether each content object it names is held. Use it to judge a result."
     },
     {
       "audience": "agent",
@@ -7302,7 +7302,7 @@
       "mcp_tool": "locust_task_open",
       "name": "task.open",
       "read_only": false,
-      "summary": "task open"
+      "summary": "Opens a task from its text, whose first line is its title, with named inputs, an optional task type and an optional parent. A task with a parent follows that parent's rules, others the goal's current rules."
     },
     {
       "audience": "host",
@@ -7318,7 +7318,7 @@
       "mcp_tool": "locust_work_offer",
       "name": "work.offer",
       "read_only": false,
-      "summary": "work offer"
+      "summary": "Offers a task to one named member, where the goal's rules let the caller offer to that member. The member then starts an attempt with the offer or declines it; an offer alone is not an attempt."
     },
     {
       "audience": "agent",
@@ -7342,7 +7342,7 @@
       "mcp_tool": "locust_work_decline",
       "name": "work.decline",
       "read_only": false,
-      "summary": "work decline"
+      "summary": "Declines a work offer made to the caller, so the task is not started through it. Only the offer's recipient may decline, and only an offer it has not yet accepted or declined."
     },
     {
       "audience": "agent",
@@ -7350,7 +7350,7 @@
       "mcp_tool": "locust_attempt_cancel",
       "name": "attempt.cancel",
       "read_only": false,
-      "summary": "attempt cancel"
+      "summary": "Asks the worker to stop one attempt; only its worker or the member who offered it may ask. Once the request arrives, the attempt takes no more results or progress, and its worker must acknowledge it."
     },
     {
       "audience": "agent",
@@ -7366,7 +7366,7 @@
       "mcp_tool": "locust_contribution_publish",
       "name": "contribution.publish",
       "read_only": false,
-      "summary": "contribution publish"
+      "summary": "Publishes a result or finding with a summary, declared sources and artifacts. With an attempt and its generation it is that attempt's result; with neither it is a goal-wide finding that members see in context."
     },
     {
       "audience": "agent",
@@ -7374,7 +7374,7 @@
       "mcp_tool": "locust_contributions",
       "name": "contributions",
       "read_only": true,
-      "summary": "contributions"
+      "summary": "Lists the goal's results and findings, or one task's, each with its author, attempt, text, declared sources, artifacts and whether it is approved or selected. Read it to reuse earlier work before publishing."
     },
     {
       "audience": "agent",
@@ -7390,7 +7390,7 @@
       "mcp_tool": "locust_completion_declare",
       "name": "completion.declare",
       "read_only": false,
-      "summary": "completion declare"
+      "summary": "Declares one exact result, document revision or workspace proposal complete. It is refused unless the completion rule in effect accepts a declaration from the caller, for example from the result's own author."
     },
     {
       "audience": "agent",
@@ -7406,7 +7406,7 @@
       "mcp_tool": "locust_check_attest",
       "name": "check.attest",
       "read_only": false,
-      "summary": "check attest"
+      "summary": "Records that a named check passed or failed on one exact result, document revision or workspace proposal, with a note. It is refused unless the completion rule in effect names that check and the caller."
     },
     {
       "audience": "agent",
@@ -7414,7 +7414,7 @@
       "mcp_tool": "locust_scope_select",
       "name": "scope.select",
       "read_only": false,
-      "summary": "scope select"
+      "summary": "Selects one result or document revision as the outcome of its task, document or goal; only the member the rules name may select, and expected names the previous selection. Workspace changes are refused here and integrated instead."
     },
     {
       "audience": "agent",
@@ -7422,7 +7422,7 @@
       "mcp_tool": "locust_scope_close",
       "name": "scope.close",
       "read_only": false,
-      "summary": "scope close"
+      "summary": "Closes the current round of a task, document or the goal; only the member the rules name to finish it may, and expected names the previous close or reopen. A closed task takes no new attempts until reopened."
     },
     {
       "audience": "agent",
@@ -7430,7 +7430,7 @@
       "mcp_tool": "locust_scope_reopen",
       "name": "scope.reopen",
       "read_only": false,
-      "summary": "scope reopen"
+      "summary": "Reopens a task, document or the goal closed in its current round; only the member the rules name to finish it may, and expected names that close. A reopened task accepts attempts as it did before the close."
     },
     {
       "audience": "agent",
@@ -7438,7 +7438,7 @@
       "mcp_tool": "locust_delivery_acknowledge",
       "name": "delivery.acknowledge",
       "read_only": false,
-      "summary": "delivery acknowledge"
+      "summary": "Records that the caller, a recipient of one durable delivery, received and handled it; pending then shows it acknowledged. It does not replace review, execution or scope decisions."
     },
     {
       "audience": "agent",
@@ -7478,7 +7478,7 @@
       "mcp_tool": "locust_events",
       "name": "events",
       "read_only": true,
-      "summary": "events"
+      "summary": "Pages through the goal's feed in the order events took effect here, each with its position, author, kind and standing, at most 256 per page. Pass the last position as after; reading acknowledges nothing."
     },
     {
       "audience": "agent",
@@ -7486,7 +7486,7 @@
       "mcp_tool": "locust_doc_read",
       "name": "doc.read",
       "read_only": true,
-      "summary": "doc read"
+      "summary": "Shows the goal's plan or summary document: the selected revision and its text when held here, and the other proposed revisions, each readable as an event."
     },
     {
       "audience": "agent",
@@ -7494,7 +7494,7 @@
       "mcp_tool": "locust_doc_revise",
       "name": "doc.revise",
       "read_only": false,
-      "summary": "doc revise"
+      "summary": "Proposes a new revision of the goal's plan or summary document as full text, with base naming the revision it builds on. Until it is selected, reading the document lists it as a proposal."
     },
     {
       "audience": "agent",
@@ -7502,7 +7502,7 @@
       "mcp_tool": null,
       "name": "blob.put",
       "read_only": false,
-      "summary": "blob put"
+      "summary": "Stores bytes as one sealed content object of the goal and returns its hash. Use it before naming the object as a result's artifact or a task's input."
     },
     {
       "audience": "agent",
@@ -7510,7 +7510,7 @@
       "mcp_tool": null,
       "name": "blob.get",
       "read_only": true,
-      "summary": "blob get"
+      "summary": "Returns the plaintext of one content object the goal names, if held here and not withdrawn. A missing object is requested from peers, and the answer is unavailable until it arrives."
     },
     {
       "audience": "agent",
@@ -7518,7 +7518,7 @@
       "mcp_tool": "locust_blob_stat",
       "name": "blob.stat",
       "read_only": true,
-      "summary": "blob stat"
+      "summary": "Reports for each hash asked about whether the goal's content object is held here, requested from peers, unavailable or unknown to the goal. It fetches nothing; use it to check artifacts before relying on them."
     },
     {
       "audience": "agent",
@@ -7526,7 +7526,7 @@
       "mcp_tool": "locust_blob_withdraw",
       "name": "blob.withdraw",
       "read_only": false,
-      "summary": "blob withdraw"
+      "summary": "Withdraws one content object of the goal on this computer: peers are no longer served it and local reads refuse it, but the stored bytes stay as evidence. Other computers keep their copies."
     },
     {
       "audience": "author",
@@ -7534,7 +7534,7 @@
       "mcp_tool": "locust_formation_draft_create",
       "name": "formation.draft.create",
       "read_only": false,
-      "summary": "formation draft create"
+      "summary": "Creates a private formation draft under a new identifier with expected revision 0, from source that may be incomplete or invalid. Start a reusable definition here; publishing validates it."
     },
     {
       "audience": "author",
@@ -7542,7 +7542,7 @@
       "mcp_tool": "locust_formation_draft_update",
       "name": "formation.draft.update",
       "read_only": false,
-      "summary": "formation draft update"
+      "summary": "Replaces a draft's source when expected revision matches, returning the draft at its next revision. A mismatch is refused with the current draft, so local edits can be merged before retrying."
     },
     {
       "audience": "author",
@@ -7550,7 +7550,7 @@
       "mcp_tool": "locust_formation_draft_show",
       "name": "formation.draft.show",
       "read_only": true,
-      "summary": "formation draft show"
+      "summary": "Returns one of the caller's drafts with its revision, exact source and source hash. Read it before an update or a publish, since both need the current revision."
     },
     {
       "audience": "author",
@@ -7558,7 +7558,7 @@
       "mcp_tool": "locust_formation_drafts",
       "name": "formation.drafts",
       "read_only": true,
-      "summary": "formation drafts"
+      "summary": "Lists all of the caller's private formation drafts, each with its identifier, revision, exact source and source hash. Use it to find a draft to edit or publish."
     },
     {
       "audience": "author",
@@ -7566,7 +7566,7 @@
       "mcp_tool": "locust_formation_publish",
       "name": "formation.publish",
       "read_only": false,
-      "summary": "formation publish"
+      "summary": "Publishes the exact draft revision and source hash under a new identifier as an immutable, validated definition with its normalized form and semantic hash. Repeating the same request returns the same publication."
     },
     {
       "audience": "author",
@@ -7574,7 +7574,7 @@
       "mcp_tool": "locust_formation_show",
       "name": "formation.show",
       "read_only": true,
-      "summary": "formation show"
+      "summary": "Returns one of the caller's immutable publications: the draft and revision it came from, its exact source and source hash, the normalized definition and its semantic hash."
     },
     {
       "audience": "author",
@@ -7582,7 +7582,7 @@
       "mcp_tool": "locust_formation_list",
       "name": "formation.list",
       "read_only": true,
-      "summary": "formation list"
+      "summary": "Lists all of the caller's immutable formation publications, each with the draft and revision it came from, its source, normalized definition and semantic hash."
     },
     {
       "audience": "author",
@@ -7590,7 +7590,7 @@
       "mcp_tool": "locust_formation_presentation_show",
       "name": "formation.presentation.show",
       "read_only": true,
-      "summary": "formation presentation show"
+      "summary": "Returns a draft's presentation layout, its JSON data and revision. The layout is kept apart from the source and never enters any semantic hash."
     },
     {
       "audience": "author",
@@ -7598,7 +7598,7 @@
       "mcp_tool": "locust_formation_presentation_update",
       "name": "formation.presentation.update",
       "read_only": false,
-      "summary": "formation presentation update"
+      "summary": "Replaces a draft's presentation layout JSON when expected revision matches. The layout has its own revision and never changes the source or any publication's semantic identity."
     },
     {
       "audience": "author",
@@ -7606,7 +7606,7 @@
       "mcp_tool": "locust_formation_validate",
       "name": "formation.validate",
       "read_only": true,
-      "summary": "formation validate"
+      "summary": "Checks formation source text without saving it and returns whether it is valid, with diagnostics and, when valid, the normalized definition, semantic hash and explanation. Use it while editing, before publishing."
     },
     {
       "audience": "author",
@@ -7614,7 +7614,7 @@
       "mcp_tool": "locust_formation_explain",
       "name": "formation.explain",
       "read_only": true,
-      "summary": "formation explain"
+      "summary": "Inspects formation source text without saving it, as validation does; when valid, the explanation summarizes the definition and lists required roles and inputs, authority roles and contextual checks."
     },
     {
       "audience": "agent",
@@ -11366,6 +11366,7 @@
                 "$ref": "#/$defs/GoalId"
               },
               "limit": {
+                "description": "Most items on this page, at least 1.\nA value above 32 is treated as 32; follow next for the rest.",
                 "format": "uint32",
                 "minimum": 0,
                 "type": "integer"

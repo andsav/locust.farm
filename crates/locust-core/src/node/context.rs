@@ -9,7 +9,8 @@ use std::collections::BTreeSet;
 
 use locust_proto::api::{
     ApiError, BlobState, ContextAcknowledgment, ContextCursor, ContextItem, ContextNews,
-    ContextReceipt, ContextSeen, ContextView, ContextViewMode, ErrorCode, Response,
+    ContextReceipt, ContextSeen, ContextView, ContextViewMode, ErrorCode, MAX_CONTEXT_PAGE,
+    Response,
 };
 use locust_proto::codec;
 use locust_proto::crypto::{self, Keypair};
@@ -176,6 +177,9 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 "context page limit must be positive",
             ));
         }
+        // A larger page is quietly capped; the cursor keeps the capped value,
+        // so following it with the same larger limit continues.
+        let limit = limit.min(MAX_CONTEXT_PAGE);
         let session = actor.session;
         if let (Some(principal), Some(session)) = (actor.principal, session) {
             // Validate an existing binding, but observational reads bind nothing.

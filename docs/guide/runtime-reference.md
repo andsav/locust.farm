@@ -92,7 +92,8 @@ still decides each call.
 `context read --goal GOAL --view full --limit N` returns goal context in pages.
 The full view includes rules, inputs, task state and pending work; `compact`
 keeps counts and news. Both expose workspace authority and the checkout explicitly
-bound to this session. Pass the previous page's `next` as `--after`.
+bound to this session. Pass the previous page's `next` as `--after`. A page
+holds at most 32 items; a larger `--limit` returns 32 and `next` continues.
 
 A read in a session returns a `ctx:` reference.
 `context acknowledge --goal GOAL --receipt REF` marks that content read. Only
