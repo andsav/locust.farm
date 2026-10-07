@@ -178,3 +178,45 @@ source commit `ec1e07882c237d95069ff1ace5b0015154cf8468` and match. The model
 semantics, configurations and case registry are unchanged; the new model hash
 includes the corrected header comment. The registry's Phase 4 baseline remains
 `8c086c1` and is not a claim that it includes these later Rust fixes.
+
+
+## G1 review fixes to the E1 and E2 models, 2026-10-07
+
+The earlier records above predate E1's `end` and E2's `leave`. These three
+runs check the models after the fixes for findings 16 to 22 of the
+[G1 review](../../../v2-phase-g1-review-2026-10-07.md). All three ran on the
+clean commit `e995af53679c22d1e966817707b6eb43a0f0b7e7` (empty dirty status,
+`source_changed_during_run: false`, checker exit 0). That commit is the fix
+branch before it was rebased onto `main` to land; its models, configurations,
+case registry and runner are byte for byte those of the landed commits, and the
+Rust source hashes it records are those of its base `e350a85`, not of the
+landed tree. The runs used the pinned TLC
+1.7.4 and Temurin 21.0.8+9 on macOS Arm64, one worker, no timeout and a
+4096-MB heap.
+
+| Command | Run | Outcome |
+| --- | --- | --- |
+| `python3.13 scripts/check_tla.py --suite organization` | [g1-review-organization.json](g1-review-organization.json), `20261007T104709Z-41ff4fca` | All **57 cases matched**: 31 completed safety checks, 17 reachability witnesses, 9 deliberate mutations. |
+| `python3.13 scripts/check_tla.py --suite restore` | [g1-review-restore.json](g1-review-restore.json), `20261007T111600Z-e0cbe6b3` | All **33 cases matched**: 19 completed (including the two extended cases), 14 expected counterexamples. |
+| `python3.13 scripts/check_tla.py --suite fast` | [g1-review-fast-summary.json](g1-review-fast-summary.json), `20261007T112509Z-9a02b33c` | All **163 cases matched**: 76 completed, 87 expected counterexamples. It holds the 57 organization cases and 31 of the 33 restore cases. The summary keeps each case's outcome, counts, time and input hashes; its traces are omitted, and the two runs above keep theirs. |
+
+What the cases now check:
+
+- The six E1 cases and four E2 cases each check `ScenarioOutcome`, the outcome
+  the case is named for, in every reachable held set. Each E2 case also has a
+  reachability witness. The largest new case, `organization-end-after-readmission`,
+  exhausts 1,024 held subsets.
+- `organization-leave-fork` forks identity 2's log below its leave;
+  `organization-leave-readmission` admits identity 2 again; the leave rule
+  follows Rust and E2's plan.
+- `restore-leave` runs to its second removal, and `restore-leave-witness`
+  reaches that state (phase 11, two removals), so `RemovalMatchesBefore`
+  compares two records. The restore model no longer resets `didRemove` on a
+  restore, so a second removal needs `Continue`.
+
+Checked by hand before these runs, and not retained as runs: putting back the
+old leave clause in `Eligible` makes `ScenarioOutcome` fail in leave-removal,
+leave-readmission and leave-host-agent. Dropping `RetainedByCutoff` makes it
+fail in leave-fork and end-after-readmission. Putting `settle` back into the
+leave trace, or moving the first removal before the exchange with the leaver,
+makes `restore-leave-witness` fail to reach its state.

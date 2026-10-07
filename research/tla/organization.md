@@ -5,6 +5,8 @@ Each organization case records its source baseline in [cases.json](cases.json);
 the session and effect cases retain their separate protocol/API 2 baseline.
 The [retained verification record](../evidence/tla/organization/README.md) records
 actual source hashes, model/configuration hashes, tool identity and each outcome.
+Its earlier runs predate E1 and E2; its section of 2026-10-07 records the runs
+of the current model, with the E1 and E2 cases.
 **These are bounded safety and reachability checks of an explicit subset, not a
 proof that Rust implements the model or that arbitrary organizations are safe.**
 
