@@ -3,6 +3,7 @@
 
 mod context;
 mod context_views;
+mod current_findings;
 mod daemon;
 mod farm;
 mod invitations;

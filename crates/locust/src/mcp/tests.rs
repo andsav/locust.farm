@@ -294,6 +294,7 @@ fn strings_written_for_a_model_name_listed_tools_and_no_operation() {
         "locust_context_read",
         "locust_pending_page",
         "locust_contribution_publish",
+        "locust_event_show",
     ] {
         assert!(tool_names(INSTRUCTIONS).contains(&name), "{name}");
     }

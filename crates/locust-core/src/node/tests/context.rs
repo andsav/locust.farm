@@ -724,7 +724,7 @@ fn context_read_performance() {
         );
     }
 
-    for findings in [32, 128, 256] {
+    for findings in [32, 128, 256, 2048] {
         let (mut d, _, _, agent, goal) = setup();
         for index in 0..findings {
             let subject = event(d.ok(
@@ -742,6 +742,15 @@ fn context_read_performance() {
                     },
                 );
             }
+        }
+        if findings == 2048 {
+            let mut request = read(goal, None, None, 16, None, false);
+            let Request::Context { view, .. } = &mut request else {
+                unreachable!()
+            };
+            *view = locust_proto::api::ContextViewMode::Compact;
+            measure(&mut d, agent, findings, "context_compact_page", request);
+            continue;
         }
         measure(
             &mut d,

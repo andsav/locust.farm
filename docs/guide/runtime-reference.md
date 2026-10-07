@@ -94,6 +94,11 @@ The full view includes rules, inputs, task state and pending work; `compact`
 keeps counts and news. Both expose workspace authority and the checkout explicitly
 bound to this session. Pass the previous page's `next` as `--after`. A page
 holds at most 32 items; a larger `--limit` returns 32 and `next` continues.
+The first compact page lists the 20 newest goal-wide findings by event ID,
+author name and first line (at most 120 characters), with the total, without
+acknowledging them; `locust_event_show` reads one in full, and an `unread_only`
+checkpoint keeps only the total and newest event ID when the session has
+acknowledged context in the goal and no current finding is unread.
 
 A read in a session returns a `ctx:` reference.
 `context acknowledge --goal GOAL --receipt REF` marks that content read. Only

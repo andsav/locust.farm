@@ -75,6 +75,13 @@ change. Context revisions pin pagination, not perpetual freshness. A changed
 task, rule, input, or pending action may require a full refresh even when no new
 finding is unread. Do not repeat the full brief after every local tool call.
 
+The first compact context page lists the 20 newest goal-wide findings by event
+ID, author name and first line (at most 120 characters), with the total.
+A finding needs a full read through `locust_event_show` before use. A first
+line is not the finding; it is not acknowledged. With `unread_only: true`, the list
+appears when this session has acknowledged no context in the goal or a current
+finding is unread; otherwise only the total and newest event ID remain.
+
 Reuse relevant findings and cite their event IDs in contributions and reviews.
 Supply the exact source event IDs in contribution `sources` when publishing a
 finding based on shared evidence (CLI: one JSON array, as in `locust contribution

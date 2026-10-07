@@ -1,13 +1,16 @@
 //! Explicit context summary shapes and complete, revision-bound work pages.
 
+use std::cmp::Reverse;
+
 use locust_proto::api::{
-    ApiError, ContextBrief, ContextDocument, ContextDocumentSelection, ContextNews,
-    ContextSnapshot, ContextSummary, ContextViewMode, ErrorCode, PendingCounts, PendingCursor,
-    PendingItem, PendingKind, PendingPage, PendingWork, Response,
+    ApiError, BRIEF_FINDINGS, ContextBrief, ContextDocument, ContextDocumentSelection, ContextNews,
+    ContextSnapshot, ContextSummary, ContextViewMode, CurrentFindings, ErrorCode,
+    FINDING_LINE_CHARS, FindingHeadline, PendingCounts, PendingCursor, PendingItem, PendingKind,
+    PendingPage, PendingWork, Response,
 };
 use locust_proto::engine::Entropy;
-use locust_proto::event::{Scope, TaskId};
-use locust_proto::id::GoalId;
+use locust_proto::event::{Event, Scope, TaskId};
+use locust_proto::id::{GoalId, PublicKey};
 use locust_proto::store::Store;
 
 use super::Node;
@@ -15,6 +18,7 @@ use super::access::not_found;
 use super::callers::Actor;
 use super::entry::Entry;
 use super::requests::{Plan, answer};
+use crate::goal::{Standing, is_goal_finding};
 
 impl<S: Store, E: Entropy> Node<S, E> {
     pub(super) fn context_summary(
@@ -23,6 +27,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         actor: &Actor,
         task: Option<TaskId>,
         view: ContextViewMode,
+        unread_only: bool,
         news: Option<ContextNews>,
     ) -> Result<ContextSummary, ApiError> {
         let scope = task.map_or(Scope::Goal, Scope::Task);
@@ -42,6 +47,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             .or_else(|| entry.goal.current_context(scope));
         let pending = self.pending_work_with_news(entry, actor, news);
         if view == ContextViewMode::Compact {
+            let findings = self.current_findings(entry, actor, unread_only)?;
             return Ok(ContextSummary::Compact(Box::new(ContextBrief {
                 workspace: self.workspace_view(entry, actor)?,
                 checkout: self.bound_checkout(entry, actor),
@@ -64,6 +70,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     .collect(),
                 pending: PendingCounts::from(&pending),
                 context_news: pending.context_news,
+                findings,
             })));
         }
         let Response::GoalStatus(status) = self.goal_status(actor, entry.id())?.response else {
@@ -105,6 +112,98 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 .collect(),
             pending,
         })))
+    }
+
+    /// Current findings are effective goal-wide contributions whose payloads
+    /// are not withdrawn here. Missing payloads stay current without a line.
+    /// Every candidate is checked, including those beyond the newest headlines.
+    fn current_findings(
+        &self,
+        entry: &Entry,
+        reader: &Actor,
+        unread_only: bool,
+    ) -> Result<CurrentFindings, ApiError> {
+        let mut events = Vec::new();
+        for contribution in entry.state().contributions.values() {
+            let Some(event) = entry.goal.event(&contribution.id) else {
+                continue;
+            };
+            if !is_goal_finding(event)
+                || entry.goal.standing(&event.id()) != Some(Standing::Effective)
+            {
+                continue;
+            }
+            if let Some(payload) = event.header().payload
+                && super::requests::content::blob_record(&self.store, &entry.id(), &payload.hash)?
+                    .is_some_and(|record| record.withdrawn)
+            {
+                continue;
+            }
+            events.push(event);
+        }
+        events.sort_by_key(|event| {
+            Reverse((
+                entry.feed.position(&event.id()).unwrap_or(u64::MAX),
+                event.id(),
+            ))
+        });
+        let total = events.len() as u64;
+        let newest_event = events.first().map(|event| event.id());
+        // Check all current findings, not just the headlines. Only a session
+        // with prior acknowledgments and no unread finding suppresses the list.
+        let show = !unread_only
+            || reader
+                .principal
+                .zip(reader.session)
+                .is_none_or(|(principal, session)| {
+                    !entry.context.has_any(principal, session)
+                        || events.iter().any(|event| {
+                            let (seen, _) = self.context_seen(entry, event, reader);
+                            !entry.context.contains(principal, session, seen)
+                        })
+                });
+        let newest = if show {
+            events
+                .into_iter()
+                .take(BRIEF_FINDINGS)
+                .map(|event| self.finding_headline(entry, event, reader.principal.as_ref()))
+                .collect()
+        } else {
+            Vec::new()
+        };
+        Ok(CurrentFindings {
+            total,
+            newest_event,
+            newest,
+        })
+    }
+
+    /// One current finding's headline: the author's current member name and
+    /// the payload's first line cut to `FINDING_LINE_CHARS` characters. An
+    /// author the members map does not know is simply unnamed; a payload that
+    /// is not readable here shows no line.
+    pub(super) fn finding_headline(
+        &self,
+        entry: &Entry,
+        event: &Event,
+        reader: Option<&PublicKey>,
+    ) -> FindingHeadline {
+        FindingHeadline {
+            event: event.id(),
+            author: event.header().author,
+            name: entry
+                .state()
+                .members
+                .get(&event.header().author)
+                .map(|member| member.name.clone()),
+            line: entry.text(&self.store, event, reader).map(|text| {
+                let mut line = text.lines().next().unwrap_or_default().to_owned();
+                if let Some((byte, _)) = line.char_indices().nth(FINDING_LINE_CHARS) {
+                    line.truncate(byte);
+                }
+                line
+            }),
+        }
     }
 
     pub(super) fn pending_page(

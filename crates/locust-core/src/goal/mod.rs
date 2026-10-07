@@ -51,6 +51,18 @@ fn valid_definition(hash: &DefinitionHash, definition: &Formation) -> bool {
         && inspected.semantic_hash.as_deref() == Some(hash.to_string().as_str())
 }
 
+/// A goal-wide finding is a published contribution outside any attempt.
+pub fn is_goal_finding(event: &Event) -> bool {
+    matches!(
+        &event.header().body,
+        Body::ContributionPublished {
+            context,
+            attempt: None,
+            ..
+        } if context.scope == Scope::Goal
+    )
+}
+
 #[derive(Clone)]
 pub struct Goal {
     id: GoalId,

@@ -114,6 +114,39 @@ pub enum ContextSummary {
     Full(Box<ContextSnapshot>),
 }
 
+/// How many current findings a compact first page lists.
+pub const BRIEF_FINDINGS: usize = 20;
+
+/// How many characters of a finding's first line the brief keeps.
+pub const FINDING_LINE_CHARS: usize = 120;
+
+/// The goal's current findings at a compact checkpoint: what to read in full.
+/// `locust_event_show` delivers one finding's complete text; a first line is
+/// not the finding, and listing marks nothing read.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct CurrentFindings {
+    /// All current findings, including any beyond `newest`.
+    pub total: u64,
+    /// The newest current finding, kept even when `newest` is not filled.
+    pub newest_event: Option<EventId>,
+    /// At most `BRIEF_FINDINGS` newest current findings. Not filled on an
+    /// `unread_only` page for a session that has already acknowledged every
+    /// current finding at its current version.
+    pub newest: Vec<FindingHeadline>,
+}
+
+/// One current finding's headline: enough to decide whether to read it in full.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct FindingHeadline {
+    pub event: EventId,
+    pub author: PublicKey,
+    /// The author's current member name, when it has one.
+    pub name: Option<String>,
+    /// The payload's first line cut to `FINDING_LINE_CHARS` characters;
+    /// absent when the payload is not readable here.
+    pub line: Option<String>,
+}
+
 /// Small current-scope checkpoint. Detailed rules, task text, membership, peer
 /// status and obligations remain available through explicit full/detail reads.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -132,6 +165,9 @@ pub struct ContextBrief {
     pub documents: Vec<ContextDocumentSelection>,
     pub pending: PendingCounts,
     pub context_news: Option<ContextNews>,
+    /// The goal's current findings. Goal-wide on every scope's first compact
+    /// page; continuations never repeat it.
+    pub findings: CurrentFindings,
 }
 
 /// Document selections without repeating the complete revision history.

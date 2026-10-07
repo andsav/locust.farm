@@ -63,7 +63,26 @@ impl Acknowledgments {
         Ok(())
     }
 
-    fn contains(&self, principal: PublicKey, session: InstanceId, seen: ContextSeen) -> bool {
+    /// True if this session has acknowledged any context in this goal.
+    pub(super) fn has_any(&self, principal: PublicKey, session: InstanceId) -> bool {
+        let first = ContextSeen {
+            event: EventId([0; 32]),
+            version: BlobHash([0; 32]),
+        };
+        self.seen
+            .range((principal, session, first)..)
+            .next()
+            .is_some_and(|(seen_principal, seen_session, _)| {
+                *seen_principal == principal && *seen_session == session
+            })
+    }
+
+    pub(super) fn contains(
+        &self,
+        principal: PublicKey,
+        session: InstanceId,
+        seen: ContextSeen,
+    ) -> bool {
         self.seen.contains(&(principal, session, seen))
     }
 
@@ -118,7 +137,12 @@ fn relevant(entry: &Entry, event: &Event, task: Option<TaskId>) -> bool {
 impl<S: Store, E: Entropy> Node<S, E> {
     /// Version only metadata: immutable payload identity and readable status
     /// suffice to detect new text without loading every payload for news counts.
-    fn context_seen(&self, entry: &Entry, event: &Event, actor: &Actor) -> (ContextSeen, bool) {
+    pub(super) fn context_seen(
+        &self,
+        entry: &Entry,
+        event: &Event,
+        actor: &Actor,
+    ) -> (ContextSeen, bool) {
         let payload_state = event.header().payload.map(|payload| {
             (
                 payload,
@@ -305,7 +329,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             });
         let summary = after
             .is_none()
-            .then(|| self.context_summary(entry, actor, task, view, news))
+            .then(|| self.context_summary(entry, actor, task, view, unread_only, news))
             .transpose()?;
         answer(Response::Context(Box::new(ContextView {
             revision,

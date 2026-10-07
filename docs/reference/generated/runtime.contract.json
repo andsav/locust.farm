@@ -12724,6 +12724,10 @@
             },
             "type": "array"
           },
+          "findings": {
+            "$ref": "#/$defs/CurrentFindings",
+            "description": "The goal's current findings. Goal-wide on every scope's first compact\npage; continuations never repeat it."
+          },
           "goal": {
             "$ref": "#/$defs/GoalId"
           },
@@ -12781,7 +12785,8 @@
           "workspace",
           "goal",
           "documents",
-          "pending"
+          "pending",
+          "findings"
         ],
         "type": "object"
       },
@@ -13280,6 +13285,40 @@
           "selected",
           "evidence",
           "artifacts"
+        ],
+        "type": "object"
+      },
+      "CurrentFindings": {
+        "description": "The goal's current findings at a compact checkpoint: what to read in full.\n`locust_event_show` delivers one finding's complete text; a first line is\nnot the finding, and listing marks nothing read.",
+        "properties": {
+          "newest": {
+            "description": "At most `BRIEF_FINDINGS` newest current findings. Not filled on an\n`unread_only` page for a session that has already acknowledged every\ncurrent finding at its current version.",
+            "items": {
+              "$ref": "#/$defs/FindingHeadline"
+            },
+            "type": "array"
+          },
+          "newest_event": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/EventId"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The newest current finding, kept even when `newest` is not filled."
+          },
+          "total": {
+            "description": "All current findings, including any beyond `newest`.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "newest"
         ],
         "type": "object"
       },
@@ -14409,6 +14448,36 @@
           "listed"
         ],
         "type": "string"
+      },
+      "FindingHeadline": {
+        "description": "One current finding's headline: enough to decide whether to read it in full.",
+        "properties": {
+          "author": {
+            "$ref": "#/$defs/PublicKey"
+          },
+          "event": {
+            "$ref": "#/$defs/EventId"
+          },
+          "line": {
+            "description": "The payload's first line cut to `FINDING_LINE_CHARS` characters;\nabsent when the payload is not readable here.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "description": "The author's current member name, when it has one.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "event",
+          "author"
+        ],
+        "type": "object"
       },
       "Genesis": {
         "properties": {
