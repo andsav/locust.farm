@@ -40,7 +40,7 @@
 use std::collections::BTreeMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Read};
-use std::os::unix::fs::{FileExt, OpenOptionsExt};
+use std::os::unix::fs::{FileExt, OpenOptionsExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 
 use locust_proto::crypto::content_hash;
@@ -57,6 +57,10 @@ const MAGIC: [u8; 8] = *b"LOCUSTMK";
 const HEADER: usize = 32;
 const RECORD: usize = 112;
 const SUMMED: usize = RECORD - 4;
+/// Mode of the marks directory and of the marks file: the marks name goals,
+/// keys and counts, so only their owner may read them.
+const DIRECTORY_MODE: u32 = 0o700;
+const FILE_MODE: u32 = 0o600;
 
 /// The open marks file of one marks directory. Owned by the store.
 #[derive(Debug)]
@@ -72,8 +76,17 @@ pub(crate) struct MarksFile {
 
 /// Uses the marks directory `dir`, creating it owner-only if missing, and
 /// reads its marks: ascending by goal and key, or `None` when they are lost.
+/// A directory or file that others may read is refused, as the state
+/// directory is.
 pub(crate) fn open(dir: &Path) -> Result<(MarksFile, Option<Vec<Mark>>), StoreError> {
     create_directories(dir, sync_directory)?;
+    let metadata = fs::metadata(dir).map_err(|error| file("inspect", dir, error))?;
+    private(
+        dir,
+        "directory",
+        metadata.permissions().mode(),
+        DIRECTORY_MODE,
+    )?;
     let mut marks = MarksFile {
         dir: dir.to_owned(),
         file: None,
@@ -87,6 +100,10 @@ pub(crate) fn open(dir: &Path) -> Result<(MarksFile, Option<Vec<Mark>>), StoreEr
         Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok((marks, None)),
         Err(error) => return Err(file("open", &path, error)),
     };
+    let metadata = found
+        .metadata()
+        .map_err(|error| file("inspect", &path, error))?;
+    private(&path, "file", metadata.permissions().mode(), FILE_MODE)?;
     let mut bytes = Vec::new();
     found
         .read_to_end(&mut bytes)
@@ -159,16 +176,33 @@ impl MarksFile {
     }
 }
 
+/// Refuses a marks directory or file whose `mode` lets anyone but its owner
+/// in, naming the `chmod` that fixes it.
+fn private(path: &Path, what: &str, mode: u32, wanted: u32) -> Result<(), StoreError> {
+    let mode = mode & 0o777;
+    if mode & 0o077 == 0 {
+        return Ok(());
+    }
+    Err(StoreError::Failed(format!(
+        "marks {what} {path} has mode {mode:04o}; it must be {wanted:04o}: chmod {wanted:o} {path}",
+        path = path.display()
+    )))
+}
+
 /// A new, empty marks file at `path` whose header names its own identity.
+/// A temporary file left by an earlier attempt is reused at the file's own
+/// mode, whatever mode it was left with.
 fn create(path: &Path) -> Result<File, StoreError> {
     let out = OpenOptions::new()
         .read(true)
         .write(true)
         .create(true)
         .truncate(true)
-        .mode(0o600)
+        .mode(FILE_MODE)
         .open(path)
         .map_err(|error| file("create", path, error))?;
+    out.set_permissions(fs::Permissions::from_mode(FILE_MODE))
+        .map_err(|error| file("protect", path, error))?;
     let id = FileId::of(path).map_err(|error| file("inspect", path, error))?;
     let mut header = [0; HEADER];
     header[..8].copy_from_slice(&MAGIC);
@@ -221,7 +255,7 @@ fn decode(bytes: &[u8], id: FileId) -> Option<Vec<Option<Mark>>> {
         ino: u64::from_le_bytes(header[8..16].try_into().ok()?),
         created_ms: created,
     };
-    if header[..8] != MAGIC || header[17..24] != [0; 7] || named != id {
+    if header[..8] != MAGIC || header[17..24] != [0; 7] || !named.same(&id) {
         return None;
     }
     if created.is_none() && header[24..32] != [0; 8] {

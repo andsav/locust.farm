@@ -31,7 +31,7 @@ impl Running {
             run_with(
                 &home,
                 |init: EngineInit| {
-                    let store = SqliteStore::open(&init.home, &marks_dir(&init.home))
+                    let store = SqliteStore::open(&init.home, &marks_dir(&init.home).unwrap())
                         .map_err(|e| e.to_string())?;
                     Node::open(
                         store,

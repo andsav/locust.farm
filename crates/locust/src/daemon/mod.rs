@@ -72,7 +72,7 @@ pub(crate) struct EngineInit {
 /// Runs the daemon on `home` in the foreground until SIGINT, SIGTERM or
 /// `daemon.stop`.
 pub fn run(home: &Path) -> Result<(), Failure> {
-    let marks = local::marks_dir(home);
+    let marks = local::marks_dir(home)?;
     run_networked_with(
         home,
         &marks,

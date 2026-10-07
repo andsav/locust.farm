@@ -167,6 +167,20 @@ impl FileId {
             created_ms,
         })
     }
+
+    /// Whether `self` and `other` name the same file: the same inode number,
+    /// and the same creation time where both report one. Where either has
+    /// none, the inode number alone decides, so a creation time that one
+    /// read reports and another does not (a sandbox that forces the stat
+    /// fallback, a file system that adds or drops it) does not make an
+    /// untouched file look like a copy.
+    pub fn same(&self, other: &Self) -> bool {
+        self.ino == other.ino
+            && match (self.created_ms, other.created_ms) {
+                (Some(mine), Some(theirs)) => mine == theirs,
+                _ => true,
+            }
+    }
 }
 
 /// The last record `key` signed in `goal` on this daemon.
@@ -423,6 +437,13 @@ impl MemStore {
     /// Another handle on this store's marks.
     pub fn marks_handle(&self) -> MemMarks {
         self.marks.clone()
+    }
+
+    /// From now on this store's file reports `created_ms` as its creation
+    /// time, as one does under a file system or sandbox that starts or stops
+    /// reporting one. The file is the same file.
+    pub fn report_creation_time(&self, created_ms: Option<u64>) {
+        self.state().file.created_ms = created_ms;
     }
 
     fn state(&self) -> MutexGuard<'_, MemState> {
@@ -1366,6 +1387,18 @@ mod tests {
     #[test]
     fn the_memory_store_meets_the_contract() {
         conformance::run(MemStore::new);
+    }
+
+    #[test]
+    fn a_creation_time_only_one_side_reports_leaves_the_inode_to_decide() {
+        let id = |ino, created_ms| FileId { ino, created_ms };
+        assert!(id(7, Some(1)).same(&id(7, Some(1))));
+        assert!(id(7, Some(1)).same(&id(7, None)));
+        assert!(id(7, None).same(&id(7, Some(1))));
+        assert!(id(7, None).same(&id(7, None)));
+        assert!(!id(7, Some(1)).same(&id(7, Some(2))));
+        assert!(!id(7, Some(1)).same(&id(8, Some(1))));
+        assert!(!id(7, None).same(&id(8, Some(1))));
     }
 
     #[test]

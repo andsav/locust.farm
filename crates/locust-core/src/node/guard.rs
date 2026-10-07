@@ -458,7 +458,10 @@ impl<S: Store, E: Entropy> Node<S, E> {
         if new {
             return self.land_once(tx);
         }
-        let same_file = self.identity.file == Some(found.file);
+        let same_file = self
+            .identity
+            .file
+            .is_some_and(|file| file.same(&found.file));
         // Only a mark of a key this daemon signs with can show the file was
         // overwritten. A goal the store does not hold at all is left out: its
         // marks stay as the only memory of it. So is a goal that already

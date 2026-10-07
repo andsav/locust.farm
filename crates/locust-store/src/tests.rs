@@ -34,7 +34,7 @@ impl Scratch {
         let root = tempfile::tempdir().unwrap();
         let data = root.path().join("state");
         Self {
-            marks: marks_dir(&data),
+            marks: marks_dir(&data).unwrap(),
             data,
             root,
         }
@@ -124,7 +124,7 @@ fn the_store_meets_the_contract() {
     conformance::run(|| {
         next.set(next.get() + 1);
         let dir = root.path().join(next.get().to_string());
-        SqliteStore::open(&dir, &marks_dir(&dir)).unwrap()
+        SqliteStore::open(&dir, &marks_dir(&dir).unwrap()).unwrap()
     });
 }
 
@@ -1139,9 +1139,11 @@ fn tear_last_record(path: &Path) {
     file.write_all_at(&[0xa5], len - 40).unwrap();
 }
 
-/// Copies every file directly inside `from` into a new directory `to`.
+/// Copies every file directly inside `from` into a new owner-only directory
+/// `to`, as the directories copied are.
 fn copy_files(from: &Path, to: &Path) {
-    fs::create_dir(to).unwrap();
+    use std::os::unix::fs::DirBuilderExt;
+    fs::DirBuilder::new().mode(0o700).create(to).unwrap();
     for entry in fs::read_dir(from).unwrap() {
         let entry = entry.unwrap();
         if entry.file_type().unwrap().is_file() {
@@ -1211,6 +1213,23 @@ fn a_marks_unheard_bit_survives_reopen_and_a_nonzero_reserved_byte_is_lost() {
     file[slot + 108..slot + 112].copy_from_slice(&sum.0[..4]);
     fs::write(dir.marks_file(), file).unwrap();
     assert_eq!(reopen(&dir).marks().unwrap().kept, None);
+}
+
+#[test]
+fn marks_whose_header_lacks_the_creation_time_the_file_reports_are_kept() {
+    let (dir, mut store) = scratch();
+    let kept = mark(1, 1, 4);
+    store.commit(&marking(vec![MarkWrite::Set(kept)])).unwrap();
+    drop(store);
+    // Written where no creation time was reported: the inode number alone
+    // names the file, and it is still this file.
+    let file = fs::OpenOptions::new()
+        .write(true)
+        .open(dir.marks_file())
+        .unwrap();
+    file.write_all_at(&[0; 16], 16).unwrap();
+    drop(file);
+    assert_eq!(reopen(&dir).marks().unwrap().kept, Some(vec![kept]));
 }
 
 #[test]
@@ -1417,6 +1436,43 @@ fn creating_the_marks_file_syncs_its_directory() {
         .commit(&marking(vec![MarkWrite::Set(mark(1, 1, 1))]))
         .unwrap();
     assert_eq!(marks_steps(&dir), created);
+}
+
+#[test]
+fn a_marks_directory_or_file_others_may_read_is_refused() {
+    let (dir, mut store) = scratch();
+    let kept = mark(1, 1, 0);
+    store.commit(&marking(vec![MarkWrite::Set(kept)])).unwrap();
+    drop(store);
+    let chmod = |path: &Path, mode: u32| {
+        fs::set_permissions(path, fs::Permissions::from_mode(mode)).unwrap();
+    };
+    let refused = |mode: &str| match dir.open() {
+        Err(OpenError::Store(StoreError::Failed(detail))) => {
+            assert!(detail.contains(mode), "{detail}");
+        }
+        other => panic!("opened with mode {mode}: {other:?}"),
+    };
+    chmod(&dir.marks, 0o755);
+    refused("0755");
+    chmod(&dir.marks, 0o700);
+    chmod(&dir.marks_file(), 0o644);
+    refused("0644");
+    chmod(&dir.marks_file(), 0o600);
+    assert_eq!(reopen(&dir).marks().unwrap().kept, Some(vec![kept]));
+
+    // A temporary file left readable by an earlier attempt does not pass
+    // its mode on to the marks file that replaces lost marks.
+    tear_last_record(&dir.marks_file());
+    let temporary = dir.marks.join("marks.tmp");
+    fs::write(&temporary, b"left over").unwrap();
+    chmod(&temporary, 0o644);
+    let mut store = reopen(&dir);
+    store
+        .commit(&marking(vec![MarkWrite::Set(mark(1, 1, 1))]))
+        .unwrap();
+    let mode = fs::metadata(dir.marks_file()).unwrap().permissions().mode() & 0o777;
+    assert_eq!(mode, 0o600);
 }
 
 #[test]

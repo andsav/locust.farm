@@ -304,11 +304,13 @@ impl PeerEngine for Observed {
 
 fn observed(home: &Path, trace: &Arc<Trace>, daemon: &'static str, part: Part) -> Running {
     let trace = trace.clone();
-    Running::start_observed(home, &local::marks_dir(home), move |node| Observed {
-        node,
-        daemon,
-        part,
-        trace,
+    Running::start_observed(home, &local::marks_dir(home).unwrap(), move |node| {
+        Observed {
+            node,
+            daemon,
+            part,
+            trace,
+        }
     })
 }
 
@@ -477,7 +479,7 @@ fn a_diverged_author_log_reconciles_between_two_real_daemons() {
     host.stop();
 
     for home in [first.path(), copy.path()] {
-        let store = SqliteStore::open(home, &local::marks_dir(home)).unwrap();
+        let store = SqliteStore::open(home, &local::marks_dir(home).unwrap()).unwrap();
         let [first, second] = [lost, rival].map(|id| store.event(&id).unwrap().unwrap());
         assert_eq!(first.header().author, author);
         assert_eq!(second.header().author, author);

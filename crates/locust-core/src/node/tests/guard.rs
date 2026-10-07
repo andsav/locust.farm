@@ -381,6 +381,37 @@ fn an_ordinary_restart_holds_nothing_and_signs_at_once() {
 }
 
 #[test]
+fn a_creation_time_that_appears_or_disappears_leaves_an_ordinary_start() {
+    // The database file is untouched; only whether its creation time is
+    // reported changes. The inode number alone decides then.
+    let mut net = Network::with(2);
+    let (goal, host) = hosted(&mut net, 0, 1);
+    join(&mut net, 0, 1, goal, 2);
+    let _ = invite(&mut net.nodes[0], goal);
+    net.down.insert(1);
+    for created in [Some(1_700_000_000_000), None] {
+        post_and_stop(&mut net.nodes[0], goal, host);
+        let store = net.nodes[0].store.reopen();
+        store.report_creation_time(created);
+        net.start_over(0, store);
+        assert_eq!(
+            waiting(&net.nodes[0], goal),
+            0,
+            "{created:?}: signed inside the start"
+        );
+        let view = status(&mut net.nodes[0], goal);
+        assert!(view.guard.is_empty(), "{created:?}: {:?}", view.guard);
+        assert_eq!((view.halted, view.restored), (None, None), "{created:?}");
+        let listed = invitations(&mut net.nodes[0], goal);
+        let pending = listed
+            .iter()
+            .filter(|invitation| invitation.state == InvitationState::Pending)
+            .count();
+        assert_eq!(pending, 1, "{created:?}: {listed:?}");
+    }
+}
+
+#[test]
 fn only_the_goals_that_are_behind_are_held() {
     let mut net = Network::with(3);
     let (behind, host) = hosted(&mut net, 0, 1);

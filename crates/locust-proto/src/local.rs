@@ -102,6 +102,9 @@ pub enum LocalError {
     /// The named environment variable holds a relative path. Processes with
     /// different working directories would resolve it differently.
     NotAbsolute(&'static str),
+    /// The named environment variable's path ends in `..` or is `/`, so it
+    /// has no last name to put the marks directory beside.
+    Unnamed(&'static str),
     /// The socket path would be this many bytes, more than
     /// [`MAX_SOCKET_PATH_BYTES`]. Choose a shorter `LOCUST_HOME`.
     SocketPathTooLong(usize),
@@ -118,6 +121,10 @@ impl fmt::Display for LocalError {
         match self {
             Self::NoHome => write!(f, "{HOME_ENV} is not set and no home directory is known"),
             Self::NotAbsolute(variable) => write!(f, "{variable} must be an absolute path"),
+            Self::Unnamed(variable) => write!(
+                f,
+                "{variable} must end in a directory name, not `..` or `/`"
+            ),
             Self::SocketPathTooLong(bytes) => write!(
                 f,
                 "socket path is {bytes} bytes, more than {MAX_SOCKET_PATH_BYTES}; set {HOME_ENV} to a shorter directory"
@@ -153,13 +160,16 @@ fn absolute(value: &OsStr, variable: &'static str) -> Result<PathBuf, LocalError
 
 /// The state directory: `locust_home` (the value of [`HOME_ENV`]) when set,
 /// otherwise [`DEFAULT_HOME`] inside `user_home` (the value of `HOME`).
-/// Either must be absolute.
+/// Either must be absolute, and `locust_home` must end in a name, so that
+/// [`marks_dir`] can put the marks beside it.
 pub fn home_dir(
     locust_home: Option<&OsStr>,
     user_home: Option<&OsStr>,
 ) -> Result<PathBuf, LocalError> {
     if let Some(home) = set(locust_home) {
-        return absolute(home, HOME_ENV);
+        let home = absolute(home, HOME_ENV)?;
+        marks_dir(&home).map_err(|_| LocalError::Unnamed(HOME_ENV))?;
+        return Ok(home);
     }
     let user_home = set(user_home).ok_or(LocalError::NoHome)?;
     Ok(absolute(user_home, "HOME")?.join(DEFAULT_HOME))
@@ -199,19 +209,18 @@ pub fn logs_dir(home: &Path) -> PathBuf {
 /// The marks directory of `home`: beside it, never inside it, so a copy of
 /// `home` does not carry it. `home`'s path with [`MARKS_SUFFIX`] added to its
 /// last part. A trailing `/` or `/.` is not a part: it would put the suffix
-/// inside `home`.
-pub fn marks_dir(home: &Path) -> PathBuf {
+/// inside `home`. Refused when `home` ends in `..` or is `/`: no name of
+/// `home` is left to add the suffix to, and adding it to the path as written
+/// would put the marks inside `home` (`/srv/locust/..` is `/srv`) or at the
+/// root.
+pub fn marks_dir(home: &Path) -> Result<PathBuf, LocalError> {
     match (home.parent(), home.file_name()) {
         (Some(parent), Some(name)) => {
             let mut name = name.to_owned();
             name.push(MARKS_SUFFIX);
-            parent.join(name)
+            Ok(parent.join(name))
         }
-        _ => {
-            let mut path = home.as_os_str().to_owned();
-            path.push(MARKS_SUFFIX);
-            PathBuf::from(path)
-        }
+        _ => Err(LocalError::Unnamed(HOME_ENV)),
     }
 }
 
@@ -345,13 +354,28 @@ mod tests {
         let default = home_dir(None, os("/Users/ada")).unwrap();
         assert_eq!(
             marks_dir(&default),
-            PathBuf::from("/Users/ada/.locust.marks")
+            Ok(PathBuf::from("/Users/ada/.locust.marks"))
         );
         for home in ["/srv/locust", "/srv/locust/", "/srv/locust/."] {
-            let marks = marks_dir(Path::new(home));
+            let marks = marks_dir(Path::new(home)).unwrap();
             assert_eq!(marks, PathBuf::from("/srv/locust.marks"), "{home}");
             assert!(!marks.starts_with(home), "{home}");
             assert_eq!(marks.parent(), Path::new(home).parent(), "{home}");
+            assert_eq!(home_dir(os(home), None), Ok(PathBuf::from(home)));
+        }
+        // `/srv/locust/..` is `/srv`: no name is left to put the marks
+        // beside, and the path as written would put them inside it.
+        for home in ["/srv/locust/..", "/srv/locust/../", "/"] {
+            assert_eq!(
+                marks_dir(Path::new(home)),
+                Err(LocalError::Unnamed(HOME_ENV)),
+                "{home}"
+            );
+            assert_eq!(
+                home_dir(os(home), None),
+                Err(LocalError::Unnamed(HOME_ENV)),
+                "{home}"
+            );
         }
     }
 

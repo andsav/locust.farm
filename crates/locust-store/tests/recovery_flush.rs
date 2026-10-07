@@ -35,7 +35,7 @@ fn recovery_child() {
     let Ok(step) = env::var(STEP) else { return };
     let dir = env::var(DIR).unwrap();
     let arm = env::var(ARM).unwrap();
-    let marks = marks_dir(Path::new(&dir));
+    let marks = marks_dir(Path::new(&dir)).unwrap();
     if step == "write" {
         let mut store = SqliteStore::open(&dir, &marks).unwrap();
         let mut author = Author::new(1);

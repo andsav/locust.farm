@@ -1910,15 +1910,21 @@ second or the third "caught up".
   the inode number and the creation time from the file's metadata; the device
   number is left out because it can change between boots. Where the file
   system reports no creation time, `created_ms` is `None` (measured on
-  tmpfs) and the inode number alone decides.
-  `SqliteStore::open(dir, marks)` creates the marks directory with mode 0700;
+  tmpfs) and the inode number alone decides; so it does when one of the two
+  identities compared has a creation time and the other has none
+  (`FileId::same`), so that a sandbox or file system that starts or stops
+  reporting it does not make an untouched file look copied.
+  `SqliteStore::open(dir, marks)` creates the marks directory with mode 0700,
+  and refuses a marks directory or file that anyone but its owner may read;
   `commit` applies `commit.marks` after the SQLite transaction and syncs the
   marks file; `marks()` answers `FileId::of` the database file and
   `read(marks)`. The 25 call sites of `SqliteStore::open` (one in
   `daemon/mod.rs`, the rest in tests and one example) pass a directory.
 - [local.rs](../crates/locust-proto/src/local.rs): `MARKS_SUFFIX = ".marks"`
-  and `marks_dir(home: &Path) -> PathBuf`, the home's path with the suffix
-  added to its last part: `~/.locust.marks` for the default home. There is no
+  and `marks_dir(home: &Path) -> Result<PathBuf, LocalError>`, the home's
+  path with the suffix added to its last part: `~/.locust.marks` for the
+  default home. A home that ends in `..` or is `/` has no last part to add it
+  to, and `home_dir` refuses it. There is no
   environment variable. [daemon/mod.rs](../crates/locust/src/daemon/mod.rs):
   `run` computes it and `run_networked_with(home, marks, ..)` passes it to
   `SqliteStore::open`.

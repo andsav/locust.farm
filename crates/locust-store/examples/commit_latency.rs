@@ -34,7 +34,7 @@ fn main() {
     .unwrap();
     let state = dir.path().join("state");
     println!("state directory {}", state.display());
-    let mut store = SqliteStore::open(&state, &marks_dir(&state)).unwrap();
+    let mut store = SqliteStore::open(&state, &marks_dir(&state).unwrap()).unwrap();
 
     let mut owner = Author::new(1);
     let genesis = owner.genesis(locust_proto::testkit::keypair(9).public());

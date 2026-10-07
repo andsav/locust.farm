@@ -117,7 +117,7 @@ fn child_commits_until_stopped() {
         return;
     };
     let exit_after: Option<usize> = env::var(CHILD_EXIT_AFTER).ok().map(|n| n.parse().unwrap());
-    let mut store = SqliteStore::open(&dir, &marks_dir(Path::new(&dir))).unwrap();
+    let mut store = SqliteStore::open(&dir, &marks_dir(Path::new(&dir)).unwrap()).unwrap();
     let mut history = History::new();
     let start = store.log(&history.goal(), 0, usize::MAX).unwrap().len();
     let mut out = std::io::stdout().lock();
@@ -161,7 +161,7 @@ fn acknowledged(line: &str) -> Option<usize> {
 /// right bytes, and that no file is left that no row names. Returns the
 /// number of commits held.
 fn check(dir: &Path, acknowledged: usize) -> usize {
-    let store = SqliteStore::open(dir, &marks_dir(dir)).unwrap();
+    let store = SqliteStore::open(dir, &marks_dir(dir).unwrap()).unwrap();
     let mut history = History::new();
     let log = store.log(&history.goal(), 0, usize::MAX).unwrap();
     assert!(
@@ -231,7 +231,7 @@ fn acknowledged_commits_survive_a_process_killed_mid_commit() {
         }
         if round == 0 {
             assert!(matches!(
-                SqliteStore::open(&dir, &marks_dir(&dir)),
+                SqliteStore::open(&dir, &marks_dir(&dir).unwrap()),
                 Err(OpenError::InUse(_))
             ));
         }

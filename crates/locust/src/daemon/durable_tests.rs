@@ -50,7 +50,7 @@ pub(super) struct Running {
 }
 impl Running {
     pub(super) fn start(home: &Path) -> Self {
-        Self::start_with_marks(home, &local::marks_dir(home))
+        Self::start_with_marks(home, &local::marks_dir(home).unwrap())
     }
     /// A daemon on `home` whose marks directory is `marks`. Given the marks
     /// of the directory `home` was copied from, it is that daemon with its
@@ -918,8 +918,14 @@ fn newer_connection_replaces_older_ones_from_the_same_endpoint() {
 /// Copy a stopped daemon's directory, including its identity and SQLite files.
 /// Sockets are runtime endpoints, not backup data.
 pub(super) fn copy_stopped_home(from: &Path, to: &Path) {
-    use std::os::unix::fs::FileTypeExt;
-    std::fs::create_dir_all(to).unwrap();
+    use std::os::unix::fs::{DirBuilderExt, FileTypeExt};
+    // Owner-only, as the directories copied are: a marks directory others
+    // may read is refused.
+    std::fs::DirBuilder::new()
+        .recursive(true)
+        .mode(0o700)
+        .create(to)
+        .unwrap();
     for entry in std::fs::read_dir(from).unwrap() {
         let entry = entry.unwrap();
         let kind = entry.file_type().unwrap();
@@ -941,7 +947,7 @@ pub(super) fn copy_stopped_home(from: &Path, to: &Path) {
 /// The goal's events held by a stopped daemon's store.
 fn held_events(home: &Path, goal: GoalId) -> Vec<locust_proto::event::Event> {
     use locust_proto::store::Store;
-    locust_store::SqliteStore::open(home, &local::marks_dir(home))
+    locust_store::SqliteStore::open(home, &local::marks_dir(home).unwrap())
         .unwrap()
         .log(&goal, 0, usize::MAX)
         .unwrap()
@@ -954,7 +960,7 @@ fn held_events(home: &Path, goal: GoalId) -> Vec<locust_proto::event::Event> {
 /// its order are tested with Network.
 fn replay(home: &Path, events: Vec<locust_proto::event::Event>) {
     use locust_proto::store::{Commit, Store};
-    locust_store::SqliteStore::open(home, &local::marks_dir(home))
+    locust_store::SqliteStore::open(home, &local::marks_dir(home).unwrap())
         .unwrap()
         .commit(&Commit {
             events,
@@ -1184,7 +1190,7 @@ fn an_older_directory_is_held_until_its_later_events_return(lost: Lost) {
     };
     drop((owner, agent));
     host.stop();
-    let marks = local::marks_dir(original.path());
+    let marks = local::marks_dir(original.path()).unwrap();
     let old = header(original.path(), &marks, old_id);
     let held = held_events(original.path(), goal);
 
@@ -1342,7 +1348,7 @@ fn a_start_on_an_empty_home_keeps_the_marks_a_later_restore_needs() {
 #[test]
 fn a_lost_marks_directory_is_an_ordinary_start_and_a_copy_of_both_is_not() {
     let (home, copy) = (short_dir(), short_dir());
-    let marks = local::marks_dir(home.path());
+    let marks = local::marks_dir(home.path()).unwrap();
     let mut running = Running::start(home.path());
     let principal = running.enroll(1);
     let goal = goal(&mut running.owner(), principal);
@@ -1395,7 +1401,7 @@ fn a_lost_marks_directory_is_an_ordinary_start_and_a_copy_of_both_is_not() {
     // unknown age. Where this daemon hosts the goal it waits for the person,
     // with no other computer to hear from.
     copy_stopped_home(home.path(), copy.path());
-    copy_stopped_home(&marks, &local::marks_dir(copy.path()));
+    copy_stopped_home(&marks, &local::marks_dir(copy.path()).unwrap());
     let mut restored = Running::start(copy.path());
     let mut owner = restored.owner();
     let mut agent = restored.client(Credential([1; 32]), None);
@@ -1426,7 +1432,7 @@ fn a_lost_marks_directory_is_an_ordinary_start_and_a_copy_of_both_is_not() {
     let next = task_open(&mut agent, goal, "After continuing").unwrap();
     drop((owner, agent));
     restored.stop();
-    let copy_marks = local::marks_dir(copy.path());
+    let copy_marks = local::marks_dir(copy.path()).unwrap();
     assert_eq!(
         header(copy.path(), &copy_marks, next).prev,
         Some(after),
@@ -1501,7 +1507,7 @@ fn a_database_overwritten_in_place_is_found_by_its_marks() {
     overwrite_database_in_place(backup.path(), home.path());
     assert_eq!(FileId::of(&database).unwrap(), file);
     assert_eq!(
-        SqliteStore::open(home.path(), &local::marks_dir(home.path()))
+        SqliteStore::open(home.path(), &local::marks_dir(home.path()).unwrap())
             .unwrap()
             .event(&lost)
             .unwrap(),
@@ -1577,7 +1583,7 @@ fn on_the_hosts_computer_the_goal_waits_for_the_person() {
     )
     .unwrap();
     host.stop();
-    let marks = local::marks_dir(original.path());
+    let marks = local::marks_dir(original.path()).unwrap();
     let held = held_events(original.path(), goal);
 
     let mut restored = Running::start_with_marks(backup.path(), &marks);
@@ -1672,7 +1678,7 @@ fn on_a_members_computer_the_hold_ends_when_the_hosts_computer_is_heard() {
         .then_some(())
     });
     member.stop();
-    let marks = local::marks_dir(original.path());
+    let marks = local::marks_dir(original.path()).unwrap();
 
     // Beside the marks it kept, the copy is behind until the host's computer
     // returns the record. The goal's `RESTORED` record outlives the hold.
