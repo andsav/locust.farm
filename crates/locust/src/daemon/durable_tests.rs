@@ -1283,7 +1283,7 @@ fn a_start_on_an_empty_home_keeps_the_marks_a_later_restore_needs() {
     )
     .unwrap();
     host.stop();
-    let marks = local::marks_dir(original.path());
+    let marks = local::marks_dir(original.path()).unwrap();
     let old = header(original.path(), &marks, old_id);
 
     // Moved aside on the same volume; the daemon starts on an empty home.
