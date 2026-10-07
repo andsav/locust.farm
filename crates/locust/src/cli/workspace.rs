@@ -536,7 +536,7 @@ fn initial_policy(api: &mut Objects<'_>, args: &ArgMatches) -> Result<InitialPol
         .host
         .ok_or_else(|| conflict("the host's agent has not arrived"))?;
     let explicit = args.get_one::<String>("completion").is_some();
-    let rebind = formation.workspace.is_none() || explicit;
+    let mut rebind = formation.workspace.is_none() || explicit;
     let completion = args
         .get_one::<String>("completion")
         .map(|source| {
@@ -548,6 +548,20 @@ fn initial_policy(api: &mut Objects<'_>, args: &ArgMatches) -> Result<InitialPol
         Some(policy) => {
             if let Some(completion) = completion {
                 policy.completion = completion;
+            }
+            // A named accepting member who has left would leave the first
+            // files with nobody to accept them; as with an emptied role, the
+            // host's agent takes over, and the rebind shows it in the plan.
+            if let Authority::Participant { key } = &policy.integrator
+                && !status
+                    .members
+                    .iter()
+                    .any(|member| member.member.to_string() == *key)
+            {
+                policy.integrator = Authority::Participant {
+                    key: host.to_string(),
+                };
+                rebind = true;
             }
         }
         None => {

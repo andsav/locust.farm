@@ -130,6 +130,12 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 serde_json::json!({"epoch":current.map(|workspace|workspace.epoch)}),
             ));
         }
+        // Files pinned to replaced rules would be judged by a rule the goal
+        // no longer follows; a bind between the plan and this write is a
+        // conflict, not a quiet pin.
+        if entry.state().current_rules != Some(rules) {
+            return Err(conflict("the rules revision changed"));
+        }
         if matches!(checkpoint, WorkspaceCheckpoint::Unseeded)
             && current.is_some_and(|workspace| workspace.head.is_some())
         {

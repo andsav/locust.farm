@@ -3,7 +3,7 @@
 use super::{Output, acting_agent, connection, presentation, print, resolve_goal, status};
 use crate::failure::Failure;
 use clap::{Arg, ArgMatches, Command};
-use locust_proto::api::{Caller, Request, Response};
+use locust_proto::api::{Caller, Request, Response, WaitOutcome};
 use locust_proto::id::IdempotencyKey;
 use locust_proto::local;
 use serde_json::json;
@@ -103,6 +103,24 @@ pub(super) fn run(matches: &ArgMatches, selected: &ArgMatches) -> Result<Output,
             on_behalf,
         )
         .map_err(|error| connection::client_error(error, &socket))?;
+    // A task opened or a member admitted during the wait has a title and a
+    // name the first lists do not know; read them again before printing.
+    let fresh = (!matches.get_flag("json")
+        && matches!(response, Response::Waited(WaitOutcome::Work(_))))
+    .then(|| {
+        (
+            super::members(&mut client, goal, on_behalf),
+            super::board(&mut client, goal, on_behalf),
+        )
+    });
+    let reader = match &fresh {
+        Some((members, tasks)) => presentation::Reader {
+            members,
+            tasks,
+            ..reader
+        },
+        None => reader,
+    };
     let human = presentation::render(&response, Some(goal), &reader).expect("wait renderer");
     let human = format!("{human}\nObservation only: no work or context was acknowledged.");
     Ok(Output::success(

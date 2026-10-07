@@ -216,6 +216,66 @@ pub(super) fn accepted_tree(
 }
 
 #[test]
+fn the_first_files_cannot_be_pinned_to_rules_the_goal_no_longer_follows() {
+    let (mut daemon, principal, owner, _, goal) = lifecycle::setup();
+    let formation = Formation {
+        workspace: Some(WorkspacePolicy {
+            integrator: Authority::Participant {
+                key: principal.to_string(),
+            },
+            completion: CompletionRule::Declaration {
+                by: Selector::Members,
+            },
+        }),
+        ..Formation::default()
+    };
+    let bind = |daemon: &mut Daemon, formation: &Formation| {
+        let expected = daemon.node.goals[&goal].state().current_rules.unwrap();
+        lifecycle::event(daemon.ok(
+            owner,
+            Request::RulesBind {
+                no_role: false,
+                goal,
+                expected,
+                formation_json: serde_json::to_string(formation).unwrap(),
+                inputs: Default::default(),
+            },
+        ))
+    };
+    let first = bind(&mut daemon, &formation);
+    let second = bind(&mut daemon, &formation);
+    let before = daemon.store.log(&goal, 0, usize::MAX).unwrap().len();
+    let error = daemon
+        .call(
+            owner,
+            Request::WorkspaceEpochSet {
+                goal,
+                expected_epoch: None,
+                rules: first,
+                checkpoint: WorkspaceCheckpoint::Unseeded,
+            },
+        )
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Conflict);
+    assert_eq!(error.message, "the rules revision changed");
+    assert_eq!(
+        daemon.store.log(&goal, 0, usize::MAX).unwrap().len(),
+        before
+    );
+    assert!(daemon.node.goals[&goal].state().workspace.is_none());
+    daemon.ok(
+        owner,
+        Request::WorkspaceEpochSet {
+            goal,
+            expected_epoch: None,
+            rules: second,
+            checkpoint: WorkspaceCheckpoint::Unseeded,
+        },
+    );
+    assert!(daemon.node.goals[&goal].state().workspace.is_some());
+}
+
+#[test]
 fn publication_declaration_and_integration_are_distinct_durable_steps() {
     let (mut daemon, _, _, agent, goal) = setup();
     let (initial, _) = accepted_tree(&mut daemon, agent, goal, 20);

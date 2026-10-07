@@ -92,14 +92,21 @@ impl Failure {
     /// A refusal reworded for the person who owns the agent: the daemon's
     /// message names the agent by its local name and quotes nothing another
     /// member wrote; the person reads the names and titles from `details`.
-    /// Any other failure is unchanged.
+    /// Words a command put around the daemon's sentence stay. Any other
+    /// failure is unchanged.
     pub fn for_person(mut self) -> Self {
         if let Some(refused) = self
             .details_json
             .as_deref()
             .and_then(|text| serde_json::from_str::<Refused>(text).ok())
         {
-            self.message = render(&refused, Voice::Person);
+            let agent = render(&refused, Voice::Agent);
+            let person = render(&refused, Voice::Person);
+            self.message = if self.message.contains(&agent) {
+                self.message.replacen(&agent, &person, 1)
+            } else {
+                person
+            };
         }
         self
     }
@@ -196,6 +203,22 @@ mod tests {
         assert!(for_person.message.contains("\"Static site search\""));
         assert_eq!(for_person.code, from_daemon.code);
         assert_eq!(for_person.details_json, from_daemon.details_json);
+        // A command's own words around the daemon's sentence stay.
+        let prefixed = Failure {
+            message: format!(
+                "publication uncertain; recover exact operation 7: {}",
+                from_daemon.message
+            ),
+            ..from_daemon.clone()
+        }
+        .for_person();
+        assert_eq!(
+            prefixed.message,
+            format!(
+                "publication uncertain; recover exact operation 7: {}",
+                render(&refused, Voice::Person)
+            )
+        );
         // Details that are not a refusal leave the message alone.
         let other = Failure {
             details_json: Some(r#"{"role":"lead"}"#.into()),

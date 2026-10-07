@@ -59,6 +59,8 @@ struct State {
     agent_revoked: bool,
     /// False when the goal's first record came from another computer.
     hosted_here: bool,
+    /// Members besides the host's agent.
+    other_members: Vec<PublicKey>,
 }
 impl State {
     fn formation(&mut self, formation: &Formation) {
@@ -68,6 +70,15 @@ impl State {
         binding.definition.object.hash = hash;
         binding.definition.object.len = source.len() as u32;
         self.objects.insert(hash, source);
+    }
+    fn members(&self) -> serde_json::Value {
+        let mut members = vec![
+            json!({"member":PRINCIPAL,"name":"worker","endpoint":locust_proto::id::EndpointId([0x40;32]),"local":self.hosted_here,"admitted":0}),
+        ];
+        for (index, member) in self.other_members.iter().enumerate() {
+            members.push(json!({"member":member,"name":format!("Member {index}"),"endpoint":locust_proto::id::EndpointId([0x41;32]),"local":false,"admitted":index + 1}));
+        }
+        json!(members)
     }
     fn abilities() -> Abilities {
         Abilities {
@@ -127,6 +138,7 @@ impl State {
             session_active: true,
             agent_revoked: false,
             hosted_here: true,
+            other_members: vec![],
         }
     }
     fn event(&mut self) -> EventId {
@@ -181,7 +193,7 @@ impl State {
                 goals:vec![GoalSummary { goal:GOAL,title:Some("workspace".into()),member:PRINCIPAL,membership:Membership::Member,name:"agent".into(),host_name:None,invitations_open:0,invitations_expire_ms:None,halted:None,abilities:Self::abilities() }] })),
             Request::GoalStatus { goal } => Ok(Response::GoalStatus(serde_json::from_value(json!({
                 "goal":goal,"title":"workspace","governance":GOVERNANCE,"hosted_here":self.hosted_here,"host_name":"Host","roles":{},"deciding":[],"acting_alone":[],"host":PRINCIPAL,"governance_head":self.rules,"current_rules":self.rules,
-                "scope_halts":[],"members":[{"member":PRINCIPAL,"name":"worker","endpoint":locust_proto::id::EndpointId([0x40;32]),"local":self.hosted_here,"admitted":0}],"halted":null,"abilities":[Self::abilities()],"stalled":[],"peers":[]
+                "scope_halts":[],"members":self.members(),"halted":null,"abilities":[Self::abilities()],"stalled":[],"peers":[]
             })).unwrap())),
             Request::AgentRevoke { agent } => { assert_eq!(agent, PRINCIPAL); self.agent_revoked = true; Ok(Response::Done) }
             Request::AgentReconnect { agent } => { assert_eq!(agent, PRINCIPAL); self.agent_revoked = false; Ok(Response::Done) }
@@ -208,7 +220,10 @@ impl State {
                 Ok(Response::Recorded {event})
             }
             Request::WorkspaceEpochSet { expected_epoch, rules, checkpoint, .. } => {
-                assert_eq!(expected_epoch,self.epoch); assert_eq!(rules,self.rules); assert_eq!(checkpoint,WorkspaceCheckpoint::Unseeded);
+                assert_eq!(expected_epoch,self.epoch); assert_eq!(checkpoint,WorkspaceCheckpoint::Unseeded);
+                if rules != self.rules {
+                    return Err(ApiError::new(ErrorCode::Conflict, "the rules revision changed"));
+                }
                 let event = self.event(); self.epoch = Some(event); self.epoch_rules = Some(rules);
                 if self.lose_epoch_reply {self.lose_epoch_reply=false;self.drop_reply=true;}
                 Ok(Response::Recorded {event})
@@ -614,32 +629,56 @@ fn file_stdin_and_empty_seeds_are_explicit_frozen_previews_without_git() {
 #[test]
 fn init_keeps_a_formations_file_policy_and_only_overrides_explicit_completion() {
     use locust_proto::organization::{Authority, CompletionRule, Selector, WorkspacePolicy};
-    for explicit in [false, true] {
+    let named = PublicKey([0x43; 32]);
+    for (explicit, present) in [(false, true), (true, true), (false, false), (true, false)] {
         let fixture = Fixture::new();
         let policy = WorkspacePolicy {
             integrator: Authority::Participant {
-                key: PublicKey([0x43; 32]).to_string(),
+                key: named.to_string(),
             },
             completion: CompletionRule::Contribution {
                 by: Selector::Members,
             },
         };
-        fixture.state.lock().unwrap().formation(&Formation {
-            workspace: Some(policy.clone()),
-            ..Formation::default()
-        });
+        {
+            let mut state = fixture.state.lock().unwrap();
+            state.formation(&Formation {
+                workspace: Some(policy.clone()),
+                ..Formation::default()
+            });
+            if present {
+                state.other_members.push(named);
+            }
+        }
         let goal = GOAL.to_string();
         let completion = r#"{"kind":"declaration","by":{"kind":"contribution_author"}}"#;
         let mut args = vec!["workspace", "init", "--goal", &goal, "--empty"];
         if explicit {
             args.extend(["--completion", completion]);
         }
+        // The named accepting member who has left is replaced by the host's
+        // agent, and the plan shows the replacement before anything is asked.
+        let host_policy = Authority::Participant {
+            key: PRINCIPAL.to_string(),
+        };
+        let expected_integrator = if present {
+            policy.integrator.clone()
+        } else {
+            host_policy
+        };
+        let mut plan = fixture.cli_host();
+        plan.args(&args).arg("--plan");
+        let plan = output(plan, 0);
+        assert_eq!(
+            plan["result"]["plan"]["workspace_policy"]["integrator"],
+            serde_json::to_value(&expected_integrator).unwrap()
+        );
         fixture.reviewed(&args, true, 0);
         let state = fixture.state.lock().unwrap();
         let definition = state.rules_bindings[&state.rules].definition.object.hash;
         let formation: Formation = serde_json::from_slice(&state.objects[&definition]).unwrap();
         let got = formation.workspace.unwrap();
-        assert_eq!(got.integrator, policy.integrator);
+        assert_eq!(got.integrator, expected_integrator);
         assert_eq!(
             got.completion,
             if explicit {
@@ -654,10 +693,10 @@ fn init_keeps_a_formations_file_policy_and_only_overrides_explicit_completion() 
                 .iter()
                 .filter(|frame| matches!(frame.request, Request::RulesBind { .. }))
                 .count(),
-            usize::from(explicit)
+            usize::from(explicit || !present)
         );
         assert_eq!(state.epoch_rules, Some(state.rules));
-        if !explicit {
+        if !explicit && present {
             assert_eq!(state.rules, FIRST_RULES);
         }
     }
@@ -1473,6 +1512,51 @@ fn init_uses_the_reviewed_rules_if_the_binding_changes_after_the_fresh_plan() {
         frame.request,
         Request::RulesBind {
             expected: FIRST_RULES,
+            ..
+        }
+    )));
+}
+
+#[test]
+fn init_does_not_pin_the_files_to_rules_replaced_after_the_fresh_plan() {
+    use locust_proto::organization::{Authority, CompletionRule, Selector, WorkspacePolicy};
+    let fixture = Fixture::new();
+    let changed = EventId([0xc6; 32]);
+    {
+        let mut state = fixture.state.lock().unwrap();
+        state.formation(&Formation {
+            workspace: Some(WorkspacePolicy {
+                integrator: Authority::Participant {
+                    key: PRINCIPAL.to_string(),
+                },
+                completion: CompletionRule::Contribution {
+                    by: Selector::Members,
+                },
+            }),
+            ..Formation::default()
+        });
+        state.shift_rules_on_head_read = Some((4, changed));
+    }
+    let refused = fixture.reviewed(
+        &["workspace", "init", "--goal", &GOAL.to_string(), "--empty"],
+        true,
+        7,
+    );
+    assert_eq!(refused["error"]["code"], "conflict");
+    let state = fixture.state.lock().unwrap();
+    assert!(state.operations.is_empty());
+    assert!(state.epoch.is_none());
+    assert_eq!(state.rules, changed);
+    assert!(
+        !state
+            .requests
+            .iter()
+            .any(|frame| matches!(frame.request, Request::RulesBind { .. }))
+    );
+    assert!(state.requests.iter().any(|frame| matches!(
+        frame.request,
+        Request::WorkspaceEpochSet {
+            rules: FIRST_RULES,
             ..
         }
     )));

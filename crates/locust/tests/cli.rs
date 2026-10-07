@@ -2652,6 +2652,90 @@ fn watch_stops_observing_when_nobody_can_read_it() {
 }
 
 #[test]
+fn watch_names_a_task_and_a_member_that_appeared_while_it_waited() {
+    use locust_proto::api::{Attempting, MemberView, PendingWork, TaskView, WaitOutcome, WorkItem};
+    use locust_proto::event::{Context, Scope, TaskId};
+    use locust_proto::id::{EndpointId, EventId};
+    let home = scratch();
+    write_secret(&home.path().join("owner.credential"), &[1; 32]);
+    let goal = GoalId([3; 32]);
+    let host = PublicKey([2; 32]);
+    let juniper = PublicKey([7; 32]);
+    let task = TaskId::Authored(EventId([4; 32]));
+    let mut status_reads = 0;
+    let mut board_reads = 0;
+    let handle = server(home.path(), 1, move |frame| match frame.request {
+        Request::Status => Ok(status(vec![])),
+        Request::Pending { .. } => Ok(Response::Pending(Default::default())),
+        Request::GoalStatus { .. } => {
+            status_reads += 1;
+            let mut view = hosted_goal_status(goal, host, true);
+            if status_reads > 1 {
+                view.members.push(MemberView {
+                    name: "Juniper".into(),
+                    member: juniper,
+                    endpoint: EndpointId([3; 32]),
+                    local: false,
+                    admitted: 1,
+                });
+            }
+            Ok(Response::GoalStatus(view))
+        }
+        Request::Board { .. } => {
+            board_reads += 1;
+            Ok(Response::Board(if board_reads > 1 {
+                vec![TaskView {
+                    task,
+                    context: Context {
+                        scope: Scope::Task(task),
+                        round: EventId([4; 32]),
+                    },
+                    creator: host,
+                    by_host: false,
+                    title: Some("Fix the parser".into()),
+                    attempts: vec![],
+                    contributions: vec![],
+                    completed: false,
+                    selected: None,
+                    closed: false,
+                }]
+            } else {
+                vec![]
+            }))
+        }
+        Request::Wait { .. } => Ok(Response::Waited(WaitOutcome::Work(Box::new(PendingWork {
+            revision: 2,
+            to_start: vec![WorkItem {
+                task,
+                offer: None,
+                attempting: vec![Attempting {
+                    member: juniper,
+                    status: None,
+                }],
+                results: 0,
+            }],
+            ..Default::default()
+        })))),
+        other => panic!("unexpected {other:?}"),
+    });
+    let output = plain()
+        .arg("--home")
+        .arg(home.path())
+        .args(["--owner", "watch", "--goal", &goal.to_string()])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let text = String::from_utf8(output.stdout).unwrap();
+    assert!(
+        text.contains(
+            "Ready to start: Fix the parser (task:04040404)\n  Attempting: Juniper (07070707)"
+        ),
+        "{text}"
+    );
+    handle.join().unwrap();
+}
+
+#[test]
 fn human_goal_and_task_titles_resolve_to_exact_authorized_write() {
     use locust_proto::api::TaskView;
     use locust_proto::event::{Context, Scope, TaskId};
