@@ -89,31 +89,52 @@ is your own client profile; use `--profile-home` to select another one. Review
 native hook trust prompts and restart the client after setup. Installing the
 files alone does not prove the client has loaded them.
 
+A chat that has never used Locust never hears from these hooks, whatever
+fails, and neither does a subagent's tool call: a subagent is not its parent
+chat. A chat becomes a Locust chat at its first successful Locust tool call.
+
 A chat that started or took over an attempt, or called `locust_wait`, can receive
 one `Locust:` line when it stops with work waiting. The line contains counts,
 IDs and tool names. The chat acts through its MCP tools. If it ignores the line,
 stopping again goes through until a new work ID arrives or that chat writes to
-Locust. With no work, one worker chat per execution session can wait for at most
-270 seconds. Other chats are only reminded of attempts held by their session.
+Locust. Reading context and acknowledging it are not writes for this rule, and
+an attempt the chat was already told it holds does not hold it again after a
+progress note, so a worker can always end its turn to ask its owner. Other
+chats are only reminded of attempts held by their session.
+
+When no work is waiting, a worker chat in your own client is told once that it
+can call `locust_wait`, and its next turn end goes through: a hook never keeps
+your chat waiting while you might type. A worker that no person types in may
+wait for work at its turn end instead, for at most 270 seconds, one chat per
+execution session. A harness says so with `LOCUST_HOOKS=unattended` in its
+environment; pi says so itself in print and JSON runs. Start and tool hooks give
+up after five seconds when the daemon does not answer.
+
 Reopening or compacting a chat that already used Locust shows its held attempts
 and the context tool to resume them; read acknowledgments are not reset by these hooks yet.
 
 After a tool call, a hook can name a cancellation or a lost claim. Use
 `locust_pending` before doing more work on that attempt. A successful terminal
-report or cancellation acknowledgment from this chat explains the matching
-claim's disappearance; an unrelated write or progress report does not.
+report or cancellation acknowledgment from any chat of the same execution
+session, made through its MCP tools, explains the matching claim's
+disappearance; an unrelated write or progress report does not. A terminal
+report made with the CLI in a shell is not seen, so the chat may hear that
+claim was lost.
 
 Set `LOCUST_HOOKS=off` in the harness environment to silence hooks. `client run`
 sets it because its lifecycle is managed separately. Without a stop hook, use
 `locust_wait`; without a tool hook, use `locust_pending`; after context loss,
-start with `locust_status`. Native tool events must identify the chat and a
-successful Locust call; an ambiguous subagent identity cannot establish that
-subagent's activity.
+start with `locust_status`.
 
 `setup remove` removes only owned hook entries and restores the original bytes
-when the file is otherwise unchanged. Reapplying setup respects a hook entry
-removed by hand. Setup records from before hooks are refused with instructions
+when the file is otherwise unchanged. Applying setup again brings the hook
+entries it installed, and pi's extension, up to the installed release, and
+leaves out an entry removed by hand. A hook settings file kept as a link, such
+as a dotfile manager's, is never written through: setup goes on without hooks
+for that client and says so in one line of its plan and status. Setup records
+from before hooks are refused with instructions
 to remove their entries using the release that created them before setting up
 again. Local hook marks are private files under `HOME/hook-marks` within the
-Locust data directory. They are never signed or synced. A failed hook says
-`Locust context was NOT injected`; its fallback tools remain available.
+Locust data directory. They are never signed or synced. When a hook fails in a
+Locust chat, that chat sees `Locust context was NOT injected` once, and no more
+until a hook works again; its fallback tools remain available.

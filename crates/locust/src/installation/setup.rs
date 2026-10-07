@@ -62,6 +62,8 @@ struct HookOwnership {
     original: Image,
     config: Image,
     registration: HookRegistration,
+    /// Native events whose entry the person removed; reapply keeps them out.
+    declined: Vec<String>,
 }
 #[derive(Clone, Serialize, Deserialize)]
 struct Change {
@@ -90,7 +92,14 @@ impl SetupPlan {
 }
 struct Paths {
     config: PathBuf,
+    /// The hook file setup manages: absent for a client without an adapter,
+    /// or when the file there cannot be written safely.
     hook: Option<PathBuf>,
+    /// The adapter's hook file, managed or not.
+    hook_path: Option<PathBuf>,
+    /// Why hooks are off for this profile; setup goes on without them.
+    hooks_skipped: Option<String>,
+    trust_review: bool,
     skill: PathBuf,
     launcher: PathBuf,
     record: PathBuf,
@@ -167,11 +176,27 @@ pub fn profile_paths(client: Client, profile_home: &Path) -> (PathBuf, PathBuf, 
 fn paths(s: &SetupSpec) -> Result<Paths, Failure> {
     let (config, skill, launcher) = profile_paths(s.client, &s.profile_home);
     let id = package::sha256(&encode(&(s.client, &s.profile_home))?);
+    let adapter = adapter_client(s.client).and_then(hooks::adapter);
+    let hook_path = adapter.map(|adapter| s.profile_home.join(adapter.relative_config_path));
+    // Under the MCP entry's rule a file is written only when it is a plain,
+    // singly linked file the person owns. A hook file kept elsewhere, such as
+    // a dotfile manager's link, turns hooks off here and nothing else.
+    let hooks_skipped = match &hook_path {
+        Some(path) => snapshot(path).err().map(|error| {
+            format!(
+                "{} cannot be written safely ({}); hooks are off for this client, MCP tools still work. To use hooks, make it a regular file you own and apply setup again",
+                path.display(),
+                error.message
+            )
+        }),
+        None => None,
+    };
     Ok(Paths {
         config,
-        hook: adapter_client(s.client)
-            .and_then(hooks::adapter)
-            .map(|adapter| s.profile_home.join(adapter.relative_config_path)),
+        hook: hook_path.clone().filter(|_| hooks_skipped.is_none()),
+        hook_path,
+        hooks_skipped,
+        trust_review: adapter.is_some_and(|adapter| adapter.trust_review),
         skill,
         launcher,
         record: s.prefix.join("setup").join(format!("{id}.json")),
@@ -270,7 +295,7 @@ fn validate_hooks(record: &Record, p: &Paths) -> Result<(), Failure> {
         || record
             .hooks
             .iter()
-            .any(|owned| Some(&owned.path) != p.hook.as_ref())
+            .any(|owned| Some(&owned.path) != p.hook_path.as_ref())
     {
         return Err(corrupt("setup hook ownership target mismatch"));
     }
@@ -494,24 +519,29 @@ fn prepare_hooks(
             vec![],
         ));
     }
-    let (registration, original, after) = if let Some(owned) = owned {
-        // Keep only groups that the person still has installed. Updating the
-        // binding changes the launcher in place; it does not reinsert deleted hooks.
-        let registration =
-            hooks::retain_present(&hook_document(s.client, &current)?, &owned.registration)
-                .map_err(hook_error)?;
-        let original = restore_hooks(s.client, owned, &current)?;
-        (registration, original, current.clone())
-    } else {
-        let registration = hooks::registration(
-            adapter_client(s.client).expect("hook adapter client"),
-            &p.launcher,
+    let fresh = hooks::registration(
+        adapter_client(s.client).expect("hook adapter client"),
+        &p.launcher,
+    )
+    .map_err(hook_error)?;
+    let (registration, declined, original, after) = if let Some(owned) = owned {
+        // Bring the entries the person still has up to this release, in
+        // place. An entry they removed stays out.
+        let reapplied = hooks::reapply(
+            &hook_document(s.client, &current)?,
+            &owned.registration,
+            &owned.declined,
+            &fresh,
         )
         .map_err(hook_error)?;
-        let value = hooks::install(&hook_document(s.client, &current)?, &registration)
-            .map_err(hook_error)?;
+        let original = restore_hooks(s.client, owned, &current)?;
+        let after = hook_image(s.client, &current, &reapplied.document)?;
+        (reapplied.registration, reapplied.declined, original, after)
+    } else {
+        let value =
+            hooks::install(&hook_document(s.client, &current)?, &fresh).map_err(hook_error)?;
         let after = hook_image(s.client, &current, &value)?;
-        (registration, current.clone(), after)
+        (fresh, vec![], current.clone(), after)
     };
     Ok((
         vec![Change {
@@ -524,6 +554,7 @@ fn prepare_hooks(
             original,
             config: after,
             registration,
+            declined,
         }],
     ))
 }
@@ -927,7 +958,7 @@ fn prepare(s: &SetupSpec, remove: bool) -> Result<Transaction, Failure> {
     let record_change = changes.pop().expect("record change");
     changes.extend(hook_changes);
     changes.push(record_change);
-    let review = json!({"format":"locust-setup-plan-v3","action":if remove{"remove"}else{"apply"},"spec":s,"source_manifest_sha256":source,"files":changes.iter().map(|c|json!({"path":c.path,"before":c.before.summary(),"after":c.after.summary()})).collect::<Vec<_>>(),"collision_inputs":collision,"binding_fingerprints":binding,"server":if remove{None}else{Some(desired(s)?)},"launcher":p.launcher,"hook_config":p.hook,"hook_trust_review_required":s.client==Client::Codex && !remove,"reload_required":true,"discovered":false,"api_ready":false,"binding_scope":"explicit profile/session"});
+    let review = json!({"format":"locust-setup-plan-v3","action":if remove{"remove"}else{"apply"},"spec":s,"source_manifest_sha256":source,"files":changes.iter().map(|c|json!({"path":c.path,"before":c.before.summary(),"after":c.after.summary()})).collect::<Vec<_>>(),"collision_inputs":collision,"binding_fingerprints":binding,"server":if remove{None}else{Some(desired(s)?)},"launcher":p.launcher,"hook_config":p.hook,"hooks_skipped":p.hooks_skipped,"hook_trust_review_required":p.trust_review && p.hook.is_some() && !remove,"reload_required":true,"discovered":false,"api_ready":false,"binding_scope":"explicit profile/session"});
     Ok(Transaction {
         spec_hash: package::sha256(&encode(s)?),
         remove,
@@ -970,7 +1001,7 @@ pub fn preflight_new(spec: &SetupSpec) -> Result<Value, Failure> {
             .map_err(hook_error)?;
     }
     Ok(
-        json!({"config":p.config,"config_file":config.summary(),"hook_config":p.hook,"skill":p.skill,
+        json!({"config":p.config,"config_file":config.summary(),"hook_config":p.hook,"hooks_skipped":p.hooks_skipped,"skill":p.skill,
         "launcher":p.launcher,"collision_inputs":collisions(&s, &p, &config)?}),
     )
 }
@@ -1055,7 +1086,7 @@ fn execute(
             .iter()
             .any(|c| c.path == p.launcher && c.after.bytes.is_some());
     Ok(
-        json!({"changed":tx.changes.iter().any(|c|c.before!=c.after),"configured":launcher_ready,"removed":remove,"launcher":p.launcher,"launcher_ready":launcher_ready,"hook_config":p.hook,"hook_trust_review_required":s.client==Client::Codex && !remove,"reload_required":true,"discovered":false,"api_ready":false,"plan_sha256":expected}),
+        json!({"changed":tx.changes.iter().any(|c|c.before!=c.after),"configured":launcher_ready,"removed":remove,"launcher":p.launcher,"launcher_ready":launcher_ready,"hook_config":p.hook,"hooks_skipped":p.hooks_skipped,"hook_trust_review_required":p.trust_review && p.hook.is_some() && !remove,"reload_required":true,"discovered":false,"api_ready":false,"plan_sha256":expected}),
     )
 }
 pub fn apply(spec: &SetupSpec, expected: &str) -> Result<Value, Failure> {
@@ -1090,20 +1121,27 @@ pub fn status(spec: &SetupSpec) -> Result<Value, Failure> {
     } else {
         false
     };
-    let hooks_ready = if let Some(record) = &r {
-        let mut ready = true;
-        for owned in &record.hooks {
-            ready &= hooks::installed(
-                &hook_document(s.client, &snapshot(&owned.path)?)?,
-                &owned.registration,
-            )
-            .unwrap_or(false);
-        }
-        ready
-    } else {
-        false
+    // Ready means installed as recorded and as this release would install it.
+    let hooks_ready = match (&r, &p.hook) {
+        (Some(record), Some(path)) => match record.hooks.iter().find(|owned| &owned.path == path) {
+            Some(owned) => {
+                let current = hook_document(s.client, &snapshot(path)?)?;
+                let fresh = hooks::registration(
+                    adapter_client(s.client).expect("hook adapter client"),
+                    &p.launcher,
+                )
+                .map_err(hook_error)?;
+                hooks::installed(&current, &owned.registration).unwrap_or(false)
+                    && hooks::reapply(&current, &owned.registration, &owned.declined, &fresh)
+                        .is_ok_and(|update| update.registration == owned.registration)
+            }
+            None => false,
+        },
+        (Some(_), None) => p.hook_path.is_none(),
+        (None, _) => false,
     };
-    let intact = mcp_ready && skill_ready && launcher_ready && hooks_ready;
+    let intact =
+        mcp_ready && skill_ready && launcher_ready && (hooks_ready || p.hooks_skipped.is_some());
     let binding_matches = r.as_ref().is_some_and(|r| {
         r.spec.executable == s.executable
             && r.spec.daemon_home == s.daemon_home
@@ -1113,7 +1151,7 @@ pub fn status(spec: &SetupSpec) -> Result<Value, Failure> {
             && r.spec.profile_home == s.profile_home
     });
     Ok(
-        json!({"owned":r.is_some(),"configured":intact,"binding_matches":binding_matches,"pending":exists(&p.intent)?,"client":s.client,"profile_home":s.profile_home,"launcher":p.launcher,"launcher_ready":launcher_ready,"mcp_ready":mcp_ready,"skill_ready":skill_ready,"hook_config":p.hook,"hooks_ready":hooks_ready,"hook_trust_review_required":s.client==Client::Codex && r.is_some(),"reload_required":true,"discovered":false,"api_ready":false,"binding_scope":"explicit profile/session"}),
+        json!({"owned":r.is_some(),"configured":intact,"binding_matches":binding_matches,"pending":exists(&p.intent)?,"client":s.client,"profile_home":s.profile_home,"launcher":p.launcher,"launcher_ready":launcher_ready,"mcp_ready":mcp_ready,"skill_ready":skill_ready,"hook_config":p.hook,"hooks_ready":hooks_ready,"hooks_skipped":p.hooks_skipped,"hook_trust_review_required":p.trust_review && hooks_ready,"reload_required":true,"discovered":false,"api_ready":false,"binding_scope":"explicit profile/session"}),
     )
 }
 #[cfg(test)]

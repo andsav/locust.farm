@@ -233,8 +233,12 @@ fn plan_text(value: &Value) -> String {
                         .join("\n")
                 })
                 .unwrap_or_default();
+            let hooks = plan["hooks_skipped"]
+                .as_str()
+                .map(|reason| format!("\n  hooks: skipped, {reason}"))
+                .unwrap_or_default();
             format!(
-                "Client setup: {}\n{files}\n  credential: {}\n  session: {}",
+                "Client setup: {}\n{files}\n  credential: {}\n  session: {}{hooks}",
                 plan["spec"]["client"].as_str().unwrap_or("client"),
                 plan["spec"]["credential"].as_str().unwrap_or(""),
                 plan["spec"]["session"].as_str().unwrap_or("")

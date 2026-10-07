@@ -1031,7 +1031,7 @@ fn modified_owned_hooks_refuse_apply_remove_and_preserve_bytes() {
 }
 
 #[test]
-fn unowned_hook_collisions_and_hook_symlinks_refuse_without_mutation() {
+fn unowned_hook_collisions_refuse_without_mutation() {
     for client in [Client::Codex, Client::Claude, Client::Droid] {
         let (_directory, spec) = fixture(client);
         let p = paths(&spec).unwrap();
@@ -1050,13 +1050,145 @@ fn unowned_hook_collisions_and_hook_symlinks_refuse_without_mutation() {
             hook_document(client, &snapshot(hook).unwrap()).unwrap(),
             existing
         );
-        fs::remove_file(hook).unwrap();
-        std::os::unix::fs::symlink(&spec.session, hook).unwrap();
-        assert!(preflight_new(&spec).is_err());
-        assert!(plan(&spec, false).is_err());
-        assert!(plan(&spec, true).is_err());
+    }
+}
+
+#[test]
+fn a_linked_hook_file_turns_hooks_off_and_setup_goes_on() {
+    for client in [Client::Codex, Client::Claude, Client::Droid, Client::Pi] {
+        let (directory, spec) = fixture(client);
+        let hook = paths(&spec).unwrap().hook_path.unwrap();
+        // A dotfile manager keeps the real file elsewhere and links it here.
+        let managed = directory.path().join("dotfiles-settings");
+        put(&managed, b"{\"managed\": true}\n");
+        fs::create_dir_all(hook.parent().unwrap()).unwrap();
+        std::os::unix::fs::symlink(&managed, &hook).unwrap();
+        let p = paths(&spec).unwrap();
+        assert!(p.hook.is_none());
+        let reason = p.hooks_skipped.clone().unwrap();
+        assert!(reason.contains("hooks are off for this client"));
+        assert!(preflight_new(&spec).is_ok());
+        let reviewed = plan(&spec, false).unwrap();
+        assert_eq!(reviewed.review["hooks_skipped"], reason);
+        assert_eq!(reviewed.review["hook_trust_review_required"], false);
+        let applied = apply(&spec, &reviewed.digest().unwrap()).unwrap();
+        assert_eq!(applied["hooks_skipped"], reason);
+        let state = status(&spec).unwrap();
+        assert_eq!(state["mcp_ready"], true);
+        assert_eq!(state["hooks_ready"], false);
+        assert_eq!(state["hooks_skipped"], reason);
+        assert_eq!(state["configured"], true);
+        assert!(read_record(&p).unwrap().1.unwrap().hooks.is_empty());
+        assert_eq!(fs::read(&managed).unwrap(), b"{\"managed\": true}\n");
+        assert!(
+            fs::symlink_metadata(&hook)
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+        // Made a regular file, the next apply installs the hooks.
+        fs::remove_file(&hook).unwrap();
+        let reviewed = plan(&spec, false).unwrap();
+        assert!(reviewed.review["hooks_skipped"].is_null());
+        apply(&spec, &reviewed.digest().unwrap()).unwrap();
+        assert_eq!(status(&spec).unwrap()["hooks_ready"], true);
+        // Linked again after install: setup still goes on and removes cleanly.
+        let installed = fs::read(&hook).unwrap();
+        fs::remove_file(&hook).unwrap();
+        put(&managed, &installed);
+        std::os::unix::fs::symlink(&managed, &hook).unwrap();
+        assert_eq!(status(&spec).unwrap()["hooks_ready"], false);
+        let reviewed = plan(&spec, true).unwrap();
+        remove(&spec, &reviewed.digest().unwrap()).unwrap();
+        assert!(!p.record.exists());
+        assert_eq!(fs::read(&managed).unwrap(), installed);
         assert_eq!(fs::read(&spec.session).unwrap(), vec![18; 32]);
     }
+}
+
+#[test]
+fn applying_again_brings_installed_hooks_up_to_this_release() {
+    for client in [Client::Codex, Client::Claude, Client::Droid] {
+        let (_directory, spec) = fixture(client);
+        let p = paths(&spec).unwrap();
+        let hook = p.hook.as_ref().unwrap();
+        let reviewed = plan(&spec, false).unwrap();
+        apply(&spec, &reviewed.digest().unwrap()).unwrap();
+        let fresh = hooks::registration(adapter_client(client).unwrap(), &p.launcher).unwrap();
+        // Make the install look like an older release's: other time limits
+        // and no PostToolUse event yet.
+        let HookRegistration::JsonGroups { entries } = &fresh else {
+            panic!("JSON hooks");
+        };
+        let old_entries: Vec<_> = entries
+            .iter()
+            .filter(|entry| entry.native_event != "PostToolUse")
+            .cloned()
+            .map(|mut entry| {
+                entry.group["hooks"][0]["timeout"] = json!(600);
+                entry
+            })
+            .collect();
+        let old = HookRegistration::JsonGroups {
+            entries: old_entries,
+        };
+        let document =
+            json!({"hooks":{"Notification":[{"hooks":[{"type":"command","command":"mine"}]}]}});
+        put_hook_document(client, hook, &document);
+        let original = snapshot(hook).unwrap();
+        let older = hooks::install(&document, &old).unwrap();
+        put_hook_document(client, hook, &older);
+        let (_, record) = read_record(&p).unwrap();
+        let mut record = record.unwrap();
+        record.hooks[0].registration = old;
+        record.hooks[0].original = original;
+        record.hooks[0].config = snapshot(hook).unwrap();
+        put(&p.record, &encode(&record).unwrap());
+        assert_eq!(status(&spec).unwrap()["hooks_ready"], false);
+        let reviewed = plan(&spec, false).unwrap();
+        apply(&spec, &reviewed.digest().unwrap()).unwrap();
+        let current = hook_document(client, &snapshot(hook).unwrap()).unwrap();
+        assert!(hooks::installed(&current, &fresh).unwrap());
+        assert_eq!(
+            current["hooks"]["Notification"],
+            document["hooks"]["Notification"]
+        );
+        assert_eq!(status(&spec).unwrap()["hooks_ready"], true);
+        // Applying the same release again changes nothing.
+        let before = snapshot(hook).unwrap();
+        let reviewed = plan(&spec, false).unwrap();
+        apply(&spec, &reviewed.digest().unwrap()).unwrap();
+        assert_eq!(snapshot(hook).unwrap(), before);
+        let reviewed = plan(&spec, true).unwrap();
+        remove(&spec, &reviewed.digest().unwrap()).unwrap();
+        assert_eq!(
+            hook_document(client, &snapshot(hook).unwrap()).unwrap(),
+            document
+        );
+    }
+}
+
+#[test]
+fn applying_again_replaces_an_older_pi_shim_it_owns() {
+    let (_directory, spec) = fixture(Client::Pi);
+    let p = paths(&spec).unwrap();
+    let hook = p.hook.as_ref().unwrap();
+    let reviewed = plan(&spec, false).unwrap();
+    apply(&spec, &reviewed.digest().unwrap()).unwrap();
+    let fresh = fs::read(hook).unwrap();
+    put(hook, b"// an older release's shim\n");
+    let (_, record) = read_record(&p).unwrap();
+    let mut record = record.unwrap();
+    record.hooks[0].registration = HookRegistration::OwnedSource {
+        source: Some("// an older release's shim\n".into()),
+    };
+    record.hooks[0].config = snapshot(hook).unwrap();
+    put(&p.record, &encode(&record).unwrap());
+    assert_eq!(status(&spec).unwrap()["hooks_ready"], false);
+    let reviewed = plan(&spec, false).unwrap();
+    apply(&spec, &reviewed.digest().unwrap()).unwrap();
+    assert_eq!(fs::read(hook).unwrap(), fresh);
+    assert_eq!(status(&spec).unwrap()["hooks_ready"], true);
 }
 
 #[test]
