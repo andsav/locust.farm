@@ -110,7 +110,8 @@ Same Mac (macOS 26.4, arm64), Python 3.13.7. The machine was shared with other
 sessions' builds and daemons, at load averages of about 6 to 14; every
 passing run below finished far inside its deadlines, and every failing run
 failed by a deadline that no load explains (no path between members ever
-appeared). Logs and transcripts are under the worktree's ignored `output/`.
+appeared). The logs, transcripts and the sandbox profile `nomdns.sb` are kept,
+disposable and ignored, under `output/lan-sync-host-offline-2026-10-07/`.
 
 | Run | Started from | Binary | Result | Paths between two members |
 | --- | --- | --- | --- | --- |
