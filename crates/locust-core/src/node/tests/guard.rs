@@ -6,6 +6,7 @@ use super::authorization::{governance_key, join_local};
 use super::delivery::{Network, pipeline_request};
 use super::lifecycle::finding;
 use super::*;
+use crate::node::guard::Hold;
 use crate::sync::Host;
 use locust_proto::api::{
     DaemonStatus, GoalStatus, GoalSummary, GuardReason, GuardView, Halt, InvitationState,
@@ -381,7 +382,7 @@ fn an_ordinary_restart_holds_nothing_and_signs_at_once() {
 
 #[test]
 fn only_the_goals_that_are_behind_are_held() {
-    let mut net = Network::with(2);
+    let mut net = Network::with(3);
     let (behind, host) = hosted(&mut net, 0, 1);
     join(&mut net, 0, 1, behind, 2);
     let owner = net.nodes[0].owner();
@@ -448,6 +449,19 @@ fn only_the_goals_that_are_behind_are_held() {
     // Both goals were found restored, from one copy of one file.
     assert_eq!(view.restored, Some(0));
     assert_eq!(status(&mut net.nodes[0], behind).restored, Some(0));
+
+    // Only the host's agent is behind, so the goal's own key invites and
+    // admits a joiner while the agent stays held.
+    let entry = &net.nodes[0].node.goals[&behind];
+    assert_eq!(net.nodes[0].node.admission_hold(entry), None);
+    assert!(net.nodes[0].node.hold(entry, &host).is_some());
+    let joiner = join(&mut net, 0, 2, behind, 4);
+    assert!(net.nodes[0].node.goals[&behind].is_member(&joiner));
+    assert_eq!(code(post(&mut net, 0, 1, behind)), ErrorCode::ReadOnly);
+    let view = status(&mut net.nodes[0], behind);
+    assert_eq!(reasons(&view.guard).len(), 1);
+    assert_eq!(view.guard[0].key, host);
+    post(&mut net, 2, 4, behind).unwrap();
 }
 
 /// The owner binds the goal's rules again: a record of the governance key.
@@ -2144,4 +2158,76 @@ fn a_restart_while_behind_keeps_the_invitations_of_a_goal_made_since() {
             ..
         }
     ));
+}
+
+/// On the host's computer an agent's mark is not given up while the goal's
+/// own key is held, though every computer the copy lists has answered: the
+/// admission the copy lacks names a computer the copy does not list. When
+/// the goal's records return alone the agent is still behind on its own,
+/// and once the computer that holds both answers, both return and nothing
+/// forks.
+#[test]
+fn an_agents_mark_is_kept_while_the_goals_own_key_is_held() {
+    let mut net = Network::with(3);
+    let (goal, host) = hosted(&mut net, 0, HOST);
+    join(&mut net, 0, 1, goal, 2);
+    let governance = governance_of(&net.nodes[0], goal);
+    let copy = snapshot(&net.nodes[0].store);
+    // An admission and a record of the host's agent reach daemon 2 only.
+    net.down.insert(1);
+    join(&mut net, 0, 2, goal, 3);
+    posted(&mut net, 0, HOST, goal);
+    settle(&mut net);
+    let kept = mark(&net.nodes[0], goal, host).unwrap();
+    let ruled = mark(&net.nodes[0], goal, governance).unwrap();
+    for point in [kept.point, ruled.point] {
+        assert!(net.nodes[2].store.has_event(&point.id).unwrap());
+        assert!(!net.nodes[1].store.has_event(&point.id).unwrap());
+    }
+
+    net.down = [2].into();
+    net.start_over(0, copy);
+    settle(&mut net);
+    let view = status(&mut net.nodes[0], goal);
+    assert_eq!(view.halted, Some(Halt::SignerRecovery));
+    let mut keys: Vec<_> = view.guard.iter().map(|view| view.key).collect();
+    keys.sort();
+    let mut expected = vec![governance, host];
+    expected.sort();
+    assert_eq!(keys, expected);
+    for view in &view.guard {
+        assert!(matches!(view.reason, GuardReason::Behind { .. }));
+        assert_eq!(view.heard, [Network::endpoint(1)]);
+        assert!(
+            view.waiting.is_empty(),
+            "every computer the copy lists answered"
+        );
+    }
+    assert_eq!(mark(&net.nodes[0], goal, host), Some(kept));
+    assert_eq!(code(post(&mut net, 0, HOST, goal)), ErrorCode::ReadOnly);
+
+    // The goal's own records return without the agent's.
+    hand(&mut net, 2, 0, goal, |event| {
+        event.header().author == governance
+    });
+    assert_eq!(mark(&net.nodes[0], goal, host), Some(kept));
+    let entry = &net.nodes[0].node.goals[&goal];
+    assert_eq!(net.nodes[0].node.admission_hold(entry), None);
+    assert!(matches!(
+        net.nodes[0].node.hold(entry, &host),
+        Some(Hold::Behind { .. })
+    ));
+    assert_eq!(code(post(&mut net, 0, HOST, goal)), ErrorCode::ReadOnly);
+
+    net.down.clear();
+    settle(&mut net);
+    assert!(status(&mut net.nodes[0], goal).guard.is_empty());
+    let after = posted(&mut net, 0, HOST, goal);
+    assert_eq!(after.header().seq, kept.point.seq + 1);
+    settle(&mut net);
+    for daemon in &net.nodes {
+        let entry = &daemon.node.goals[&goal];
+        assert_eq!(entry.goal.fork_point(&host), None);
+        assert_eq!(entry.goal.fork_point(&governance), None);
+    }
 }
