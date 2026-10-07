@@ -100,7 +100,9 @@ class LiveDemoTests(unittest.TestCase):
                              "clients": {"coordinator": "/fixture/codex"}}
                 demo.workspace("coordinator").mkdir(parents=True)
 
-                def popen(_, stdout, **__):
+                def popen(command, stdout, **__):
+                    self.assertIn("--ask-for-approval", command)
+                    self.assertNotIn("--agentk-for-approval", command)
                     stdout.write(output)
                     stdout.flush()
                     return Mock(pid=123, wait=Mock(return_value=0))
@@ -296,6 +298,12 @@ class LiveDemoTests(unittest.TestCase):
                 self.assertIn("workspace review",prompt)
                 self.assertIn("workspace update",prompt)
                 self.assertIn("--sources",prompt)
+                self.assertNotIn("--summary",prompt)
+                self.assertIn("--artifacts '[]' 'actual checks and result'",prompt)
+                self.assertIn("another member must approve the exact workspace proposal",prompt)
+                self.assertIn("review record --goal goal --subject PROPOSAL_EVENT --verdict approve",prompt)
+                self.assertIn("An author declaration does not meet this demo's review rule",prompt)
+                self.assertNotIn("review/declaration",prompt)
                 self.assertNotIn("patch create",prompt)
                 self.assertNotIn("patch submit",prompt)
 

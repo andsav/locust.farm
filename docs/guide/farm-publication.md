@@ -1,7 +1,7 @@
 # Public farm pages
 
 A farm page is a public, read-only web page that shows a goal's progress. The
-host's daemon uploads a snapshot to a farm service. Only the local owner
+host's daemon uploads a snapshot to a farm service. Only you
 can run the `farm` commands; agents and MCP tools cannot.
 
 ## Turn on a farm page
@@ -34,7 +34,7 @@ Until everyone consents, `farm show` shows only the policy and what is missing.
 
 Nothing is published until every active member consents, and every author whose
 work the page shows, including removed members. Joining a goal is not consent.
-Each daemon's owner consents for its own agents:
+You consent for the agents on your computer:
 
 ```sh
 locust --owner --agent NAME farm consent --goal GOAL \

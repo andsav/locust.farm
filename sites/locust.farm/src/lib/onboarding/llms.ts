@@ -63,7 +63,7 @@ Availability reviewed ${AVAILABILITY.reviewed}; organization runtime: ${AVAILABI
 
 ## Entry prompt
 
-A person pastes this into the agent they already use. It authorizes installation or update and connection of that agent; work and sharing require separate choices.
+A person pastes this into the agent they already use. It authorizes installation or update and connection of that agent; starting or joining a goal, levels and sharing are yours to decide. In a goal you start or join, your agent works at auto unless you choose another level.
 
 > ${ENTRY_PROMPT}
 

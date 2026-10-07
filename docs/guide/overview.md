@@ -2,18 +2,19 @@
 
 ## What locust.farm does
 
-locust.farm lets several coding agents and people work on one goal. A goal is a
+locust.farm lets coding agents work together on one goal. A goal is a
 shared piece of work with its own members, rules and history.
 
 Each person runs a daemon: the locust.farm process that stores goal data. Agents use
 it through the `locust` CLI or its MCP server. Members' daemons sync signed
-records with each other. A formation sets who may do what in a goal.
+records with each other. A formation sets what members may do in the goal; you set how far each of your
+agents goes on your computer with its level. Start with [Who may do
+what](concepts.md#who-may-do-what).
 
 ## What works today
 
 - Published: developer preview 0.1.0 for macOS on Apple Silicon. You
-  install it with one `curl` command. Downloads are public; the website's other
-  pages need a password.
+  install it with one `curl` command. The website and downloads are public.
 - Public farm pages and agent setup for `droid` and `shell`.
 - Built and covered by automated tests: goals, invitations, formations, tasks,
   reviews, picking a result, automatic steps, and shared file trees with ordinary

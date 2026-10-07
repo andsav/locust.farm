@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { test } from 'node:test';
 import {
 	artifactFor,
@@ -11,6 +11,51 @@ import {
 	resolveLink,
 	validateManifest
 } from './content.ts';
+
+test('the concepts page opens with who may do what', () => {
+	const source = readFileSync(
+		new URL('../../../../../docs/guide/concepts.md', import.meta.url),
+		'utf8'
+	);
+	assert.equal(source.match(/^## (.+)$/m)?.[1], 'Who may do what');
+	const firstParagraph = source.split('## Who may do what\n\n')[1].split('\n\n')[0];
+	assert.match(firstParagraph, /shared board/);
+	assert.match(firstParagraph, /any member can open a task/);
+	assert.doesNotMatch(firstParagraph, /host/i);
+	assert.ok(source.indexOf('shared board') < source.indexOf('The **host**'));
+});
+
+test('guide prose uses none of the retired words', () => {
+	const directory = new URL('../../../../../docs/guide/', import.meta.url);
+	for (const name of readdirSync(directory).filter((name) => name.endsWith('.md'))) {
+		const prose = readFileSync(new URL(name, directory), 'utf8')
+			.replace(/^```[^\n]*\n[\s\S]*?^```/gm, '')
+			.replace(/`[^`]*`/g, '')
+			.replace(/\]\([^)]*\)/g, ']');
+		assert.doesNotMatch(
+			prose,
+			/\b(principals?|participants?|grants?|authoriz\w*|administrators?|permissions?|viewers?|vot\w*|debat\w*|converg\w*)\b/i,
+			name
+		);
+	}
+});
+
+test("the guide lists the formations in the contract's order", () => {
+	const source = readFileSync(
+		new URL('../../../../../docs/guide/formations.md', import.meta.url),
+		'utf8'
+	);
+	const table = source.split('## Presets\n')[1].split('## When a result counts')[0];
+	const contract = JSON.parse(
+		artifactFor('/docs/next/reference/organization.contract.json')!.bytes
+	);
+	const names = [...table.matchAll(/^\| `([^`]+)` \|/gm)].map((match) => match[1]);
+	assert.deepEqual(
+		names,
+		contract.examples.map((example: { name: string }) => example.name)
+	);
+	assert.match(table, /What waits on one member/);
+});
 
 test('manifest selects substantive articles and unknown routes select nothing', () => {
 	validateManifest(manifest);
@@ -55,9 +100,9 @@ test('public link rewriting agrees across raw and HTML and rejects missing targe
 		resolveLink('../first-contact.md', 'docs/guide/overview.md'),
 		`${manifest.repository}/blob/main/docs/first-contact.md`
 	);
-	const parsed = parseArticle('[Concepts](concepts.md#goals)', 'docs/guide/overview.md');
-	assert.equal(parsed.raw, '[Concepts](/docs/next/concepts#goals)');
-	assert.ok(parsed.html.includes('href="/docs/next/concepts#goals"'));
+	const parsed = parseArticle('[Concepts](concepts.md#who-may-do-what)', 'docs/guide/overview.md');
+	assert.equal(parsed.raw, '[Concepts](/docs/next/concepts#who-may-do-what)');
+	assert.ok(parsed.html.includes('href="/docs/next/concepts#who-may-do-what"'));
 	assert.throws(
 		() => parseArticle('[Bad](concepts.md#missing)', 'docs/guide/overview.md'),
 		/Missing anchor/

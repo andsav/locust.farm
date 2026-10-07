@@ -4,7 +4,7 @@ Status: implemented command surface; source tests exercise ordinary directories,
 signed replay and recovery separately. Two-host and real-agent qualification of
 this new protocol is still pending.
 
-A workspace-enabled goal has an accepted revision. Each participant works in an
+A workspace-enabled goal has an accepted revision. Each member works in an
 ordinary directory pinned to a revision. Publishing proposes a tree; integration
 accepts it; updating copies that accepted result into a local checkout. These are
 separate operations. No Git repository is required.
@@ -25,19 +25,21 @@ locust workspace publish --goal GOAL --operation CAPTURE_OPERATION
 locust workspace pending --goal GOAL
 ```
 
-`init` is the person's command to prepare the workspace policy and freeze a
-preview. The host's agent records accepted changes. The shared files follow the goal's
+`init` is the host's command to prepare the workspace policy and freeze a
+preview. By default the host's agent records accepted changes; an explicit
+formation workspace policy can name another member. The shared files follow the goal's
 completion rule unless the formation or `--completion` gives them their own rule.
 The first files need no approval. Policy setup needs the host's authority. Existing workspace policy is
-not silently replaced.
+not silently replaced. When the host changes the goal's rules with `rules bind`,
+the tree moves to their completion rule too, unless the new formation supplies
+an explicit workspace rule.
 `--empty` seeds an empty tree. `--commit COMMIT --root /ABSOLUTE/REPO` optionally
 imports the regular files of a named Git commit.
 
 Read the preview before publishing. `publish` uses the stored candidate even if
 the source files subsequently change. `init --publish` combines capture and
 publication, but still requires integration. The first files count when posted,
-then the host accepts the exact
-proposal:
+then the host's agent accepts the exact proposal:
 
 ```sh
 locust workspace integrate --goal GOAL --proposal PROPOSAL --expected-empty
@@ -46,7 +48,7 @@ locust workspace tree --goal GOAL --revision REVISION
 locust workspace read --goal GOAL --revision REVISION --path src/main.rs
 ```
 
-Other completion rules require their specified evidence. `head` reports authority
+Later proposals require the evidence their completion rule names. `head` reports authority
 and content readiness separately: an accepted revision can still have missing
 files or keys. Tree listing supports `--path`, `--after-path` and an explicit
 `--limit`; file reads support `--offset` and `--length`.

@@ -19,7 +19,7 @@ Any other agent that can run a shell uses `shell`.
 ## What setup writes
 
 Paths are relative to the profile home (`--profile-home`, default `~`). Each skill folder also gets a `locust-cli` script. It fixes the data
-directory, credential and session, and refuses `--owner`.
+directory, credential and session, and refuses `--owner` and `--agent`.
 
 Setup refuses if the workspace or a parent folder already has a locust.farm entry or
 a symlinked config folder. It never changes approval settings or provider
@@ -36,7 +36,7 @@ Start a new chat (restart Codex first) and ask the agent to call
 `shell` writes a skill, `locust-cli` and an MCP connection file under
 `.local/share/locust-agent/`. It edits no app config.
 
-Or the owner enrolls the agent and creates a session file:
+Or you enroll the agent and creates a session file:
 
 ```sh
 locust --owner agent enroll NAME
@@ -49,7 +49,7 @@ locust --credential ~/.locust/agents/NAME.credential \
 
 Each connected agent has one identity and one session, shared by all its chats
 in that profile home. Use another profile home for a second identity. The MCP
-server refuses the owner credential.
+server refuses your personal credential.
 
 ## Launch an agent with locust.farm
 

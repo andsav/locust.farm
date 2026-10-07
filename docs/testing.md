@@ -117,7 +117,7 @@ with real models cost money.
 | [check_installation.py](../scripts/check_installation.py) | Installs a test-signed package: repeat install, refused signatures and plans, launchd, uninstall | `--bootstrap`, `--bundle` |
 | [check_onboarding.py](../scripts/check_onboarding.py) | `up` and `agent add` from an installed package, without agent programs | `--bootstrap`, `--bundle`, `--output`, `--timeout-ms`, `--service` |
 | [check_operations.py](../scripts/check_operations.py) | Three daemons on one machine: interrupted transfers, shared workspace updates, cancellation, leaving, offline removal; `--workflow workspace` runs the focused two-daemon loop | `--binary`, `--network`, `--workflow` |
-| [check_t1.py](../scripts/check_t1.py) | Three daemons on one machine: join, task, review, offline administrator, restarts | `--binary`, `--network` |
+| [check_t1.py](../scripts/check_t1.py) | Three daemons on one machine: join, task, review, offline host, restarts | `--binary`, `--network` |
 | [check_farm.py](../scripts/check_farm.py) | Two daemons and the farm service: consent, private text kept out, restart, revocation, deletion | `--binary`, `--service-binary`, `--output` |
 | [simulate_machines/run.py](../scripts/simulate_machines/run.py) | Daemons on one Mac as simulated machines; `--list` shows the scenarios | `--binary`, `--quick` |
 | [check_performance_cost.py](../scripts/check_performance_cost.py) | CLI and MCP time and bytes for two release binaries | `--before`, `--after`, `--samples`, `--output` |

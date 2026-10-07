@@ -69,9 +69,9 @@ author formation publish --draft research --id research-v1 \
 if author formation draft update --id research --expected-revision 0 '{}' >"$demo/conflict.json"; then
   echo 'Unexpected stale edit success'; exit 1
 fi
-# An author credential cannot instantiate a goal or acquire work authority.
+# An author credential cannot start a goal.
 if author goal create --title 'Must be refused' >"$demo/denied.json"; then
-  echo 'Unexpected author goal permission'; exit 1
+  echo 'Unexpected author goal creation'; exit 1
 fi
 python3 - "$demo" <<'PY'
 import json, pathlib, sys
@@ -100,8 +100,12 @@ locust --owner --agent NAME goal create --title TITLE --formation review-panel -
 For your own formation, use `--formation-json "$(cat team.json)"`. `--inputs`
 maps inputs to file hashes. Starting a goal is the person's command, naming
 the enrolled agent who becomes the host's agent. That agent is initially the
-only member. It initially holds every declared role. After others join,
-use `locust --owner role give --goal GOAL --member MEMBER ROLE` to give a role.
+only member and holds every declared role. In `review-panel`, members you add
+or invite become reviewers automatically unless you use `--no-role` or choose
+another role. Use `locust --owner role give --goal GOAL --member MEMBER ROLE`
+and `role take` when you want to change the holders. A role that picks a result
+or closes a task has one member. See [changing rules](formations.md#changing-the-rules)
+for roles retained by earlier tasks and automatic reviewer assignment.
 
 ## Write one with your agent
 
@@ -112,7 +116,7 @@ express. Have it ask before publishing.
 
 ## Use the editor on locust.farm
 
-The editor at https://locust.farm/formations (password-protected preview)
+The editor at https://locust.farm/formations
 builds a formation without JSON: six ways of working, four questions, roles,
 steps and task types. A TypeScript copy of locust.farm's checks runs in your browser,
 held to locust.farm's results by shared test cases. Work stays in the browser.

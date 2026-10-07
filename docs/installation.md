@@ -176,7 +176,8 @@ Setup writes:
 - a `locust-cli` script next to the skill. It fixes `--home`, `--credential` and
   `--session`, and refuses those flags, `--owner` and `--agent` in its arguments
   ([launcher.rs](../crates/locust/src/installation/setup/launcher.rs)). It does
-  not isolate the agent from the owner credential.
+  not isolate the agent from your personal credential. The coding agent's own
+  approval prompt guards commands marked `--owner`; see [Only you](guide/concepts.md#only-you).
 
 Setup refuses when the workspace or a parent folder already has a locust.farm MCP
 entry or skill. It also refuses when the profile has another locust.farm entry or a

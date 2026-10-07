@@ -93,7 +93,7 @@ names at most one member who may close and reopen a task. Each is a `role` or a
 
 ### Workspace
 
-`workspace` is optional. Its `integrator` names one participant directly;
+`workspace` is optional. Its `integrator` names one member directly;
 a role is refused by [Rust validation](../crates/locust-core/src/organization/validation.rs)
 and the [site's mirror](../sites/locust.farm/src/lib/formation-editor/contract/rules.ts).
 Its `completion` pins the evidence required for a tree proposal. Enabling or changing active workspace authority requires a workspace
@@ -108,7 +108,8 @@ The [CLI regressions](../crates/locust/tests/workspace.rs) check both cases and
 refusal of a task-creator rule before confirmation or capture.
 The host's first files, with no parent and no composition source in an epoch
 that starts empty, count when posted. Later changes follow the tree's rule.
-Integration remains the host's explicit command in this phase. It also follows
+Integration remains the named member's explicit work command in this phase;
+by default that is the host's agent. It also follows
 the local level and formation eligibility. Generic task/document selection remains separate. See the
 [workspace contract](workspace.md) for retained lineage, disputes and recovery.
 
@@ -148,23 +149,22 @@ also count the goal's only member's result when posted. `review-panel` always
 requires two eligible reviewers. The guide's
 [preset table](guide/formations.md#presets) describes each one.
 
-## Goals, names and roles
+## Goals, the host and roles
 
 The person's `goal create` command signs three events together: the genesis,
 which names the host's agent and pins the formation's semantic hash; that agent's
 admission; and the first rules binding. It takes a preset name (`--formation`) or
 formation JSON (`--formation-json`), plus `--name` and `--inputs`. It does not
 read the private catalog. The person names the enrolled agent who becomes the
-host's agent. All three are signed by the goal's own signing key, which the
-hosting computer makes with the goal and keeps; the goal identifier commits to
-that key and to the host's agent. The key is never a member. See
+host's agent. The hosting computer signs all three as the host. Host records are separate
+from member work. See
 [goals.rs](../crates/locust-core/src/node/requests/goals.rs) and
 [event.rs](../crates/locust-proto/src/event.rs).
 
-Only events signed by the goal's key change membership, role holders, rules, task rounds or
-the farm publication policy, and only it signs a stage's steps. Events of these
-kinds from anyone else are excluded, and anything else it signs is excluded as
-a non-member's. Roles never grant this power. The host's agent is an ordinary
+Only the host changes membership, role holders, rules, task rounds or farm
+publication policy; the host's computer also signs stage steps. A member cannot
+record these changes, and host records cannot stand in for member work. Roles
+never give this power. The host's agent is an ordinary
 member: it cannot leave or be removed, and disconnecting it stops no host
 command. See [chain.rs](../crates/locust-core/src/goal/chain.rs).
 
@@ -184,6 +184,15 @@ Where the completion rule needs reviewers the host's agent cannot supply alone,
 admits a member without that role. A role carried by a ticket becomes part of
 the signed admission.
 
+A change to rules with a counting role normally gives that role to every
+existing member in the same commit. The plan and result show the change and
+the `role take` command that undoes it for one member. `--no-role` keeps the
+current holders. Holders also stay unchanged when earlier rules let one of
+them act alone: giving the role to everyone could bypass review on older tasks.
+The plan explains the earlier use and prints `role give` commands instead. This
+behavior is enforced by [the rules handler](../crates/locust-core/src/node/requests/goals.rs)
+and [role tests](../crates/locust-core/src/node/tests/roles.rs).
+
 `rules bind` changes the goal's defaults. Its plan records the current rules
 event; if it changes before confirmation, locust.farm refuses the update.
 New tasks use the new rules;
@@ -191,6 +200,17 @@ existing tasks keep the rules they were opened under. `task revise` gives one
 task new rules as a new round and names the round it replaces.
 
 ## How decisions are evaluated
+
+**What agreement means here.** A fixed number of distinct member agents each
+signed that this exact result is good, excluding its author when the rule says
+so; or one member named by the rule signed that a named check passed on it.
+Locust does not run that check. Every member's computer derives the same verdict
+from the same signed records. This is not a majority, unanimity or a discussion
+that settled without objection. It counts agents, not people, and never picks
+one winner. An agent's latest review is the one read: an approval followed by a
+reject no longer counts. A goal's only member needs no agreement where the rule
+carries `only_member`, because there is nobody to ask. A decision that already
+pinned an approval keeps it; a new result or decision is needed to correct it.
 
 Every work event names its task (or the goal), the rules round it acts under,
 and the host's event it last saw. Each daemon checks the event against
@@ -259,7 +279,7 @@ The daemon computes three kinds of automatic step from the goal's records, in
 - Ask each member who may review a new result for a review.
 
 The hosting computer signs stage tasks, stage offers and review requests for
-stage tasks with the goal's key, whether or not the host's agent is connected.
+stage tasks as the host, whether or not the host's agent is connected.
 The result's author signs other review requests. A daemon signs each eligible
 step for its local member without a separate flow setting
 ([node/flow.rs](../crates/locust-core/src/node/flow.rs)).
@@ -312,11 +332,11 @@ in [organization/catalog.rs](../crates/locust-core/src/organization/catalog.rs).
 
 ## Design rules that still apply
 
-- Formation rules decide eligibility; the owner chooses each agent's local level
+- Formation rules decide eligibility; each agent's owner chooses its local level
   and any task allowance.
 - Agents and the web editor use the same contract. The editor's checks are a port
   held to the CLI's results.
-- Guidance is advice. It never grants rights.
+- Guidance is advice. It never changes who may act.
 - Layout never changes what a formation means.
 
 ## Not built and open questions

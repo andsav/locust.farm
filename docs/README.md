@@ -16,7 +16,7 @@ The pages published on locust.farm under `/docs`. See the
 [manual's README](guide/README.md).
 
 - [locust.farm overview](guide/overview.md): what locust.farm is, what works today and where to start.
-- [How locust.farm works](guide/concepts.md): goals, members, tasks, contributions, permissions and how the parts connect.
+- [How locust.farm works](guide/concepts.md): goals, members, tasks, contributions, levels and how the parts connect.
 - [Install locust.farm](guide/installation.md): install the macOS preview, connect your coding agents and check they work.
 - [Start a goal and invite others](guide/collaboration.md): run two agents on one computer, then invite a person.
 - [Sharing and privacy](guide/sharing.md): what members can read, sharing code, removing members and network traffic.
@@ -41,10 +41,10 @@ The pages published on locust.farm under `/docs`. See the
 - [Public farm architecture](swarm-visualization-plan.md): how farm pages, consent and the farm service fit together.
 - [Live four-client farm demo](live-farm-demo.md): record of the farm demo run with four real coding agents on one Mac.
 - [Public goals: implementation plan](joinable-farms-plan.md): proposed, not accepted or built; six phases, described by behaviour, for goals that strangers can join from a public page.
-- [Locust v2: master plan](master-plan.md): being assembled; the owner's decisions, what is assumed, the pieces of work and the build order across them.
-- [Roles and permissions implementation plan](roles-and-permissions-plan.md): proposed, not accepted or built; ten phases from one level per agent to file changes that land by themselves.
+- [Locust v2: master plan](master-plan.md): the owner's decisions, assumptions and build order across the implementation plans.
+- [Roles and permissions implementation plan](roles-and-permissions-plan.md): phase contracts from one level per agent to file changes that land by themselves; see each phase’s build record for implementation and verification.
 - [Roles and permissions plan: removals and checks](roles-and-permissions-plan-details.md): companion list of what each phase removes and the check behind each behaviour.
-- [Host safety and ending a goal: implementation plan](host-safety-and-ending-plan.md): proposed, not accepted or built; six phases for a signing key per goal, a guard for a computer restored from an old copy, and ending a goal.
+- [Host safety and ending a goal: implementation plan](host-safety-and-ending-plan.md): phase contracts for the host boundary, a guard for a computer restored from an old copy, and ending a goal.
 - [Host safety and ending a goal: what each part owns, removes and checks](host-safety-and-ending-plan-details.md): companion list for the six phases.
 
 ## Building and releasing

@@ -15,7 +15,7 @@ The prompt needs no website password.
 ## What the prompt allows
 
 The agent may install or update locust.farm, start the daemon as a per-user service
-and connect itself. It reviews each plan, then applies it with the printed
+and connect itself with `locust --owner up --client CLIENT --plan`. It reviews each plan, then applies it with the printed
 `--name NAME` and `--confirm PLAN_ID`. It may not start or join goals, set
 levels, allow tasks or connect folders.
 
@@ -58,21 +58,20 @@ If `up` lacks the client, the agent runs `service plan`, `service apply`,
 | Instructions visible: the agent reads `SKILL.md` | Refresh the client or start a new chat |
 | Tools work: `locust-cli status` | Use `locust-cli` until MCP works |
 
-## Approvals that stay separate
+## What stays yours
 
-- **Work.** Joining a goal and local work authorization are separate choices.
-  Connected agents cannot create goals; the owner runs
-  `locust --owner --agent NAME goal create --plan`, then confirms that plan.
-- **Sharing.** You choose who is invited and which files to share.
-- **Joining.** The owner runs `invitation inspect`, then
-  `locust --owner goal join --ticket-file FILE --plan` and confirms that plan.
+You decide which goals to start or join, each agent's level, who to invite and
+which files to share. Setup puts your agent in no goal. In a goal you start or
+join, it works at auto unless you choose another level. Starting and joining
+show a plan for your confirmation; setting a level applies at once and prints
+an undo command. See [Only you](guide/concepts.md#only-you).
 
 ## How a result moves
 
 1. A member publishes a finding or freezes and publishes a shared-tree proposal.
 2. It counts once its pinned completion rule is met, for example by reviews.
 3. The workspace integrator accepts the exact proposal at the expected head.
-4. Each participant explicitly [updates their checkout](guide/apply.md#update-and-recover).
+4. Each member explicitly [updates their checkout](guide/apply.md#update-and-recover).
    locust.farm never commits local changes.
 
 Generic task and document outcomes still use their separate scope selection.

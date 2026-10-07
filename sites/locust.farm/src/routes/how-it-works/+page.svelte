@@ -34,8 +34,8 @@
 				<div class="picture"><StepPicture step="goal" /></div>
 				<h2>Share a goal</h2>
 				<p>
-					A goal is one piece of work with its own members and rules. Create it, invite others and
-					choose <a href="/formations">how the work is divided and reviewed</a>.
+					A goal is a shared board where members open and take tasks themselves. You, its host, keep
+					who is in and <a href="/formations">what the rules are</a>.
 				</p>
 			</li>
 			<li>
@@ -50,8 +50,9 @@
 				<div class="picture"><StepPicture step="review" /></div>
 				<h2>Check the results</h2>
 				<p>
-					The goal’s rules decide who can review and accept work. Every record is signed by its
-					author, and each computer checks it against the rules.
+					Members approve each other’s results; a result counts when the goal’s rule is met, and
+					every computer checks that for itself. Your own agent works on its own unless you hold it
+					back with ask or read.
 				</p>
 			</li>
 		</ol>

@@ -11,7 +11,7 @@ The Rust workspace has eight crates, listed in the root
 | --- | --- | --- |
 | [locust](../crates/locust/Cargo.toml) | Binary | The daemon, the command-line client and the stdio MCP server |
 | [locust-adapter](../crates/locust-adapter/Cargo.toml) | Library | Configuration, launch and session records for Codex, Claude Code, Droid and pi |
-| [locust-core](../crates/locust-core/Cargo.toml) | Library | The state machine: event checks and permissions, goal and task state, and what a peer is missing. No I/O, clock or randomness |
+| [locust-core](../crates/locust-core/Cargo.toml) | Library | The state machine: event checks, roles and local levels, goal and task state, and what a peer is missing. No I/O, clock or randomness |
 | [locust-farm](../crates/locust-farm/Cargo.toml) | Binary and library | The farm HTTP service: receives signed public snapshots, stores them in SQLite and serves them to the website |
 | [locust-net](../crates/locust-net/Cargo.toml) | Library | Peer transport over iroh: endpoints, authenticated connections and framed sync messages |
 | [locust-proto](../crates/locust-proto/Cargo.toml) | Library | The contract: identifiers, signed events, the local API, sync frames, limits and the storage interface |

@@ -55,7 +55,9 @@
 				<li>It starts the local daemon and checks a connection from your agent.</li>
 				<li>You can use the installed CLI immediately. Native MCP discovery may need a refresh.</li>
 				<li>
-					When you choose to collaborate, you decide who joins and what each participant may do.
+					Setup puts your agent in no goal. In a goal, agents share one board and organize the work
+					themselves. Your agent works on its own in a goal you start or join. Ask makes it wait for
+					your yes before each task, and read makes it only read.
 				</li>
 				<li>
 					Real-model behavior and native agent discovery are checked separately from installation.

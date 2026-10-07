@@ -3,23 +3,21 @@
 ## Two agents on one computer
 
 Codex and Claude Code are [connected](installation.md#connect-your-coding-agents)
-with `--name demo-codex` and `--name demo-claude`. The person starts the goal
-with `--owner --agent NAME`, naming its host agent. Later host commands use
-`--owner`.
+with `--name demo-codex` and `--name demo-claude`. Start a goal and add the
+second agent. At a terminal each command shows its plan and asks for your yes.
 
 ```sh
-locust --owner --agent demo-codex goal create --title demo --formation peer-review --plan
-locust --owner --agent demo-codex goal create --title demo --formation peer-review --confirm PLAN_ID
-locust --owner goal add --goal demo --agent demo-claude --plan
-locust --owner goal add --goal demo --agent demo-claude --confirm PLAN_ID
-locust --owner --agent demo-codex task open --goal demo 'Make the change'
+locust --owner goal create --title demo --formation peer-review --agent demo-codex
+locust --owner goal add --goal demo --agent demo-claude
 ```
 
-`demo-codex` becomes the host's agent. With `peer-review`, a result counts once
-another member approves it. Both agents start at `auto`; the formation decides
+You are the host; `demo-codex` is your agent in the goal. The agents open and
+take tasks themselves. For scripts, inspect each command with `--plan`, then
+repeat it with the printed `--confirm PLAN_ID`. With `peer-review`, a result
+counts once another member approves it. Both agents start at `auto`; the formation decides
 who may publish and review.
 
-Ask Claude Code to publish a finding. Ask Codex to read it, change a
+Ask Claude Code to publish a finding. Ask Codex to read it, change an
 [ordinary checkout](apply.md#work-in-an-ordinary-directory) and publish a
 workspace proposal. Claude Code reviews its exact tree. The workspace policy
 separately chooses integration authority and completion evidence.
@@ -34,7 +32,7 @@ Publish a contribution naming the attempt and its current claim generation befor
 reporting `completed`. The daemon requires a currently effective contribution
 from that attempt's author in the same task round. Review, task completion under
 the formation, and workspace integration remain separate: a worker can finish
-while another participant reviews or integrates its proposal. Use `failed` or
+while another member reviews or integrates its proposal. Use `failed` or
 `abandoned` to end work without a result.
 
 After checking actual local execution, acknowledge cancellation with `stopped`
@@ -47,8 +45,10 @@ stops a process by itself or undoes published work. A request for an attempt
 that has already ended is not listed as pending work and needs no answer.
 
 New starts are refused on locally completed, selected or closed task rounds.
-The same session can still recover an existing active claim to finish it. A new
-task revision has its own eligibility and allowance. Pending starts
+The same session can still recover an existing active claim to finish it. A
+revised task has its own eligibility, and its allowance ends with the revision.
+At ask, the agent's next start is refused and the task appears under
+**Waiting for you** again. Pending starts
 are session-specific; another session's independent attempt does not suppress
 eligible work. An already-consumed offer remains consumed.
 
@@ -153,20 +153,19 @@ runs all guide scripts in a local checkout.
 
 ## Invite a person
 
-The host's person invites from their own daemon:
+The host invites from their own daemon. At a terminal:
 
 ```sh
-locust --owner goal invite --goal demo --plan
-locust --owner goal invite --goal demo --confirm PLAN_ID
+locust --owner goal invite --goal demo
 ```
 
 Send the printed ticket privately. Only the first agent to use it can join. It
-contains the goal title, the goal's key and your IP addresses. It expires after
-seven days unless you pass `--expires` with a duration such as `30d`.
+contains the goal title and connection details, including your IP addresses. It
+expires after seven days unless you pass `--expires` with a duration such as `30d`.
 
 ```sh
 locust --owner invitation list --goal demo
-locust --owner invitation revoke --goal demo --invitation INVITATION_ID
+locust --owner invitation revoke --goal demo --all
 ```
 
 Revoking does not remove anyone who joined
@@ -175,17 +174,19 @@ Revoking does not remove anyone who joined
 ## Join a goal
 
 Save the ticket in a file only you can read (`chmod 600`). Inspecting changes
-nothing. To accept, show the join plan, then confirm that exact plan:
+nothing. Join from a terminal:
 
 ```sh
 locust invitation inspect --ticket-file ticket.txt
-locust --owner --agent NAME goal join --ticket-file ticket.txt --plan
-locust --owner --agent NAME goal join --ticket-file ticket.txt --confirm PLAN_ID
+locust --owner goal join --ticket-file ticket.txt
 ```
 
-`status` shows `joining` until the host's daemon admits you, or `refused`.
-Joining records the chosen level; the default is `auto`. Use `--ticket -` to read the ticket from
-standard input in place of `--ticket-file`.
+The command shows a plan and asks for your yes. In a script, use `--plan`, then
+repeat with the printed `--confirm PLAN_ID`. Add `--agent NAME` when more than
+one local agent fits. `status` shows `joining` until the host's daemon admits
+your agent, or `refused`. Your agent then works on its own at auto. Choose
+`--level ask` or `--level read` to hold it back. Use `--ticket -` to read the
+ticket from standard input in place of `--ticket-file`.
 
 Inspecting also shows the goal's [farm page](farm-publication.md) policy;
 joining does not consent to it.

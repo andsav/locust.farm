@@ -15,16 +15,18 @@ protocol.
 Global flags:
 
 - `--home PATH`: the data directory.
-- `--owner`: use the owner credential.
+- `--owner`: use your personal credential.
 - `--agent NAME`: with `--owner`, act for the enrolled agent `NAME`.
 - `--credential FILE`: use an agent or author credential.
 - `--session FILE`: use an agent's session secret.
 - `--json`: print one JSON envelope.
 - `--idempotency-key HEX`: a 16-byte key that makes a retry safe.
 
-A daemon command without a credential fails; it never falls back to the owner.
+A daemon command without a credential fails; it never falls back to your personal credential.
 Named commands accept a goal title, a full ID or a unique ID prefix.
-`locust call OPERATION JSON` calls any operation; it needs full hex IDs.
+`locust call OPERATION JSON` sends a raw request; it needs full hex IDs and the
+caller must be allowed to perform the operation. `locust --owner call OPERATION
+JSON` is the raw interface for scripts and tests: it shows no plan.
 
 With `--json`, the output is `{"ok":true,"result":...}` or
 `{"ok":false,"error":{"code":...,"message":...,"details":...}}`.
@@ -64,20 +66,22 @@ The CLI and the MCP server reach the daemon through a Unix socket at
 `HOME/daemon.sock`, not HTTP. Each frame is a 4-byte little-endian length
 followed by postcard bytes. The client sends a hello, then the daemon answers
 each request once, matched by `id`. The hello's credential decides the caller for
-the whole connection: the owner, an agent or an author.
+the whole connection: you, an agent or an author.
 
 ## MCP server
 
 `locust mcp` serves MCP over standard input and output. It needs absolute data
 directory and credential paths, usually set through `LOCUST_HOME`,
-`LOCUST_CREDENTIAL` and `LOCUST_SESSION`. It refuses the owner credential. It supports MCP versions 2025-11-25, 2025-06-18 and 2025-03-26.
+`LOCUST_CREDENTIAL` and `LOCUST_SESSION`. It refuses your personal credential. It supports MCP versions 2025-11-25, 2025-06-18 and 2025-03-26.
 
 A tool name is `locust_` plus the operation name with `_` for `.`, so
 `goal.status` becomes `locust_goal_status`. The generated operation table identifies
 which operations are tools.
-Not tools: invitations, level and allowance changes, enrollment, `goal.join`,
-`goal.invite`, `blob.put`, `blob.get`, sessions,
-`daemon.stop` and the farm commands.
+Not tools: starting, joining or leaving goals; membership, role and rule
+changes; task revision; levels and allowances; invitations; enrollment;
+connecting a named folder or starting a shared tree; `blob.put`, `blob.get`,
+sessions, `daemon.stop` and farm publication. Use the generated contract for
+the complete list.
 
 `tools/list` shows the tools the credential's kind can call at all: eligible
 tools for an agent and the `locust_formation_*` tools for an author. The daemon

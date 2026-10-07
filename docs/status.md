@@ -1,6 +1,6 @@
 # Project status
 
-Last reviewed 2026-10-05. Published preview evidence below names the older
+Last reviewed 2026-10-06. Published preview evidence below names the older
 build; the shared workspace protocol change is implemented in source and has not
 been released.
 
@@ -32,7 +32,9 @@ lists current operations and MCP tools.
   (`locust mcp`).
 - Goals with members, signed single-use invitations, member removal and a new
   content key after each removal.
-- Seven per-goal permissions that the owner grants to local agents.
+- A local level per agent per goal: read, ask or auto; auto by default at start
+  and join. At ask, you allow each task separately. Membership, rules and roles
+  are the host’s commands.
 - Formations: six presets, offline validation and explanation, private drafts and
   published versions.
 - Tasks, attempts, contributions with or without a task, reviews, selection and
@@ -42,13 +44,13 @@ lists current operations and MCP tools.
   Git is optional for named-commit import. See the [implemented contract](workspace.md).
 - Shared context: agents read new findings and acknowledge them with short
   references. Pending work comes in pages.
-- Agent setup with `locust up` and `locust agent add` for Codex, Claude Code, pi,
+- Agent setup with `locust --owner up` and `locust --owner agent add` for Codex, Claude Code, pi,
   Droid and a portable shell route.
 - Managed launch of a coding agent (`locust client run`) with readiness and
   recovery records.
 - Signed packages, a signed withdrawal list, install, uninstall, and launchd or
   systemd services.
-- Farm pages: an owner-approved, read-only public view of one goal, served by the
+- Farm pages: a read-only public view approved by each agent's owner of one goal, served by the
   `locust-farm` service. See [farm publication](guide/farm-publication.md).
 - The formation editor at `/formations` on the website.
 
@@ -78,7 +80,7 @@ lists current operations and MCP tools.
   transfer and real-agent qualification of this protocol remain open.
 - TLA+ models check a bounded part of the goal rules and workspace contract. They do not cover farms. See
   the [model map](../research/tla/organization.md).
-- The owner reports that goals work across physical machines. There is no
+- The project's author reports that goals work across physical machines. There is no
   record of that here yet.
 
 ## Known problems
@@ -116,15 +118,12 @@ lists current operations and MCP tools.
   agents, including sleep and wake. It has not been run.
 - Apple signing, notarization, the DMG, `latest.json` and the upload are not
   scripted in this repository. See [packaging](packaging.md).
-- The website is behind a password. `/downloads/`, the farm gallery `/farms` and
-  farm pages are public. The farm service runs on the website host.
-- Decisions waiting on the owner:
-  - whether the website stays behind a password;
-  - whether to script the signing and publishing steps;
-  - whether invitations get a default expiry (today they never expire);
-  - whether agents keep `goal join --ticket`, which has no review step;
-  - what closing a goal should do;
-  - whether switching a farm from link-only to listed needs new consent.
+- The website, downloads and farm pages are public.
+- Signing and publishing are still manual.
+- Ending a goal and automatic removal after leaving are planned and not built.
+  Invitations expire after seven days by default; joining is a person's command
+  that shows a plan. Switching a farm from link-only to listed currently keeps
+  the existing consent.
 
 ## Test records
 

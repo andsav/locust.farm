@@ -342,7 +342,7 @@ function generatedRuntimeReference() {
 					`| \`${cell(operation.name)}\` | ${cell(operation.audience)} | ${operation.read_only ? 'yes' : 'no'} | ${operation.mcp_tool ? `\`${cell(operation.mcp_tool)}\`` : 'not exposed'} | ${requests.get(operation.name) ?? 'see schema'} |`
 			)
 			.join('\n') +
-		'\n\n## Generated CLI\n\nArguments come from the actual command builder. An asterisk marks a required argument. Global flags include `--home`, `--credential`, `--session`, `--owner`, `--as`, `--json` and `--idempotency-key`; their accepted combination depends on the command. Composite values use JSON.\n\n| Command | Arguments | Purpose |\n| --- | --- | --- |\n' +
+		'\n\n## Generated CLI\n\nArguments come from the actual command builder. An asterisk marks a required argument. Global flags include `--home`, `--credential`, `--session`, `--owner`, `--agent`, `--json` and `--idempotency-key`; their accepted combination depends on the command. Composite values use JSON.\n\n| Command | Arguments | Purpose |\n| --- | --- | --- |\n' +
 		commands.join('\n') +
 		'\n\n## Generated response variants\n\n| Variant | Shape |\n| --- | --- |\n' +
 		variants(contract.response_schema)

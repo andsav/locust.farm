@@ -26,7 +26,7 @@
       "source": "docs/guide/concepts.md",
       "slug": "concepts",
       "title": "How locust.farm works",
-      "description": "Goals, members, tasks, contributions, permissions and how the parts connect.",
+      "description": "Goals, members, tasks, contributions, levels and how the parts connect.",
       "group": "Start here",
       "order": 2,
       "audience": [
@@ -365,12 +365,12 @@
     {
       "slug": "concepts/goals-tasks",
       "page": "concepts",
-      "section": "goals"
+      "section": "the-host-members-and-roles"
     },
     {
-      "slug": "concepts/participants-roles",
+      "slug": "concepts/members-roles",
       "page": "concepts",
-      "section": "members-and-roles"
+      "section": "the-host-members-and-roles"
     },
     {
       "slug": "concepts/context-artifacts",
@@ -388,9 +388,9 @@
       "section": "when-a-result-counts"
     },
     {
-      "slug": "concepts/local-permissions",
+      "slug": "concepts/levels",
       "page": "concepts",
-      "section": "levels-on-your-machine"
+      "section": "levels-on-your-computer"
     },
     {
       "slug": "concepts/events-sync",

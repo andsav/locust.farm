@@ -100,7 +100,7 @@ test('the prompt never asks for a goal, credentials or installation', async () =
 	for (const intent of ['check', 'add'] as const) {
 		const prompt = await buildPrompt(newDocument('directed'), intent, false);
 		const instructions = prompt.text.slice(0, prompt.text.indexOf(FORMATION_BEGIN));
-		assert.doesNotMatch(instructions, /goal\.create|--owner|manage_goals|ticket|token/);
+		assert.doesNotMatch(instructions, /goal\.create|--owner|ticket|token/);
 		const urls = instructions.match(/https?:\/\/\S+/g) ?? [];
 		assert.deepEqual(urls, ['https://locust.farm/start,']);
 	}

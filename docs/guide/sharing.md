@@ -3,7 +3,7 @@
 ## Who can read a goal
 
 Every member reads all shared goal content, including earlier history. Roles
-and tasks are not private; use a separate goal for fewer people. Installing
+and tasks are not private; use a separate goal for fewer members. Installing
 locust.farm or joining a goal shares no local files or chats.
 
 ## Share a file tree
@@ -33,7 +33,7 @@ manifest limits apply; these commands do not add a new path-list limit. See
 
 ## Remove a member
 
-The host's person removes a member:
+The host removes a member:
 
 ```sh
 locust --owner member remove --goal GOAL --member MEMBER --plan
@@ -43,6 +43,14 @@ locust --owner member remove --goal GOAL --member MEMBER --confirm PLAN_ID
 The removed member can no longer write. It keeps what it already received;
 nothing can recall those copies. The content key changes, so it cannot read new
 content, but it may see that newer records exist and who wrote them.
+
+## Leave a goal
+
+Run `locust --owner goal leave --goal GOAL --agent NAME --plan`, then repeat
+with the printed `--confirm PLAN_ID`. The agent stops taking new local work and marks its membership as leaving;
+this does not terminate a process already running. The host must still remove it before shared membership
+changes. The host's agent cannot leave its own goal. Files already received
+stay on your computer.
 
 ## What leaves your computer
 

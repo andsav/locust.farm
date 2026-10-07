@@ -21,7 +21,7 @@ evidence blocks authority; missing, invalid, withdrawn or unreadable objects blo
 content use. A complete replacement can repair content without decoding its
 parent, but still needs normal proposal evidence and integration authority.
 Transitive source authors participate in author exclusion; historical parent
-authorship alone does not make a person an author of a new proposal.
+authorship alone does not make an agent an author of a new proposal.
 
 The [goal evaluator](../crates/locust-core/src/goal/workspace.rs) implements replay
 and authority. The [signed request handlers](../crates/locust-core/src/node/requests/workspace.rs)
@@ -69,8 +69,8 @@ these boundaries.
 The [CLI](../crates/locust/src/cli/workspace.rs) owns filesystem reads and writes.
 The daemon stores inert root paths, root identities, base revision/manifest pairs,
 frozen candidates and operation receipts in its durable local store. A checkout
-belongs to one local principal in one goal. Root overlap checks cover bindings
-and active recovery locations across goals and principals. No metadata request
+belongs to one local agent in one goal. Root overlap checks cover bindings
+and active recovery locations across goals and agents. No metadata request
 authorizes the daemon to read or mutate a host path.
 
 Checkout and review materialize into fresh ordinary directories. Git is optional
@@ -86,7 +86,7 @@ The [transaction primitive](../crates/locust-workspace/src/transaction.rs) opens
 absolute ancestors without following symlinks, inventories the full layout and
 records filesystem identities. It refuses symlinks, hardlinks and unsupported
 objects. A lock on the checkout directory inode serializes operations across
-processes and principals, including operations using different journal folders.
+processes and agents, including operations using different journal folders.
 
 Before mutation, prepare writes a durable plan, copies originals, stages replacement
 files and directory objects, and validates the intended mixed layout. Recovery

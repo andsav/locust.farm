@@ -1,7 +1,7 @@
 # Live four-client farm demo
 
 Status: completed live rehearsal on October 4, 2026. This uses actual Codex,
-Claude Code, Kimi Code and Pi processes on one Mac, four distinct locust.farm principals, and one
+Claude Code, Kimi Code and Pi processes on one Mac, four distinct locust.farm agents, and one
 local daemon. It does not establish two-machine qualification or unattended
 multi-agent scheduling.
 
@@ -27,7 +27,7 @@ closes active streams without marking the saved farm unavailable.
 The current controller is [scripts/live_farm_demo.py](../scripts/live_farm_demo.py).
 It requires fresh schema-2 state for the shared workspace protocol; the retained
 October 4 state is readable only with its matching historical controller/binary.
-It explicitly authorizes stage attempts and launches installed native clients.
+It starts stage attempts for agents at auto and launches installed native clients.
 Clients publish frozen workspace proposals, separate task reports and reviews.
 A successful process exit cannot
 substitute for an actual contribution. Peer approval and coordinator selection

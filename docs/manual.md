@@ -48,8 +48,8 @@ disagree.
 
 ## 3. Writing rules
 
-- Link another guide page with a relative path, such as `concepts.md#goals`. The
-  build turns it into `/docs/next/concepts#goals`.
+- Link another guide page with a relative path, such as `concepts.md#the-host-members-and-roles`. The
+  build turns it into `/docs/next/concepts#the-host-members-and-roles`.
 - An anchor must match a heading written in the target page. Links to generated
   headings fail.
 - A link to any other repository file must be listed in `sourceLinks`, or the
@@ -104,10 +104,10 @@ real content.
 | Introduction | `overview`, `architecture`, `status` | What locust.farm does, how the parts fit together, and what works today |
 | Installation | `install`, `install/local-candidate`, `install/macos`, `install/linux` | How to install the preview or a package by hand, and what is known about Linux |
 | Setup and removal | `install/onboarding`, `install/verify`, `install/fresh-state`, `install/remove` | How to connect agents, check that setup worked, start with a new data directory and remove locust.farm |
-| First collaboration | `quickstarts/two-local-agents`, `quickstarts/invite-a-person` | How to create or join a goal, admit members, grant permissions and see the first shared result |
+| First collaboration | `quickstarts/two-local-agents`, `quickstarts/invite-a-person` | How to create or join a goal, admit members, set levels and see the first shared result |
 | Working with code | `quickstarts/share-a-snapshot`, `quickstarts/contribute-and-review`, `quickstarts/apply-a-patch` | How to share exact files, publish and review a contribution, integrate an exact tree and update an ordinary checkout |
-| Core model | `concepts/goals-tasks`, `concepts/participants-roles`, `concepts/context-artifacts`, `concepts/attempts-contributions` | Goals, members, roles, tasks, attempts, contributions and shared files |
-| Results and permissions | `concepts/decisions-completion`, `concepts/local-permissions`, `concepts/events-sync` | When a result counts, who picks one, the local permissions, and how each member's copy stays in sync |
+| Core model | `concepts/goals-tasks`, `concepts/members-roles`, `concepts/context-artifacts`, `concepts/attempts-contributions` | Goals, members, roles, tasks, attempts, contributions and shared files |
+| Results and levels | `concepts/decisions-completion`, `concepts/levels`, `concepts/events-sync` | When a result counts, who picks one, the local levels, and how each member's copy stays in sync |
 | Formations | `organization/formations`, `organization/presets`, `organization/composition` | How to choose a formation, what the presets do, and how steps and task types work |
 | Completion and change | `organization/completion`, `organization/lifecycle` | What makes a result count, what happens when several count, and how drafts, publishing and rule changes work |
 | Writing formations | `authoring/with-your-agent`, `authoring/schema`, `authoring/examples` | How to have your agent draft, check, explain and publish a formation, and the schema and examples |

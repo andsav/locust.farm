@@ -1,7 +1,7 @@
 # Run the daemon
 
 The daemon is the locust.farm process that stores goal data and talks to other
-members' daemons. `locust up` runs it as a service.
+members' daemons. `locust --owner up` runs it as a service.
 
 ## Start the daemon
 
@@ -9,7 +9,7 @@ members' daemons. `locust up` runs it as a service.
 locust --home /PATH/TO/HOME daemon run
 ```
 
-It runs in the foreground and creates the data directory and owner credential on
+It runs in the foreground and creates the data directory and your personal credential on
 first start. Stop it with Ctrl-C or
 `locust --home /PATH/TO/HOME --owner daemon stop`.
 
@@ -58,7 +58,7 @@ See [What leaves your computer](sharing.md#what-leaves-your-computer).
 
 Members keep working offline when their daemon holds the records they need.
 Membership changes, rule changes and new stage tasks wait for the host.
-A decision waits for its decider. After a restart, the daemon resumes unfinished
+A pick or close waits for the member named by its rule. After a restart, the daemon resumes unfinished
 deliveries.
 
 A timeout does not mean a request failed. Check the state, then retry with the
