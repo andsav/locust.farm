@@ -33,6 +33,10 @@ Use the transport already configured by the client: registered Locust MCP tools,
 or the installed CLI with its supplied home, credential and session paths. The
 CLI exposes the same operations; do not search for MCP when the client supplied
 a working CLI connection. Start with `locust_status` (CLI: `locust status`).
+Each entry in its claims is an attempt you hold; after a new chat, a restart or
+a compaction, read that task with `locust_context_read view=full`, then continue
+the work or report it. One `locust_pending` lists under `held_elsewhere` needs
+`locust_attempt_takeover` first.
 A person inspects a ticket with `locust invitation inspect`, then runs
 `locust --owner goal join --ticket-file FILE --plan` and, after accepting the
 plan, repeats it with `--confirm PLAN_ID`. They select their local agent with
