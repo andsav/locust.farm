@@ -167,10 +167,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             Attempted::Store => (Act::Post, None),
             Attempted::Withdraw => (Act::Withdraw, None),
         };
-        let task_title = task
-            .and_then(|task| entry.state().tasks.get(&task))
-            .and_then(|task| entry.goal.event(&task.created))
-            .and_then(|event| entry.text(&self.store, event, None));
+        let task_title = task.and_then(|task| entry.task_title(&self.store, &task, None));
         let code = match &why {
             Why::YourSetting { .. } => ErrorCode::LevelRequired,
             Why::Rules { .. } => ErrorCode::NotEligible,

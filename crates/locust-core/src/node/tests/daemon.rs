@@ -255,12 +255,8 @@ fn status_lists_what_waits_for_the_owner_with_a_ready_command() {
         task_title,
     } = &entry.kind;
     assert_eq!(*wanted, task);
-    assert!(
-        task_title
-            .as_deref()
-            .unwrap()
-            .starts_with("Read and implement")
-    );
+    // The title is the task's first line, not its whole text.
+    assert_eq!(task_title.as_deref(), Some("Read and implement"));
     let goal_prefix = &goal.to_string()[..8];
     let task_prefix = &task.to_string()[..13];
     assert_eq!(

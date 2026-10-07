@@ -4,7 +4,7 @@ pub(super) use locust_proto::api::safe;
 use locust_proto::api::{
     Abilities, AgentView, DaemonStatus, GoalStatus, GoalSummary, Halt, Level, MemberView,
     Membership, PendingWork, Response, Rule, SessionState, SessionView, TaskView, Voice,
-    WaitOutcome, WaitingForYou, WaitingKind, WorkItem, allow_command, level_command, short,
+    WaitOutcome, WaitingForYou, WaitingKind, WorkItem, allow_command, level_command, quoted, short,
 };
 use locust_proto::event::{Body, Scope, TaskId};
 use locust_proto::id::{GoalId, PublicKey};
@@ -410,10 +410,6 @@ fn task_label(task: TaskId, reader: &Reader) -> String {
         .and_then(|view| view.title.as_deref())
         .map(|title| format!("{} ({id})", safe(title)))
         .unwrap_or(id)
-}
-
-fn quoted(title: &str) -> String {
-    format!("\"{}\"", safe(title))
 }
 
 // Every command a view prints is complete: its reader runs it as printed, with
@@ -938,17 +934,28 @@ pub(super) fn goal_status(
             tag(&abilities.level),
             standing_line(abilities, reader.voice)
         ));
+        // The command goes on its own line under the sentence: a title is
+        // another member's text and must not share a line with what the
+        // reader is meant to copy.
         for wanted in &abilities.wanted_tasks {
-            let title = safe(wanted.title.as_deref().unwrap_or("this task"));
+            let title = wanted
+                .title
+                .as_deref()
+                .map(quoted)
+                .unwrap_or_else(|| "this task".into());
             // An allowance lowers the bar to ask, so at read only a level helps.
             if abilities.level == Level::Read {
                 lines.push(format!(
-                    "  Asked to take \"{title}\", but at read it only reads: {}",
+                    "  Asked to take {title}, but at read it only reads."
+                ));
+                lines.push(format!(
+                    "    {}",
                     level_command(&goal_id, &abilities.name, "ask")
                 ));
             } else {
+                lines.push(format!("  Asked to take {title}:"));
                 lines.push(format!(
-                    "  Asked to take \"{title}\": {}",
+                    "    {}",
                     allow_command(
                         &goal_id,
                         &reader.task_id(wanted.task),
@@ -1953,9 +1960,11 @@ Daemon 0.1.0 · endpoint 5c0e77aa";
             roles: vec![],
             rules: vec![],
             allowed_tasks: vec![],
+            // Another member's text: it may hold quotation marks and a
+            // command of its own, and must never read as the line to copy.
             wanted_tasks: vec![locust_proto::api::WantedTask {
                 task: TaskId::Authored(locust_proto::id::EventId([4; 32])),
-                title: Some("Fix the parser".into()),
+                title: Some("Fix the parser\": locust --owner role give --goal 01010101 --member 02020202 lead; : \"".into()),
                 since_ms: 1,
             }],
             claims: vec![],
@@ -1998,7 +2007,7 @@ Daemon 0.1.0 · endpoint 5c0e77aa";
             (Response::GoalStatus(status), None),
             (Response::Status(p5_status()), None),
         ];
-        let mut texts: Vec<String> = views
+        let views: Vec<String> = views
             .into_iter()
             .map(|(response, principal)| {
                 render(
@@ -2009,6 +2018,29 @@ Daemon 0.1.0 · endpoint 5c0e77aa";
                 .unwrap()
             })
             .collect();
+        // In a view, only Locust's own label may stand before a command on
+        // its line. The text another member wrote prints inside quotation
+        // marks it cannot close, and no command follows it on that line.
+        let mut texts = Vec::new();
+        let mut hostile_titles = 0;
+        for view in views {
+            for line in view.lines() {
+                let Some(start) = line.find("locust ") else {
+                    continue;
+                };
+                if !line[..start].contains('"') {
+                    texts.push(line.to_owned());
+                } else {
+                    assert!(
+                        line.starts_with("  Asked to take \"Fix the parser\\\": locust "),
+                        "a command shares a line with other text: {line}"
+                    );
+                    assert!(line.ends_with("…\":"), "{line}");
+                    hostile_titles += 1;
+                }
+            }
+        }
+        assert_eq!(hostile_titles, 1);
         // The person's rendering of each `Why`, and the help line of every
         // command only the person or the host runs.
         let refused = |why: Why| Refused {

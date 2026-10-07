@@ -303,14 +303,18 @@ fn level_word(level: Level) -> &'static str {
     }
 }
 
-/// A title as the person's voice prints it: quoted, through [`safe`] and cut
-/// at 60 characters with a visible mark.
-fn quoted(title: &str) -> String {
+/// A title another member wrote, as every view prints it: cut at 60
+/// characters with a visible mark, with `"` and `\` escaped so the text
+/// cannot end the quotation, then through [`safe`], inside double quotes.
+pub fn quoted(title: &str) -> String {
     let mut text: String = title.chars().take(60).collect();
     if title.chars().count() > 60 {
         text.push('…');
     }
-    format!("\"{}\"", safe(&text))
+    format!(
+        "\"{}\"",
+        safe(&text.replace('\\', "\\\\").replace('"', "\\\""))
+    )
 }
 
 /// The verb phrase of one act; `goal` is `None` when the refusal names no goal.
@@ -855,7 +859,7 @@ mod tests {
             },
         );
         refused.task_title = Some(format!("{}\u{1b}]52;x\u{7}", "long ".repeat(20)));
-        refused.goal_title = Some("Say \"hi\"".into());
+        refused.goal_title = Some("Say \"hi\"\\\u{1b}[2J".into());
         refused.member_name = Some("Ma\u{202e}ple".into());
         let text = render(&refused, Voice::Person);
         assert!(!text.chars().any(char::is_control), "{text}");
@@ -863,9 +867,15 @@ mod tests {
         let title = text.split('"').nth(1).unwrap();
         assert_eq!(title.chars().count(), 61, "{title}");
         assert!(title.ends_with('…'), "{title}");
-        assert!(!text.contains("\\u{1b}"), "the cut comes first: {text}");
-        assert!(text.contains("in \"Say \"hi\"\""), "{text}");
+        assert!(!title.contains("\\u{1b}"), "the cut comes first: {text}");
+        // A quotation mark or backslash in a title cannot end the quotation,
+        // and a control character in it is made visible.
+        assert!(
+            text.contains("in \"Say \\\"hi\\\"\\\\\\u{1b}[2J\""),
+            "{text}"
+        );
         assert!(text.starts_with("Ma\\u{202e}ple can't"), "{text}");
+        assert_eq!(quoted("a \"b\" \\ c"), "\"a \\\"b\\\" \\\\ c\"");
     }
 
     #[test]

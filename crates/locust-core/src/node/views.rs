@@ -229,11 +229,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         reader: Option<&PublicKey>,
     ) -> TaskView {
         let round = &task.rounds[&task.current_round];
-        let title = entry
-            .goal
-            .event(&task.created)
-            .and_then(|event| entry.text(&self.store, event, reader))
-            .map(|text| text.lines().next().unwrap_or_default().to_owned());
+        let title = entry.task_title(&self.store, &task.id, reader);
         TaskView {
             task: task.id,
             context: round.context,

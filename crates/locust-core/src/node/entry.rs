@@ -6,7 +6,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 use locust_proto::crypto::ContentKey;
-use locust_proto::event::Event;
+use locust_proto::event::{Event, TaskId};
 use locust_proto::id::{BlobHash, EventId, GoalId, PublicKey};
 use locust_proto::seal;
 use locust_proto::store::{Blob, LocalWrite, Space, Store, StoreError};
@@ -133,5 +133,19 @@ impl Entry {
         }
         let plain = seal::open(&self.id(), key, sealed.bytes()).ok()?;
         String::from_utf8(plain).ok()
+    }
+
+    /// A task's title as the board shows it: the first line of the text that
+    /// opened it. Every view that names a task prints this, never the whole text.
+    pub fn task_title<S: Store>(
+        &self,
+        store: &S,
+        task: &TaskId,
+        reader: Option<&PublicKey>,
+    ) -> Option<String> {
+        let created = self.state().tasks.get(task)?.created;
+        let event = self.goal.event(&created)?;
+        self.text(store, event, reader)
+            .map(|text| text.lines().next().unwrap_or_default().to_owned())
     }
 }

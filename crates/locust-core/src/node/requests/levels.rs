@@ -52,13 +52,9 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     allowed_tasks.push(*task)
                 }
                 Allowance::Wanted { since_ms } => {
-                    let title = entry
-                        .goal
-                        .event(&found.created)
-                        .and_then(|event| entry.text(&self.store, event, None));
                     wanted_tasks.push(WantedTask {
                         task: *task,
-                        title,
+                        title: entry.task_title(&self.store, task, None),
                         since_ms: *since_ms,
                     });
                 }
