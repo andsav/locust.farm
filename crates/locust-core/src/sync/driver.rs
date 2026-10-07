@@ -589,7 +589,7 @@ impl Driver {
                 (ended, responder.goal(), responder.is_admitted())
             {
                 let (endpoint, received) = (responder.remote(), responder.received());
-                if !received {
+                if responder.reconciled() {
                     host.reconciled(&goal, &endpoint);
                 }
                 self.peer_completed(host, goal, endpoint, received, now_ms, out);

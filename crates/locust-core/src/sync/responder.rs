@@ -1,6 +1,7 @@
 //! The side of an exchange that a peer opened.
 
 use locust_proto::PROTOCOL_VERSION;
+use locust_proto::event::Event;
 use locust_proto::id::{BlobHash, EndpointId, GoalId};
 use locust_proto::invite::JoinRequest;
 use locust_proto::sync::{Refusal, SyncMessage};
@@ -21,6 +22,8 @@ pub struct Responder {
     admitted: bool,
     evidence: bool,
     received: bool,
+    /// The remote's frontier was served: the exchange has a record stage.
+    reconciling: bool,
     ended: Option<Ended>,
     outbox: Outbox,
 }
@@ -34,6 +37,7 @@ impl Responder {
             admitted: false,
             evidence: false,
             received: false,
+            reconciling: false,
             ended: None,
             outbox: Outbox::default(),
         }
@@ -59,9 +63,18 @@ impl Responder {
         self.evidence
     }
 
-    /// True once the peer pushed an event this daemon did not hold.
+    /// True once the peer pushed an event this daemon did not hold, or
+    /// delivered a halt proof holding one.
     pub fn received(&self) -> bool {
         self.received
+    }
+
+    /// True when the exchange counts as hearing from the peer: it ran a
+    /// record stage, from the peer's frontier, and brought nothing this
+    /// daemon lacked. Read once it has completed. An exchange that only
+    /// delivered a halt proof never does.
+    pub fn reconciled(&self) -> bool {
+        self.reconciling && !self.received
     }
 
     /// True once the exchange is over: after `Done`, or after a refusal.
@@ -111,7 +124,15 @@ impl Responder {
                     Ok(())
                 }
                 (Some(goal), SyncMessage::HaltProof(proof)) => {
-                    host.receive_halt_proof(&goal, &self.remote, proof)
+                    let lacked = host.replica(&goal).is_some_and(|replica| {
+                        proof.iter().any(|wire| {
+                            Event::from_wire(wire)
+                                .is_ok_and(|event| replica.wire_event(&event.id()).is_none())
+                        })
+                    });
+                    let landed = host.receive_halt_proof(&goal, &self.remote, proof);
+                    self.received |= landed.is_ok() && lacked;
+                    landed
                 }
                 (Some(_), _) if !self.admitted => Err(Refusal::NotAMember),
                 (Some(goal), request) => self.serve(host, goal, request),
@@ -201,6 +222,7 @@ impl Responder {
                 });
             }
             SyncMessage::Frontier(theirs) => {
+                self.reconciling = true;
                 let mine = replica.frontier();
                 let queue = governance_first(replica, &mine);
                 self.outbox.task(Work::Frontier {

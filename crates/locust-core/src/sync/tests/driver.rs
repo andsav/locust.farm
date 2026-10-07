@@ -1051,6 +1051,74 @@ fn an_accepted_exchange_is_heard_at_done_when_nothing_was_pushed() {
     }
 }
 
+/// An accepted exchange from a member that only delivered a halt proof ran
+/// no record stage, so it does not count as hearing, whatever the proof
+/// brought. One that also had its frontier served counts only when the
+/// proof brought no record this replica lacked.
+#[test]
+fn an_accepted_halt_proof_does_not_count_as_hearing() {
+    use locust_proto::engine::PeerTime;
+    use locust_proto::testkit::Author;
+    for (frontier, held) in [(false, false), (false, true), (true, false), (true, true)] {
+        let founded = Founded::new();
+        let goal = founded.goal;
+        let fork = founded.notes(&mut Author::new(5), 2);
+        let replica = founded.replica(if held { &fork } else { &[] });
+        let mut host = host(1, replica, &[1, 2]);
+        host.halt_accepts.insert((goal, endpoint(2)));
+        let mut driver = Driver::new();
+        let mut out = Vec::new();
+        let exchange = ExchangeId::Accepted(1);
+        let time = PeerTime {
+            unix_ms: 1,
+            elapsed_ms: 1,
+        };
+        driver.handle(
+            &mut host,
+            PeerInput::Accepted {
+                exchange,
+                remote: endpoint(2),
+            },
+            time,
+            &mut out,
+        );
+        let mut frames = vec![
+            SyncMessage::Hello {
+                version: locust_proto::PROTOCOL_VERSION,
+                goal,
+            },
+            SyncMessage::HaltProof([fork[0].to_wire(), fork[1].to_wire()]),
+        ];
+        if frontier {
+            frames.push(SyncMessage::Frontier(host.replica_mut(&goal).frontier()));
+        }
+        frames.push(SyncMessage::Done);
+        for frame in frames {
+            driver.handle(
+                &mut host,
+                PeerInput::Frame { exchange, frame },
+                time,
+                &mut out,
+            );
+            while !driver.readable(exchange) {
+                driver.handle(&mut host, PeerInput::Writable(exchange), time, &mut out);
+            }
+        }
+        assert_eq!(host.received_halt_proofs.len(), 1);
+        assert!(out.contains(&PeerOutput::Finish(exchange)));
+        let heard = frontier && held;
+        assert_eq!(
+            host.heard,
+            if heard {
+                vec![(goal, endpoint(2))]
+            } else {
+                vec![]
+            },
+            "frontier {frontier}, held {held}"
+        );
+    }
+}
+
 /// An endpoint that names a goal without speaking for a member is noted as a
 /// caller, and a host that dials callers dials it like a peer. Until this
 /// daemon's own records name it a member, that exchange sends `Hello` and an
