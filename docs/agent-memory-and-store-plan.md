@@ -1,10 +1,11 @@
 # Agent memory and store follow-ups: implementation plan
 
-Status: proposed, not accepted or built. Derived from
+Status: approved by the owner on 6 October 2026 as phases in the master
+plan's build order (answer 30); not built. Derived from
 [the beads assessment](../research/beads-assessment-2026-10-06.md) at
-baseline `0a448ad`. The [master plan](master-plan.md)'s build order is
-unchanged until the owner approves the
-[rows proposed below](#rows-proposed-for-the-master-plans-build-order).
+baseline `0a448ad`. The owner approved the
+[rows below](#rows-in-the-master-plans-build-order) for the
+[master plan](master-plan.md)'s build order.
 
 Code lines were verified at `0e902e3`; lines in files changed since were
 re-checked at `0a448ad`, and H's at `3dfb1fd`. Each phase re-checks its
@@ -20,7 +21,7 @@ lines when it starts.
 | Starting work | An agent picks a task by ID; another session of the same agent may pick the same one. | When the list shows work, one call with no task starts a task nobody is attempting, as far as this computer has heard. Asking twice returns the same claim. With nothing free, nothing is signed. (A2) |
 | What the goal knows | Findings arrive as items to page through; after J5 a newcomer's unread view leaves older ones out. | The first compact page lists the 20 newest goal-wide findings by first line, with the total. (A3) |
 | Back after a break | `locust_status` returns the attempts an agent holds, but nothing says what they mean, and the CLI `status` does not print them. | The instructions say each is an attempt to resume and how; the CLI `status` lists each with its title and generation and the two commands that resume it. (A4) |
-| Work waiting, cancellation, compaction | Seen only through the agent's calls. | Hooks keep it working, show a cancellation at the next tool call, and reset the read record. (H) |
+| Work waiting, cancellation, compaction | Seen only through the agent's calls. | Hooks, in every harness Locust sets up, keep it working, show a cancellation at the next tool call, and reset the read record. (H) |
 | Retiring a finding | An agent cannot say its own earlier finding is out of date. | A new finding can replace the same author's old one, which leaves the current list. (A6) |
 | IDs a person sees | Some lines cut IDs at a fixed 8 characters even on a clash. | One cutter everywhere: 8 characters, longer only on a real clash. (A5a) |
 | IDs an agent types | MCP tools need full IDs. | After R7, if its counts justify it: 8 characters of an ID a tool showed in the same connection; anything else is refused with a fix. (A5b) |
@@ -55,9 +56,9 @@ lands after G1, so one pass covers G1's new `open(dir, marks)` failures.
 
 **The one signed change.** A6 lands right after J2's change set, before any
 build with J2 is published. J2 changes signed bytes anyway
-([master plan](master-plan.md) 358), so A6 shares its step, and the five
+([master plan](master-plan.md) 400, 411), so A6 shares its step, and the five
 sentences saying E1's end record is the last event change in the fifteen
-phases (master plan 355; host-safety plan 231, 883, 3620, 3741) stay true.
+phases (master plan 408; host-safety plan 231, 883, 3620, 3741) stay true.
 J2 alone owns any version raise. A6 never lands alone after a release.
 
 **Format rule.** Every API change here is "inside 7" only if it lands before
@@ -82,7 +83,7 @@ change, since the binary carries that code.
   `definitions.rs`, `daemon/mod.rs` open errors,
   `organization_performance.rs`, `build_release.py`
   and P's plan edits; never Lane A's files.
-- **Lane D, hooks:** H. Owns `hook.rs`, `hooks.rs`, setup's hook file and
+- **Lane D, hooks:** H. Owns `hook.rs`, `hooks.rs`, setup's hook entries and
   qualification scripts; edits Lane A's files between its commits, after
   A4, and `node/mod.rs` never during G1.
 - **Lane C, J1 with J1+,** in R7's window, when v2 writes almost no Rust.
@@ -109,32 +110,38 @@ Shared files: S1a precedes A1 in `node/tests/context.rs`; in
 | A6 | Right after J2's change set | A3, R7's run | Shares J2's signed step |
 | S3 | With the first published build | G1, owner's answer on versions | The ledger must exist at the first release |
 
-### Rows proposed for the master plan's build order
+### Rows in the master plan's build order
 
-Under Build order, after the table of fifteen, add:
+Under Build order, after the table of fifteen:
 
 > **Alongside the fifteen.** From the
-> [agent memory and store plan](agent-memory-and-store-plan.md). Only R7's
-> early run waits for one, H1a. Only A6 changes signed bytes.
+> [agent memory and store plan](agent-memory-and-store-plan.md), approved by
+> the owner (answer 30). Only R7's early run waits for one, H1a. Only A6
+> changes signed bytes, and it rides in J2's step.
 >
-> | Phase | What works afterwards | Lands before, if ready |
+> | Phase | What works afterwards | Lands |
 > | --- | --- | --- |
-> | S1 | Nothing removes stored content; a failed start says what to do | G1 (removal); after G1 (sentences) |
-> | A1 | Agent tools say what they return; a context page holds at most 32 items | R7 |
-> | A2 | An agent starts a free task in one call | R7 |
-> | A3 | The first compact page lists current findings | R7, J5 |
-> | A4 | `status` lists held tasks and how to resume | R7 |
-> | A5 | One ID cutter; later, short IDs an agent was shown | R7 (cutter); after R7 (bridge) |
-> | S2 | A long goal's cost is measured | R8 |
-> | H | An agent with work waiting keeps working | R7 (H1a needed) |
+> | S1 | Nothing removes stored content; a failed start says what to do | before G1, else right after (removal); after G1 (sentences) |
+> | A1 | Agent tools say what they return; a context page holds at most 32 items | before R7, if ready |
+> | A2 | An agent starts a free task in one call | before R7, if ready |
+> | A3 | The first compact page lists current findings | before R7 and J5, if ready |
+> | A4 | `status` lists held tasks and how to resume | before R7, if ready |
+> | A5 | One ID cutter; later, short IDs an agent was shown | before R7 (cutter); after R7 (bridge) |
+> | S2 | A long goal's cost is measured | before R8 |
+> | H | An agent with work waiting keeps working, in every harness Locust sets up, with any model | before R7 (H1a needed) |
 > | A6 | An agent can retire its own finding | right after J2, in J2's step |
 > | S3 | No format change ships under a released number | the first published build |
 
-Amend **R7**'s Needs: "…and H1a of the agent memory and store plan."
-Amend **J1**: "…and `goal status` shows the last refusal each computer
-sent." Amend **J2**: "A finding can replace the same author's earlier one
-(A6), in J2's step." In Versions, after "The first public door changes signed
-bytes once more, in J2.", add "A6 lands right after it in the same step."
+Amendments: **R7**'s Needs ends "…and H1a of the agent memory and store
+plan." **J1** ends "…and `goal status` shows the last refusal each computer
+sent." J1's Needs becomes "nothing; E2 for the last refusal", and the Public
+goals bullet adds "its last-refusal line waits for E2". **J2** adds "A
+finding can replace the same author's earlier one (A6), in J2's step." In
+Versions, after "The first public door changes signed bytes once more, in
+J2." comes "A6 lands right after it in the same step.", and "that change
+stays inside 7" becomes "J2's change, with A6's, stays inside 7". Under
+"Assumed until the owner objects", five bullets name what a person sees of
+this plan's own choices.
 
 ## Decided by the plan author
 
@@ -150,21 +157,27 @@ bytes once more, in J2.", add "A6 lands right after it in the same step."
 - **A6 ships without a kind field:** "finding" keeps A3's meaning.
 - **J1+ replaces E2's refused set:** one structure, not two.
 - **R7's seeds are findings, not tasks:** R7's setup stays true and A3 shows them.
-- **Stop rule:** block only for work IDs not shown since the chat's last Locust write; after an ignored block, stops go through until a new ID. One worker chat per session waits, at most 270 s.
+- **Stop rule:** block only for work IDs not shown since the chat's last Locust write; after an ignored block, stops go through until a new ID. One worker chat per session waits, at most 270 s, or less where an adapter's harness ends a hook sooner.
 - **Hook output:** one ASCII line under 512 bytes: counts, IDs, tool names, fixed words; on failure, "Locust context was NOT injected".
 - **State stays local;** a reset forgets rather than flags. No `--owner`, prompt-submit or reject hook.
 
 ## Decided by the owner
 
-Answers of 6 October 2026 to this plan's two questions.
+Answers of 6 October 2026 to this plan's two questions and its rows.
 
-1. **Hooks.** "We already know the numbers are going to be better with
-   hooks and we can use mcp tools as fallback"; each harness's hooks "we
-   can figure out in time". So hooks are in, with no measurement gate, for
-   every harness Locust sets up (H). MCP tools stay the integration, the
-   fallback and the only way an agent acts.
-2. **An agent marking one of its own earlier findings as replaced.** "Yes."
+1. **Hooks.** First: "We should initially integrate locust as mcp tools, we
+   can explore hooks if it helps the system. Hooks are supported by all
+   harnesses not just claude code." Then: "we already know the numbers
+   are going to be better with hooks and we can use mcp tools as
+   fallback"; each harness's hooks "we can figure out in time". So hooks
+   are in, with no measurement gate, for every harness Locust sets up (H).
+   MCP tools stay the integration, the fallback and the only way an agent
+   acts.
+2. **An agent marking one of its own earlier findings as replaced.** "yes".
    A6 is accepted and lands in J2's format change.
+3. **The rows and the hooks prompt.** "yes, add the rows and write the hooks
+   prompt. Remember that we want to keep the hooks work model and harness
+   agnostic." H's shape follows it.
 
 S3 still waits on the master plan's open versions question, not asked again.
 
@@ -187,7 +200,7 @@ edit only their own skill sentences.
 | `one_event_apply`, the new sizes, the long-goal note | S2 |
 | `format_digests`, the ledger, `--record-published`, the fixture and its test | S3 |
 | `Report.received`, the last-refusal map, `PeerView.last_refusal`, `PeerRefusal`, `refusal_words` | J1+ |
-| `locust hook`, marks, the hook rules, `hooks.rs`; `session.chat`, presence | H1a; H3 |
+| `locust hook`, the hook events, output contract and adapter interface, marks, the hook rules, `hooks.rs`; later adapters; `session.chat`, presence, the hooks each chat has reported | H1a; H1b; H3 |
 | Phase state, findings numbering, R7's run text, hand-off sentences in v2 plans | P |
 
 ## Phases
@@ -539,7 +552,7 @@ on 6 October 2026.
 ([event.rs](../crates/locust-proto/src/event.rs) 465-471) gain `supersedes:
 Option<EventId>`. The fold accepts it only when both records meet A3's
 predicate and share an author. Concurrent supersessions all stay current,
-with no tie-break ([master plan](master-plan.md) 83-90).
+with no tie-break ([master plan](master-plan.md) 87-94).
 `current_findings` adds "not superseded by an Effective record". A6 rewrites
 the `contribution.publish` summary (api.rs 902) and adds one skill sentence.
 It touches `vectors.rs`, `every_body`, `fold.rs`, `projection.rs`, `claims.rs`,
@@ -563,8 +576,8 @@ A6 is its own commit right after it.
 ### H: Hooks
 
 **Goal.** Hooks bring Locust facts to an agent at moments it would not
-think to ask, in every harness Locust sets up. MCP tools stay the fallback
-and the only way an agent acts.
+think to ask, in every harness Locust sets up, with any model. MCP tools
+stay the fallback and the only way an agent acts.
 - H1: when a worker chat tries to end its turn while work waits for it, the
   stop hook keeps it going with one line naming the work, or waits for work
   without spending model tokens. A worker chat is one that started or took
@@ -575,12 +588,32 @@ and the only way an agent acts.
   cancelled or taken over.
 - H3: a chat's first Locust call and each compaction reset that session's
   read record, and `status` says whether an attempt's holder is active,
-  waiting or closed
+  waiting or closed, and which hooks its chat has reported
   ([agent ergonomics](../research/agent-ergonomics-2026-10-05.md) 525-546).
+
+**Shape: one core, thin adapters,** as the owner requires.
+- Locust's hook events are `start` (a chat opens or is compacted), `stop`
+  and `tool` (after a tool call). Each returns nothing or one line; `stop`
+  may return "keep going" with one line. That is the one output contract.
+- The core holds every decision once (the stop rule, marks, which facts
+  to print, the failure line), with no harness branch.
+- An adapter is data and a thin shim: native events to Locust events, the
+  envelope its harness reads a line or a block in, where its config entry
+  lives, its harness's hook time limit (set in the config entry where the
+  harness allows), and how setup adds and removes it. A new harness adds
+  only an adapter and its tests.
+- Output suits any model: plain facts and tool names in fixed wording, no
+  vendor markup or model-tuned phrasing, no assumption about how a model
+  treats system text. Adapters wrap the same line in any JSON needed.
+- Where a harness lacks an event, Locust falls back: for `stop`, the agent
+  calls `locust_wait`; for `tool`, `locust_pending`; for a compaction, A4's
+  instruction to start with `locust_status`. The read record is then not
+  reset (H3).
 
 **Depends on.** H1a: A4, for order. H1b, H2: H1a. H3: H1a, A4.
 
-**Changes, H1a** (Claude Code, R7's harnesses).
+**Changes, H1a** (the core, its adapter interface, and adapters for the
+harnesses R7's early run uses, named in R7's run text by P).
 - `locust hook start|stop|tool --harness NAME`, a new `hook.rs` dispatched
   like `mcp` (args.rs 221-225), run through `locust-cli` (launcher.rs
   14-35). It refuses an owner (mcp.rs 253-255) and exits 0.
@@ -591,20 +624,23 @@ and the only way an agent acts.
   for a worker chat reviews, deliveries and free tasks, by a predicate
   shared with A2. It waits on one connection per goal (callers.rs 27-32).
   `start` keeps this session's claims (`Claim.instance`, api.rs 1602).
-- A pure `locust-adapter/src/hooks.rs` registers and removes only its own
-  entries; Claude Code's `Stop`, `PostToolUse` and `SessionStart` go in
-  `.claude/settings.json`.
+- A pure `locust-adapter/src/hooks.rs` holds the adapter table, keyed by
+  `Client` (config.rs 28-34), and registers and removes only its own
+  entries. Each native event name and config path is confirmed when its
+  adapter is built.
 - Setup installs them by default under the MCP entry's rules (setup.rs
   600-749), in a v3 record (220, 476); a v2 one is refused with its
   recovery, and a hand-removed entry stays out. `LOCUST_HOOKS=off`
   silences them; `client run` and all but one qualification scenario set
   it (cli/client.rs 336-337; check_installed_clients.py 433);
-  `real_models.py` merges Droid's settings.
+  `real_models.py` merges each adapted harness's settings.
 - agents.md gains a Hooks section (the default profile is the person's own
   client); SKILL.md after 245-246 explains `Locust:` lines.
 
-**Changes, H1b.** A commit per harness as its events are confirmed: Codex,
-Droid, pi; Kimi Code once setup has it (setup.rs 10-18).
+**Changes, H1b.** An adapter, in its own commit with its tests, for each
+other harness Locust sets up (config.rs 28-34 lists Codex, Claude Code,
+Droid, Kimi Code and Pi). Kimi Code waits until setup has it (setup.rs
+10-18).
 
 **Changes, H2.** `tool` calls `wait` with `timeout_ms` 0 per goal, free when
 unchanged (reading.rs 216-219), and names a cancellation, or a lost claim no
@@ -615,22 +651,30 @@ request (requests/mod.rs 54-73), open chats and closed time. A local `session.ch
 the bridge sends `Opened` at its first call and `Closed` at stdin EOF, the
 start hook `Compacted`. `Opened` and `Compacted` delete the session's acknowledgments
 and receipt cache, keeping the revision (context.rs 31-90, 348-350).
-`DaemonStatus` (api.rs 1394-1408) gains presence; A4's claim line ends
+`DaemonStatus` (api.rs 1394-1408) gains presence and the hooks each chat
+has reported, since each `locust hook` call names its event; A4's claim line ends
 "active 10 s ago", "waiting" or "chat closed, not reported".
 
 **Tests and exit.** Each rule as a pure function, alternating sets and a
 declining chat included; titles never print; concurrent tool events print
-once; the predicate matches A2's. In a Claude Code profile under /tmp, a
-waiting task blocks once, then goes through; `setup remove` restores bytes;
-client checks pass or are reported missing; checks as A1.
+once; the predicate matches A2's. The core runs against a fake harness
+replaying events, and `status` then shows the hooks each chat reported.
+Each adapter has goldens of its config entry and envelope. One conformance scenario (work waiting, a block, an ignored
+block, a cancellation, a compaction) runs through every adapter and gives
+the same Locust-level outcome; an adapter without an event shows its
+fallback instead. For each adapted harness, in a profile under
+/tmp, a waiting task blocks once, then goes through; `setup remove` restores
+bytes; client checks pass or are reported missing; checks as A1.
 
 **Format impact.** Nothing signed or synced; one local operation, inside 7.
 **Overlap with v2.** G1, G2 and E2 edit `status`, not at once; E1 counts no
 work in an ended goal.
 
 **Risks and notes.** Beads #3451 pushed stops; guards: the stop rule,
-facts only, "unless your owner asked you to stop", Esc. A waiting stop
-holds a typed prompt, as `locust_wait` does. Unverified: one bridge per chat.
+facts only, "unless your owner asked you to stop", the harness's own
+interrupt. Unverified per harness: whether a waiting stop holds a typed
+prompt; each adapter's /tmp check records it. Unverified: one bridge per
+chat.
 
 ### S1: Store hygiene
 
@@ -656,7 +700,7 @@ is never deleted.
   payload, modelled on content_graph_tests.rs 64-74.
 - [crates.md](crates.md) 47-50: "Before the first release of version 7,
   signed bytes may change inside 7 if the vectors change in the same commit
-  ([master plan](master-plan.md) 353-363). After a release, a change raises
+  ([master plan](master-plan.md) 406-417). After a release, a change raises
   `PROTOCOL_VERSION`. Until the release gate exists, this is a convention."
 
 **Changes, S1b.** `OpenError` Display
@@ -741,7 +785,7 @@ or its store layout differs from one with the same store version. Every
 build opens the last release's data folder.
 
 **Trigger.** The first published build at 7: a private release after R10 or
-the door in J6 ([master plan](master-plan.md) 353-363). The session making
+the door in J6 ([master plan](master-plan.md) 406-417). The session making
 it lands S3 in the commit that records the publish. The 0.1.0 preview gets
 no row.
 
@@ -773,7 +817,7 @@ unchanged (the lock file is still written, home.rs 159-162).
 is refused; the fixture and script tests pass.
 
 **Format impact.** None of its own. **Overlap with v2.** One of J6's gates
-(master plan 351).
+(master plan 404).
 
 **Risks and notes.** Formation documents, invitations, manifests and sync
 frames are not gated.
@@ -820,9 +864,9 @@ P is one docs commit in Lane B, now.
 
 - **One place for phase state.** The master plan's status paragraph (3-6)
   becomes "Phase state is in the build-order table." The pieces table drops
-  counts and states (297-298). Built rows read "Built (`hash`)": R1
+  counts and states (330-333). Built rows read "Built (`hash`)": R1
   `65aecf1`, R2 `48120a4`, R3 `3196be8`, K1 `cb1acaa`, R4 `8c086c1`, R5
-  `9c337df`, R6 `e46450f` and `9499cde` (unmarked today, 324). The status
+  `9c337df`, R6 `e46450f` and `9499cde` (unmarked today, 358). The status
   lines of the [roles plan](roles-and-permissions-plan.md) (3-5),
   [host-safety plan](host-safety-and-ending-plan.md) (3-5) and
   [joinable plan](joinable-farms-plan.md) (3-18) point to the table. Each
@@ -835,7 +879,8 @@ P is one docs commit in Lane B, now.
   goal-wide findings, so A3 shows them and the non-host agent's second task
   can come from one. Each agent has its own profile home, worktree and build
   directory; two agents share one daemon home, the third uses another, and
-  the note says which. Results land by hand outside the run. The note also
+  the note says which. The run text names each agent's harness; H1a builds
+  those adapters. Results land by hand outside the run. The note also
   records tasks with more than one attempt and the work wasted, starts
   despite an "After task:" line, ID errors and prefix refusals, and each
   compaction or restart an agent went through, with whether it found its
@@ -847,7 +892,7 @@ P is one docs commit in Lane B, now.
   no-task start in an ended goal, prints no claim lines there and replaces
   A1's two scope sentences; G2 lists claims while catching up; E2 notes that
   J1+ folds `Node.refused` into its map; J1 lists J1+; J2 and J5 name A3's
-  list; J2 names A6's slot; the Versions line as proposed above.
+  list; J2 names A6's slot; the Versions line as above.
 
 **Exit.** The table is the only phase state, each built row has its commit,
 and `check_docs.py` passes.

@@ -67,6 +67,10 @@ copy of the goal. Four pieces of work change how that behaves.
 4. **Replacing a host.** A host may name one backup host who can take over if
    the host's computer is lost.
 
+Alongside them, the [agent memory and store plan](agent-memory-and-store-plan.md)
+adds smaller phases: clearer agent tools, current findings, hooks that keep
+an agent working, store hygiene and release gates.
+
 ## Decided by the owner
 
 These are the owner's answers of 5 and 6 October 2026. Nothing else in any
@@ -179,13 +183,32 @@ Added on 6 October 2026:
     plan seems good to me then. Minimize friction, minimize user intervention
     all of this is correct."
 
+On the [agent memory and store plan](agent-memory-and-store-plan.md), also
+on 6 October 2026:
+
+28. **Hooks.** First: "We should initially integrate locust as mcp tools, we
+    can explore hooks if it helps the system. Hooks are supported by all
+    harnesses not just claude code." Then: "we already know the numbers are
+    going to be better with hooks and we can use mcp tools as fallback". And:
+    "Remember that we want to keep the hooks work model and harness
+    agnostic". So hooks are in, with no measurement gate, for every harness
+    Locust sets up and tied to no model, while MCP tools stay the fallback
+    and the only way an agent acts.
+29. **An agent retiring its own finding.** Asked whether an agent may mark
+    one of its own earlier findings as replaced: "yes". So A6 is accepted
+    and lands in J2's change of signed format.
+30. **The rows.** "yes, add the rows and write the hooks prompt". So that
+    plan's phases stand under [Build order](#build-order), alongside the
+    fifteen.
+
 ## Assumed until the owner objects
 
 Each of these is the plan author's choice and is written into a plan. The
 roles plan lists its own in full under "Decisions this plan assumes" and
 "Questions for the owner"; the host safety plan under "Questions for the
 owner"; the public-goals plan under "What this plan assumes" and "Questions
-for the owner". The questions that are still open are counted under
+for the owner"; the agent memory and store plan under "Decided by the plan
+author". The questions that are still open are counted under
 [Not designed, open, or left out](#not-designed-open-or-left-out).
 
 From the [roles plan](roles-and-permissions-plan.md):
@@ -290,6 +313,16 @@ From the [public-goals plan](joinable-farms-plan.md):
   also shows the name of a member the host invited. A page whose host's
   computer sends nothing for 30 days is removed.
 
+From the [agent memory and store plan](agent-memory-and-store-plan.md):
+
+- Setup installs Locust's hooks by default, and `LOCUST_HOOKS=off` silences
+  them.
+- A hook holds an agent's stop for at most 270 s, and only while work waits.
+- A hook prints one plain line of facts.
+- A context page holds at most 32 items.
+- A start with no task named picks the first task nobody is attempting, as
+  far as this computer has heard.
+
 ## The pieces and their state
 
 | Piece | Document | State |
@@ -297,6 +330,7 @@ From the [public-goals plan](joinable-farms-plan.md):
 | Roles and permissions | [roles-and-permissions-plan.md](roles-and-permissions-plan.md), with its [companion](roles-and-permissions-plan-details.md) | Ten phases. Phases 1 to 3 are built. Two independent reviews are folded in, the second with every finding [checked](../research/v2-plan-review-verification-2026-10-06.md) first. |
 | Host safety and ending a goal | [host-safety-and-ending-plan.md](host-safety-and-ending-plan.md), with its [companion](host-safety-and-ending-plan-details.md) | Five phases: the signing key (K1), the restore guard (G1, G2), ending a goal (E1) and leaving (E2). K1 is built and [reviewed](../research/v2-phase-k1-review-2026-10-06.md): its core held and 32 smaller findings are open. Corrected against the same review. One section lists what the host's computer signs by itself, with one rule. Three limits are stated at its top. |
 | Public goals | [joinable-farms-plan.md](joinable-farms-plan.md) | Rewritten on 6 October 2026 as six phases, J1 to J6. Each phase is described by behaviour: what works, what a host and a joiner see, the records and rules, the tests. File-by-file changes are written when a phase's turn comes. Checked once for agreement with the owner's answers and the other plans and once for fit with the code, and revised. |
+| Agent memory and store | [agent-memory-and-store-plan.md](agent-memory-and-store-plan.md) | Approved as phases alongside v2, listed under [Build order](#build-order). None is built. R7's early run needs its H1a. |
 | Replacing a host | [first round](../research/replacing-a-host-2026-10-05.md), [design and its check](../research/replacing-a-host-design-2026-10-06.md) | After v2. One design is written, attacked and revised. A last check found no fatal break and eight serious ones, each with a named fix that is not applied. Not phases. |
 
 Evidence the plans rest on:
@@ -326,25 +360,44 @@ and runs them before it is done.
 | 9 | G2 | Status and refusals say "catching up" and what each wait is on; the person has the one command that continues | G1, R2 to R6 |
 | 10 | E1 | The host ends a goal with one command; nothing new is recorded on any computer that has learned of it | R1 to R6, K1, G1, G2 |
 | 11 | E2 | A member that leaves is removed by the host's computer with nobody asked; disconnecting the agent a goal was started with says what waits until it is connected again | E1 |
-| 12 | R7 | The recipes pass, the journeys are counted, and a first run with several real agents is made | all above |
+| 12 | R7 | The recipes pass, the journeys are counted, and a first run with several real agents is made | all above, and H1a of the agent memory and store plan |
 | 13 | R8 | The shared plan settles by itself wherever the rules name nobody to pick it | R3, R4, K1, G1, G2, E1 |
 | 14 | R9 | A change to the shared files lands by itself | R4, R8, G1, G2 |
 | 15 | R10 | The finished workflow is qualified, with a recorded run of several agents and a reading test with people | all above |
+
+**Alongside the fifteen.** From the
+[agent memory and store plan](agent-memory-and-store-plan.md), approved by
+the owner (answer 30). Only R7's early run waits for one, H1a. Only A6
+changes signed bytes, and it rides in J2's step.
+
+| Phase | What works afterwards | Lands |
+| --- | --- | --- |
+| S1 | Nothing removes stored content; a failed start says what to do | before G1, else right after (removal); after G1 (sentences) |
+| A1 | Agent tools say what they return; a context page holds at most 32 items | before R7, if ready |
+| A2 | An agent starts a free task in one call | before R7, if ready |
+| A3 | The first compact page lists current findings | before R7 and J5, if ready |
+| A4 | `status` lists held tasks and how to resume | before R7, if ready |
+| A5 | One ID cutter; later, short IDs an agent was shown | before R7 (cutter); after R7 (bridge) |
+| S2 | A long goal's cost is measured | before R8 |
+| H | An agent with work waiting keeps working, in every harness Locust sets up, with any model | before R7 (H1a needed) |
+| A6 | An agent can retire its own finding | right after J2, in J2's step |
+| S3 | No format change ships under a released number | the first published build |
 
 Afterwards:
 
 - **Public goals.** Six phases, J1 to J6, in the
   [public-goals plan](joinable-farms-plan.md), listed below. J1 can land at
-  any time. J2 holds the first admission through a door, with the safety
-  check and the rule for a door member's task, so no build lets a stranger
-  in without them. The door is released in J6, after R10.
+  any time; its last-refusal line waits for E2. J2 holds the first
+  admission through a door, with the safety check and the rule for a door
+  member's task, so no build lets a stranger in without them. The door is
+  released in J6, after R10.
 - **Replacing a host.** It follows v2. Under answer 2 it ends the goals made
   under v2, so it is never a way back for one of them.
 
 | Phase | What works afterwards | Needs |
 | --- | --- | --- |
-| J1 | A daemon's public address serves computers that are not members within fixed limits; a computer that keeps being refused, such as a removed one, is tried once every 15 minutes; a daemon can run through relays only | nothing |
-| J2 | A host's computer makes a fresh goal public under rules no stranger can meet and lets strangers in through a door, open to anyone or by request; a door member works, and its tasks wait for a trusted agent. Signed bytes change here | R1, R3 to R6, R8, R9, K1, G1, G2, E1, E2, and one trial with real agents |
+| J1 | A daemon's public address serves computers that are not members within fixed limits; a computer that keeps being refused, such as a removed one, is tried once every 15 minutes; a daemon can run through relays only, and `goal status` shows the last refusal each computer sent | nothing; E2 for the last refusal |
+| J2 | A host's computer makes a fresh goal public under rules no stranger can meet and lets strangers in through a door, open to anyone or by request; a door member works, and its tasks wait for a trusted agent. Signed bytes change here. A finding can replace the same author's earlier one (A6), in J2's step | R1, R3 to R6, R8, R9, K1, G1, G2, E1, E2, and one trial with real agents |
 | J3 | The farm service stores and serves the door; the page shows the Join band in every door state; anyone can publish a page by link | J2, R1, R4, R6, K1, G1, G2, E1, E2 |
 | J4 | One command makes a goal public with one yes; one command, or one pasted prompt, joins from the page with one yes | J2, J3, R2 to R6, G2, E1 |
 | J5 | Leaving, removal, the end, a restore and a host that is off read the same on the host's computer, on a joiner's, at the service and on the page; a newcomer's agent starts without a backlog | J1 to J4, R3 to R6, K1, G1, G2, E1, E2 |
@@ -355,12 +408,13 @@ protocol version goes from 6 to 7 in K1. R4 and E1 change signed bytes inside
 7, and E1's end record is the last change of the event format in the fifteen
 phases. R9 changes the formation document and no kind of record. Nothing is
 released before R10, so no number is raised twice inside the fifteen. The
-first public door changes signed bytes once more, in J2. If nothing is
-released before the door, that change stays inside 7. If the private part is
-released first, the door takes 8, and goals made on the private release stop
-when the door release arrives. The API version and the store marker follow
-the same rule. Replacing a host takes the number above the door's. Which of
-the two happens is the owner's to decide and is open.
+first public door changes signed bytes once more, in J2. A6 lands right
+after it in the same step. If nothing is released before the door, J2's
+change, with A6's, stays inside 7. If the private part is released first,
+the door takes 8, and goals made on the private release stop when the door
+release arrives. The API version and the store marker follow the same
+rule. Replacing a host takes the number above the door's. Which of the two
+happens is the owner's to decide and is open.
 
 The farm service has numbers of its own. J2 gives the page settings inside
 the signed publication record a version of their own, so that a later change
