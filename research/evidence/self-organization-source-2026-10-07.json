@@ -1,0 +1,390 @@
+{
+  "assessment_date": "2026-10-07",
+  "kind": "read-only source assessment; tests cited but not rerun; no new model calls",
+  "repositories": {
+    "locust": {
+      "review_revision": "5c0ebb96dcf224243608b4664b98693513312217",
+      "head_at_manifest_capture": "5c0ebb96dcf224243608b4664b98693513312217",
+      "files": [
+        {
+          "path": "crates/locust-core/src/node/requests/tasks.rs",
+          "git_blob": "fc1fd76573863a3261fa68cd9043aa5172736351",
+          "sha256": "009e1185102f2d09b2148fb971a402b9ce4e40f7185252a079b207b10a069825",
+          "bytes": 11728,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/locust-core/src/node/requests/claims.rs",
+          "git_blob": "7fc8618671258ec390228c78dc3b8ab489e098ed",
+          "sha256": "3cba9b4551d84102b574a76924819519bc547041bc8aa5e46127476a0a1f9893",
+          "bytes": 13790,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/locust-core/src/node/requests/sessions.rs",
+          "git_blob": "5e3a8fbf08e2fcb5f8bdce334e74ad6d3f36dc82",
+          "sha256": "a8387a339b45e6de7af415109ae394d940604156f0d311a35c1eb2a47eb28eae",
+          "bytes": 4616,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/locust-core/src/node/views.rs",
+          "git_blob": "7995d24f1703a050123e32d498cb738cca07a2e3",
+          "sha256": "229b370ee7af1c77ba84961ad8e0c126754b9449245020dc3d88f1187e365617",
+          "bytes": 28135,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/locust-core/src/node/context.rs",
+          "git_blob": "51a07feaa6e865dbd25971ba303b5088be314591",
+          "sha256": "07fe2e4c958698707f2cb4a65738ad37804a0defa1cabc6ee5b43e09d74586d0",
+          "bytes": 14135,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/locust-core/src/node/context_views.rs",
+          "git_blob": "2598de2a1a5a2ce25bebad9e937a6855b551fa41",
+          "sha256": "16ea0587b83ab3819e6784361fb64b8a9c09983374f6d8a5047cfec1aea32a19",
+          "bytes": 11831,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/locust-core/src/node/access.rs",
+          "git_blob": "50a4ba74aeee659ce48382b5840846c9092f4566",
+          "sha256": "e06945fab4d3b90f4927e4e196d3ee94ca3ad4b903cd8549743530b9fe2dd43f",
+          "bytes": 14029,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/locust-core/src/goal/flow.rs",
+          "git_blob": "10b42e5d3e264ef96f06fa4b35d97731cfed04a3",
+          "sha256": "7339309964e9e0b53b80dd1e59a7231c7efa7ddc943748a2080421a711dfcf41",
+          "bytes": 20977,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/locust-core/src/goal/rules.rs",
+          "git_blob": "2e905fbabe083bd4efc375ba9d0328cb80ee0a74",
+          "sha256": "fb0307ac08a7d2809367f27f8f1250138333296652def591757a00491119603f",
+          "bytes": 13052,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/locust-core/src/goal/tests.rs",
+          "git_blob": "69404a7f3cc4a34904bc05488b42fb1860324b36",
+          "sha256": "2fc7b690a05d08095fdc0ef604ba858be049a555e4d424389b456009b338f925",
+          "bytes": 123064,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/locust-core/src/node/tests/context_views.rs",
+          "git_blob": "28e87e0d425645c916c7dd4043828a948cee48fa",
+          "sha256": "6fcde5af620f5a4e3a6c060abd3314a531c20effd6f86d57efdd6d28eacf7c82",
+          "bytes": 37896,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/locust-core/src/node/tests/roles.rs",
+          "git_blob": "850e66fdf1de0555254b0201515006a864030f3f",
+          "sha256": "786b0b1369a66270606ea34faafac825d237dfe395a078f4f52113e037e2c4c7",
+          "bytes": 33025,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/locust-core/src/node/tests/levels.rs",
+          "git_blob": "442572089a7d0f03c5fea4e250342777346141bb",
+          "sha256": "f5bab8f649d216f7d93ac6f0e9f5ae4fab8a5dc335d83bf34847933ecf3be7c1",
+          "bytes": 16414,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/locust-core/src/node/tests/lifecycle.rs",
+          "git_blob": "c309ab25a413ec3450a1c41dd07c96b695882a53",
+          "sha256": "8c0f61b571f8c28649a09256b854ae6a9f497fb8b4e892ff57370b5226e74d3b",
+          "bytes": 42444,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/locust-proto/src/organization.rs",
+          "git_blob": "8fa6cfa5fc55f3dd66a28e32ff999f9c049b6eb6",
+          "sha256": "603cd723e53577d1d072dde1c925144a7b8c62e689a09d23201a1f5ddc229b58",
+          "bytes": 9073,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/locust-proto/src/api.rs",
+          "git_blob": "6c41032d1d9f57dc6db1689765cc372d5d0e306d",
+          "sha256": "3e3beded4b8eb398e2e6825c1b3509a0d3eb2482382559f698bed5cd36642066",
+          "bytes": 105691,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/locust-proto/src/api/context.rs",
+          "git_blob": "018c49cda583053d20f900bf5790dedbd6fb3b26",
+          "sha256": "6f91b7072b840f796f8f19ac08b71ecb8299edd138d7ebfb0ae29456467f72a2",
+          "bytes": 10317,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/locust/src/cli/client.rs",
+          "git_blob": "53cba65781dd4c7a4b25b0c49a851b54451368c4",
+          "sha256": "6086e5a05316bd594216bbb5ba80fb7528819187cf01eeb1c77ca929ae668faf",
+          "bytes": 49173,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "skills/locust/SKILL.md",
+          "git_blob": "834468e29a5cb4fb2f4be1e1b0addf4d36177b7c",
+          "sha256": "8e807d6b7221557e60c9071c3327d9237653b2866c7b197e67c54594c70e96a5",
+          "bytes": 19660,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "docs/master-plan.md",
+          "git_blob": "dc275dd9eeb29a722c3ab974428f508c66728903",
+          "sha256": "482b7e11f7de351e3dfdaa859e2d7be7943c795b29577a850cb1bb6ccb95ee69",
+          "bytes": 36256,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "docs/agent-memory-and-store-plan.md",
+          "git_blob": "7b923b11013ddbb37552260bfed6a2d5c890d43d",
+          "sha256": "566b5a364b2d66674316dd7b4aca1f781b8fbad66d50a57c3f75d48c660c79b5",
+          "bytes": 55797,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "docs/status.md",
+          "git_blob": "67bc4a4cf7a0bc78cc46c628006abff10e731db4",
+          "sha256": "bea5a8ee551424745a5e653ea5f254fa90703e169eaece17cec6eef0507ac1bc",
+          "bytes": 6721,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/locust-adapter/src/hooks/core.rs",
+          "git_blob": "0a8073c03448787041f5830eddbbb619c8f9be63",
+          "sha256": "eb6f74b121ba20b4e2d23df47461efd6e5a8ca76470c69e615ad6a3f08f8da67",
+          "bytes": 63890,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/locust-adapter/src/hooks.rs",
+          "git_blob": "c8c5e50058bf353c59b7c7c8904cd877176aaca5",
+          "sha256": "d10499709fa4bc9ffad52377e9b46001e8dc0ef599c056acb69fa535d7c1e03a",
+          "bytes": 67583,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/locust/src/hook.rs",
+          "git_blob": "577c5ae65fc46d4eb3cfff3514cbf2ef50aac4b7",
+          "sha256": "50eece9a4057390f8d8fcbb8d5088002d3af096d2ea750398e88c4cc48ccb425",
+          "bytes": 20465,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/locust/src/hook/marks.rs",
+          "git_blob": "227983fca1f7c366ec4e06aaf526e8b41916b226",
+          "sha256": "4836f8b78614ad1eaad98e6baed6874503e20be56f3f95aea8c2002c5b770889",
+          "bytes": 15418,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/locust-core/src/goal/mod.rs",
+          "git_blob": "780f2d60aa92821dcfcb9a5cadb2de4b31af4fcf",
+          "sha256": "64f600508b36af965ab85248964b5c6d803fe3a623c74f8e47f5b745d212d06a",
+          "bytes": 22898,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "research/agent-hooks-qualification-2026-10-07.md",
+          "git_blob": "4bcafd3bbe6c4588d46801b1f912a20e26412213",
+          "sha256": "0bb33c8417a5a5d4f4a72426c4888f3d3940b81e6204324cc6ac57ea7c35791b",
+          "bytes": 28165,
+          "matches_working_file_at_capture": true
+        }
+      ],
+      "initial_review_revision": "93e187e8d84b33188b08b84ec3b67a9a957cfa61"
+    },
+    "merak10": {
+      "review_revision": "eb3d28e7f6a9d7e4c4288b839ac62cc91d0346ae",
+      "head_at_manifest_capture": "eb3d28e7f6a9d7e4c4288b839ac62cc91d0346ae",
+      "files": [
+        {
+          "path": "docs/DOCTRINE.md",
+          "git_blob": "4adfc9f9ef07869765b77216566db469b196fe8d",
+          "sha256": "d9fea7ce9f6f3068a881a9ff2ef30ef72f056778b7023323f13439660d3bc9ee",
+          "bytes": 16831,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "docs/LEXICON.md",
+          "git_blob": "b192cd7425d8ea5bf14391454106f155cf55be05",
+          "sha256": "9efe36aa0ffdcaf1272552ad5ea008ed12983edf49beb66aacc3b365f3bfbac5",
+          "bytes": 27406,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/merak-agent/src/tasks.rs",
+          "git_blob": "ed8ada2d78438be30b4fea547b8270e90c8f631b",
+          "sha256": "5bbf2bf8961775cc97ff655f533f8cd48c59811955a7866bef172626291447aa",
+          "bytes": 321011,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/merak-agent/src/blueprint_put.rs",
+          "git_blob": "4506ba66d7fe87f3350832862f8b22063aa27c61",
+          "sha256": "4ddaf6b591c49b263cadf1da0181edcb5dc11c82b0aad215171d3a67b165aa28",
+          "bytes": 9015,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/merak-agent/src/workflow.rs",
+          "git_blob": "7e3f1b6b3928c0d9681bf7b319f8bc4c570de173",
+          "sha256": "29ce8ba914cf49574bd623cda5a6092cc624fcef8520cad241915d35c094a285",
+          "bytes": 22315,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/merak-agent/src/workflow_limits.rs",
+          "git_blob": "59572b1a68be3b8cd75f5e177edf9abae3d0b834",
+          "sha256": "1661b69845b173a53922fd54f05e6592cff5efb3669aa674ce812eb2bdf02c5c",
+          "bytes": 12004,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/merak-agent/src/prompts.rs",
+          "git_blob": "b176e1d1608ad1ed835930126831ec3d69aaaac6",
+          "sha256": "237d216d0690bd9e0da4d2529451345d28231d64fa510b92905f9d3fa982770d",
+          "bytes": 80692,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/merak-agent/src/board.rs",
+          "git_blob": "8b41b69a95ca61ff57edabe8d6c43d85fc4beee9",
+          "sha256": "80be683a34a437edb9beddd3e2113a6541d979a49eeff035eb62755884371706",
+          "bytes": 28698,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/merak-agent/src/provider_first.rs",
+          "git_blob": "b76ca7a727f205f41772c2e845716b9144082dfa",
+          "sha256": "50866cc9a9ce82d8b00c45bce149ad2379c7fb27a1ab84154492d14486dec958",
+          "bytes": 130669,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/merak-agent/src/watch.rs",
+          "git_blob": "e9c728e76689d492afa3169277a878aac56ad1a1",
+          "sha256": "f7ed982a30ed769fc32747ae96883138f1c8d8f5ffa0e513c00e56ed8705b99a",
+          "bytes": 12378,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/merak-agent/src/pubsub.rs",
+          "git_blob": "fa9dd270e79fd759708aa2f31e74c86f2af0c4e2",
+          "sha256": "8f7f8e4e0dd59c66fb42c5e0fa90143ad4cee249b027dcf12a5fce2dc09ed31c",
+          "bytes": 34667,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/merak-agent/src/semantic_review.rs",
+          "git_blob": "5ad12eaa6ff3c3ee342abb47c42392e8bc047984",
+          "sha256": "d3c4aa877f31be476e9e58c0dd74c321816a9525d918c700203b5b272aa7e670",
+          "bytes": 27933,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/merak-tools/src/skills.rs",
+          "git_blob": "a38bc00dcf0c788c3ae333b7563f28a6db568dfa",
+          "sha256": "5342a29b2c1ea364034d26caf5501bb553069e8a2ebea687f5aeb3d411add3ba",
+          "bytes": 212395,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/merak-domain/src/authority.rs",
+          "git_blob": "114d807edb48927695b1080268a65b3dc98d998f",
+          "sha256": "a8e3404f122680231bda6d1938f014a929b7efc3164c6016d635966aee2e0781",
+          "bytes": 13337,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/merak-engine/src/subgraph.rs",
+          "git_blob": "09beebaecfba617ad59e6f1bca560de183714be8",
+          "sha256": "ca3f1fb0a9a78bb13dc7ff7c431eb6d81f759dbf354b1a07a464ecffb3ff8179",
+          "bytes": 166610,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/merak-engine/tests/it/pubsub_agent_tools.rs",
+          "git_blob": "f5a5c6a1d691c5a1de328ec26266c7e90e54d64b",
+          "sha256": "58c83e035adc598b48dd8d33e981a55bf21ced874caf8af2cc742b9218582bfc",
+          "bytes": 123732,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/merak-engine/tests/it/board_agent_tools.rs",
+          "git_blob": "7ecc767367b54d9dc3be7d47f547946de9d4acba",
+          "sha256": "271e4297578d2a7b85265c5c9da6adb43d98a84b3cd0ed58d5902d972ba5d70e",
+          "bytes": 25499,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/merak-store/tests/it/board_scope.rs",
+          "git_blob": "286011d91a9e8179c8e621b7f7a0e4df573dd379",
+          "sha256": "ee1269410995b0331e0dac512397c8eca2b6e18006db760bfca2481aa72781ca",
+          "bytes": 13988,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/merak-loop/src/lib.rs",
+          "git_blob": "a5b84348d6386a2bac293410e74844f7c69142c4",
+          "sha256": "011f0aa6ebad937c8572e263b6a44ba91e0a6feed9f325269f05200c67ffbf8b",
+          "bytes": 40467,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "crates/merak-loop/src/dreaming/mod.rs",
+          "git_blob": "c33b587ec5af3d6a2e748ea5ea0850e9399b4f03",
+          "sha256": "7cfee6f7b58dae9e8f49fb54639882e7c05a692e94e9c5cbbf4b2de26e63eb0c",
+          "bytes": 2789,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "src-tauri/src/blueprint_verbs.rs",
+          "git_blob": "f74ca3ed02e1d597d08b62e1c413a9cb2c8ff6c0",
+          "sha256": "b833e000770bfc259f7819e98f75af0ff83ed2ec72f7c9b34a4554e0f88c5436",
+          "bytes": 102044,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "src-tauri/src/topology_review.rs",
+          "git_blob": "90bd3ba7d024ccf9717a5c80f969f93cf5dffc59",
+          "sha256": "e4ee5ddaa1af85e850d2044716298612e7edfcfa0f0b3061583f9203e68d1e1d",
+          "bytes": 22302,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "src-tauri/src/builtin_blueprints/topology-review.json",
+          "git_blob": "ab9e4b1a006f2d7c0e7c060cfd72301495198aa3",
+          "sha256": "02fae7549e171fed0208acae40573898f650766c92b85a33b35ed39d7686bac3",
+          "bytes": 7433,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "docs/AGENT_SWARMS_IMPLEMENTATION_PLAN_2026-10-03.md",
+          "git_blob": "98bb9297c65d48e5d5733d80381e97ff0df97d62",
+          "sha256": "c53ec41e41e19c1c5beb360004b45c80d8b35ee04b018b7b3ea9fc308c75e640",
+          "bytes": 132312,
+          "matches_working_file_at_capture": true
+        },
+        {
+          "path": "docs/LOCUST_POLARIS_PRODUCT_PLAN_2026-10-03.md",
+          "git_blob": "63e753aaf889e201a6cd191b10c06bc3d39cce81",
+          "sha256": "ba3442c67c5d88a9bed0648ffeac9abdc541fb628324c31bbb14bce3d8c95a0c",
+          "bytes": 25242,
+          "matches_working_file_at_capture": true
+        }
+      ]
+    }
+  }
+}

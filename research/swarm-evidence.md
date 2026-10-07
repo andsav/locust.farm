@@ -2,6 +2,10 @@
 
 Research date: 2026-10-04. **Status: research note. Source review of published studies; nothing was run.** It sits beside the [prior art for an agent swarm on ecdsa.fail](ecdsa-fail-swarm-prior-art.md), which covers public solver methods and comparative design rules; this note does not repeat them.
 
+Follow-up: the [7 October literature review](self-organizing-agents-literature-2026-10-07.md)
+checks organizational prior art and current paper versions, with reuse decisions
+for the [supported self-organization plan](../docs/self-organizing-collaboration-plan.md).
+
 ## Question
 
 Is there published evidence that many participants working on one problem do better than one, as in the wisdom of crowds or mixture of experts? Under which conditions, and where does it fail? The site says "Unleash collective intelligence on your hardest problems", and the founder wants to be able to argue for that choice. This note makes the strongest honest case and states where it breaks.

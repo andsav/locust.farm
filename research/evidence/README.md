@@ -29,6 +29,7 @@ it. Sanitization does not imply rerunning a check or qualifying a newer artifact
 
 ## Public prior art
 
+- [Merak10 and Locust source manifest](self-organization-source-2026-10-07.json): pinned source fingerprints for the [organization assessment](../merak10-locust-organization-2026-10-07.md); no runtime qualification.
 - [ecdsa.fail leaderboard analysis](ecdsa-fail-leaderboard-analysis.md)
 - [hcom validation evidence](hcom-validation.md)
 - [Unsnapshotted Raft restart characterization probe](raft-restart-probe.md)

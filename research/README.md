@@ -7,6 +7,9 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 
 ## Investigations and experiments
 
+- [Self-organizing agents: literature and reuse decisions](self-organizing-agents-literature-2026-10-07.md)
+- [Merak10 and Locust: organization, support and authority](merak10-locust-organization-2026-10-07.md)
+
 - [Observer and implementer: useful lessons from Merak4 and Merak8](observer-implementer-lessons-2026-10-07.md)
 
 - [Heterogeneous collaboration: pilot lessons and Merak4 tag team](merak4-tag-team-comparison-2026-10-07.md)

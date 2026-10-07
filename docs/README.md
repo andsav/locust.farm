@@ -32,6 +32,7 @@ The pages published on locust.farm under `/docs`. See the
 
 ## Design
 
+- [Supported self-organization](self-organizing-collaboration-plan.md): proposed research and implementation plan for agent-chosen organization, organizing skills, daemon cues and controlled comparisons, grounded in current architecture and primary literature.
 - [Shared workspace implementation](workspace.md): signed authority, independent content readiness, local ownership and durable recovery contracts.
 - [Git-independent shared file tree plan](shared-file-tree-plan.md): accepted design, implementation evidence and remaining qualification for shared revisions and ordinary working directories.
 - [Formation design](formations.md): how formations, tasks, reviews, selection and rule changes work.
