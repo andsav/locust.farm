@@ -2440,12 +2440,15 @@ the host agent's own changes included.
   role reads the same list as one that holds it. New in state.rs beside it: `Member.name` and
   `State.roles`.
 - [fold.rs](../crates/locust-core/src/goal/fold.rs): `Verifier::resolve`
-  takes an anchor and caches by `(Context, EventId)`. Every caller passes the
-  position of the event it judges: `check`, `task_binding` and `decision` the
+  takes an anchor. It caches the resolution by `Context`, once per replay,
+  because nothing in it reads the anchor, and on each call fills the role
+  holders and the only member from the snapshot at that anchor. Every caller
+  passes the position of the event it judges: `check`, `task_binding` and `decision` the
   judged event's anchor, `approval` the result's, `predicate` each approval's
   own, and likewise `open_at_observed_closure` in closure.rs and
-  `workspace_epoch` in goal/workspace.rs. A caller that looks ahead passes
-  the head: `desired_effects`, and `project` in projection.rs.
+  `workspace_epoch` in goal/workspace.rs. `desired_effects` looks ahead and
+  passes the head; `project` in projection.rs passes the anchor of the
+  decision it projects.
   `rules::resolve` and `resolve_binding` take the roles to use and the
   members at the same anchor, from the chain's snapshot there, and set
   `only_member` when it holds exactly one; a caller that looks ahead
@@ -2495,7 +2498,10 @@ the host agent's own changes included.
   [mod.rs](../crates/locust-core/src/goal/mod.rs): `effective_rules` and
   `selected_rules` pass `state().roles`. In
   projection.rs, `project` sorts a scope's decisions by
-  `(anchor position, author, seq, id)`.
+  `(anchor position, author, seq, id)`. `open_at_observed_closure` in
+  closure.rs orders closes and reopens the same way, and `desired_effects`
+  in flow.rs reads the decisions the projection ordered, so a new lead's
+  reopen follows the earlier lead's close whatever each one's own count.
 - A review the rule does not ask for, in
   [fold.rs](../crates/locust-core/src/goal/fold.rs): where the completion
   rule that judges a result has no `Reviews` part (`rules::asks_for_review`
@@ -2528,7 +2534,9 @@ the host agent's own changes included.
   the epoch's starting point. So the first files can be accepted only as
   the first acceptance of an epoch that starts empty, once per such epoch;
   a second acceptance on the same starting point disputes the files, as
-  today. `project` in projection.rs marks the change `approved` with that
+  today. Both rest on one signer per epoch: the one who accepts file changes
+  is a member named by key, and a formation that names a role there is
+  refused when it is checked. `project` in projection.rs marks the change `approved` with that
   evidence, the accept step takes it, and `to_review` in views.rs lists it
   for nobody. No signed record, no formation and no hash changes: the rule
   stands beside the tree's rule, not in it, so `--completion` cannot switch
@@ -2801,7 +2809,11 @@ the host agent's own changes included.
   `RolesNeverEmpty`, `RoleHeldAtAnchor` (every counted review and every
   selection was signed by a holder at that event's own anchor) and
   `LaterLeadWins` (`Current` is never a selection signed at an earlier
-  position than another valid one).
+  position than another valid one). `RolesNeverEmpty` is true by the way the
+  model builds a list; the fallback witness is its evidence. A list starting
+  with the host's agent, one holder for a role that picks or closes, an
+  invalid role record, and close and reopen are checked by Rust tests only,
+  as the [property map](../research/tla/organization.md) says.
 - Three new scenarios in `Work`, with files under `research/tla/configs`
   and entries in [cases.json](../research/tla/cases.json): `role-change`
   (mid-round the host moves reviewer from 2 to 4; a review by 2 anchored
@@ -2871,8 +2883,8 @@ the host agent's own changes included.
   after `rules.bind` to `peer-review`, `role.give` replaces the lead,
   `role.take` returns it to the host agent, and `goal.status` lists `lead`
   in `roles` and in `deciding`. In cli.rs,
-  `role_give_sends_the_holders_it_read_and_a_change_in_between_is_conflict`
-  also reads the result line for a role the current rules do not declare.
+  `a_leads_undo_restores_its_previous_holder_and_role_duties_are_explained`
+  reads the result line for a role the current rules do not declare.
 - New, for the command line and its helpers:
   `a_member_resolves_by_key_prefix_then_name_and_a_shared_name_lists_key_prefixes`
   in selectors.rs, for `resolve_member` by name;
