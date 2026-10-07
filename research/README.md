@@ -45,6 +45,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 - [Review of phase R5 as built, and of the R4 review fixes](v2-phase-r5-review-2026-10-06.md)
 - [Locust v2 phase R5 build notes: the one view and refusals](v2-phase-r5-build-notes-2026-10-06.md)
 - [Locust v2 phase R4 review fixes and verification](v2-phase-r4-fixes-2026-10-06.md)
+- [Locust v2 phase R5 review fixes and verification](v2-phase-r5-fixes-2026-10-06.md)
 - [hcom dissection and reuse assessment](hcom-dissection.md)
 - [Iroh transport probe findings](iroh-transport-probe.md)
 - [Distributed agent collaboration landscape](landscape.md)
