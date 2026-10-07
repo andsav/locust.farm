@@ -93,13 +93,19 @@ names at most one member who may close and reopen a task. Each is a `role` or a
 
 ### Workspace
 
-`workspace` is optional. Its `integrator` names exactly one participant or one
-role with one holder; its `completion` pins the evidence required for a tree
-proposal. Enabling or changing active workspace authority requires a workspace
+`workspace` is optional. Its `integrator` names one participant directly;
+a role is refused by [Rust validation](../crates/locust-core/src/organization/validation.rs)
+and the [site's mirror](../sites/locust.farm/src/lib/formation-editor/contract/rules.ts).
+Its `completion` pins the evidence required for a tree proposal. Enabling or changing active workspace authority requires a workspace
 epoch with a typed checkpoint. The `rules bind` command binds the new rules and
 moves an active tree to them in the same commit, carrying its accepted revision
 forward. A formation's explicit `workspace` policy is used as written; otherwise
 the command uses the host's agent as integrator and the goal's completion rule.
+`workspace init` also preserves an existing workspace policy. An explicit
+`--completion` changes its completion rule while retaining its integrator;
+without a policy, initialization uses the host's agent and the goal's rule.
+The [CLI regressions](../crates/locust/tests/workspace.rs) check both cases and
+refusal of a task-creator rule before confirmation or capture.
 The host's first files, with no parent and no composition source in an epoch
 that starts empty, count when posted. Later changes follow the tree's rule.
 Integration remains the host's explicit command in this phase. It also follows

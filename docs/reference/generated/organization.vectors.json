@@ -7,10 +7,10 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Declared roles start with the host's agent; roles that pick or close have one holder.",
+            "The host gives each declared role to members; a role that picks or closes has exactly one holder, and the host's agent holds any role nobody else holds.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
-            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "Each member's level is set by its owner on its own computer and is checked separately.",
             "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
           ],
           "required_inputs": [],
@@ -75,10 +75,10 @@
             "lead"
           ],
           "contextual_checks": [
-            "Declared roles start with the host's agent; roles that pick or close have one holder.",
+            "The host gives each declared role to members; a role that picks or closes has exactly one holder, and the host's agent holds any role nobody else holds.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
-            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "Each member's level is set by its owner on its own computer and is checked separately.",
             "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
           ],
           "required_inputs": [],
@@ -89,10 +89,10 @@
           "summary": [
             "Members organize themselves on the goal's board; the host keeps membership and the rules.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
-            "Default rules: members bound to role \"lead\" may offer work to goal members; the recipient must acknowledge before starting.",
-            "Default rules: completion requires 1 distinct approving reviewer(s) from members bound to role \"reviewer\", including the author if eligible on the exact candidate.",
-            "Default rules: the single member bound to role \"lead\" may select one qualifying output; approval alone does not select it.",
-            "Default rules: the single member bound to role \"lead\" may declare the scope finished."
+            "Default rules: members in the \"lead\" role may offer work to goal members; the recipient must acknowledge before starting.",
+            "Default rules: completion requires 1 distinct approving reviewer(s) from members in the \"reviewer\" role, including the author if eligible on the exact candidate.",
+            "Default rules: the one member in the \"lead\" role may select one qualifying output; approval alone does not select it.",
+            "Default rules: the one member in the \"lead\" role may declare the scope finished."
           ]
         },
         "normalized": {
@@ -164,10 +164,10 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Declared roles start with the host's agent; roles that pick or close have one holder.",
+            "The host gives each declared role to members; a role that picks or closes has exactly one holder, and the host's agent holds any role nobody else holds.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
-            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "Each member's level is set by its owner on its own computer and is checked separately.",
             "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
           ],
           "required_inputs": [],
@@ -243,10 +243,10 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Declared roles start with the host's agent; roles that pick or close have one holder.",
+            "The host gives each declared role to members; a role that picks or closes has exactly one holder, and the host's agent holds any role nobody else holds.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
-            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "Each member's level is set by its owner on its own computer and is checked separately.",
             "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
           ],
           "required_inputs": [],
@@ -257,7 +257,7 @@
             "Members organize themselves on the goal's board; the host keeps membership and the rules.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
-            "Default rules: completion requires 2 distinct approving reviewer(s) from members bound to role \"reviewer\", excluding the contribution author on the exact candidate.",
+            "Default rules: completion requires 2 distinct approving reviewer(s) from members in the \"reviewer\" role, excluding the contribution author on the exact candidate.",
             "Default rules: qualifying contributions coexist; no single output is selected.",
             "Default rules: no one may declare it finished; an empty task list is not completion."
           ]
@@ -320,10 +320,10 @@
             "lead"
           ],
           "contextual_checks": [
-            "Declared roles start with the host's agent; roles that pick or close have one holder.",
+            "The host gives each declared role to members; a role that picks or closes has exactly one holder, and the host's agent holds any role nobody else holds.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
-            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "Each member's level is set by its owner on its own computer and is checked separately.",
             "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
           ],
           "required_inputs": [],
@@ -335,7 +335,7 @@
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
-            "Default rules: the single member bound to role \"lead\" may select one qualifying output; approval alone does not select it.",
+            "Default rules: the one member in the \"lead\" role may select one qualifying output; approval alone does not select it.",
             "Default rules: no one may declare it finished; an empty task list is not completion."
           ]
         },
@@ -395,10 +395,10 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Declared roles start with the host's agent; roles that pick or close have one holder.",
+            "The host gives each declared role to members; a role that picks or closes has exactly one holder, and the host's agent holds any role nobody else holds.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
-            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "Each member's level is set by its owner on its own computer and is checked separately.",
             "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
           ],
           "required_inputs": [],
@@ -415,9 +415,9 @@
             "Task type \"draft\": completion requires any of [1 distinct approving reviewer(s) from goal members, excluding the contribution author; publication by the goal's only member] on the exact candidate.",
             "Task type \"draft\": qualifying contributions coexist; no single output is selected.",
             "Task type \"draft\": no one may declare it finished; an empty task list is not completion.",
-            "Stage \"draft\": the host's computer runs this stage: it creates the configured task and durably delivers ready work to goal members.",
+            "Stage \"draft\": the host's Locust opens this stage's task and delivers it to goal members.",
             "Stage \"draft\" requires no upstream evidence and uses task type \"draft\".",
-            "Stage \"ship\": the host's computer runs this stage: it creates the configured task and durably delivers ready work to goal members.",
+            "Stage \"ship\": the host's Locust opens this stage's task and delivers it to goal members.",
             "Stage \"ship\" requires completion from \"draft\" and uses default rules."
           ]
         },
@@ -1246,10 +1246,10 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Declared roles start with the host's agent; roles that pick or close have one holder.",
+            "The host gives each declared role to members; a role that picks or closes has exactly one holder, and the host's agent holds any role nobody else holds.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
-            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "Each member's level is set by its owner on its own computer and is checked separately.",
             "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
           ],
           "required_inputs": [],
@@ -1261,7 +1261,7 @@
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
             "Default rules: qualifying contributions coexist; no single output is selected.",
             "Default rules: no one may declare it finished; an empty task list is not completion.",
-            "Stage \"s\": the host's computer runs this stage: it creates the configured task and durably delivers ready work to goal members.",
+            "Stage \"s\": the host's Locust opens this stage's task and delivers it to goal members.",
             "Stage \"s\" requires no upstream evidence and uses default rules."
           ]
         },
@@ -1927,7 +1927,7 @@
         "diagnostics": [
           {
             "code": "impossible_threshold",
-            "correction": "Add eligible identities, reduce the threshold, or use a role whose membership is checked when binding the template.",
+            "correction": "Add eligible identities, reduce the threshold, or use a role whose holders are checked when a review counts.",
             "message": "The requested distinct-reviewer threshold exceeds the explicitly possible identities",
             "path": "/decisions/completion/count",
             "phase": "definition",
@@ -1948,7 +1948,7 @@
         "diagnostics": [
           {
             "code": "impossible_threshold",
-            "correction": "Add eligible identities, reduce the threshold, or use a role whose membership is checked when binding the template.",
+            "correction": "Add eligible identities, reduce the threshold, or use a role whose holders are checked when a review counts.",
             "message": "The requested distinct-reviewer threshold exceeds the explicitly possible identities",
             "path": "/decisions/completion/count",
             "phase": "definition",
@@ -1969,7 +1969,7 @@
         "diagnostics": [
           {
             "code": "impossible_threshold",
-            "correction": "Add eligible identities, reduce the threshold, or use a role whose membership is checked when binding the template.",
+            "correction": "Add eligible identities, reduce the threshold, or use a role whose holders are checked when a review counts.",
             "message": "The requested distinct-reviewer threshold exceeds the explicitly possible identities",
             "path": "/decisions/completion/count",
             "phase": "definition",
@@ -1990,7 +1990,7 @@
         "diagnostics": [
           {
             "code": "impossible_threshold",
-            "correction": "Add eligible identities, reduce the threshold, or use a role whose membership is checked when binding the template.",
+            "correction": "Add eligible identities, reduce the threshold, or use a role whose holders are checked when a review counts.",
             "message": "The requested distinct-reviewer threshold exceeds the explicitly possible identities",
             "path": "/decisions/completion/count",
             "phase": "definition",
@@ -2213,10 +2213,10 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Declared roles start with the host's agent; roles that pick or close have one holder.",
+            "The host gives each declared role to members; a role that picks or closes has exactly one holder, and the host's agent holds any role nobody else holds.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
-            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "Each member's level is set by its owner on its own computer and is checked separately.",
             "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
           ],
           "required_inputs": [],
@@ -2227,7 +2227,7 @@
             "Members organize themselves on the goal's board; the host keeps membership and the rules.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
-            "Default rules: completion requires any of [check \"ci\" attested by members bound to role \"tester\" on the exact contribution; 2 distinct approving reviewer(s) from goal members, including the author if eligible] on the exact candidate.",
+            "Default rules: completion requires any of [check \"ci\" attested by members in the \"tester\" role on the exact contribution; 2 distinct approving reviewer(s) from goal members, including the author if eligible] on the exact candidate.",
             "Default rules: qualifying contributions coexist; no single output is selected.",
             "Default rules: no one may declare it finished; an empty task list is not completion."
           ]
@@ -2300,10 +2300,10 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Declared roles start with the host's agent; roles that pick or close have one holder.",
+            "The host gives each declared role to members; a role that picks or closes has exactly one holder, and the host's agent holds any role nobody else holds.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
-            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "Each member's level is set by its owner on its own computer and is checked separately.",
             "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
           ],
           "required_inputs": [],
@@ -2377,10 +2377,10 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Declared roles start with the host's agent; roles that pick or close have one holder.",
+            "The host gives each declared role to members; a role that picks or closes has exactly one holder, and the host's agent holds any role nobody else holds.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
-            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "Each member's level is set by its owner on its own computer and is checked separately.",
             "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
           ],
           "required_inputs": [],
@@ -2443,10 +2443,10 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Declared roles start with the host's agent; roles that pick or close have one holder.",
+            "The host gives each declared role to members; a role that picks or closes has exactly one holder, and the host's agent holds any role nobody else holds.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
-            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "Each member's level is set by its owner on its own computer and is checked separately.",
             "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
           ],
           "required_inputs": [],
@@ -2456,7 +2456,7 @@
           ],
           "summary": [
             "Members organize themselves on the goal's board; the host keeps membership and the rules.",
-            "Default rules: members bound to role \"a\" or members bound to role \"bb\" or goal members may propose tasks; goal members may publish contributions without a task.",
+            "Default rules: members in the \"a\" role or members in the \"bb\" role or goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
             "Default rules: qualifying contributions coexist; no single output is selected.",
@@ -2532,10 +2532,10 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Declared roles start with the host's agent; roles that pick or close have one holder.",
+            "The host gives each declared role to members; a role that picks or closes has exactly one holder, and the host's agent holds any role nobody else holds.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
-            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "Each member's level is set by its owner on its own computer and is checked separately.",
             "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
           ],
           "required_inputs": [],
@@ -2544,7 +2544,7 @@
           ],
           "summary": [
             "Members organize themselves on the goal's board; the host keeps membership and the rules.",
-            "Default rules: goal members may propose tasks; members bound to role \"a\" may publish contributions without a task.",
+            "Default rules: goal members may propose tasks; members in the \"a\" role may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
             "Default rules: qualifying contributions coexist; no single output is selected.",
@@ -2605,10 +2605,10 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Declared roles start with the host's agent; roles that pick or close have one holder.",
+            "The host gives each declared role to members; a role that picks or closes has exactly one holder, and the host's agent holds any role nobody else holds.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
-            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "Each member's level is set by its owner on its own computer and is checked separately.",
             "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
           ],
           "required_inputs": [],
@@ -2618,7 +2618,7 @@
           "summary": [
             "Members organize themselves on the goal's board; the host keeps membership and the rules.",
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
-            "Default rules: members bound to role \"c\" may offer work to goal members; the recipient must acknowledge before starting.",
+            "Default rules: members in the \"c\" role may offer work to goal members; the recipient must acknowledge before starting.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
             "Default rules: qualifying contributions coexist; no single output is selected.",
@@ -2688,10 +2688,10 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Declared roles start with the host's agent; roles that pick or close have one holder.",
+            "The host gives each declared role to members; a role that picks or closes has exactly one holder, and the host's agent holds any role nobody else holds.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
-            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "Each member's level is set by its owner on its own computer and is checked separately.",
             "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
           ],
           "required_inputs": [],
@@ -2747,10 +2747,10 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Declared roles start with the host's agent; roles that pick or close have one holder.",
+            "The host gives each declared role to members; a role that picks or closes has exactly one holder, and the host's agent holds any role nobody else holds.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
-            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "Each member's level is set by its owner on its own computer and is checked separately.",
             "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
           ],
           "required_inputs": [],
@@ -2823,10 +2823,10 @@
             "judge"
           ],
           "contextual_checks": [
-            "Declared roles start with the host's agent; roles that pick or close have one holder.",
+            "The host gives each declared role to members; a role that picks or closes has exactly one holder, and the host's agent holds any role nobody else holds.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
-            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "Each member's level is set by its owner on its own computer and is checked separately.",
             "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
           ],
           "required_inputs": [],
@@ -2839,8 +2839,8 @@
             "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
-            "Default rules: the single member bound to role \"judge\" may select one qualifying output; approval alone does not select it.",
-            "Default rules: the single member bound to role \"closer\" may declare the scope finished."
+            "Default rules: the one member in the \"judge\" role may select one qualifying output; approval alone does not select it.",
+            "Default rules: the one member in the \"closer\" role may declare the scope finished."
           ]
         },
         "normalized": {
@@ -2908,10 +2908,10 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Declared roles start with the host's agent; roles that pick or close have one holder.",
+            "The host gives each declared role to members; a role that picks or closes has exactly one holder, and the host's agent holds any role nobody else holds.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
-            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "Each member's level is set by its owner on its own computer and is checked separately.",
             "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
           ],
           "required_inputs": [],
@@ -2932,7 +2932,7 @@
             "Task type \"a\": no one may declare it finished; an empty task list is not completion.",
             "Task type \"z\": goal members may propose tasks; goal members may publish contributions without a task.",
             "Task type \"z\": goal members may start independent attempts; concurrent attempts may coexist.",
-            "Task type \"z\": completion requires 1 distinct approving reviewer(s) from members bound to role \"rev\", excluding the contribution author on the exact candidate.",
+            "Task type \"z\": completion requires 1 distinct approving reviewer(s) from members in the \"rev\" role, excluding the contribution author on the exact candidate.",
             "Task type \"z\": qualifying contributions coexist; no single output is selected.",
             "Task type \"z\": no one may declare it finished; an empty task list is not completion."
           ]
@@ -3043,10 +3043,10 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Declared roles start with the host's agent; roles that pick or close have one holder.",
+            "The host gives each declared role to members; a role that picks or closes has exactly one holder, and the host's agent holds any role nobody else holds.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
-            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "Each member's level is set by its owner on its own computer and is checked separately.",
             "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
           ],
           "required_inputs": [
@@ -3127,10 +3127,10 @@
             "r"
           ],
           "contextual_checks": [
-            "Declared roles start with the host's agent; roles that pick or close have one holder.",
+            "The host gives each declared role to members; a role that picks or closes has exactly one holder, and the host's agent holds any role nobody else holds.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
-            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "Each member's level is set by its owner on its own computer and is checked separately.",
             "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
           ],
           "required_inputs": [],
@@ -3147,11 +3147,11 @@
             "Task type \"t\": goal members may propose tasks; goal members may publish contributions without a task.",
             "Task type \"t\": goal members may start independent attempts; concurrent attempts may coexist.",
             "Task type \"t\": completion requires a completion declaration by the contribution author on the exact candidate.",
-            "Task type \"t\": the single member bound to role \"r\" may select one qualifying output; approval alone does not select it.",
+            "Task type \"t\": the one member in the \"r\" role may select one qualifying output; approval alone does not select it.",
             "Task type \"t\": no one may declare it finished; an empty task list is not completion.",
-            "Stage \"a\": the host's computer runs this stage: it creates the configured task and durably delivers ready work to goal members.",
+            "Stage \"a\": the host's Locust opens this stage's task and delivers it to goal members.",
             "Stage \"a\" requires no upstream evidence and uses task type \"t\".",
-            "Stage \"b\": the host's computer runs this stage: it creates the configured task and durably delivers ready work to members bound to role \"r\" or goal members.",
+            "Stage \"b\": the host's Locust opens this stage's task and delivers it to members in the \"r\" role or goal members.",
             "Stage \"b\" requires publication from \"a\" and eligible review from \"a\" and completion from \"a\" and selection from \"a\" and uses default rules."
           ]
         },
@@ -3281,10 +3281,10 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Declared roles start with the host's agent; roles that pick or close have one holder.",
+            "The host gives each declared role to members; a role that picks or closes has exactly one holder, and the host's agent holds any role nobody else holds.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
-            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "Each member's level is set by its owner on its own computer and is checked separately.",
             "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
           ],
           "required_inputs": [],
@@ -3295,7 +3295,7 @@
           ],
           "summary": [
             "Members organize themselves on the goal's board; the host keeps membership and the rules.",
-            "Default rules: members bound to role \"ré\" or members bound to role \"say \\\"hi\\\"\" or members bound to role \"back\\\\slash\" may propose tasks; goal members may publish contributions without a task.",
+            "Default rules: members in the \"ré\" role or members in the \"say \\\"hi\\\"\" role or members in the \"back\\\\slash\" role may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
             "Default rules: qualifying contributions coexist; no single output is selected.",
@@ -3375,10 +3375,10 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Declared roles start with the host's agent; roles that pick or close have one holder.",
+            "The host gives each declared role to members; a role that picks or closes has exactly one holder, and the host's agent holds any role nobody else holds.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
-            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "Each member's level is set by its owner on its own computer and is checked separately.",
             "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
           ],
           "required_inputs": [],
@@ -3389,7 +3389,7 @@
           ],
           "summary": [
             "Members organize themselves on the goal's board; the host keeps membership and the rules.",
-            "Default rules: members bound to role \"b\" or members bound to role \"c\" or members bound to role \"aa\" may propose tasks; goal members may publish contributions without a task.",
+            "Default rules: members in the \"b\" role or members in the \"c\" role or members in the \"aa\" role may propose tasks; goal members may publish contributions without a task.",
             "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
             "Default rules: qualifying contributions coexist; no single output is selected.",
@@ -3469,10 +3469,10 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Declared roles start with the host's agent; roles that pick or close have one holder.",
+            "The host gives each declared role to members; a role that picks or closes has exactly one holder, and the host's agent holds any role nobody else holds.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
-            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "Each member's level is set by its owner on its own computer and is checked separately.",
             "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
           ],
           "required_inputs": [],
@@ -3535,10 +3535,10 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Declared roles start with the host's agent; roles that pick or close have one holder.",
+            "The host gives each declared role to members; a role that picks or closes has exactly one holder, and the host's agent holds any role nobody else holds.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
-            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "Each member's level is set by its owner on its own computer and is checked separately.",
             "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
           ],
           "required_inputs": [],
@@ -3601,10 +3601,10 @@
         "explanation": {
           "authority_roles": [],
           "contextual_checks": [
-            "Declared roles start with the host's agent; roles that pick or close have one holder.",
+            "The host gives each declared role to members; a role that picks or closes has exactly one holder, and the host's agent holds any role nobody else holds.",
             "Supply required inputs and verify child rules stay within delegated parent authority.",
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
-            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
+            "Each member's level is set by its owner on its own computer and is checked separately.",
             "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
           ],
           "required_inputs": [],
@@ -3616,7 +3616,7 @@
             "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
             "Default rules: qualifying contributions coexist; no single output is selected.",
             "Default rules: no one may declare it finished; an empty task list is not completion.",
-            "Shared tree: participant abababababababababababababababababababababababababababababababab may integrate an exact candidate after a completion declaration by the contribution author. Host signing permission is separate.",
+            "Shared tree: participant abababababababababababababababababababababababababababababababab accepts an exact candidate into the shared tree after a completion declaration by the contribution author.",
             "Shared-tree reviews that exclude authors also exclude every declared composition-source author."
           ]
         },
@@ -3676,94 +3676,21 @@
     {
       "id": "workspace/role-review",
       "result": {
-        "diagnostics": [],
-        "explanation": {
-          "authority_roles": [
-            "integrator"
-          ],
-          "contextual_checks": [
-            "Declared roles start with the host's agent; roles that pick or close have one holder.",
-            "Supply required inputs and verify child rules stay within delegated parent authority.",
-            "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.",
-            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.",
-            "This offline inspection does not publish a definition, create a goal, deliver work or launch a process."
-          ],
-          "required_inputs": [],
-          "required_roles": [
-            "integrator",
-            "reviewer"
-          ],
-          "summary": [
-            "Members organize themselves on the goal's board; the host keeps membership and the rules.",
-            "Default rules: goal members may propose tasks; goal members may publish contributions without a task.",
-            "Default rules: goal members may start independent attempts; concurrent attempts may coexist.",
-            "Default rules: completion requires a completion declaration by the contribution author on the exact candidate.",
-            "Default rules: qualifying contributions coexist; no single output is selected.",
-            "Default rules: no one may declare it finished; an empty task list is not completion.",
-            "Shared tree: the single member bound to role \"integrator\" may integrate an exact candidate after 1 distinct approving reviewer(s) from members bound to role \"reviewer\", excluding the contribution author. Host signing permission is separate.",
-            "Shared-tree reviews that exclude authors also exclude every declared composition-source author."
-          ]
-        },
-        "normalized": {
-          "context": {
-            "guidance": "",
-            "inputs": {}
-          },
-          "decisions": {
-            "completion": {
-              "by": {
-                "kind": "contribution_author"
-              },
-              "kind": "declaration"
-            },
-            "finish": null,
-            "selection": null
-          },
-          "flow": {},
-          "roles": {
-            "integrator": {
-              "description": ""
-            },
-            "reviewer": {
-              "description": ""
-            }
-          },
-          "schema_version": 2,
-          "task_types": {},
-          "work": {
-            "propose": {
-              "kind": "members"
-            },
-            "publish": {
-              "kind": "members"
-            },
-            "starts": [
-              {
-                "by": {
-                  "kind": "members"
-                },
-                "kind": "independent"
-              }
-            ]
-          },
-          "workspace": {
-            "completion": {
-              "by": {
-                "kind": "role",
-                "name": "reviewer"
-              },
-              "count": 1,
-              "exclude_author": true,
-              "kind": "reviews"
-            },
-            "integrator": {
-              "kind": "role",
-              "name": "integrator"
-            }
+        "diagnostics": [
+          {
+            "code": "invalid_workspace_integrator",
+            "correction": "Name a participant as the workspace integrator.",
+            "message": "The member who accepts file changes must be named directly, not through a role",
+            "path": "/workspace/integrator",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
           }
-        },
-        "semantic_hash": "07af8d224ef23101fec6777615657b80b7855c7c782ca2a8b5f385a568f6b9d8",
-        "valid": true
+        ],
+        "explanation": null,
+        "normalized": null,
+        "semantic_hash": null,
+        "valid": false
       },
       "source": "{\"schema_version\": 2, \"roles\": {\"integrator\": {}, \"reviewer\": {}}, \"workspace\": {\"integrator\": {\"kind\": \"role\", \"name\": \"integrator\"}, \"completion\": {\"kind\": \"reviews\", \"by\": {\"kind\": \"role\", \"name\": \"reviewer\"}, \"count\": 1, \"exclude_author\": true}}}"
     },
@@ -3776,6 +3703,15 @@
             "correction": "Declare the role in roles or reference an existing role.",
             "message": "Role \"missing\" is not declared",
             "path": "/workspace/integrator/name",
+            "phase": "definition",
+            "related_paths": [],
+            "severity": "error"
+          },
+          {
+            "code": "invalid_workspace_integrator",
+            "correction": "Name a participant as the workspace integrator.",
+            "message": "The member who accepts file changes must be named directly, not through a role",
+            "path": "/workspace/integrator",
             "phase": "definition",
             "related_paths": [],
             "severity": "error"

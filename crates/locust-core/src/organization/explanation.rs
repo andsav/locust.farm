@@ -5,7 +5,7 @@ use super::{Explanation, validation};
 fn selector(value: &Selector) -> String {
     match value {
         Selector::Members => "goal members".into(),
-        Selector::Role { name } => format!("members bound to role {name:?}"),
+        Selector::Role { name } => format!("members in the {name:?} role"),
         Selector::Participant { key } => format!("participant {key}"),
         Selector::TaskCreator => "the task creator".into(),
         Selector::ContributionAuthor => "the contribution author".into(),
@@ -20,7 +20,7 @@ fn selector(value: &Selector) -> String {
 }
 fn authority(value: &Authority) -> String {
     match value {
-        Authority::Role { name } => format!("the single member bound to role {name:?}"),
+        Authority::Role { name } => format!("the one member in the {name:?} role"),
         Authority::Participant { key } => format!("participant {key}"),
     }
 }
@@ -106,7 +106,7 @@ pub(super) fn explain(value: &Formation) -> Explanation {
     decisions(&value.decisions, "Default rules", &mut summary);
     if let Some(workspace) = &value.workspace {
         summary.push(format!(
-            "Shared tree: {} may integrate an exact candidate after {}. Host signing permission is separate.",
+            "Shared tree: {} accepts an exact candidate into the shared tree after {}.",
             authority(&workspace.integrator),
             completion(&workspace.completion),
         ));
@@ -126,7 +126,10 @@ pub(super) fn explain(value: &Formation) -> Explanation {
         );
     }
     for (name, stage) in &value.flow {
-        summary.push(format!("Stage {name:?}: the host's computer runs this stage: it creates the configured task and durably delivers ready work to {}.", selector(&stage.recipients)));
+        summary.push(format!(
+            "Stage {name:?}: the host's Locust opens this stage's task and delivers it to {}.",
+            selector(&stage.recipients)
+        ));
         let needs = if stage.requires.is_empty() {
             "no upstream evidence".into()
         } else {
@@ -160,10 +163,10 @@ pub(super) fn explain(value: &Formation) -> Explanation {
     Explanation { summary, required_roles: references.roles.into_iter().collect(), authority_roles: references.authorities.into_iter().collect(),
         required_inputs: value.context.inputs.iter().filter(|(_, input)| input.required).map(|(name, _)| name.clone()).collect(),
         contextual_checks: vec![
-            "Declared roles start with the host's agent; roles that pick or close have one holder.".into(),
+            "The host gives each declared role to members; a role that picks or closes has exactly one holder, and the host's agent holds any role nobody else holds.".into(),
             "Supply required inputs and verify child rules stay within delegated parent authority.".into(),
             "Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.".into(),
-            "Check authority availability and local execution, filesystem, spending and sharing permissions separately.".into(),
+            "Each member's level is set by its owner on its own computer and is checked separately.".into(),
             "This offline inspection does not publish a definition, create a goal, deliver work or launch a process.".into(),
         ] }
 }

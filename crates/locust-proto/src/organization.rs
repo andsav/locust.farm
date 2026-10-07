@@ -53,7 +53,7 @@ impl Default for Formation {
     }
 }
 
-/// A reusable role slot. Actual members are bound when creating an instance.
+/// A named role. The host's agent holds it initially; the host gives or takes it from members.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Role {
@@ -236,7 +236,7 @@ pub struct TaskType {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Stage {
-    /// Eligible recipients of durable ready-work delivery, resolved at binding.
+    /// Eligible recipients of durable ready-work delivery, resolved at the materialization anchor.
     #[serde(default)]
     pub recipients: Selector,
     #[serde(default)]

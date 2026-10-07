@@ -18,21 +18,37 @@ fn minimal_open_template_is_valid_and_has_no_authority_binding() {
 fn workspace_policy_requires_explicit_valid_integrator_and_completion() {
     let result = checked(json!({
         "schema_version":2,
-        "roles":{"integrator":{}, "reviewer":{}},
+        "roles":{"reviewer":{}},
         "workspace":{
-            "integrator":{"kind":"role","name":"integrator"},
+            "integrator":{"kind":"participant","key":"01".repeat(32)},
             "completion":{"kind":"reviews","by":{"kind":"role","name":"reviewer"},"count":1,"exclude_author":true}
         }
     }));
     assert!(result.valid, "{:?}", result.diagnostics);
     let explanation = result.explanation.unwrap();
-    assert_eq!(explanation.authority_roles, ["integrator"]);
+    assert!(explanation.authority_roles.is_empty());
     assert!(
         explanation
             .summary
             .iter()
             .any(|line| line.contains("composition-source"))
     );
+    let role_integrator = checked(json!({
+        "schema_version":2,
+        "roles":{"integrator":{}},
+        "workspace":{
+            "integrator":{"kind":"role","name":"integrator"},
+            "completion":{"kind":"contribution","by":{"kind":"members"}}
+        }
+    }));
+    assert!(!role_integrator.valid);
+    assert!(
+        role_integrator
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "invalid_workspace_integrator")
+    );
+
     assert!(
         !checked(json!({"schema_version":2, "workspace":{
             "integrator":{"kind":"role","name":"missing"}

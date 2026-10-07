@@ -486,10 +486,9 @@ test('a reopened way of working is still that way of working', async () => {
 });
 
 test('workspace policy round-trips and role edits preserve its exact authorities', () => {
-	let document = addRole(newDocument(), 'integrator');
-	document = addRole(document, 'reviewer');
+	const document = addRole(newDocument(), 'reviewer');
 	document.formation.workspace = {
-		integrator: { kind: 'role', name: 'integrator' },
+		integrator: { kind: 'participant', key: 'ab'.repeat(32) },
 		completion: {
 			kind: 'reviews',
 			by: { kind: 'role', name: 'reviewer' },
@@ -501,11 +500,11 @@ test('workspace policy round-trips and role edits preserve its exact authorities
 	const loaded = inspect(formationText(document.formation));
 	assert.ok(loaded.valid);
 	assert.deepEqual(loaded.normalized?.workspace, document.formation.workspace);
-	assert.deepEqual(loaded.explanation?.authority_roles, ['integrator']);
-	assert.deepEqual(loaded.explanation?.required_roles, ['integrator', 'reviewer']);
-	const renamed = renameRole(renameRole(document, 'integrator', 'merge'), 'reviewer', 'check');
+	assert.deepEqual(loaded.explanation?.authority_roles, []);
+	assert.deepEqual(loaded.explanation?.required_roles, ['reviewer']);
+	const renamed = renameRole(document, 'reviewer', 'check');
 	assert.deepEqual(renamed.formation.workspace, {
-		integrator: { kind: 'role', name: 'merge' },
+		integrator: { kind: 'participant', key: 'ab'.repeat(32) },
 		completion: {
 			kind: 'reviews',
 			by: { kind: 'role', name: 'check' },
@@ -515,12 +514,16 @@ test('workspace policy round-trips and role edits preserve its exact authorities
 	});
 	assert.ok(valid(renamed));
 	assert.deepEqual(document, original);
-	const removed = removeRole(renamed, 'merge');
-	assert.equal(valid(removed), false);
-	assert.deepEqual(removed.formation.workspace?.integrator, { kind: 'role', name: 'merge' });
-	assert.equal(
-		inspectFormation(removed.formation).diagnostics[0].path,
-		'/workspace/integrator/name'
+	const roleIntegrator = structuredClone(renamed);
+	roleIntegrator.formation.workspace!.integrator = { kind: 'role', name: 'check' };
+	const refused = inspectFormation(roleIntegrator.formation);
+	assert.equal(refused.valid, false);
+	assert.ok(
+		refused.diagnostics.some(
+			(diagnostic) =>
+				diagnostic.code === 'invalid_workspace_integrator' &&
+				diagnostic.path === '/workspace/integrator'
+		)
 	);
 	const missingReviewer = removeRole(renamed, 'check');
 	assert.equal(valid(missingReviewer), false);

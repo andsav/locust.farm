@@ -666,7 +666,7 @@
       },
       "Role": {
         "additionalProperties": false,
-        "description": "A reusable role slot. Actual members are bound when creating an instance.",
+        "description": "A named role. The host's agent holds it initially; the host gives or takes it from members.",
         "properties": {
           "description": {
             "default": "",
@@ -807,7 +807,7 @@
             "default": {
               "kind": "members"
             },
-            "description": "Eligible recipients of durable ready-work delivery, resolved at binding."
+            "description": "Eligible recipients of durable ready-work delivery, resolved at the materialization anchor."
           },
           "requires": {
             "default": [],

@@ -446,8 +446,10 @@
 				<p class="note">With nothing ticked, a result counts when its author says so.</p>
 			{:else}
 				<p class="note">
-					A result counts as soon as it has everything ticked. A rejection, or a report that the
-					check failed, is recorded and does not take that away.
+					A result counts while it has everything ticked. Each member's latest review or report is
+					the one read: a member who approved and later rejects, or who later reports the check as
+					failed, no longer counts toward it. Another member's rejection does not take it away, and
+					a result that was already picked stays picked.
 				</p>
 			{/if}
 		</div>

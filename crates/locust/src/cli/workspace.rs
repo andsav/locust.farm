@@ -8,7 +8,7 @@ use locust_proto::api::{
     WorkspaceOperationKind, WorkspaceOperationState, WorkspaceProposalView, WorkspaceRecovery,
     WorkspaceRevisionView, WorkspaceView,
 };
-use locust_proto::event::{Body, Context, Scope, WorkspaceCheckpoint};
+use locust_proto::event::{Body, Context, RulesBinding, Scope, WorkspaceCheckpoint};
 use locust_proto::id::{
     BlobHash, CheckoutId, EventId, GoalId, IdempotencyKey, InstanceId, PublicKey,
     WorkspaceOperationId,
@@ -301,15 +301,25 @@ fn hosts_agent(api: &mut Objects<'_>) -> Result<PublicKey, Failure> {
     Ok(host)
 }
 
+type InitialPolicy = (EventId, RulesBinding, Formation, bool);
+
 fn init_plan(
     api: &mut Objects<'_>,
     args: &ArgMatches,
-) -> Result<(confirm::Plan, WorkspaceView), Failure> {
+) -> Result<(confirm::Plan, WorkspaceView, InitialPolicy), Failure> {
     let head = api.head()?;
     let status = api.status()?;
+    let policy = initial_policy(api, args)?;
+    if let Some(epoch) = head.epoch
+        && args.get_one::<String>("completion").is_some()
+    {
+        verify_pinned_initial_policy(api, epoch, args)?;
+    }
     let review = json!({
         "goal": api.goal,
         "title": status.title,
+        "current_rules": policy.0,
+        "workspace_policy": policy.2.workspace,
         "epoch": head.epoch,
         "head": head.head.as_ref().map(|revision| revision.revision),
         "enabled": head.enabled,
@@ -340,7 +350,7 @@ fn init_plan(
         warning: None,
         again: String::new(),
     };
-    Ok((plan, head))
+    Ok((plan, head, policy))
 }
 
 fn review_init(
@@ -349,13 +359,13 @@ fn review_init(
     args: &ArgMatches,
     key: Option<IdempotencyKey>,
 ) -> Result<Output, Failure> {
-    let (plan, _) = init_plan(api, args)?;
+    let (plan, _, _) = init_plan(api, args)?;
     if confirm::decide(matches, args, &plan)? == confirm::Decision::Show {
         return Ok(plan.shown());
     }
-    let (fresh, head) = init_plan(api, args)?;
+    let (fresh, head, policy) = init_plan(api, args)?;
     confirm::bound(&plan.id(), &fresh)?;
-    init(api, args, key, head)
+    init(api, args, key, head, policy)
 }
 
 fn init(
@@ -363,6 +373,7 @@ fn init(
     args: &ArgMatches,
     key: Option<IdempotencyKey>,
     head: WorkspaceView,
+    policy: InitialPolicy,
 ) -> Result<Output, Failure> {
     let current = api.head()?;
     if head.epoch != current.epoch
@@ -423,7 +434,7 @@ fn init(
     };
     let epoch = match head.epoch {
         Some(epoch) => epoch,
-        None => initial_epoch(api, args)?,
+        None => initial_epoch(api, policy)?,
     };
     let candidate = WorkspaceCandidate {
         context: Context {
@@ -484,13 +495,6 @@ fn verify_pinned_initial_policy(
         .clone()
         .ok_or_else(|| conflict("pinned workspace policy is disabled"))?;
     let requested = formation.workspace.as_mut().expect("checked policy");
-    requested.integrator = Authority::Participant {
-        key: api
-            .status()?
-            .host
-            .ok_or_else(|| conflict("the host's agent has not arrived"))?
-            .to_string(),
-    };
     if let Some(source) = args.get_one::<String>("completion") {
         requested.completion = serde_json::from_str(source)
             .map_err(|error| Failure::usage(format!("--completion: {error}")))?;
@@ -508,7 +512,7 @@ fn verify_pinned_initial_policy(
     Ok(())
 }
 
-fn initial_epoch(api: &mut Objects<'_>, args: &ArgMatches) -> Result<EventId, Failure> {
+fn initial_policy(api: &mut Objects<'_>, args: &ArgMatches) -> Result<InitialPolicy, Failure> {
     let status = api.status()?;
     let rules = status
         .current_rules
@@ -532,33 +536,53 @@ fn initial_epoch(api: &mut Objects<'_>, args: &ArgMatches) -> Result<EventId, Fa
         .host
         .ok_or_else(|| conflict("the host's agent has not arrived"))?;
     let explicit = args.get_one::<String>("completion").is_some();
-    let host_authority = Authority::Participant {
-        key: host.to_string(),
-    };
-    let rules = if formation
-        .workspace
-        .as_ref()
-        .is_none_or(|policy| policy.integrator != host_authority)
-        || explicit
-    {
-        let completion = args
-            .get_one::<String>("completion")
-            .map(|source| {
-                serde_json::from_str(source)
-                    .map_err(|error| Failure::usage(format!("--completion: {error}")))
-            })
-            .transpose()?
-            .unwrap_or_else(|| {
-                formation
-                    .workspace
-                    .as_ref()
-                    .map(|policy| policy.completion.clone())
-                    .unwrap_or_else(|| formation.decisions.completion.clone())
+    let rebind = formation.workspace.is_none() || explicit;
+    let completion = args
+        .get_one::<String>("completion")
+        .map(|source| {
+            serde_json::from_str(source)
+                .map_err(|error| Failure::usage(format!("--completion: {error}")))
+        })
+        .transpose()?;
+    match &mut formation.workspace {
+        Some(policy) => {
+            if let Some(completion) = completion {
+                policy.completion = completion;
+            }
+        }
+        None => {
+            formation.workspace = Some(WorkspacePolicy {
+                integrator: Authority::Participant {
+                    key: host.to_string(),
+                },
+                completion: completion.unwrap_or_else(|| formation.decisions.completion.clone()),
             });
-        formation.workspace = Some(WorkspacePolicy {
-            integrator: host_authority,
-            completion,
-        });
+        }
+    }
+    let inspected =
+        locust_core::organization::inspect(&serde_json::to_string(&formation).map_err(internal)?);
+    if !inspected.valid {
+        let detail = inspected
+            .diagnostics
+            .iter()
+            .map(|diagnostic| format!("{}: {}", diagnostic.path, diagnostic.message))
+            .collect::<Vec<_>>()
+            .join("; ");
+        return Err(Failure::invalid(format!(
+            "the files need a completion rule they can meet: {detail}; use --completion to give the files their own rule"
+        )));
+    }
+    Ok((
+        rules,
+        binding,
+        inspected.normalized.expect("valid formation"),
+        rebind,
+    ))
+}
+
+fn initial_epoch(api: &mut Objects<'_>, policy: InitialPolicy) -> Result<EventId, Failure> {
+    let (rules, binding, formation, rebind) = policy;
+    let rules = if rebind {
         recorded(api.call(Request::RulesBind {
             goal: api.goal,
             expected: rules,

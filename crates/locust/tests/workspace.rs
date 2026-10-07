@@ -46,6 +46,7 @@ struct State {
     shift_head_on_checkouts: Option<EventId>,
     head_reads: usize,
     shift_epoch_on_head_read: Option<(usize, EventId)>,
+    shift_rules_on_head_read: Option<(usize, EventId)>,
     requests: Vec<RequestFrame>,
     next_event: u8,
     lose_publish_reply: bool,
@@ -60,6 +61,14 @@ struct State {
     hosted_here: bool,
 }
 impl State {
+    fn formation(&mut self, formation: &Formation) {
+        let source = serde_json::to_vec(formation).unwrap();
+        let hash = content_hash(&source);
+        let binding = self.rules_bindings.get_mut(&self.rules).unwrap();
+        binding.definition.object.hash = hash;
+        binding.definition.object.len = source.len() as u32;
+        self.objects.insert(hash, source);
+    }
     fn abilities() -> Abilities {
         Abilities {
             goal: GOAL,
@@ -107,6 +116,7 @@ impl State {
             shift_head_on_checkouts: None,
             head_reads: 0,
             shift_epoch_on_head_read: None,
+            shift_rules_on_head_read: None,
             requests: vec![],
             next_event: 0x80,
             lose_publish_reply: false,
@@ -186,7 +196,9 @@ impl State {
                     anchor:None,body:Body::RulesBound {expected:None,binding},payload:None,text:None,task:None,content:vec![] })))
             }
             Request::RulesBind { expected, formation_json, inputs, .. } => {
-                assert_eq!(expected,self.rules);
+                if expected != self.rules {
+                    return Err(ApiError::new(ErrorCode::Conflict, "the rules revision changed"));
+                }
                 let formation: Formation = serde_json::from_str(&formation_json).unwrap();
                 assert!(formation.workspace.is_some());
                 let bytes = formation_json.into_bytes(); let hash = content_hash(&bytes); self.objects.insert(hash,bytes.clone());
@@ -202,6 +214,12 @@ impl State {
             }
             Request::WorkspaceHead { .. } => {
                 self.head_reads += 1;
+                if let Some((at, rules)) = self.shift_rules_on_head_read
+                    && self.head_reads == at
+                {
+                    self.rules_bindings.insert(rules, self.rules_bindings[&self.rules].clone());
+                    self.rules = rules;
+                }
                 if let Some((at, epoch)) = self.shift_epoch_on_head_read
                     && self.head_reads == at
                 {
@@ -505,6 +523,12 @@ fn input_output(mut command: Command, text: &[u8], code: i32) -> Value {
 #[test]
 fn file_stdin_and_empty_seeds_are_explicit_frozen_previews_without_git() {
     let fixture = Fixture::new();
+    let peer_review = locust_proto::organization::presets()
+        .into_iter()
+        .find(|preset| preset.name == "peer-review")
+        .unwrap()
+        .formation;
+    fixture.state.lock().unwrap().formation(&peer_review);
     let files = tempfile::tempdir().unwrap();
     fs::write(files.path().join("selected file"), b"seed\n").unwrap();
     fs::write(files.path().join("private"), b"private").unwrap();
@@ -564,9 +588,17 @@ fn file_stdin_and_empty_seeds_are_explicit_frozen_previews_without_git() {
     let state = fixture.state.lock().unwrap();
     let definition = state.rules_bindings[&seed_rule].definition.object.hash;
     let formation: Formation = serde_json::from_slice(&state.objects[&definition]).unwrap();
-    assert_eq!(
-        formation.workspace.unwrap().completion,
+    let policy = formation.workspace.unwrap();
+    assert_eq!(policy.completion, peer_review.decisions.completion);
+    assert_ne!(
+        policy.completion,
         locust_proto::organization::CompletionRule::default()
+    );
+    assert_eq!(
+        policy.integrator,
+        locust_proto::organization::Authority::Participant {
+            key: PRINCIPAL.to_string()
+        }
     );
     drop(state);
     let empty = Fixture::new();
@@ -576,6 +608,92 @@ fn file_stdin_and_empty_seeds_are_explicit_frozen_previews_without_git() {
         0,
     );
     assert_eq!(preview["result"]["candidate"]["captured_paths"], json!([]));
+}
+
+#[test]
+fn init_keeps_a_formations_file_policy_and_only_overrides_explicit_completion() {
+    use locust_proto::organization::{Authority, CompletionRule, Selector, WorkspacePolicy};
+    for explicit in [false, true] {
+        let fixture = Fixture::new();
+        let policy = WorkspacePolicy {
+            integrator: Authority::Participant {
+                key: PublicKey([0x43; 32]).to_string(),
+            },
+            completion: CompletionRule::Contribution {
+                by: Selector::Members,
+            },
+        };
+        fixture.state.lock().unwrap().formation(&Formation {
+            workspace: Some(policy.clone()),
+            ..Formation::default()
+        });
+        let goal = GOAL.to_string();
+        let completion = r#"{"kind":"declaration","by":{"kind":"contribution_author"}}"#;
+        let mut args = vec!["workspace", "init", "--goal", &goal, "--empty"];
+        if explicit {
+            args.extend(["--completion", completion]);
+        }
+        fixture.reviewed(&args, true, 0);
+        let state = fixture.state.lock().unwrap();
+        let definition = state.rules_bindings[&state.rules].definition.object.hash;
+        let formation: Formation = serde_json::from_slice(&state.objects[&definition]).unwrap();
+        let got = formation.workspace.unwrap();
+        assert_eq!(got.integrator, policy.integrator);
+        assert_eq!(
+            got.completion,
+            if explicit {
+                serde_json::from_str(completion).unwrap()
+            } else {
+                policy.completion
+            }
+        );
+        assert_eq!(
+            state
+                .requests
+                .iter()
+                .filter(|frame| matches!(frame.request, Request::RulesBind { .. }))
+                .count(),
+            usize::from(explicit)
+        );
+        assert_eq!(state.epoch_rules, Some(state.rules));
+        if !explicit {
+            assert_eq!(state.rules, FIRST_RULES);
+        }
+    }
+}
+
+#[test]
+fn init_refuses_a_task_creator_file_rule_before_confirmation_or_capture() {
+    use locust_proto::organization::{CompletionRule, Selector};
+    let fixture = Fixture::new();
+    let mut formation = Formation::default();
+    formation.decisions.completion = CompletionRule::Declaration {
+        by: Selector::TaskCreator,
+    };
+    fixture.state.lock().unwrap().formation(&formation);
+    let mut command = fixture.cli_host();
+    command.args([
+        "workspace",
+        "init",
+        "--goal",
+        &GOAL.to_string(),
+        "--empty",
+        "--plan",
+    ]);
+    let refused = output(command, 6);
+    assert!(
+        refused["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("--completion")
+    );
+    assert!(refused.get("result").is_none());
+    let state = fixture.state.lock().unwrap();
+    assert!(state.operations.is_empty());
+    assert!(!state.requests.iter().any(|frame| matches!(
+        frame.request,
+        Request::RulesBind { .. } | Request::WorkspaceEpochSet { .. } | Request::BlobPut { .. }
+    )));
 }
 
 #[test]
@@ -1229,13 +1347,18 @@ fn lost_initial_epoch_reply_accepts_only_equivalent_pinned_policy() {
     run(criterion, 8);
     assert!(fixture.state.lock().unwrap().operations.is_empty());
     let before = fixture.state.lock().unwrap().rules_bindings.len();
-    assert_eq!(
-        run(
-            r#"{"kind":"contribution","by":{"kind":"contribution_author"}}"#,
-            7
-        )["error"]["code"],
-        "conflict"
-    );
+    let mut incompatible = fixture.cli_host();
+    incompatible.args([
+        "workspace",
+        "init",
+        "--goal",
+        &GOAL.to_string(),
+        "--empty",
+        "--plan",
+        "--completion",
+        r#"{"kind":"contribution","by":{"kind":"contribution_author"}}"#,
+    ]);
+    assert_eq!(output(incompatible, 7)["error"]["code"], "conflict");
     assert!(fixture.state.lock().unwrap().operations.is_empty());
     // Semantically duplicate criteria normalize to the exact pinned policy.
     let equivalent = r#"{"kind":"all","rules":[{"kind":"declaration","by":{"kind":"contribution_author"}},{"kind":"declaration","by":{"kind":"contribution_author"}}]}"#;
@@ -1327,4 +1450,29 @@ fn owner_workspace_write_infers_the_only_active_member() {
         frame.request,
         Request::WorkspaceOperationPrepare { .. }
     ) && frame.on_behalf == Some(PRINCIPAL)));
+}
+
+#[test]
+fn init_uses_the_reviewed_rules_if_the_binding_changes_after_the_fresh_plan() {
+    let fixture = Fixture::new();
+    let changed = EventId([0xc6; 32]);
+    fixture.state.lock().unwrap().shift_rules_on_head_read = Some((4, changed));
+    let refused = fixture.reviewed(
+        &["workspace", "init", "--goal", &GOAL.to_string(), "--empty"],
+        true,
+        7,
+    );
+    assert_eq!(refused["error"]["code"], "conflict");
+    let state = fixture.state.lock().unwrap();
+    assert!(state.operations.is_empty());
+    assert!(state.epoch.is_none());
+    assert_eq!(state.rules, changed);
+    assert_eq!(state.rules_bindings.len(), 2);
+    assert!(state.requests.iter().any(|frame| matches!(
+        frame.request,
+        Request::RulesBind {
+            expected: FIRST_RULES,
+            ..
+        }
+    )));
 }

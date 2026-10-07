@@ -19,7 +19,7 @@ function selector(value: Selector): string {
 		case 'members':
 			return 'goal members';
 		case 'role':
-			return `members bound to role ${rustDebug(value.name)}`;
+			return `members in the ${rustDebug(value.name)} role`;
 		case 'participant':
 			return `participant ${value.key}`;
 		case 'only_member':
@@ -37,7 +37,7 @@ function selector(value: Selector): string {
 
 function authority(value: Authority): string {
 	return value.kind === 'role'
-		? `the single member bound to role ${rustDebug(value.name)}`
+		? `the one member in the ${rustDebug(value.name)} role`
 		: `participant ${value.key}`;
 }
 
@@ -100,10 +100,10 @@ const EVIDENCE_WORDS = {
 } as const;
 
 export const CONTEXTUAL_CHECKS = [
-	"Declared roles start with the host's agent; roles that pick or close have one holder.",
+	"The host gives each declared role to members; a role that picks or closes has exactly one holder, and the host's agent holds any role nobody else holds.",
 	'Supply required inputs and verify child rules stay within delegated parent authority.',
 	'Verify membership, pinned rule context, exact evidence and distinct reviewer eligibility for each action.',
-	'Check authority availability and local execution, filesystem, spending and sharing permissions separately.',
+	"Each member's level is set by its owner on its own computer and is checked separately.",
 	'This offline inspection does not publish a definition, create a goal, deliver work or launch a process.'
 ];
 
@@ -116,7 +116,7 @@ export function explain(value: Formation): Explanation {
 	decisions(value.decisions, 'Default rules', summary);
 	if (value.workspace) {
 		summary.push(
-			`Shared tree: ${authority(value.workspace.integrator)} may integrate an exact candidate after ${completion(value.workspace.completion)}. Host signing permission is separate.`
+			`Shared tree: ${authority(value.workspace.integrator)} accepts an exact candidate into the shared tree after ${completion(value.workspace.completion)}.`
 		);
 		summary.push(
 			'Shared-tree reviews that exclude authors also exclude every declared composition-source author.'
@@ -131,7 +131,7 @@ export function explain(value: Formation): Explanation {
 	for (const name of sortedKeys(value.flow)) {
 		const stage = value.flow[name];
 		summary.push(
-			`Stage ${rustDebug(name)}: the host's computer runs this stage: it creates the configured task and durably delivers ready work to ${selector(stage.recipients)}.`
+			`Stage ${rustDebug(name)}: the host's Locust opens this stage's task and delivers it to ${selector(stage.recipients)}.`
 		);
 		const needs =
 			stage.requires.length === 0

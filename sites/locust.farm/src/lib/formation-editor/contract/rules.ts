@@ -181,7 +181,7 @@ class Validator {
 						'impossible_threshold',
 						`${path}/count`,
 						'The requested distinct-reviewer threshold exceeds the explicitly possible identities',
-						'Add eligible identities, reduce the threshold, or use a role whose membership is checked when binding the template.'
+						'Add eligible identities, reduce the threshold, or use a role whose holders are checked when a review counts.'
 					);
 				}
 			}
@@ -244,6 +244,14 @@ class Validator {
 		this.decisions(value.decisions, '/decisions');
 		if (value.workspace) {
 			this.authority(value.workspace.integrator, '/workspace/integrator');
+			if (value.workspace.integrator.kind === 'role') {
+				this.error(
+					'invalid_workspace_integrator',
+					'/workspace/integrator',
+					'The member who accepts file changes must be named directly, not through a role',
+					'Name a participant as the workspace integrator.'
+				);
+			}
 			this.completion(value.workspace.completion, '/workspace/completion', false);
 		}
 		for (const name of sortedKeys(value.task_types)) {

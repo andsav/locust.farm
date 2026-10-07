@@ -57,6 +57,7 @@ test('every diagnostic code Locust can report has a case', () => {
 		'invalid_name',
 		'unknown_role',
 		'invalid_participant',
+		'invalid_workspace_integrator',
 		'selector_scope',
 		'empty_selector',
 		'impossible_completion',

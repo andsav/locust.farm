@@ -141,7 +141,7 @@ impl Validator<'_> {
                             members.remove("contribution_author");
                         }
                         if u64::from(*count) > members.len() as u64 {
-                            self.error("impossible_threshold", &format!("{path}/count"), "The requested distinct-reviewer threshold exceeds the explicitly possible identities", "Add eligible identities, reduce the threshold, or use a role whose membership is checked when binding the template.");
+                            self.error("impossible_threshold", &format!("{path}/count"), "The requested distinct-reviewer threshold exceeds the explicitly possible identities", "Add eligible identities, reduce the threshold, or use a role whose holders are checked when a review counts.");
                         }
                     }
                 }
@@ -215,6 +215,9 @@ impl Validator<'_> {
         self.decisions(&self.formation.decisions, "/decisions");
         if let Some(workspace) = &self.formation.workspace {
             self.authority(&workspace.integrator, "/workspace/integrator");
+            if matches!(workspace.integrator, Authority::Role { .. }) {
+                self.error("invalid_workspace_integrator", "/workspace/integrator", "The member who accepts file changes must be named directly, not through a role", "Name a participant as the workspace integrator.");
+            }
             self.completion(&workspace.completion, "/workspace/completion", false);
         }
         for (name, task_type) in &self.formation.task_types {
