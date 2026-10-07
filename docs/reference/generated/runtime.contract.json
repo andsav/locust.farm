@@ -14839,7 +14839,7 @@
           },
           {
             "const": "admitted",
-            "description": "The key was just admitted here and the host's computer has not been\nheard from since.",
+            "description": "The key was just admitted here, and the host's computer has not been\nheard from since or this daemon cannot yet read the goal's current\nrules or holds no content key for its current epoch.",
             "type": "string"
           }
         ]

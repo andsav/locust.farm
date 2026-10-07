@@ -2542,6 +2542,16 @@ fn a_key_just_admitted_waits_for_the_current_content_key_as_well_as_the_rules() 
                 reasons(&summary(&mut net.nodes[1], goal, agent).guard),
                 [(agent, GuardReason::Admitted)]
             );
+            // The refusal says what the hold still waits for, now that the
+            // host's computer has answered.
+            let refused = post(&mut net, 1, 2, goal).unwrap_err();
+            assert_eq!(refused.code, ErrorCode::Unavailable);
+            assert!(
+                refused
+                    .message
+                    .contains("fetching the goal's rules and content key"),
+                "{refused}"
+            );
         }
     }
     assert!(dialed && checked);

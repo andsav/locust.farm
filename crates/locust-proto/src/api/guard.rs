@@ -31,7 +31,8 @@ pub enum GuardReason {
     Behind { held: u64, signed: u64 },
     /// This daemon's data may be an old copy.
     Unheard,
-    /// The key was just admitted here and the host's computer has not been
-    /// heard from since.
+    /// The key was just admitted here, and the host's computer has not been
+    /// heard from since or this daemon cannot yet read the goal's current
+    /// rules or holds no content key for its current epoch.
     Admitted,
 }

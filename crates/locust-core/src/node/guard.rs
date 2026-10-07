@@ -33,7 +33,7 @@ const CALLERS: usize = 8;
 const BEHIND: &str =
     "this computer's Locust data is older than what it signed in this goal; it is catching up";
 const UNHEARD: &str = "this computer's Locust data may be an old copy; it is catching up, or waiting for its owner to continue";
-const ADMITTED: &str = "admission has just arrived; Locust is checking with the host's computer";
+const ADMITTED: &str = "admission has just arrived; Locust is checking with the host's computer and fetching the goal's rules and content key";
 pub(super) const CONFLICT: &str = "this agent has two records at one position in this goal and signs nothing more in it; the goal is not halted";
 
 /// Why a key may not sign in a goal now.
@@ -410,8 +410,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
     }
 
     /// Ends the admission holds of `goal` that waited only for content to
-    /// arrive after the host's computer was heard. Run by every landing that
-    /// touches a goal with such a hold, since content lands outside any
+    /// arrive after the host's computer was heard. [`Node::land`] runs it for
+    /// every goal it touches, since content and keys land outside any
     /// hearing.
     pub(super) fn guard_admissions(&mut self, goal: GoalId) -> Result<(), ApiError> {
         let Some(entry) = self.goals.get(&goal) else {
