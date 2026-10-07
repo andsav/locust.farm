@@ -39,6 +39,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 - [Locust v2 phase K1 build notes: a goal's governance has its own key](v2-phase-k1-build-notes-2026-10-06.md)
 - [Locust v2 phase R4 build notes: names and roles in the goal](v2-phase-r4-build-notes-2026-10-06.md)
 - [Review of phase R4 as built: names and roles in the goal](v2-phase-r4-review-2026-10-06.md)
+- [Review of phase R5 as built, and of the R4 review fixes](v2-phase-r5-review-2026-10-06.md)
 - [Locust v2 phase R5 build notes: the one view and refusals](v2-phase-r5-build-notes-2026-10-06.md)
 - [Locust v2 phase R4 review fixes and verification](v2-phase-r4-fixes-2026-10-06.md)
 - [hcom dissection and reuse assessment](hcom-dissection.md)
@@ -84,6 +85,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 - [Evidence for the rewrite of the public-goals plan](evidence/public-goals-plan-2026-10-06/README.md)
 - [Evidence for the review of phase K1 and three experiments](evidence/v2-phase-k1-review-2026-10-06/README.md)
 - [Evidence for the review of phase R4 as built](evidence/v2-phase-r4-review-2026-10-06/README.md)
+- [Evidence for the review of phase R5 and the R4 fixes](evidence/v2-phase-r5-review-2026-10-06/README.md)
 
 - [ecdsa.fail leaderboard analysis](evidence/ecdsa-fail-leaderboard-analysis.md)
 - [hcom validation evidence](evidence/hcom-validation.md)
