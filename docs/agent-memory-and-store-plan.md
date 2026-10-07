@@ -18,9 +18,8 @@ re-checked at `0a448ad`. Each phase re-checks its lines when it starts.
 | Ordering tasks | Nothing tells an agent how to say "do this after that". | The skill says: a follow-up names its parent; a task that should wait starts its title "After task:" and the full ID. Nothing enforces it. (A1) |
 | Starting work | An agent picks a task by ID; another session of the same agent may pick the same one. | When the list shows work, one call with no task starts a task nobody is attempting, as far as this computer has heard. Asking twice returns the same claim. With nothing free, nothing is signed. (A2) |
 | What the goal knows | Findings arrive as items to page through; after J5 a newcomer's unread view leaves older ones out. | The first compact page lists the 20 newest goal-wide findings by first line, with the total. (A3) |
-| Back after a break | `status` shows an agent's standing, not the attempts it holds. | `status` lists each held attempt with its title and generation, and the two commands that resume it. (A4a) |
-| A Claude Code chat starts or compacts | The agent sees nothing until it asks. | If the owner agrees: in the agent's work folder, Claude Code shows that status by itself, or one "NOT injected" line. (A4b) |
-| Retiring a finding | An agent cannot say its own earlier finding is out of date. | If the owner agrees: a new finding can replace the same author's old one, which leaves the current list. (A6) |
+| Back after a break | `locust_status` returns the attempts an agent holds, but nothing says what they mean, and the CLI `status` does not print them. | The instructions say each is an attempt to resume and how; the CLI `status` lists each with its title and generation and the two commands that resume it. (A4) |
+| Retiring a finding | An agent cannot say its own earlier finding is out of date. | A new finding can replace the same author's old one, which leaves the current list. (A6) |
 | IDs a person sees | Some lines cut IDs at a fixed 8 characters even on a clash. | One cutter everywhere: 8 characters, longer only on a real clash. (A5a) |
 | IDs an agent types | MCP tools need full IDs. | After R7, if its counts justify it: 8 characters of an ID a tool showed in the same connection; anything else is refused with a fix. (A5b) |
 | The daemon will not start | The error says what happened, sometimes with a hint. | Each case ends with what to do and what starting fresh loses; a guide section repeats it. (S1b) |
@@ -36,7 +35,7 @@ re-checked at `0a448ad`. Each phase re-checks its lines when it starts.
 ready; the v2 phase never waits. The critical path stays R4/R5 fixes, G1,
 G2, E1, E2, R7, R8, R9, R10, then J2 to J6.
 
-**Before R7's early run, if ready:** A1, A2, A3, A4a, A5a and P. R7 rewords
+**Before R7's early run, if ready:** A1, A2, A3, A4, A5a and P. R7 rewords
 skill and tool words on a miss
 ([roles plan](roles-and-permissions-plan.md) 4157-4160), so it should see
 the text that ships; P rewrites R7's run text. A slipped phase is measured
@@ -67,25 +66,25 @@ with uncommitted edits in its files, and stages by file. Regenerate
 `runtime.contract.json` only when no other session has an uncommitted API
 change, since the binary carries that code.
 
-- **Lane A, agent surface:** A1, A2, A3, A4a, A5a, later A5b. Owns the
+- **Lane A, agent surface:** A1, A2, A3, A4, A5a, later A5b. Owns the
   operation table and constants in `api.rs`, `api/context.rs`, `context.rs`,
   `context_views.rs`, `claims.rs`, `to_start` in `views.rs`, status and ID
   cuts in `presentation.rs`, `mcp/*`, `context_receipts.rs`, `selectors.rs`
   and SKILL.md; never the store, sync or event code. When G1 starts wiring into `api.rs`,
   `views.rs`, `context_views.rs` or `presentation.rs`, Lane A finishes its
-  commit and pauses. A4a or A5a that miss that window wait until E2 has
+  commit and pauses. A4 or A5a that miss that window wait until E2 has
   landed and rebase onto its status and `Member:` lines.
-- **Lane B, store and process:** S1a, P, S2, S1b, A4b, S3. Owns
+- **Lane B, store and process:** S1a, P, S2, S1b, S3. Owns
   `locust-store`, proto `store.rs`, `commit.rs`, `content_graph*`,
   `definitions.rs`, `daemon/mod.rs` open errors,
-  `organization_performance.rs`, `installation/setup*`, `build_release.py`
+  `organization_performance.rs`, `build_release.py`
   and P's plan edits; never Lane A's files.
 - **Lane C, J1 with J1+,** in R7's window, when v2 writes almost no Rust.
   Never touches SKILL.md, the `wait` and `pending` rows or collaboration.md.
 
 Shared files: S1a precedes A1 in `node/tests/context.rs`; in
 `tests/cli.rs` the first of A2 and S1b commits before the other starts;
-`INSTRUCTIONS` sentences land A3, A2, G2, then A5b.
+`INSTRUCTIONS` sentences land A3, A2, A4, G2, then A5b.
 
 | Phase | Lands | Needs | Why then |
 | --- | --- | --- | --- |
@@ -94,13 +93,12 @@ Shared files: S1a precedes A1 in `node/tests/context.rs`; in
 | P | Now | nothing | Build sessions then edit only their row; R7's text is right before R7 |
 | A3 | After S1a, before R7 | S1a's test helper | R7's seeded findings reach agents through it; J5 builds on it |
 | A2 | Before R7 | nothing | R7 starts agents with no task named |
-| A4a, A5a | Before G1 touches `presentation.rs`, else after E2 | nothing | Small; G1 to E2 then build on them |
+| A4, A5a | Before G1 touches `presentation.rs`, else after E2 | nothing | Small; G1 to E2 then build on them |
 | S2 | Any time, before R8 for a baseline | nothing | R8, R9 and J2 add fold work; rerun at R10 and J6 |
 | S1b | After G1 | G1 | Covers G1's open failures in one pass |
-| A4b | Any time after the owner's yes | A4a | Proves itself with its own compaction check |
 | J1+ | Inside J1 | J1, E2 | J1 rewrites the same function; it folds in E2's set |
 | A5b | After R7's early run | A5a, R7's counts | Judged against measured ID errors |
-| A6 | Right after J2's change set | owner's yes, A3, R7's run | Shares J2's signed step |
+| A6 | Right after J2's change set | A3, R7's run | Shares J2's signed step |
 | S3 | With the first published build | G1, owner's answer on versions | The ledger must exist at the first release |
 
 ### Rows proposed for the master plan's build order
@@ -117,17 +115,16 @@ Under Build order, after the table of fifteen, add:
 > | A1 | Agent tools say what they return; a context page holds at most 32 items | R7 |
 > | A2 | An agent starts a free task in one call | R7 |
 > | A3 | The first compact page lists current findings | R7, J5 |
-> | A4 | `status` lists held tasks and how to resume; optionally shown at chat start | R7 (status lines) |
+> | A4 | `status` lists held tasks and how to resume | R7 |
 > | A5 | One ID cutter; later, short IDs an agent was shown | R7 (cutter); after R7 (bridge) |
 > | S2 | A long goal's cost is measured | R8 |
-> | A6 | If the owner agrees, an agent can retire its own finding | right after J2, in J2's step |
+> | A6 | An agent can retire its own finding | right after J2, in J2's step |
 > | S3 | No format change ships under a released number | the first published build |
 
 Amend **J1**: "…and `goal status` shows the last refusal each computer
-sent." Amend **J2**: "If the owner accepts A6, a finding can replace the same
-author's earlier one, in J2's step." In Versions, after "The first public
-door changes signed bytes once more, in J2.", add "A6, if accepted, lands
-right after it in the same step."
+sent." Amend **J2**: "A finding can replace the same author's earlier one
+(A6), in J2's step." In Versions, after "The first public door changes signed
+bytes once more, in J2.", add "A6 lands right after it in the same step."
 
 ## Decided by the plan author
 
@@ -138,30 +135,27 @@ right after it in the same step."
 - **No listed tool becomes `tool: false`:** each returns something no other read does.
 - **Tool sentences stay near 30 words:** every description is sent at every session start.
 - **A3 lists on the compact first page only, and not again unchanged:** the full view already delivers every finding.
-- **The A4b hook lives in the agent's work folder:** it must not fire in the person's other chats.
-- **Splits:** A4b, A5b and S1b each wait for what they need; A4a, A5a and S1a land now.
+- **Splits:** A5b and S1b each wait for what they need; A4, A5a and S1a land now.
 - **A5b keeps blockers, narrowed:** they still stop a prefix copied from text.
 - **A6 ships without a kind field:** "finding" keeps A3's meaning.
 - **J1+ replaces E2's refused set:** one structure, not two.
 - **R7's seeds are findings, not tasks:** R7's setup stays true and A3 shows them.
 
-## Questions for the owner
+## Decided by the owner
 
-1. **Should Locust show an agent its held work when a Claude Code chat starts?**
-   When you set up Claude Code as an agent, setup would also add a setting
-   in that agent's work folder. Each time a chat starts there or is
-   compacted, Claude Code shows the agent the Locust tasks it holds and how
-   to resume them, including titles other members wrote. Removing the agent
-   removes the setting. Your other Claude Code chats are not affected.
-   Without it, the agent sees the same by calling `status` first.
-   *Default: no; A4b is not built.*
-2. **Should an agent be able to mark one of its own earlier findings as replaced?**
-   Other agents would stop seeing the old one as current. It changes the
-   record format, so it would arrive with the public door's format change,
-   which ends goals made on a private release anyway. *Default: no; A6 is
-   dropped, and agents still see current findings, old ones included.*
+Answers of 6 October 2026 to this plan's two questions.
 
-S3 also waits on the master plan's open versions question, not asked again.
+1. **Showing an agent its held work when a chat starts (hooks).** "We should
+   initially integrate locust as mcp tools, we can explore hooks if it helps
+   the system. Hooks are supported by all harnesses not just claude code."
+   So Locust reaches agents through its MCP tools; `status` (A4) is how an
+   agent gets back to its work. No hook is installed by this plan. Whether
+   hooks help is a separate investigation across every harness Locust sets
+   up, not Claude Code alone.
+2. **An agent marking one of its own earlier findings as replaced.** "Yes."
+   A6 is accepted and lands in J2's format change.
+
+S3 still waits on the master plan's open versions question, not asked again.
 
 ## Ownership
 
@@ -173,8 +167,7 @@ edit only their own skill sentences.
 | The 37 summaries; the description checks in the model-strings test; `MAX_CONTEXT_PAGE` and the clamp; SKILL.md 92, 103, the cap and ordering paragraphs; the paging test adaptations | A1 |
 | `AttemptStart.task`, the offer guard, the `is_answered_by` split, the `attempt.start` row, the no-task pick, A2's skill and `INSTRUCTIONS` sentences | A2 |
 | `BRIEF_FINDINGS`, `FINDING_LINE_CHARS`, `CurrentFindings`, `FindingHeadline`, `ContextBrief.findings`, the goal-finding predicate, `current_findings` (what "current finding" means), A3's sentences | A3 |
-| Status claim lines, `agent_lines` taking the `Reader`, the `Context:` and `Pending:` lines | A4a |
-| `locust-session-start`, settings ownership, setup formats v3, `hook_ready`, the doctor row | A4b |
+| The claims sentence in `INSTRUCTIONS` and SKILL.md 35; status claim lines, `agent_lines` taking the `Reader`, the `Context:` and `Pending:` lines | A4 |
 | `short` as the only cutter; the cut scan test | A5a |
 | `Shown`, `MAX_SHOWN_IDS`, `response_schema`, `refusal_schema`, MCP ID widening, prefix refusals, SKILL.md 87-88 | A5b |
 | `supersedes`, its fold rule, the `contribution.publish` rewrite, "not superseded" | A6 |
@@ -406,73 +399,58 @@ whether a session has acknowledged anything.
 
 ### A4: Back after a break
 
-**Goal.** A4a: `locust status` lists each attempt an agent holds and, in the
-agent's voice, the commands that resume it. A4b, only on the owner's yes:
-Claude Code shows the same at chat start, resume and compaction in the
-agent's work folder.
+**Goal.** An agent that lost its context, in a new chat, after a restart or
+after a compaction, finds the attempts it holds and how to resume them
+through the tools it already calls. Over MCP, `locust_status` already returns
+each held claim with its goal, task, attempt and generation
+([api.rs](../crates/locust-proto/src/api.rs) `Claim`, 1598-1604;
+`Abilities.claims`, [level.rs](../crates/locust-proto/src/api/level.rs)
+143), and the instructions already say to start with it
+([mcp.rs](../crates/locust/src/mcp.rs) 41). A4 says what those claims mean,
+and makes `locust status` print them for an agent on the CLI.
 
-**Depends on.** A4a: R5. A4b: A4a and the owner's yes.
+**Depends on.** R5.
 
-**Changes, A4a.** [cli/mod.rs](../crates/locust/src/cli/mod.rs) 489-504:
-for each goal with claims, read `board()` (628-637) into `Reader.tasks`.
-[presentation.rs](../crates/locust/src/cli/presentation.rs) `agent_lines`
-(706-748) takes the `Reader` instead of `voice` (caller at 786). Under the
-standing line (737): `Holds "TITLE" (TASK) · attempt ATTEMPT · generation N`,
-with the title through `quoted` (level.rs 321-330), the task through
-`Reader::task_id` (69-78), the attempt in full as `pending` prints it
-(479-486), since `--attempt` prefixes resolve against the whole feed
-(selectors.rs 227-279). In `Voice::Agent`, per claim `Context: locust context
-read --goal G --task T --view full --limit 20` (SKILL.md 43-45) and per goal
-`Pending: locust pending --goal G`. SKILL.md 35 and agents.md gain one
-fact. No API change.
+**Changes.**
+- `INSTRUCTIONS` (mcp.rs 41) gains one sentence after "Start with
+  locust_status.": "Each entry in its claims is an attempt you hold; after a
+  new chat, a restart or a compaction, read that task with
+  locust_context_read view=full, then continue the work or report it."
+  SKILL.md 35 says the same.
+- [cli/mod.rs](../crates/locust/src/cli/mod.rs) 489-504: for each goal with
+  claims, read `board()` (628-637) into `Reader.tasks`.
+  [presentation.rs](../crates/locust/src/cli/presentation.rs) `agent_lines`
+  (706-748) takes the `Reader` instead of `voice` (caller at 786). Under the
+  standing line (737): `Holds "TITLE" (TASK) · attempt ATTEMPT · generation
+  N`, with the title through `quoted` (level.rs 321-330), the task through
+  `Reader::task_id` (69-78), the attempt in full as `pending` prints it
+  (479-486), since `--attempt` prefixes resolve against the whole feed
+  (selectors.rs 227-279). In `Voice::Agent`, per claim `Context: locust
+  context read --goal G --task T --view full --limit 20` (SKILL.md 43-45)
+  and per goal `Pending: locust pending --goal G`. agents.md gains one fact.
+- No API change. Locust installs no hook (owner's answer 1).
 
-**Changes, A4b.**
-- [launcher.rs](../crates/locust/src/installation/setup/launcher.rs): new
-  `locust-session-start` (0700) runs the bound launcher's `status`, a pure
-  read (daemon.rs 17-39). On failure: `Locust context was NOT injected: `
-  and the error on one line, cut to 160 bytes. On success: a header ("facts
-  as of this moment; locust status prints the current view") and the
-  status, under 4,096 bytes, cut at the last whole block with `Cut to 4 KiB;
-  locust status prints all of it.` Always exit 0.
-- [setup.rs](../crates/locust/src/installation/setup.rs), Claude only: the
-  entry goes in `WORKSPACE/.claude/settings.local.json` (the spec carries
-  `workspace`, 92-93). `Paths` (82-88) gains `settings` and `hook`, covered
-  by the parent checks (604, 760, 874) and the unowned-file refusal
-  (669-673). `Record` (48-56) gains `settings_original`, `settings`, `hook`,
-  `hook_entry`; the original restores the file byte for byte, since the
-  merge rewrites it (366-369). Formats become v3 (220, 476, 700, 742;
-  onboarding.rs 224), with no v2 reader. `pending` (479-491) adds both
-  paths. `merge_session_start` adds or removes one matcher-less entry with
-  `timeout: 10`, keeping other hooks. `prepare` (600) refuses an edited
-  entry or wrapper (618-626). `status` (869-904) gains `hook_ready` for
-  Claude only.
-- A doctor row (doctor/profile.rs 186-212); agents.md (19-26, 81-82)
-  updated. No Codex hook until a Codex compaction is observed.
+**Tests.** Presentation tests for claim lines, quoted titles and a missing
+board; `every_printed_command_parses_as_printed` (presentation.rs 2131) adds
+an agent-voice status; `t2_flow.rs` runs a printed `Context:` line;
+`strings_written_for_a_model_name_listed_tools_and_no_operation`
+(mcp/tests.rs 287) passes with the new sentence.
 
-**Tests.** A4a: presentation tests for claim lines, quoted titles and a
-missing board; `every_printed_command_parses_as_printed` (2131) adds an
-agent-voice status; `t2_flow.rs` runs a printed `Context:` line. A4b: one
-hook added and the file restored on removal, other hooks kept, an edited
-entry refused, the wrapper exiting 0 against a failing, missing or 10 KiB
-launcher; setup tests 77 and 685 and onboarding tests 832-860 updated.
+**Exit criteria.** The printed `Context:` line runs; the contract is
+unchanged; checks as A1.
 
-**Exit criteria.** A4a: the printed `Context:` line runs; the contract is
-unchanged. A4b: apply then remove leaves the settings byte-identical; the
-wrapper always exits 0; one induced compaction (agent-ergonomics 654-658)
-shows the block next turn, recorded in A4b's note.
-
-**Format impact.** Local setup formats only (v3).
+**Format impact.** None.
 
 **Overlap with v2.** G1 rewords halt (host-safety plan 2156-2160), G2 adds
 status blocks (2793-2810), E1 replaces standing lines in an ended goal
 (3229-3236), E2 changes `membership_action` (3914-3919). Each says what
 claim lines do in its state.
 
-**Risks and notes.** Titles and names other members wrote enter the model's
-context unasked; escaping stops terminal tricks, not instructions. Other
-sessions' attempts print too (levels.rs 64-77). A stopped daemon gives the
-NOT injected line; nothing is started (connection.rs 24-31). Unverified: Claude Code's SessionStart behaviour, the
-`settings.local.json` path, and the `awk` cut on macOS and Linux.
+**Risks and notes.** Titles other members wrote are printed; escaping stops
+terminal tricks, not instructions. Other sessions' attempts of the same
+agent print too (levels.rs 64-77). Whether agents call `locust_status` after
+a compaction without being told is not yet observed; R7's early run records
+it (see P).
 
 ### A5: Short IDs that cannot misfire
 
@@ -537,11 +515,12 @@ grown". A test pins the unverified schemars shape of `Response`.
 
 ### A6: Retiring a finding
 
-**Goal.** On the owner's yes, an agent can publish a goal-wide finding that
+**Goal.** An agent can publish a goal-wide finding that
 replaces one of its own earlier ones, which leaves the current list. Nothing
 is deleted.
 
-**Depends on.** The owner's yes, A3, R7's early run, J2's change set.
+**Depends on.** A3, R7's early run, J2's change set. Accepted by the owner
+on 6 October 2026.
 
 **Changes.** `ContributionPublish` and its body
 ([event.rs](../crates/locust-proto/src/event.rs) 465-471) gain `supersedes:
@@ -773,8 +752,10 @@ P is one docs commit in Lane B, now.
   directory; two agents share one daemon home, the third uses another, and
   the note says which. Results land by hand outside the run. The note also
   records tasks with more than one attempt and the work wasted, starts
-  despite an "After task:" line, ID errors and prefix refusals, and, if A4b
-  is in, whether its block followed a compaction. Exit criteria stay.
+  despite an "After task:" line, ID errors and prefix refusals, and each
+  compaction or restart an agent went through, with whether it found its
+  held attempt again through `locust_status`. That last count is evidence
+  for the hooks question. Exit criteria stay.
 - **Hand-offs,** one sentence each in the v2 phase: E1 decides the
   no-task start in an ended goal, prints no claim lines there and replaces
   A1's two scope sentences; G2 lists claims while catching up; E2 notes that
@@ -797,6 +778,8 @@ rejected and deferred items:
 - Board paging, surface budgets, an oversized-page refusal (idea 1): only if an oversized page is recorded.
 - A hashed start tiebreak and a new empty-answer type (idea 2).
 - A schema-based field checker, plain-status refusal lines, a finding-ID checker.
-- A Codex hook marker (idea 4): no Codex compaction is observed.
+- Hooks in any harness (idea 4): by the owner's answer, Locust integrates
+  through its MCP tools first. Whether hooks help is a separate
+  investigation across all five harnesses Locust sets up.
 - A task ordering edge (idea 10): asked only if R7 records early starts.
 - A local fold checkpoint (idea 9): raised only if S2 nears J6's bound.
