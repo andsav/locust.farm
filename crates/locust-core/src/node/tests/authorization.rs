@@ -249,6 +249,7 @@ fn check_host_operations(disconnected: bool) {
     let rules = event(d.ok(
         owner,
         Request::RulesBind {
+            no_role: false,
             goal,
             expected,
             formation_json: serde_json::to_string(&formation).unwrap(),
@@ -609,6 +610,7 @@ fn no_credential_and_no_on_behalf_reaches_the_governance_key() {
             expected: vec![host],
         },
         Request::RulesBind {
+            no_role: false,
             goal,
             expected: rules,
             formation_json: "{\"schema_version\":2}".into(),
@@ -1122,6 +1124,7 @@ fn revising_a_stage_keeps_its_type_and_refuses_unusable_creator_rules() {
     d.ok(
         owner,
         Request::RulesBind {
+            no_role: false,
             goal,
             expected,
             formation_json: serde_json::to_string(&formation).unwrap(),

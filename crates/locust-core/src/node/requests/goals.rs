@@ -151,6 +151,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         expected: EventId,
         source: String,
         inputs: BTreeMap<String, BlobHash>,
+        no_role: bool,
         now: u64,
     ) -> Plan {
         let (entry, governance) = self.host(actor, &goal)?;
@@ -163,6 +164,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
             .roles
             .keys()
             .filter(|role| entry.state().roles.contains_key(*role))
+            .filter(|role| !crate::organization::role_duties(&formation, role).is_empty())
         {
             let was_deciding = deciding.contains(role);
             if was_deciding != crate::organization::is_authority_role(&formation, role) {
@@ -233,6 +235,46 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 now,
                 &mut tx,
             )?;
+        }
+        if !no_role && let Some(role) = crate::organization::counting_role(&formation) {
+            let holders: Vec<_> = entry
+                .state()
+                .members
+                .iter()
+                .filter_map(|(key, member)| member.is_active().then_some(*key))
+                .collect();
+            let previous_holders = entry
+                .state()
+                .roles
+                .get(&role)
+                .cloned()
+                .unwrap_or_else(|| entry.state().host.into_iter().collect());
+            if holders != previous_holders {
+                let previous = tx.commit.events.last().expect("binding was signed");
+                let place = Place {
+                    seq: previous
+                        .header()
+                        .seq
+                        .checked_add(1)
+                        .ok_or_else(|| conflict("the author's log is exhausted"))?,
+                    prev: Some(previous.id()),
+                    anchor: Some(previous.id()),
+                    epoch,
+                };
+                sign_at(
+                    goal,
+                    self.key_for(entry, &governance)?,
+                    place,
+                    Body::RoleHolders {
+                        role: role.clone(),
+                        holders,
+                    },
+                    None,
+                    now,
+                    &mut tx,
+                )
+                .map_err(|error| role_list_error(error, &role))?;
+            }
         }
         super::tasks::recorded(event, tx)
     }
@@ -351,17 +393,19 @@ impl<S: Store, E: Entropy> Node<S, E> {
             }
         }
         let mut tx = Tx::none();
-        let event = self.author(
-            entry,
-            &governance,
-            Body::RoleHolders {
-                role,
-                holders: next,
-            },
-            None,
-            now,
-            &mut tx,
-        )?;
+        let event = self
+            .author(
+                entry,
+                &governance,
+                Body::RoleHolders {
+                    role: role.clone(),
+                    holders: next,
+                },
+                None,
+                now,
+                &mut tx,
+            )
+            .map_err(|error| role_list_error(error, &role))?;
         super::tasks::recorded(event, tx)
     }
 
@@ -568,4 +612,19 @@ fn checked_definition(source: &str) -> Result<(DefinitionHash, String, Formation
     let formation = inspection.normalized.expect("valid definition");
     let normalized = serde_json::to_string(&formation).expect("definition encodes");
     Ok((hash, normalized, formation))
+}
+
+fn role_list_error(error: ApiError, role: &str) -> ApiError {
+    if error.code == ErrorCode::Invalid
+        && error.message == locust_proto::event::EventError::TooLarge.to_string()
+    {
+        ApiError::new(
+            ErrorCode::LimitExceeded,
+            format!(
+                "The {role:?} role has too many holders to fit in one role change. Use another role for this group."
+            ),
+        )
+    } else {
+        error
+    }
 }

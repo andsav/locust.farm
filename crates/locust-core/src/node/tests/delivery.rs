@@ -199,6 +199,7 @@ pub(super) fn pipeline_request(goal: GoalId, expected: locust_proto::id::EventId
     formation.flow.get_mut("draft").unwrap().task_type = None;
     formation.task_types.clear();
     Request::RulesBind {
+        no_role: false,
         goal,
         expected,
         formation_json: serde_json::to_string(&formation).unwrap(),
@@ -856,6 +857,7 @@ fn an_unsignable_step_stalls_without_failing_open_join_or_receive() {
     net.nodes[0].ok(
         owner,
         Request::RulesBind {
+            no_role: false,
             goal,
             expected,
             formation_json: serde_json::to_string(&formation).unwrap(),

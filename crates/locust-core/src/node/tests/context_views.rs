@@ -528,6 +528,7 @@ fn collaboration_view_setup(
     d.ok(
         owner,
         Request::RulesBind {
+            no_role: false,
             goal,
             expected,
             formation_json: serde_json::to_string(&formation).unwrap(),

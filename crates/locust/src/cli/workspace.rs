@@ -584,6 +584,7 @@ fn initial_epoch(api: &mut Objects<'_>, policy: InitialPolicy) -> Result<EventId
     let (rules, binding, formation, rebind) = policy;
     let rules = if rebind {
         recorded(api.call(Request::RulesBind {
+            no_role: true,
             goal: api.goal,
             expected: rules,
             formation_json: serde_json::to_string(&formation).map_err(internal)?,

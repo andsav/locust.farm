@@ -97,3 +97,39 @@ pub fn role_duties(formation: &Formation, role: &str) -> BTreeSet<RoleDuty> {
     }
     duties
 }
+
+fn review_roles(rule: &CompletionRule, found: &mut BTreeSet<String>) {
+    fn selector_roles(selector: &Selector, found: &mut BTreeSet<String>) {
+        match selector {
+            Selector::Role { name } => {
+                found.insert(name.clone());
+            }
+            Selector::Any { selectors } => {
+                for selector in selectors {
+                    selector_roles(selector, found);
+                }
+            }
+            _ => {}
+        }
+    }
+    match rule {
+        CompletionRule::Reviews {
+            by,
+            count,
+            exclude_author,
+        } if *exclude_author || *count > 1 => selector_roles(by, found),
+        CompletionRule::All { rules } | CompletionRule::Any { rules } => {
+            for rule in rules {
+                review_roles(rule, found);
+            }
+        }
+        _ => {}
+    }
+}
+pub fn counting_role(formation: &Formation) -> Option<String> {
+    let mut candidates = BTreeSet::new();
+    review_roles(&formation.decisions.completion, &mut candidates);
+    candidates
+        .into_iter()
+        .find(|role| formation.roles.contains_key(role) && !is_authority_role(formation, role))
+}

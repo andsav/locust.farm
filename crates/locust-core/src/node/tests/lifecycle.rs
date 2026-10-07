@@ -1200,6 +1200,7 @@ fn the_governance_key_is_stored_with_the_goal_and_signs_after_a_restart() {
     let rules = event(d.ok(
         owner,
         Request::RulesBind {
+            no_role: false,
             goal,
             expected,
             formation_json: "{\"schema_version\":2}".into(),

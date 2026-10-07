@@ -4577,6 +4577,15 @@
               },
               {
                 "action": "SetTrue",
+                "help": "Keep current role holders when binding rules that need reviewers",
+                "long": "no-role",
+                "name": "no-role",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "SetTrue",
                 "help": "Show the exact action and its plan identifier without acting",
                 "long": "plan",
                 "name": "plan",
@@ -9208,6 +9217,11 @@
                   "$ref": "#/$defs/BlobHash"
                 },
                 "type": "object"
+              },
+              "no_role": {
+                "default": false,
+                "description": "Keep role holders unchanged instead of giving the counting role to every member.",
+                "type": "boolean"
               }
             },
             "required": [

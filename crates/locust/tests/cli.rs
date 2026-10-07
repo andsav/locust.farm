@@ -2934,6 +2934,8 @@ fn rules_bind_moves_the_shared_files_to_the_new_rules_and_says_so() {
     let host = PublicKey([2; 32]);
     let rules = EventId([5; 32]);
     let epoch = EventId([6; 32]);
+    let one_change = Arc::new(AtomicBool::new(false));
+    let server_one_change = one_change.clone();
     let tree_on = Arc::new(AtomicBool::new(true));
     let server_tree_on = tree_on.clone();
     let old = Formation {
@@ -2948,7 +2950,7 @@ fn rules_bind_moves_the_shared_files_to_the_new_rules_and_says_so() {
         ..Formation::default()
     };
     let bytes = serde_json::to_vec(&old).unwrap();
-    let handle = server(home.path(), 4, move |frame| match frame.request {
+    let handle = server(home.path(), 6, move |frame| match frame.request {
         Request::GoalStatus { .. } => {
             let mut view = hosted_goal_status(goal, host, true);
             view.current_rules = Some(rules);
@@ -2968,7 +2970,58 @@ fn rules_bind_moves_the_shared_files_to_the_new_rules_and_says_so() {
         Request::BlobGet { .. } => Ok(Response::Blob {
             bytes: bytes.clone(),
         }),
-        Request::WorkspaceProposals { .. } => Ok(Response::WorkspaceProposals(vec![])),
+        Request::WorkspaceProposals { .. } => {
+            use locust_proto::api::{
+                Standing, WorkspaceContent, WorkspaceProposalStatus, WorkspaceProposalView,
+            };
+            use locust_proto::event::{Context, Scope};
+            let proposal = |tag| WorkspaceProposalView {
+                proposal: EventId([tag; 32]),
+                context: Context {
+                    scope: Scope::Workspace,
+                    round: epoch,
+                },
+                author: host,
+                parent: Some(EventId([9; 32])),
+                result_manifest: locust_proto::id::BlobHash([8; 32]),
+                sources: vec![],
+                source_authors: vec![],
+                standing: Standing::Effective,
+                usable_as_source: true,
+                integrated_as: vec![],
+                status: WorkspaceProposalStatus::AwaitingEvidence,
+                approved: false,
+                evidence: vec![],
+                stale: false,
+                content: WorkspaceContent::Complete { files: 1, bytes: 1 },
+            };
+            let mut proposals = vec![proposal(10), proposal(11)];
+            if server_one_change.load(Ordering::SeqCst) {
+                proposals.pop();
+            }
+            for (tag, standing) in [
+                (12, Standing::Excluded),
+                (13, Standing::Pending),
+                (14, Standing::Disputed),
+            ] {
+                let mut item = proposal(tag);
+                item.standing = standing;
+                proposals.push(item);
+            }
+            let mut stale = proposal(15);
+            stale.stale = true;
+            proposals.push(stale);
+            let mut integrated = proposal(16);
+            integrated.integrated_as = vec![EventId([20; 32])];
+            proposals.push(integrated);
+            let mut old = proposal(17);
+            old.context.round = EventId([21; 32]);
+            proposals.push(old);
+            let mut seed = proposal(18);
+            seed.parent = None;
+            proposals.push(seed);
+            Ok(Response::WorkspaceProposals(proposals))
+        }
         Request::RulesBind {
             expected,
             formation_json,
@@ -3026,6 +3079,13 @@ fn rules_bind_moves_the_shared_files_to_the_new_rules_and_says_so() {
         text.contains("This replaces the rule you gave the shared files."),
         "{text}"
     );
+    assert!(
+        text.contains(
+            "2 file changes that have not landed must be proposed again by their authors."
+        ),
+        "{text}"
+    );
+    assert!(text.contains("Share them again with locust --owner workspace init --goal 04040404 and the same seed options."), "{text}");
     let id = text
         .lines()
         .find_map(|line| line.strip_prefix("Plan id: "))
@@ -3036,10 +3096,28 @@ fn rules_bind_moves_the_shared_files_to_the_new_rules_and_says_so() {
         "{}",
         String::from_utf8_lossy(&committed.stderr)
     );
+    let committed = String::from_utf8(committed.stdout).unwrap();
+    assert!(committed.contains("The shared files follow them too."));
     assert!(
-        String::from_utf8(committed.stdout)
-            .unwrap()
-            .contains("The shared files follow them too.")
+        committed.contains(
+            "2 file changes that have not landed must be proposed again by their authors."
+        )
+    );
+    assert!(committed.contains("Share them again with locust --owner workspace init --goal"));
+    let invalid = plain().arg("--home").arg(home.path()).args([
+        "--owner", "rules", "bind", "--goal", &goal.to_string(), "--formation-json",
+        r#"{"schema_version":2,"decisions":{"completion":{"kind":"declaration","by":{"kind":"task_creator"}}}}"#,
+        "--plan",
+    ]).output().unwrap();
+    assert_eq!(invalid.status.code(), Some(6));
+    assert!(String::from_utf8(invalid.stderr).unwrap().contains("These rules cannot apply to the shared files. Give the files a rule in the formation's workspace part."));
+    one_change.store(true, Ordering::SeqCst);
+    let singular = run(&["--plan"]);
+    assert!(singular.status.success());
+    let singular = String::from_utf8(singular.stdout).unwrap();
+    assert!(
+        singular
+            .contains("1 file change that has not landed must be proposed again by its author.")
     );
     tree_on.store(false, Ordering::SeqCst);
     let plan = run(&["--plan"]);
@@ -3160,5 +3238,138 @@ fn disconnected_members_are_offered_reconnect_in_status_and_owner_commands() {
     let text = String::from_utf8(output.stdout).unwrap();
     assert!(text.contains("credential disconnected"), "{text}");
     assert!(text.contains("agent reconnect --agent"), "{text}");
+    handle.join().unwrap();
+}
+
+#[test]
+fn a_leads_undo_restores_its_previous_holder_and_role_duties_are_explained() {
+    use std::collections::BTreeMap;
+    use std::sync::{Arc, Mutex};
+    let home = scratch();
+    write_secret(&home.path().join("owner.credential"), &[1; 32]);
+    let goal = GoalId([4; 32]);
+    let host = PublicKey([2; 32]);
+    let member = PublicKey([3; 32]);
+    let previous = PublicKey([4; 32]);
+    let rules = locust_proto::id::EventId([5; 32]);
+    let mut formation = locust_proto::organization::presets()
+        .into_iter()
+        .find(|preset| preset.name == "review-panel")
+        .unwrap()
+        .formation;
+    formation.roles.insert("unused".into(), Default::default());
+    let bytes = serde_json::to_vec(&formation).unwrap();
+    let holders = Arc::new(Mutex::new(BTreeMap::from([
+        ("lead".to_owned(), vec![previous]),
+        ("reviewer".to_owned(), vec![host]),
+        ("unused".to_owned(), vec![host]),
+    ])));
+    let server_holders = holders.clone();
+    let handle = server(home.path(), 4, move |frame| match frame.request {
+        Request::Status => Ok(status(vec![GoalSummary {
+            goal,
+            title: Some("Demo".into()),
+            member: host,
+            membership: Membership::Member,
+            halted: None,
+            abilities: abilities(goal, host),
+        }])),
+        Request::GoalStatus { .. } => {
+            let mut view = hosted_goal_status(goal, host, true);
+            view.current_rules = Some(rules);
+            view.roles = server_holders.lock().unwrap().clone();
+            view.deciding = ["lead".into()].into();
+            for (key, name) in [(member, "Maple"), (previous, "Juniper")] {
+                view.members.push(locust_proto::api::MemberView {
+                    member: key,
+                    name: name.into(),
+                    endpoint: locust_proto::id::EndpointId([3; 32]),
+                    local: false,
+                });
+            }
+            Ok(Response::GoalStatus(view))
+        }
+        Request::Event { .. } => Ok(formation_event(goal, rules, &bytes)),
+        Request::BlobGet { .. } => Ok(Response::Blob {
+            bytes: bytes.clone(),
+        }),
+        Request::RoleGive {
+            role,
+            member,
+            expected,
+            ..
+        } => {
+            let mut holders = server_holders.lock().unwrap();
+            let held = holders.get_mut(&role).unwrap();
+            assert_eq!(*held, expected);
+            if role == "lead" {
+                held.clear();
+            }
+            held.push(member);
+            held.sort();
+            held.dedup();
+            Ok(Response::Recorded {
+                event: locust_proto::id::EventId([6; 32]),
+            })
+        }
+        request => panic!("unexpected {request:?}"),
+    });
+    let run = |args: &[&str]| {
+        let out = plain()
+            .arg("--home")
+            .arg(home.path())
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(
+            out.status.success(),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        String::from_utf8(out.stdout).unwrap()
+    };
+    let give = |role: &str| {
+        run(&[
+            "--owner",
+            "role",
+            "give",
+            "--goal",
+            &goal.to_string(),
+            "--member",
+            &member.to_string(),
+            role,
+        ])
+    };
+    let lead = give("lead");
+    assert!(
+        lead.contains(
+            "lead is not in the current rules. It still applies to work under earlier rules."
+        ),
+        "{lead}"
+    );
+    let undo = lead
+        .lines()
+        .find_map(|line| line.strip_prefix("Undo: "))
+        .unwrap();
+    assert_eq!(
+        undo,
+        "locust --owner role give --goal 04040404 --member 04040404 lead"
+    );
+    run(&undo
+        .strip_prefix("locust ")
+        .unwrap()
+        .split_whitespace()
+        .collect::<Vec<_>>());
+    assert_eq!(holders.lock().unwrap()["lead"], [previous]);
+    let reviewer = give("reviewer");
+    assert!(
+        reviewer.contains("A reviewer here: approves results."),
+        "{reviewer}"
+    );
+    let unused = give("unused");
+    assert!(
+        unused.contains("No rule in the current rules names unused, so it changes nothing yet."),
+        "{unused}"
+    );
     handle.join().unwrap();
 }

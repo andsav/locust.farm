@@ -32,6 +32,7 @@ pub(super) fn setup() -> (Daemon, PublicKey, ConnId, ConnId, GoalId) {
     let rules = lifecycle::event(daemon.ok(
         owner,
         Request::RulesBind {
+            no_role: false,
             goal,
             expected,
             formation_json: serde_json::to_string(&formation).unwrap(),
@@ -818,6 +819,7 @@ fn bind_peer_files(daemon: &mut Daemon, owner: ConnId, host: PublicKey, goal: Go
     lifecycle::event(daemon.ok(
         owner,
         Request::RulesBind {
+            no_role: false,
             goal,
             expected,
             formation_json: serde_json::to_string(&formation).unwrap(),

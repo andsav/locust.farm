@@ -8,7 +8,7 @@ use locust_proto::event::Body;
 use locust_proto::id::PublicKey;
 use locust_proto::organization::{CompletionRule, Formation, Selector};
 use serde_json::json;
-use std::{collections::BTreeSet, path::Path};
+use std::path::Path;
 
 pub(super) fn command(name: &'static str) -> Command {
     Command::new(name)
@@ -58,42 +58,8 @@ pub(super) fn current_formation(
         .map_err(|error| Failure::invalid(format!("formation definition: {error}")))
 }
 
-fn review_roles(rule: &CompletionRule, found: &mut BTreeSet<String>) {
-    fn selector_roles(selector: &Selector, found: &mut BTreeSet<String>) {
-        match selector {
-            Selector::Role { name } => {
-                found.insert(name.clone());
-            }
-            Selector::Any { selectors } => {
-                for selector in selectors {
-                    selector_roles(selector, found);
-                }
-            }
-            _ => {}
-        }
-    }
-    match rule {
-        CompletionRule::Reviews {
-            by,
-            count,
-            exclude_author,
-        } if *exclude_author || *count > 1 => selector_roles(by, found),
-        CompletionRule::All { rules } | CompletionRule::Any { rules } => {
-            for rule in rules {
-                review_roles(rule, found);
-            }
-        }
-        _ => {}
-    }
-}
-pub(super) fn counting_role(formation: &Formation) -> Option<String> {
-    let mut candidates = BTreeSet::new();
-    review_roles(&formation.decisions.completion, &mut candidates);
-    candidates.into_iter().find(|role| {
-        formation.roles.contains_key(role)
-            && !locust_core::organization::is_authority_role(formation, role)
-    })
-}
+pub(super) use locust_core::organization::counting_role;
+
 pub(super) fn selected_role(
     client: &mut LocalClient,
     socket: &Path,
@@ -183,6 +149,10 @@ fn duties(formation: Option<&Formation>, role: &str) -> String {
     match formation {
         Some(formation) if !formation.roles.contains_key(role) => format!(
             "{} is not in the current rules. It still applies to work under earlier rules.",
+            presentation::safe(role)
+        ),
+        Some(formation) if role_duties(formation, role).is_empty() => format!(
+            "No rule in the current rules names {}, so it changes nothing yet.",
             presentation::safe(role)
         ),
         Some(formation) => format!(

@@ -407,6 +407,7 @@ fn stage_steps_are_signed_while_the_hosts_agent_is_disconnected() {
     let rules = recorded(h.ok(
         h.owner,
         Request::RulesBind {
+            no_role: false,
             goal,
             expected: status.current_rules.unwrap(),
             formation_json: serde_json::to_string(&formation).unwrap(),
@@ -761,6 +762,7 @@ fn nested_task_creation_and_revision_keep_parent_pin_after_default_amendment() {
     let new_rules = recorded(h.ok(
         h.owner,
         Request::RulesBind {
+            no_role: false,
             goal,
             expected: old_rules,
             formation_json: serde_json::to_string(&formation).unwrap(),

@@ -240,7 +240,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 expected,
                 formation_json,
                 inputs,
-            } => self.rules_bind(actor, goal, expected, formation_json, inputs, now),
+                no_role,
+            } => self.rules_bind(actor, goal, expected, formation_json, inputs, no_role, now),
             Request::WorkspaceEpochSet {
                 goal,
                 expected_epoch,

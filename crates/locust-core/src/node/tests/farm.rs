@@ -536,6 +536,7 @@ fn the_page_keeps_changes_signed_by_the_governance_key() {
     let rules = event(daemon.ok(
         owner,
         Request::RulesBind {
+            no_role: false,
             goal,
             expected,
             formation_json: serde_json::to_string(&formation).unwrap(),
@@ -746,6 +747,7 @@ fn actual_parallel_flow_projects_approved_dag_and_revised_task_rounds() {
     daemon.ok(
         owner,
         Request::RulesBind {
+            no_role: false,
             goal,
             expected,
             formation_json: serde_json::to_string(&formation).unwrap(),
@@ -997,6 +999,7 @@ fn duplicate_upstream_stage_prerequisites_are_deduplicated_in_snapshot() {
     daemon.ok(
         owner,
         Request::RulesBind {
+            no_role: false,
             goal,
             expected,
             formation_json: serde_json::to_string(&formation).unwrap(),

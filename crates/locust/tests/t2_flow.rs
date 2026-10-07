@@ -1196,3 +1196,104 @@ fn an_agents_cli_names_its_owner_and_refuses_workspace_init_without_a_false_disc
             .all(|agent| agent["revoked"] == false)
     );
 }
+
+#[test]
+fn binding_reviewer_rules_assigns_current_members_and_no_role_keeps_the_choice_explicit() {
+    for no_role in [false, true] {
+        let p = Participant::new();
+        let mut keys = Vec::new();
+        for name in ["harbor", "maple", "juniper"] {
+            keys.push(
+                p.cli(&["--owner"], &["agent", "enroll", name])["agent_enrolled"]["agent"]
+                    .as_str()
+                    .unwrap()
+                    .to_owned(),
+            );
+        }
+        let created = p.approved_cli(
+            &["--owner", "--agent", "harbor"],
+            &[
+                "goal",
+                "create",
+                "--title",
+                "Changing rules",
+                "--formation",
+                "peer-review",
+            ],
+        );
+        let goal = created["goal_created"]["goal"].as_str().unwrap();
+        for name in ["maple", "juniper"] {
+            p.approved_cli(
+                &["--owner"],
+                &["goal", "add", "--goal", goal, "--agent", name],
+            );
+        }
+        let mut args = vec![
+            "--owner",
+            "rules",
+            "bind",
+            "--goal",
+            goal,
+            "--formation",
+            "review-panel",
+        ];
+        if no_role {
+            args.push("--no-role");
+        }
+        let mut plan_args = args.clone();
+        plan_args.push("--plan");
+        let plan = p.human(&plan_args);
+        let expected = if no_role {
+            "2 more reviewers are needed."
+        } else {
+            "Everyone in the goal becomes a reviewer."
+        };
+        assert!(plan.contains(expected), "{plan}");
+        if no_role {
+            assert_eq!(
+                plan.matches("Give the role: locust --owner role give")
+                    .count(),
+                2
+            );
+        }
+        let id = plan
+            .lines()
+            .find_map(|line| line.strip_prefix("Plan id: "))
+            .unwrap();
+        args.extend(["--confirm", id]);
+        let result = p.human(&args);
+        assert!(result.contains(expected), "{result}");
+        let status = p.cli(&["--owner"], &["goal", "status", "--goal", goal]);
+        let holders = status["goal_status"]["roles"]["reviewer"]
+            .as_array()
+            .unwrap();
+        let mut expected_holders = if no_role {
+            vec![keys[0].clone()]
+        } else {
+            keys.clone()
+        };
+        expected_holders.sort();
+        assert_eq!(
+            *holders,
+            expected_holders
+                .into_iter()
+                .map(Value::String)
+                .collect::<Vec<_>>()
+        );
+        if !no_role {
+            let undo = result
+                .lines()
+                .find_map(|line| line.strip_prefix("Undo for one member: locust "))
+                .unwrap();
+            p.human(&undo.split_whitespace().collect::<Vec<_>>());
+            let status = p.cli(&["--owner"], &["goal", "status", "--goal", goal]);
+            assert_eq!(
+                status["goal_status"]["roles"]["reviewer"]
+                    .as_array()
+                    .unwrap()
+                    .len(),
+                2
+            );
+        }
+    }
+}

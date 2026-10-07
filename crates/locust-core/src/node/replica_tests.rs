@@ -358,6 +358,7 @@ fn host_operations_refuse_a_daemon_that_does_not_hold_the_host_key() {
         },
         Request::MemberRemove { goal, member },
         Request::RulesBind {
+            no_role: false,
             goal,
             expected: EventId([0; 32]),
             formation_json: "{}".into(),

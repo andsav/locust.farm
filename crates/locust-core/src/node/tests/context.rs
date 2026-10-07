@@ -456,6 +456,7 @@ fn task_brief_uses_pinned_task_type_and_task_inputs_instead_of_goal_defaults() {
     d.ok(
         owner,
         Request::RulesBind {
+            no_role: false,
             goal,
             expected,
             formation_json: serde_json::to_string(&formation).unwrap(),
@@ -652,6 +653,7 @@ fn pending_reviews_only_count_the_callers_effective_reviews() {
     d.ok(
         owner,
         Request::RulesBind {
+            no_role: false,
             goal,
             expected,
             formation_json: serde_json::to_string(&formation).unwrap(),

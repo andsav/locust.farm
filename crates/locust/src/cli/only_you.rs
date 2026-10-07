@@ -5,7 +5,7 @@ use super::{
     resolve_goal, roles, selectors, status,
 };
 use crate::failure::Failure;
-use clap::{Arg, ArgMatches, Command};
+use clap::{Arg, ArgAction, ArgMatches, Command};
 use locust_proto::api::{
     Abilities, Caller, DaemonStatus, ErrorCode, GoalStatus, InvitationState, Level, Membership,
     Request, Response,
@@ -14,7 +14,7 @@ use locust_proto::event::TaskId;
 use locust_proto::id::{BlobHash, EventId, GoalId, IdempotencyKey, PublicKey};
 use locust_proto::local;
 use locust_proto::organization::{Authority, Formation, WorkspacePolicy};
-use serde_json::json;
+use serde_json::{Value, json};
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -99,7 +99,14 @@ pub(super) fn commands() -> Vec<(&'static str, Command)> {
         ),
         (
             "rules",
-            confirm::flags(formation(Command::new("bind").arg(goal_option()))),
+            confirm::flags(
+                formation(Command::new("bind").arg(goal_option())).arg(
+                    Arg::new("no-role")
+                        .long("no-role")
+                        .action(ArgAction::SetTrue)
+                        .help("Keep current role holders when binding rules that need reviewers"),
+                ),
+            ),
         ),
         (
             "task",
@@ -1332,6 +1339,7 @@ fn rules_plan(
     formation_name: &str,
     formation_json: &str,
     inputs: &BTreeMap<String, BlobHash>,
+    no_role: bool,
 ) -> Result<confirm::Plan, Failure> {
     let observed = observed(client, socket, goal)?;
     let current = observed
@@ -1344,6 +1352,7 @@ fn rules_plan(
         .as_ref()
         .filter(|workspace| workspace.enabled);
     let mut file_lines = String::new();
+    let mut file_changes = String::new();
     if let Some(workspace) = workspace {
         if formation.workspace.is_none() {
             let host = observed
@@ -1393,32 +1402,83 @@ fn rules_plan(
         else {
             unreachable!("typed response")
         };
-        let pending = proposals
+        let stranded: Vec<_> = proposals
             .iter()
             .filter(|proposal| {
-                Some(proposal.context.round) == workspace.epoch && proposal.integrated_as.is_empty()
+                Some(proposal.context.round) == workspace.epoch
+                    && proposal.integrated_as.is_empty()
+                    && proposal.standing == locust_proto::api::Standing::Effective
+                    && !proposal.stale
             })
+            .collect();
+        let changes = stranded
+            .iter()
+            .filter(|proposal| proposal.parent.is_some())
             .count();
-        if pending > 0 {
-            file_lines.push_str(&format!("\n{pending} file changes that have not landed must be proposed again by their authors."));
+        match changes {
+            0 => {}
+            1 => file_changes.push_str(
+                "\n1 file change that has not landed must be proposed again by its author.",
+            ),
+            n => file_changes.push_str(&format!(
+                "\n{n} file changes that have not landed must be proposed again by their authors."
+            )),
         }
+        if stranded.iter().any(|proposal| proposal.parent.is_none()) {
+            file_changes.push_str(&format!("\nThe first files have not landed. Share them again with locust --owner workspace init --goal {} and the same seed options.", short_goal(goal)));
+        }
+        file_lines.push_str(&file_changes);
     }
     let source =
         serde_json::to_string(&formation).map_err(|error| Failure::internal(error.to_string()))?;
     checked_formation(&source)?;
+    let counting_role = roles::counting_role(&formation);
+    let mut role_lines = String::new();
+    if let Some(role) = &counting_role {
+        let holders = observed
+            .roles
+            .get(role)
+            .cloned()
+            .unwrap_or_else(|| observed.host.into_iter().collect());
+        let unheld: Vec<_> = observed
+            .members
+            .iter()
+            .filter(|member| !holders.contains(&member.member))
+            .collect();
+        if no_role {
+            let missing = roles::missing_reviewers(&formation, role, holders.len()).unwrap_or(0);
+            role_lines.push_str(&format!(
+                "\n{missing} more reviewers are needed. The role's holders stay as they are."
+            ));
+            for member in unheld {
+                role_lines.push_str(&format!(
+                    "\nGive the role: locust --owner role give --goal {} --member {} {}",
+                    short_goal(goal),
+                    selectors::member_key_prefix(&observed.members, member.member),
+                    roles::quote_role(role)
+                ));
+            }
+        } else if let Some(member) = unheld.first() {
+            role_lines.push_str(&format!("\nEveryone in the goal becomes a {}.\nUndo for one member: locust --owner role take --goal {} --member {} {}",
+                presentation::safe(role), short_goal(goal), selectors::member_key_prefix(&observed.members, member.member), roles::quote_role(role)));
+        }
+    }
     Ok(confirm::Plan {
         command: "rules bind",
         review: json!({"goal":goal,"title":observed.title,"host":observed.host,
             "current_rules":current,"formation":formation_name,
-            "formation_json":source,"inputs":inputs,
+            "formation_json":source,"inputs":inputs,"no_role":no_role,
+            "members":observed.members,"roles":observed.roles,
+            "role_changes":role_lines,"file_changes":file_changes,
             "workspace_epoch":workspace.and_then(|workspace| workspace.epoch),
             "workspace_policy":workspace.and(formation.workspace.as_ref())}),
         human: format!(
-            "Bind \"{}\" ({}) to {}. Open tasks keep their old rules until revised.{}",
+            "Bind \"{}\" ({}) to {}. Open tasks keep their old rules until revised.{}{}",
             presentation::safe(observed.title.as_deref().unwrap_or("this goal")),
             short_goal(goal),
             presentation::safe(formation_name),
-            file_lines
+            file_lines,
+            role_lines
         ),
         warning: None,
         again: String::new(),
@@ -1438,9 +1498,25 @@ fn rules_bind(
         source.ok_or_else(|| Failure::usage("rules bind needs --formation or --formation-json"))?;
     let inputs: BTreeMap<String, BlobHash> = json_map(args, "inputs")?;
     let plan = if owner {
-        let plan = rules_plan(client, socket, goal, &name, &source, &inputs)?;
+        let plan = rules_plan(
+            client,
+            socket,
+            goal,
+            &name,
+            &source,
+            &inputs,
+            args.get_flag("no-role"),
+        )?;
         if let Some(output) = reviewed(matches, args, &plan, || {
-            rules_plan(client, socket, goal, &name, &source, &inputs)
+            rules_plan(
+                client,
+                socket,
+                goal,
+                &name,
+                &source,
+                &inputs,
+                args.get_flag("no-role"),
+            )
         })? {
             return Ok(output);
         }
@@ -1464,13 +1540,26 @@ fn rules_bind(
         client,
         socket,
         Request::RulesBind {
+            no_role: args.get_flag("no-role"),
             goal,
             expected: current,
             formation_json: source,
             inputs,
         },
         idempotency(matches)?,
-    )?;
+    )
+    .map_err(|mut error| {
+        if error.code == ErrorCode::Conflict
+            && let Some(details) = error
+                .details_json
+                .as_deref()
+                .and_then(|source| serde_json::from_str::<Value>(source).ok())
+            && let Some(role) = details.get("role").and_then(Value::as_str)
+        {
+            error.message = format!("{}: {}", presentation::safe(role), error.message);
+        }
+        error
+    })?;
     let title = plan
         .as_ref()
         .and_then(|plan| plan.review["title"].as_str())
@@ -1484,13 +1573,12 @@ fn rules_bind(
         && !plan.review["workspace_policy"].is_null()
     {
         human.push_str(" The shared files follow them too.");
-        if let Some(line) = plan
-            .human
-            .lines()
-            .find(|line| line.ends_with("must be proposed again by their authors."))
-        {
-            human.push('\n');
-            human.push_str(line);
+    }
+    if let Some(plan) = &plan {
+        for field in ["file_changes", "role_changes"] {
+            if let Some(text) = plan.review[field].as_str() {
+                human.push_str(text);
+            }
         }
     }
     Ok(Output::success(json!(response), human))

@@ -195,7 +195,8 @@ impl State {
                 Ok(Response::Event(Box::new(EventDetail { view:EventView { position:Some(1),event,author:GOVERNANCE,kind:"rules_bound".into(),at_ms:1,standing:Standing::Effective,by_owner:false,by_host:true },
                     anchor:None,body:Body::RulesBound {expected:None,binding},payload:None,text:None,task:None,content:vec![] })))
             }
-            Request::RulesBind { expected, formation_json, inputs, .. } => {
+            Request::RulesBind { expected, formation_json, inputs, no_role, .. } => {
+                assert!(no_role, "initializing file policy must not assign goal roles");
                 if expected != self.rules {
                     return Err(ApiError::new(ErrorCode::Conflict, "the rules revision changed"));
                 }

@@ -304,6 +304,7 @@ fn goal_close_follows_finish_role_instead_of_host_identity() {
     d.ok(
         owner,
         Request::RulesBind {
+            no_role: false,
             goal,
             expected,
             formation_json: serde_json::to_string(&formation).unwrap(),

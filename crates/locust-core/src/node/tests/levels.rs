@@ -414,6 +414,7 @@ fn abilities_include_named_checks_and_own_declaration_opportunities() {
     d.ok(
         owner,
         Request::RulesBind {
+            no_role: false,
             goal,
             expected,
             formation_json: serde_json::to_string(&formation).unwrap(),

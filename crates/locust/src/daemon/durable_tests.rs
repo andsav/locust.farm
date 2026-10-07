@@ -951,6 +951,7 @@ fn rebind_rules(owner: &mut LocalClient, goal: GoalId, _agent: PublicKey) -> Eve
     recorded(
         owner
             .call(Request::RulesBind {
+                no_role: false,
                 goal,
                 expected: status.current_rules.unwrap(),
                 formation_json: serde_json::to_string(

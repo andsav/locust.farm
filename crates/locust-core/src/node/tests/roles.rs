@@ -100,6 +100,7 @@ fn bind(
     daemon.call(
         owner,
         Request::RulesBind {
+            no_role: false,
             goal,
             expected,
             formation_json: serde_json::to_string(&formation).unwrap(),
@@ -233,6 +234,204 @@ fn rules_bind_is_refused_when_a_role_would_change_kind() {
         ErrorCode::Conflict
     );
     assert_eq!(records(&d, goal), before);
+}
+
+#[test]
+fn rules_may_keep_an_unused_deciding_role_but_cannot_turn_an_unused_group_into_a_decider() {
+    let (mut d, host, owner, _, goal) = setup(Some("directed"));
+    let mut unused = formation("peer-review");
+    unused.roles = formation("directed").roles;
+    bind(&mut d, owner, goal, unused).unwrap();
+    let view = status(&mut d, owner, goal);
+    assert_eq!(view.roles["lead"], [host]);
+    assert!(view.deciding.contains("lead"));
+    let mut later = formation("peer-review");
+    later.roles.insert("judge".into(), Default::default());
+    bind(&mut d, owner, goal, later.clone()).unwrap();
+    later.decisions.selection = Some(Authority::Role {
+        name: "judge".into(),
+    });
+    let before = records(&d, goal);
+    assert_eq!(code(bind(&mut d, owner, goal, later)), ErrorCode::Conflict);
+    assert_eq!(records(&d, goal), before);
+}
+
+#[test]
+fn oversized_role_give_and_take_report_a_plain_limit_and_sign_nothing() {
+    use crate::node::authoring::{Place, sign_at};
+    use crate::node::commit::Tx;
+    use locust_proto::crypto::Keypair;
+    let (mut d, host, _, _, goal) = setup(Some("review-panel"));
+    let entry = &d.node.goals[&goal];
+    let signer = entry.local.governance.as_ref().unwrap();
+    let endpoint = entry.state().members[&host].endpoint;
+    let head = entry.state().head.unwrap();
+    let mut previous = d.store.event(&head).unwrap().unwrap();
+    let mut tx = Tx::none();
+    let count = locust_proto::limits::MAX_HEADER_BYTES / 32 + 8;
+    let mut last = host;
+    for index in 0..=count {
+        let mut seed = [0x71; 32];
+        seed[..8].copy_from_slice(&(index as u64).to_le_bytes());
+        let member = Keypair::from_seed(seed).public();
+        previous = sign_at(
+            goal,
+            signer,
+            Place {
+                seq: previous.header().seq + 1,
+                prev: Some(previous.id()),
+                anchor: Some(previous.id()),
+                epoch: 0,
+            },
+            Body::MemberAdmitted {
+                member,
+                endpoint,
+                name: format!("Member {index}"),
+                role: (index < count).then(|| "reviewer".into()),
+            },
+            None,
+            100 + index as u64,
+            &mut tx,
+        )
+        .unwrap();
+        last = member;
+    }
+    d.store.commit(&tx.commit).unwrap();
+    d.restart();
+    let owner = d.owner();
+    let expected = d.node.goals[&goal].state().roles["reviewer"].clone();
+    let before = records(&d, goal);
+    for request in [
+        Request::RoleGive {
+            goal,
+            role: "reviewer".into(),
+            member: last,
+            expected: expected.clone(),
+        },
+        Request::RoleTake {
+            goal,
+            role: "reviewer".into(),
+            member: host,
+            expected: expected.clone(),
+        },
+    ] {
+        let error = d.call(owner, request).unwrap_err();
+        assert_eq!(error.code, ErrorCode::LimitExceeded);
+        assert!(error.message.contains("reviewer"));
+        assert!(error.message.contains("too many holders"));
+        assert!(!error.message.contains("header"));
+        assert_eq!(records(&d, goal), before);
+    }
+    let expected_rules = d.node.goals[&goal].state().current_rules.unwrap();
+    assert_eq!(
+        code(bind(&mut d, owner, goal, formation("review-panel"))),
+        ErrorCode::LimitExceeded
+    );
+    assert_eq!(records(&d, goal), before);
+    assert_eq!(
+        d.node.goals[&goal].state().current_rules,
+        Some(expected_rules)
+    );
+    d.ok(
+        owner,
+        Request::RulesBind {
+            goal,
+            expected: expected_rules,
+            formation_json: serde_json::to_string(&formation("review-panel")).unwrap(),
+            inputs: Default::default(),
+            no_role: true,
+        },
+    );
+    assert_eq!(records(&d, goal), before + 1);
+}
+
+#[test]
+fn rules_bind_gives_the_counting_role_in_one_commit_unless_no_role_is_set() {
+    use locust_proto::event::WorkspaceCheckpoint;
+    use locust_proto::organization::WorkspacePolicy;
+    for no_role in [false, true] {
+        for with_workspace in [false, true] {
+            let (mut d, host, owner, _, goal) = setup(Some("peer-review"));
+            let (maple, _) = join(&mut d, owner, goal, 2, "Maple", None);
+            let (juniper, _) = join(&mut d, owner, goal, 3, "Juniper", None);
+            let workspace = with_workspace.then(|| WorkspacePolicy {
+                integrator: Authority::Participant {
+                    key: host.to_string(),
+                },
+                completion: CompletionRule::default(),
+            });
+            if with_workspace {
+                let mut initial = formation("peer-review");
+                initial.workspace = workspace.clone();
+                let Response::Recorded { event: rules } =
+                    bind(&mut d, owner, goal, initial).unwrap()
+                else {
+                    panic!()
+                };
+                d.ok(
+                    owner,
+                    Request::WorkspaceEpochSet {
+                        goal,
+                        expected_epoch: None,
+                        rules,
+                        checkpoint: WorkspaceCheckpoint::Unseeded,
+                    },
+                );
+            }
+            let mut next = formation("review-panel");
+            next.workspace = workspace;
+            let expected = d.node.goals[&goal].state().current_rules.unwrap();
+            let before = records(&d, goal);
+            let revision = d.node.goals[&goal].local.revision;
+            let Response::Recorded { event: rules } = d.ok(
+                owner,
+                Request::RulesBind {
+                    goal,
+                    expected,
+                    formation_json: serde_json::to_string(&next).unwrap(),
+                    inputs: Default::default(),
+                    no_role,
+                },
+            ) else {
+                panic!()
+            };
+            assert_eq!(d.node.goals[&goal].local.revision, revision + 1);
+            let appended = d.store.log(&goal, before as u64, usize::MAX).unwrap();
+            assert_eq!(
+                appended.len(),
+                1 + usize::from(with_workspace) + usize::from(!no_role)
+            );
+            assert_eq!(appended[0].1.id(), rules);
+            for pair in appended.windows(2) {
+                assert_eq!(pair[1].1.header().prev, Some(pair[0].1.id()));
+                assert_eq!(pair[1].1.header().anchor, Some(pair[0].1.id()));
+            }
+            if with_workspace {
+                assert!(
+                    matches!(appended[1].1.header().body, Body::WorkspaceEpoch { rules: actual, .. } if actual == rules)
+                );
+            }
+            let mut expected_holders = if no_role {
+                vec![host]
+            } else {
+                vec![host, maple, juniper]
+            };
+            expected_holders.sort();
+            assert_eq!(
+                d.node.goals[&goal].state().roles["reviewer"],
+                expected_holders
+            );
+            if !no_role {
+                assert!(matches!(&appended.last().unwrap().1.header().body,
+                Body::RoleHolders { role, holders } if role == "reviewer" && *holders == expected_holders));
+            }
+            d.restart();
+            assert_eq!(
+                d.node.goals[&goal].state().roles["reviewer"],
+                expected_holders
+            );
+        }
+    }
 }
 
 #[test]

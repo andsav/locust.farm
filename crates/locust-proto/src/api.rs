@@ -463,6 +463,9 @@ pub enum Request {
         expected: EventId,
         formation_json: String,
         inputs: BTreeMap<String, BlobHash>,
+        /// Keep role holders unchanged instead of giving the counting role to every member.
+        #[serde(default)]
+        no_role: bool,
     },
     #[serde(rename = "checkout.register")]
     CheckoutRegister {
