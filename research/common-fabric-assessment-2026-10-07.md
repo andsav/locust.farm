@@ -2,6 +2,7 @@
 
 Status: source assessment and proposed lessons, 2026-10-07. This is not an
 accepted implementation plan or a security audit. No runtime changes were made.
+Corrected and extended by [a second, independent assessment](common-fabric-second-assessment-2026-10-07.md).
 
 ## Evidence and verdict
 
