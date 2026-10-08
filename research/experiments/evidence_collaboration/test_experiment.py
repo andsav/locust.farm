@@ -115,6 +115,19 @@ class LedgerTests(unittest.TestCase):
             self.assertAlmostEqual(ledger.total(),.15)
             # D's private call is not charged to E; the shared initial call is.
             ledger.reserve('r',dict(job,id='e',config='E_12000'),.2,1,.25)
+    def test_concurrent_reservations_cannot_overspend(self):
+        from concurrent.futures import ThreadPoolExecutor
+        with tempfile.TemporaryDirectory() as tmp:
+            ledger=Ledger(Path(tmp)/'budget.sqlite',.5)
+            def reserve(i):
+                try:
+                    ledger.reserve('r',{'id':str(i),'case_id':'c','config':'S_direct_12000'},.125,1,1)
+                    return True
+                except BudgetExceeded:return False
+            with ThreadPoolExecutor(max_workers=8) as pool:
+                results=list(pool.map(reserve,range(8)))
+            self.assertEqual(sum(results),4);self.assertEqual(ledger.total(),.5)
+
     def test_study_ceiling_is_shared_between_runs(self):
         with tempfile.TemporaryDirectory() as tmp:
             ledger=Ledger(Path(tmp)/'budget.sqlite',.3)
@@ -178,7 +191,7 @@ class IntegrationTests(unittest.TestCase):
             self.assertEqual(resumed.records[job['id']]['status'],'interrupted')
     def test_archive_and_blinded_review_queue(self):
         import gzip
-        from evidence import export, review_queue
+        from evidence import export, review_queue, verify_archive
         with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ,{'OPENAI_API_KEY':'test-only'}):
             folder=self.setup_run(tmp)
             def alternative(req,timeout):
@@ -192,6 +205,8 @@ class IntegrationTests(unittest.TestCase):
             out=Path(tmp)/'export'
             result=export(Path(tmp),'unit',out)
             self.assertEqual(result['records'],76)
+            cohort_gz=Path(tmp)/'cohort.json.gz';cohort_gz.write_bytes(gzip.compress((Path(tmp)/'cohort.json').read_bytes(),mtime=0))
+            self.assertEqual(verify_archive(out/'unit-results.json',cohort_gz)['verified_records'],76)
             records=[json.loads(line) for line in gzip.decompress((out/'unit-records.jsonl.gz').read_bytes()).splitlines()]
             self.assertEqual(len(records),76);self.assertTrue(all('request' in r for r in records))
             review=review_queue(Path(tmp),'unit',out)
@@ -200,6 +215,24 @@ class IntegrationTests(unittest.TestCase):
             for item in queue:
                 self.assertNotIn('config',item);self.assertNotIn('gold_answer',item)
                 self.assertEqual(item['candidate_support_ids'],[0,1])
+
+    def test_usage_and_timing_metrics(self):
+        from metrics import usage_metrics
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ,{'OPENAI_API_KEY':'test-only'}):
+            folder=self.setup_run(tmp)
+            def cached(req,timeout):
+                value=json.loads(self.opener(req,timeout).read())
+                value['usage']['input_tokens_details']={'cache_write_tokens':6,'cached_tokens':3}
+                return io.BytesIO(json.dumps(value).encode())
+            Experiment(folder,self.transport_class(cached)).run(workers=4)
+            m=usage_metrics(folder)['configs']
+            for arm in ('D_12000','E_12000'):
+                self.assertEqual(m[arm]['usage']['output_tokens'],28*20)
+                self.assertEqual(m[arm]['completed_pipeline_cases'],4)
+            solo=m['S_direct_12000']
+            self.assertAlmostEqual(solo['usage']['cache_aware_usd_known_calls'],4*(6*.125+3*.01+1*.1+20*.5)/1e6)
+            self.assertEqual(solo['calls_without_usage'],0)
+            self.assertGreater(solo['critical_path_seconds_mean'],0)
 
     def test_manifest_change_refused(self):
         with tempfile.TemporaryDirectory() as tmp:

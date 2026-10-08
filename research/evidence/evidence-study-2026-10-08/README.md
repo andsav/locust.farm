@@ -24,7 +24,7 @@ See the [development amendment](../../experiments/evidence_collaboration/develop
 
 Each records archive is UTF-8 JSONL compressed with gzip. The results JSON includes
 its compressed and uncompressed SHA-256, exact manifest, frozen executable source,
-summary and independent offline-verification result. Request headers, credentials
+summary and offline recomputation result. Request headers, credentials
 and hidden reasoning text are excluded. The records include public evidence and
 visible model outputs; support annotations remain in the separate cohort/evaluator.
 

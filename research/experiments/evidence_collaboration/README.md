@@ -28,7 +28,8 @@ The original calibration used training data; its component IDs remain excluded.
 
 The primary main result weights each selected family equally. Development
 baseline selection weights its two strata to the frozen main proportions,
-including both quality and actual cost. Results also report each stratum. With
+including quality and cost estimated from actual token usage at the fixed
+conservative rates below. Results also report each stratum. With
 479 families, the approximate detectable difference at 80% power is 7.0 points
 at 30% paired discordance, or 8.1 points at 40% discordance. These are planning
 calculations; development discordance and source-overlap sensitivity are retained.
@@ -179,5 +180,25 @@ The primary scores are unaffected by any later annotation review. Model limits a
 accounting rates were checked against the
 [official Luna documentation](https://developers.openai.com/api/docs/models/gpt-6-luna)
 on October 8, 2026. The 48,000 cap is below its documented output limit.
-The current test suite has 18 passing tests, including archive reconstruction and
-blinded-queue separation.
+The current test suite has 20 passing tests, including archive reconstruction,
+blinded-queue separation, concurrent budget reservations, and usage/timing metrics.
+
+[metrics.py](metrics.py) supplements the frozen score report with input/output and
+reasoning-token totals, cache-aware cost estimates when usage fields are available,
+actual case spans, and reconstructed call critical paths. Case spans include
+scheduler waits. Critical paths exclude those waits and are not real Locust timing.
+The ledger and baseline selection use actual token quantities at a uniform
+conservative price; they are cache-normalized estimates, not actual invoices.
+Cache-aware estimates reflect this multi-arm run, whose cross-arm cache reuse can
+differ from deploying one method alone. Known answer aliases are collapsed in a
+separate initial-disagreement diagnostic so wording variation is visible.
+
+Archived results can be reconstructed and checked without the original output
+folder or any API calls:
+
+```sh
+python3 research/experiments/evidence_collaboration/evidence.py verify-archive research/evidence/evidence-study-cohort-2026-10-08.json.gz development-v1 research/evidence/evidence-study-2026-10-08
+```
+
+This is reproducibility using the frozen evaluator, not an independent ground-truth
+audit. Blinded alternative-answer/citation review is reported separately.
