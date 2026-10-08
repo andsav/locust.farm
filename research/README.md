@@ -7,6 +7,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 
 ## Investigations and experiments
 
+- [Model mixtures and communication: evidence and research direction](model-mixtures-and-communication-synthesis-2026-10-08.md)
 - [Evidence collaboration: completed development and failed qualification](evidence-collaboration-development-results-2026-10-08.md)
 - [Luna evidence collaboration: implemented study and execution protocol](experiments/evidence_collaboration/README.md)
 
