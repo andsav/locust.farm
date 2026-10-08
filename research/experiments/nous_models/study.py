@@ -49,7 +49,24 @@ def provider(manifest, case, team, agent):
 
 
 def valid_response(record, case, stage, agent):
-    obj = nt.parse(record, {e['id'] for e in case['public']['evidence']})
+    allowed = {e['id'] for e in case['public']['evidence']}
+    obj = nt.parse(record, allowed)
+    if obj is None and record and record.get('status') == 'completed':
+        # Accept one unambiguous forecast object surrounded by prose/fences.
+        # Do not repair values, select among multiple answers, or retry the model.
+        text = record.get('text', '')
+        candidates = []
+        for start, character in enumerate(text):
+            if character != '{':
+                continue
+            try:
+                candidate, _ = json.JSONDecoder().raw_decode(text[start:])
+            except ValueError:
+                continue
+            if isinstance(candidate, dict) and {'probability', 'evidence_ids', 'explanation', 'used_peer_ids'} <= set(candidate):
+                candidates.append(candidate)
+        if len(candidates) == 1:
+            obj = nt.parse({'status': 'completed', 'text': json.dumps(candidates[0])}, allowed)
     if obj and (agent in obj['used_peer_ids'] or (stage != 'exchange' and obj['used_peer_ids'])):
         return None
     return obj
@@ -105,7 +122,7 @@ def verify_requests(manifest, attempts):
             raise ValueError('Request differs from frozen inputs: '+r['label'])
 
 
-def prepare(upstream, baseline, folder, ceiling=100):
+def prepare(upstream, baseline, folder, ceiling=100, prior=None):
     with tempfile.TemporaryDirectory() as tmp:
         manifests = []
         for phase in ('smoke', 'replay'):
@@ -125,12 +142,13 @@ def prepare(upstream, baseline, folder, ceiling=100):
     previous = json.loads(baseline.read_text())
     if previous['summary']['completed_calls'] != 900 or len(previous['records']) != 900:
         raise ValueError('Expected the completed original Luna evidence')
-    manifest = {'version': 1, 'scope': 'Historical Luna/Sonnet team comparison; exploratory',
+    manifest = {'version': 2, 'scope': 'Historical Luna/Sonnet team comparison; exploratory',
                 'base': base, 'models': MODELS, 'cohorts': cohorts, 'mixed_models': mixed,
                 'baseline_sha256': nt.file_hash(baseline), 'new_spend_ceiling_usd': ceiling,
                 'baseline_accounted_usd': previous['recovery']['accounted_usd_including_all_attempts'],
                 'maximum_attempts': 6, 'retry_delays_seconds': [5, 15, 30, 60, 60],
                 'max_concurrency': 8, 'code_hashes': code_hashes(),
+                'response_parsing': 'Accept a strict JSON response or exactly one forecast-schema JSON object surrounded by prose/fences; no value coercion, no choice among multiple answers',
                 'primary_contrasts': ['mixed initial versus Luna initial', 'mixed initial versus Sonnet initial'],
                 'secondary_contrasts': ['exchange minus private within each team', 'profile effects within each team'],
                 'invalid_policy': 'Score 0.5; retain first non-transport result; invalid initial becomes explicit unavailable marker in both revision branches',
@@ -142,10 +160,45 @@ def prepare(upstream, baseline, folder, ceiling=100):
         imported.append({**r, 'label': name, 'attempt_id': name+'#imported', 'provider': 'luna',
                          'imported': True, 'source_label': r['label']})
     verify_requests(manifest, imported)
+    prior_attempts = None
+    if prior is not None:
+        prior_manifest = json.loads((prior/'manifest.json').read_text())
+        prior_attempts = read_attempts(prior/'attempts.jsonl')
+        if digest(prior_manifest) != (prior/'manifest.sha256').read_text().strip():
+            raise ValueError('Prior manifest hash mismatch')
+        old_new = [r for r in prior_attempts if not r.get('imported')]
+        manifest['amendment'] = {'reason': 'Normalize an unambiguous JSON forecast surrounded by prose equally for both providers',
+                                 'prior_generation_revision': '4d52058',
+                                 'prior_manifest_sha256': digest(prior_manifest),
+                                 'prior_attempts_sha256': digest(prior_attempts),
+                                 'prior_new_attempts': len(old_new),
+                                 'prior_unknown_after_interruption': sum(r['status'] == 'pending' for r in old_new),
+                                 'prior_new_accounted_usd': sum(r.get('cost_usd', r['reserved_usd']) for r in old_new)}
+        manifest['carry_forward_accounted_usd'] = manifest['amendment']['prior_new_accounted_usd']
+        # Initial bodies are unchanged. Import them first, then compare every
+        # revision body against the corrected initial-message set before reuse.
+        cases = {c['id']: c for c in base['cases']}
+        for stage in STAGES:
+            records = selected(imported)
+            for r in prior_attempts:
+                if r.get('imported') or r['status'] in ('pending', 'transport_error'):
+                    continue
+                qid, profile, population, recorded_stage, agent = r['label'].split('/')
+                if stage != recorded_stage or r['label'] in records:
+                    continue
+                _, body = request_body(manifest, records, cases[qid], profile, population, stage, int(agent))
+                if digest(body) == r['request_sha256']:
+                    copied = {**r, 'attempt_id': r['label']+'#reused-v1', 'imported': True,
+                              'reuse_origin': 'formatting-amendment', 'prior_attempt_id': r['attempt_id']}
+                    imported.append(copied)
+                    records[r['label']] = copied
+        verify_requests(manifest, imported)
     folder.mkdir(parents=True, exist_ok=False)
     (folder/'manifest.json').write_text(json.dumps(manifest, indent=2)+'\n')
     (folder/'manifest.sha256').write_text(digest(manifest)+'\n')
     (folder/'attempts.jsonl').write_text(''.join(json.dumps(r)+'\n' for r in imported))
+    if prior_attempts is not None:
+        (folder/'prior-attempts.json').write_text(json.dumps(prior_attempts, indent=2)+'\n')
     return {'questions': len(base['cases']), 'clusters': len({c['cluster'] for c in base['cases']}),
             'logical_forecasts': len(base['cases'])*270, 'unique_requests': len(planned_labels(manifest)),
             'imported': len(imported), 'new_requests': len(planned_labels(manifest))-len(imported),
@@ -205,11 +258,12 @@ def analyze(manifest, attempts):
                 'mixed_minus_sonnet_initial': loss('mixed', 'initial')-loss('sonnet', 'initial'),
                 **{team+'_exchange_minus_private': loss(team, 'exchange')-loss(team, 'private') for team in TEAMS}}
     current = [r for r in attempts if not r.get('imported')]
-    new_cost = sum(r.get('cost_usd', r['reserved_usd']) for r in current)
+    new_cost = manifest.get('carry_forward_accounted_usd', 0)+sum(r.get('cost_usd', r['reserved_usd']) for r in current)
     return {'planned_unique_requests': len(planned_labels(manifest)), 'selected_records': len(records),
             'completed_unique_requests': sum(r['status'] == 'completed' for r in records.values()),
             'missing_requests': len(planned_labels(manifest)-set(records)),
-            'new_attempts': len(current), 'transport_errors': sum(r['status'] == 'transport_error' for r in current),
+            'new_attempts': len(current)+manifest.get('amendment', {}).get('prior_new_attempts', 0),
+            'post_amendment_attempts': len(current), 'transport_errors': sum(r['status'] == 'transport_error' for r in current),
             'new_accounted_usd': new_cost, 'total_accounted_usd_with_prior_run': new_cost+manifest['baseline_accounted_usd'],
             'groups': groups, 'contrasts': contrasts, 'rows': rows,
             'intervals': None, 'interpretation': 'Descriptive historical comparison; only five provisional clusters, two previously inspected; no confirmatory intervals or equal-dollar claim'}

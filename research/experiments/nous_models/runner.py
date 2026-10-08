@@ -48,7 +48,7 @@ class Run:
         self.lock = threading.Lock()
         self.stop = threading.Event()
         self.last_progress = 0
-        self.spent = sum(r.get('cost_usd', r['reserved_usd']) for r in self.attempts if not r.get('imported'))
+        self.spent = self.manifest.get('carry_forward_accounted_usd', 0)+sum(r.get('cost_usd', r['reserved_usd']) for r in self.attempts if not r.get('imported'))
         verify_requests(self.manifest, self.attempts)
         if any(r['status'] == 'pending' or r.get('budget_error') for r in self.attempts):
             raise ValueError('Ambiguous pending or accounting-error attempt needs inspection')
@@ -62,7 +62,7 @@ class Run:
     def invoke(self, case, profile, population, stage, agent):
         name = label(case['id'], profile, population, stage, agent)
         for _ in range(self.manifest['maximum_attempts']):
-            if self.stop.is_set():
+            if self.stop.is_set() or (self.folder/'stop-requested').exists():
                 return
             with self.lock:
                 records = selected(self.attempts)
@@ -175,10 +175,11 @@ def main():
     sub = parser.add_subparsers(dest='command', required=True)
     p = sub.add_parser('prepare');p.add_argument('folder', type=Path)
     p.add_argument('--upstream', type=Path, required=True);p.add_argument('--baseline', type=Path, required=True)
+    p.add_argument('--prior', type=Path)
     p = sub.add_parser('run');p.add_argument('folder', type=Path)
     args = parser.parse_args()
     if args.command == 'prepare':
-        print(json.dumps(prepare(args.upstream, args.baseline, args.folder), indent=2))
+        print(json.dumps(prepare(args.upstream, args.baseline, args.folder, prior=args.prior), indent=2))
     else:
         with (args.folder/'run.lock').open('w') as lock:
             fcntl.flock(lock, fcntl.LOCK_EX|fcntl.LOCK_NB)

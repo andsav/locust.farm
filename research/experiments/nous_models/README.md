@@ -1,6 +1,6 @@
 # Nous: Luna, Sonnet and mixed teams
 
-Status: **protocol and runner implemented; execution pending**. This extends the
+Status: **live execution in progress; formatting amendment recorded**. This extends the
 [completed Luna profile experiment](../nous_transfer/results-2026-10-08.md) to
 separate model strength, model mixing, and communication effects. It does not
 change that experiment or discard its outputs.
@@ -63,7 +63,10 @@ Five provisional clusters and multiple exploratory contrasts do not justify a
 confirmatory claim; the report omits inferential intervals.
 
 The first non-transport result is retained, including truncated or schema-invalid
-outputs. Invalid forecasts receive the declared 0.5 scoring fallback. An invalid
+outputs. Parsing accepts strict JSON or exactly one forecast-schema JSON object
+surrounded by prose or Markdown fences. It does not coerce values, choose among
+multiple forecast objects, or regenerate an answer. The rule applies equally to
+both providers. Invalid forecasts receive the declared 0.5 scoring fallback. An invalid
 initial becomes an explicit unavailable marker in both revision branches, which
 can still produce forecasts from the supplied evidence. This is an explicit
 extension to the original downstream-blocking rule; it does not affect reused
@@ -77,6 +80,32 @@ attempt is journaled and reserved before network activity. Failed attempts retai
 their full reservation; all new attempts count against a **$100 ceiling**.
 Completed calls are never regenerated on resume. Pending attempts require
 inspection to avoid silently duplicating an ambiguous call.
+
+### Formatting amendment during execution
+
+The initial implementation required the entire response to be JSON. During the
+first 894 new completed calls, Sonnet sometimes returned a valid forecast object
+with surrounding prose. Marking those forecasts invalid would conflate format
+obedience with forecasting, and pass unavailable markers to peers unnecessarily.
+The run was interrupted and the symmetric unique-object parser above was frozen
+before continuation. This is a disclosed amendment after observing outputs,
+not a preregistered result. No probability or other field is repaired.
+
+The original run and all its 1,802 attempts remain intact: 900 prior Luna
+responses, 894 new completed calls and eight calls whose provider outcome became
+unknown on interruption. Their full reservations remain in the accounting.
+The first 900 responses and 746 further responses have identical reconstructed
+requests under the amendment and are reused. The 148 revisions whose request
+inputs change are retained as superseded attempts and regenerated with the
+correct initial messages. No regeneration is selected by forecast score.
+This leaves 2,554 calls to finish the amended 4,200-request comparison.
+The earlier new-attempt cost/reservations of $7.087970625 count toward the same
+$100 ceiling; the amended run does not reset the budget.
+
+The amended folder is `output/nous-models-formatted-2026-10-08/`. A
+`stop-requested` file now allows dispatch to stop between calls while in-flight
+requests finish. The original run lacked this mechanism, so its eight interrupted
+calls remain explicitly unknown rather than being claimed as failed or free.
 
 ## Provider settings and accounting
 
@@ -105,6 +134,11 @@ python3 -m unittest discover -s research/experiments/nous_models -v
 python3 research/experiments/nous_models/runner.py prepare output/nous-models-2026-10-08 --upstream output/nous-paper-review-2026-10-07 --baseline research/experiments/nous_transfer/completed-evidence-2026-10-08.json
 python3 research/experiments/nous_models/runner.py run output/nous-models-2026-10-08
 ```
+
+The current amended run was prepared with
+`prepare output/nous-models-formatted-2026-10-08` and the same arguments plus
+`--prior output/nous-models-2026-10-08`. Resume it using
+`run output/nous-models-formatted-2026-10-08`; the old folder is archival.
 
 Use Python 3.9.7 consistently for exact reproduction of the original exported
 floating point summaries. Preparation is offline and verifies the pinned

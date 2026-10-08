@@ -8,7 +8,7 @@ from unittest.mock import patch
 import urllib.error
 
 from study import (MODELS, analyze, code_hashes, digest, label, nt, read_attempts,
-                   request_body, selected, verify_requests)
+                   request_body, selected, valid_response, verify_requests)
 from runner import Run, cost
 
 
@@ -43,6 +43,19 @@ def public(body):
 
 
 class StudyTests(unittest.TestCase):
+    def test_prose_wrapped_forecast_parses_without_value_changes(self):
+        obj = {'probability': .37, 'evidence_ids': ['brief'], 'explanation': 'Public summary', 'used_peer_ids': []}
+        record = {'status': 'completed', 'text': 'A public introduction.\n```json\n'+json.dumps(obj)+'\n```'}
+        self.assertEqual(valid_response(record, fixture()['base']['cases'][0], 'initial', 0), obj)
+
+    def test_multiple_forecasts_and_invalid_values_are_not_repaired(self):
+        obj = {'probability': .37, 'evidence_ids': ['brief'], 'explanation': 'Summary', 'used_peer_ids': []}
+        record = {'status': 'completed', 'text': json.dumps(obj)+'\n'+json.dumps(obj)}
+        case = fixture()['base']['cases'][0]
+        self.assertIsNone(valid_response(record, case, 'initial', 0))
+        obj['probability'] = '0.37';record['text'] = 'Introduction: '+json.dumps(obj)
+        self.assertIsNone(valid_response(record, case, 'initial', 0))
+
     def test_mixed_peers_use_the_correct_models_without_names(self):
         m = fixture(); c = m['base']['cases'][0]; records = selected(starts(m))
         family, body = request_body(m, records, c, 'neutral', 'mixed', 'exchange', 0)
