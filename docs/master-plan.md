@@ -1,8 +1,8 @@
 # Locust v2: master plan
 
-Status: 7 October 2026. Phases 1 to 8 of the build order are built
+Status: 8 October 2026. Phases 1 to 9 of the build order are built
 (`65aecf1`, `48120a4`, `3196be8`, `cb1acaa`, `8c086c1`, `9c337df`,
-`e46450f`, `b135883`); the rest is proposed. Phase 5 is [reviewed](../research/v2-phase-r4-review-2026-10-06.md)
+`e46450f`, `b135883`, `daa1dac`); the rest is proposed. Phase 5 is [reviewed](../research/v2-phase-r4-review-2026-10-06.md)
 and its [fixes](../research/v2-phase-r4-fixes-2026-10-06.md) have landed.
 This is the one document the owner approves. The owner calls this work v2.
 Here v2 means everything in this plan up to and including the first public
@@ -335,7 +335,7 @@ From the [agent memory and store plan](agent-memory-and-store-plan.md):
 | Piece | Document | State |
 | --- | --- | --- |
 | Roles and permissions | [roles-and-permissions-plan.md](roles-and-permissions-plan.md), with its [companion](roles-and-permissions-plan-details.md) | Ten phases. Phases 1 to 3 are built. Two independent reviews are folded in, the second with every finding [checked](../research/v2-plan-review-verification-2026-10-06.md) first. |
-| Host safety and ending a goal | [host-safety-and-ending-plan.md](host-safety-and-ending-plan.md), with its [companion](host-safety-and-ending-plan-details.md) | Five phases: the signing key (K1), the restore guard (G1, G2), ending a goal (E1) and leaving (E2). K1 is built and [reviewed](../research/v2-phase-k1-review-2026-10-06.md): its core held and 32 smaller findings are open. G1 is [built](../research/v2-phase-g1-build-notes-2026-10-07.md). Corrected against the same review. One section lists what the host's computer signs by itself, with one rule. Three limits are stated at its top. |
+| Host safety and ending a goal | [host-safety-and-ending-plan.md](host-safety-and-ending-plan.md), with its [companion](host-safety-and-ending-plan-details.md) | Five phases: the signing key (K1), the restore guard (G1, G2), ending a goal (E1) and leaving (E2). K1 is built and [reviewed](../research/v2-phase-k1-review-2026-10-06.md): its core held and 32 smaller findings are open. G1 is [built](../research/v2-phase-g1-build-notes-2026-10-07.md), and so is [G2](../research/v2-phase-g2-build-notes-2026-10-08.md). Corrected against the same review. One section lists what the host's computer signs by itself, with one rule. Three limits are stated at its top. |
 | Public goals | [joinable-farms-plan.md](joinable-farms-plan.md) | Rewritten on 6 October 2026 as six phases, J1 to J6. Each phase is described by behaviour: what works, what a host and a joiner see, the records and rules, the tests. File-by-file changes are written when a phase's turn comes. Checked once for agreement with the owner's answers and the other plans and once for fit with the code, and revised. |
 | Agent memory and store | [agent-memory-and-store-plan.md](agent-memory-and-store-plan.md) | Approved as phases alongside v2, listed under [Build order](#build-order). A1, A3 and S1a, the removal half of S1, are built; the rest are not. R7's early run needs its H1a. |
 | Replacing a host | [first round](../research/replacing-a-host-2026-10-05.md), [design and its check](../research/replacing-a-host-design-2026-10-06.md) | After v2. One design is written, attacked and revised. A last check found no fatal break and eight serious ones, each with a named fix that is not applied. Not phases. |
@@ -364,7 +364,7 @@ and runs them before it is done.
 | 6 | R5 | Plain `status` is the one view; refusals read the same to a person and to an agent. Built | R2 to R4 |
 | 7 | R6 | Guides, site and skill say what the code does. Built | R1 to R5 |
 | 8 | G1 | A computer knows what it signed; started from an older copy, it signs nothing in the affected goals until it has caught up; after a whole-computer restore or a move, the goals a person hosts wait for one command. Built | R1 to R6, K1 |
-| 9 | G2 | Status and refusals say "catching up" and what each wait is on; the person has the one command that continues | G1, R2 to R6 |
+| 9 | G2 | Status and refusals say "catching up" and what each wait is on; the person has the one command that continues. Built | G1, R2 to R6 |
 | 10 | E1 | The host ends a goal with one command; nothing new is recorded on any computer that has learned of it | R1 to R6, K1, G1, G2 |
 | 11 | E2 | A member that leaves is removed by the host's computer with nobody asked; disconnecting the agent a goal was started with says what waits until it is connected again | E1 |
 | 12 | R7 | The recipes pass, the journeys are counted, and a first run with several real agents is made | all above, and H1a of the agent memory and store plan |
