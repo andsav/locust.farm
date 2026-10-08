@@ -587,7 +587,11 @@ pub enum Request {
     #[serde(rename = "attempt.start")]
     AttemptStart {
         goal: GoalId,
-        task: TaskId,
+        /// Leave it out to get back this session's claim, or else an attempt
+        /// on the first task to start that nobody attempts, as far as this
+        /// computer has heard. With neither, nothing is signed and the answer
+        /// is the pending work.
+        task: Option<TaskId>,
         offer: Option<EventId>,
     },
     #[serde(rename = "attempt.takeover")]
@@ -911,7 +915,7 @@ operations! {
     TaskOpen { .. } => ("task.open", false, true, Agent, true, "Opens a task from its text, whose first line is its title, with named inputs, an optional task type and an optional parent. A task with a parent follows that parent's rules, others the goal's current rules."),
     TaskRevise { .. } => ("task.revise", false, true, Host, false, "task revise"),
     WorkOffer { .. } => ("work.offer", false, true, Agent, true, "Offers a task to one named member, where the goal's rules let the caller offer to that member. The member then starts an attempt with the offer or declines it; an offer alone is not an attempt."),
-    AttemptStart { .. } => ("attempt.start", false, true, Agent, true, "Takes a task: starts an attempt on it, or recovers this session's claim on the same task and offer. The goal's rules and the agent's level decide whether it may."),
+    AttemptStart { .. } => ("attempt.start", false, true, Agent, true, "Takes a task: starts an attempt on it, or recovers this session's claim on the same task and offer. With no task, returns this session's claim or starts a task nobody attempts, else answers pending. Rules and level decide."),
     AttemptTakeover { .. } => ("attempt.takeover", false, true, Agent, true, "Takes over an attempt another session of this agent holds, after that session's work was checked. A held claim does not prove a process is running."),
     WorkDecline { .. } => ("work.decline", false, true, Agent, true, "Declines a work offer made to the caller, so the task is not started through it. Only the offer's recipient may decline, and only an offer it has not yet accepted or declined."),
     AttemptCancel { .. } => ("attempt.cancel", false, true, Agent, true, "Asks the worker to stop one attempt; only its worker or the member who offered it may ask. Once the request arrives, the attempt takes no more results or progress, and its worker must acknowledge it."),
@@ -1111,6 +1115,14 @@ impl Request {
                 ErrorCode::LimitExceeded,
                 "too many content hashes",
             )),
+            Self::AttemptStart {
+                task: None,
+                offer: Some(_),
+                ..
+            } => Err(ApiError::new(
+                ErrorCode::Invalid,
+                "an offer belongs to a task; name the task too",
+            )),
             Self::SessionReport { record } => record.check(),
             _ => Ok(()),
         }
@@ -1186,7 +1198,12 @@ impl Request {
             Self::TaskOpen { .. } => matches!(response, Response::Recorded { .. }),
             Self::TaskRevise { .. } => matches!(response, Response::Recorded { .. }),
             Self::WorkOffer { .. } => matches!(response, Response::Recorded { .. }),
-            Self::AttemptStart { .. } => matches!(response, Response::Claimed(_)),
+            // Without a task there may be nothing to take; the client checks
+            // that only such a start is answered with pending work.
+            Self::AttemptStart { task: Some(_), .. } => matches!(response, Response::Claimed(_)),
+            Self::AttemptStart { task: None, .. } => {
+                matches!(response, Response::Claimed(_) | Response::Pending(_))
+            }
             Self::AttemptTakeover { .. } => matches!(response, Response::Claimed(_)),
             Self::WorkDecline { .. } => matches!(response, Response::Recorded { .. }),
             Self::AttemptCancel { .. } => matches!(response, Response::Recorded { .. }),
@@ -1349,7 +1366,8 @@ pub enum Response {
     /// Answers `attempt.start` and `attempt.takeover` with the claim the calling
     /// session now holds.
     Claimed(Claim),
-    /// Answers `pending`.
+    /// Answers `pending`, and `attempt.start` without a task when every task
+    /// the caller may start is attempted; nothing is signed then.
     Pending(PendingWork),
     PendingPage(PendingPage),
     /// Answers `wait`.
@@ -2258,6 +2276,47 @@ mod tests {
             event: EventId([3; 32])
         }));
         assert!(!request.is_answered_by(&Response::Done));
+    }
+    #[test]
+    fn only_a_start_without_a_task_is_answered_with_pending_work() {
+        let task = crate::event::TaskId::Authored(EventId([2; 32]));
+        let start = |task, offer| Request::AttemptStart {
+            goal: GoalId([1; 32]),
+            task,
+            offer,
+        };
+        let claim = Response::Claimed(Claim {
+            goal: GoalId([1; 32]),
+            task,
+            attempt: EventId([3; 32]),
+            instance: InstanceId([4; 16]),
+            generation: 1,
+        });
+        let pending = Response::Pending(PendingWork::default());
+        let next = start(None, None);
+        assert!(next.check().is_ok());
+        assert!(next.is_answered_by(&claim));
+        assert!(next.is_answered_by(&pending));
+        assert!(!next.is_answered_by(&Response::Done));
+        let named = start(Some(task), Some(EventId([5; 32])));
+        assert!(named.check().is_ok());
+        assert!(named.is_answered_by(&claim));
+        assert!(!named.is_answered_by(&pending));
+        let refused = start(None, Some(EventId([5; 32]))).check().unwrap_err();
+        assert_eq!(refused.code, ErrorCode::Invalid);
+        assert_eq!(
+            refused.message,
+            "an offer belongs to a task; name the task too"
+        );
+        // The task field is optional in the schema every surface reads.
+        let schema = operation_schema("attempt.start").unwrap();
+        assert_eq!(schema["required"], serde_json::json!(["goal"]));
+        assert!(
+            serde_json::from_value::<Request>(
+                serde_json::json!({"attempt.start":{"goal":GoalId([1;32])}})
+            )
+            .is_ok_and(|request| request == next)
+        );
     }
     #[test]
     fn obsolete_operations_and_invented_fields_are_rejected() {

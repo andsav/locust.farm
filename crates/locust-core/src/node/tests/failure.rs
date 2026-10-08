@@ -532,7 +532,7 @@ fn cancellation_acknowledgment_and_terminal_report_commit_together() {
             agent,
             Request::AttemptStart {
                 goal,
-                task,
+                task: Some(task),
                 offer: Some(offer),
             },
         ) else {

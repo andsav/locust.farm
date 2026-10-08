@@ -29,7 +29,7 @@ fn tla_sessions_aba_delayed_write_and_idempotent_retry_survive_reopen() {
         a,
         Request::AttemptStart {
             goal,
-            task,
+            task: Some(task),
             offer: Some(offer),
         },
     ) else {
@@ -66,7 +66,7 @@ fn tla_sessions_aba_delayed_write_and_idempotent_retry_survive_reopen() {
         a,
         Request::AttemptStart {
             goal,
-            task,
+            task: Some(task),
             offer: Some(offer),
         },
     ) else {

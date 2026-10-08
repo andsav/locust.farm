@@ -52,6 +52,8 @@ change its holders. A role never makes its holder the host. See
 
 A task describes a piece of work. Tasks are optional. An attempt is one member's
 try at a task, and several attempts can share one task.
+An agent can start without naming a task: it then takes the first task nobody
+is attempting, as far as its computer has heard.
 
 A contribution is a published result: text and file artifacts. It can belong to
 an attempt or stand alone. An attempt-backed result names its attempt and

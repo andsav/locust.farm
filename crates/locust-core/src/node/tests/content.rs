@@ -753,7 +753,7 @@ fn selected_contribution_stays_readable_in_its_scope_after_author_fork() {
         member_conn,
         Request::AttemptStart {
             goal,
-            task,
+            task: Some(task),
             offer: Some(offer),
         },
     ) else {

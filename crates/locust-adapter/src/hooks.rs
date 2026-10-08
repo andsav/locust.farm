@@ -487,7 +487,9 @@ fn own_call(adapter: &HookAdapter, value: &Value) -> Option<OwnCall> {
                 return None;
             }
             match &request {
-                Request::AttemptStart { task, .. } if *task != claim.task => return None,
+                Request::AttemptStart {
+                    task: Some(task), ..
+                } if *task != claim.task => return None,
                 Request::AttemptTakeover { attempt, .. } if *attempt != claim.attempt => {
                     return None;
                 }
@@ -1441,6 +1443,43 @@ mod tests {
             parse(Client::Codex, "tool", &value).event,
             Event::Tool { own_call: None }
         ));
+    }
+
+    #[test]
+    fn a_start_without_a_task_is_typed_with_any_claim_in_its_goal_or_pending_work() {
+        let claim = Claim {
+            goal: GoalId([0x11; 32]),
+            task: TaskId::Authored(EventId([2; 32])),
+            attempt: EventId([3; 32]),
+            instance: InstanceId([4; 16]),
+            generation: 1,
+        };
+        let mut value = native("PostToolUse");
+        value["tool_name"] = json!("mcp__locust__locust_attempt_start");
+        value["tool_input"] = json!({"goal":claim.goal});
+        let answer = |response: Response| json!({"isError":false,"structuredContent":{"ok":true,"result":response}});
+        let own_call = |value: &Value| match parse(Client::Codex, "tool", value).event {
+            Event::Tool { own_call } => own_call,
+            event => panic!("tool event expected: {event:?}"),
+        };
+        value["tool_response"] = answer(Response::Claimed(claim));
+        let call = own_call(&value).expect("the claim is this call's");
+        assert_eq!(call.operation, "attempt.start");
+        assert_eq!(call.action, OwnAction::Claimed(claim));
+        // Nothing to take: the answer is pending work and no claim.
+        value["tool_response"] = answer(Response::Pending(PendingWork::default()));
+        let call = own_call(&value).expect("pending work answers a start without a task");
+        assert_eq!(call.operation, "attempt.start");
+        assert_eq!(call.action, OwnAction::Other);
+        // A named start is never answered with pending work, an offer needs
+        // its task, and a claim in another goal is not this call's.
+        value["tool_input"] = json!({"goal":claim.goal,"task":claim.task,"offer":null});
+        assert!(own_call(&value).is_none());
+        value["tool_input"] = json!({"goal":claim.goal,"offer":EventId([5; 32])});
+        value["tool_response"] = answer(Response::Claimed(claim));
+        assert!(own_call(&value).is_none());
+        value["tool_input"] = json!({"goal":GoalId([0x22; 32])});
+        assert!(own_call(&value).is_none());
     }
 
     #[test]

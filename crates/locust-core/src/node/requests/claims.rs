@@ -84,16 +84,40 @@ pub(super) fn active_attempt(
 }
 
 impl<S: Store, E: Entropy> Node<S, E> {
+    /// Starts an attempt on the named task. With no task, it answers this
+    /// session's live claim, else starts the first task to start that nobody
+    /// attempts, as far as this daemon has heard, else answers the pending
+    /// work and signs nothing. One request plans and lands the pick, so two
+    /// sessions on this daemon never take the same task.
     pub(super) fn attempt_start(
         &self,
         actor: &Actor,
         goal: GoalId,
-        task: TaskId,
+        task: Option<TaskId>,
         offer: Option<EventId>,
         now: u64,
     ) -> Plan {
         let (entry, principal) = self.member(actor, &goal)?;
         let instance = actor.session()?;
+        let (task, offer) = match task {
+            Some(task) => (task, offer),
+            None => {
+                // Validate an existing binding; an answer that signs nothing
+                // binds nothing.
+                self.sessions.bind(&instance, &principal)?;
+                let work = self.pending_work(entry, actor);
+                if let Some(claim) = work.claimed.first() {
+                    return answer(Response::Claimed(*claim));
+                }
+                // `unattended` counts every running attempt in the round,
+                // this member's own in other sessions too; `attempting`
+                // leaves those out.
+                match work.to_start.iter().find(|item| item.unattended) {
+                    Some(item) => (item.task, item.offer),
+                    None => return answer(Response::Pending(work)),
+                }
+            }
+        };
         let context = task_context(entry, task)?;
         // Retrying on the same session recovers its durable claim. Independent
         // attempts by other sessions remain independent shared facts.

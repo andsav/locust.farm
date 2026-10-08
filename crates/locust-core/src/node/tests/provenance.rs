@@ -265,7 +265,7 @@ fn inspection_traces_the_exact_attempt_and_task_round() {
         agent,
         Request::AttemptStart {
             goal,
-            task,
+            task: Some(task),
             offer: Some(offer),
         },
     ) else {

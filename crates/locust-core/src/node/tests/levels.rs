@@ -32,7 +32,7 @@ fn a_refused_start_is_not_stored_and_the_task_can_be_allowed_for_its_round() {
             agent,
             Request::AttemptStart {
                 goal,
-                task,
+                task: Some(task),
                 offer: Some(offer),
             },
         )
@@ -71,7 +71,7 @@ fn a_refused_start_is_not_stored_and_the_task_can_be_allowed_for_its_round() {
         agent,
         Request::AttemptStart {
             goal,
-            task,
+            task: Some(task),
             offer: Some(offer),
         },
     ) else {
@@ -108,7 +108,7 @@ fn replay_refusal_precedes_local_level_and_owner_act_persists() {
             agent,
             Request::AttemptStart {
                 goal,
-                task,
+                task: Some(task),
                 offer: None,
             },
         )
@@ -560,7 +560,7 @@ fn disallow_reports_hidden_allowance_and_wanted_record_truthfully() {
             agent,
             Request::AttemptStart {
                 goal,
-                task,
+                task: Some(task),
                 offer: Some(offer)
             }
         )),

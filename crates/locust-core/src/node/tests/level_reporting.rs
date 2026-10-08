@@ -36,7 +36,7 @@ fn read_agent_can_report_and_complete_only_after_its_result_was_posted() {
         agent,
         Request::AttemptStart {
             goal,
-            task,
+            task: Some(task),
             offer: Some(offer),
         },
     ) else {
@@ -140,7 +140,7 @@ fn read_agent_can_decline_and_acknowledge_a_prior_cancellation() {
         agent,
         Request::AttemptStart {
             goal,
-            task,
+            task: Some(task),
             offer: Some(offer),
         },
     ) else {
@@ -231,7 +231,7 @@ fn task_result_requires_the_authors_attempt_and_claiming_session() {
         agent,
         Request::AttemptStart {
             goal,
-            task,
+            task: Some(task),
             offer: Some(offer),
         },
     ) else {
@@ -365,7 +365,7 @@ fn hidden_closed_allowance_is_revoked_and_does_not_return_on_reopen() {
             agent,
             Request::AttemptStart {
                 goal,
-                task,
+                task: Some(task),
                 offer: Some(offer)
             }
         )),

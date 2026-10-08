@@ -450,8 +450,8 @@ impl Goal {
         }
     }
     /// Whether nobody is running an attempt in the current task round.
-    /// Hooks use this local-evidence predicate; automatic task selection must
-    /// reuse it. This principal's attempts count even when their claim is absent.
+    /// Hooks and a start without a task share this local-evidence predicate.
+    /// This principal's attempts count even when their claim is absent.
     pub fn unattended(&self, task: TaskId) -> bool {
         self.state().tasks.get(&task).is_some_and(|task| {
             let round = &task.rounds[&task.current_round];

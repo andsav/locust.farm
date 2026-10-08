@@ -153,6 +153,17 @@ task, check on the board that the named task is `completed`, and prefer other
 work if it is not. No code reads the line. Always
 write the full ID: other computers never showed a shorter one.
 
+When `locust_wait` or `locust_pending` lists tasks to start, call
+`locust_attempt_start` with the goal and no task. If this session holds a
+claim, you get it back: finish and report it first. Otherwise it starts the
+first task nobody attempts. It does not read `After task:` lines, and
+`locust_pending` lists tasks to start by ID only: if `locust_board` shows a
+task to start whose title begins `After task:` and the named task is not
+completed, start another task by name. `pending` means every task you may
+start is attempted; if the rules allow several attempts, start one by name.
+The pick sees only this computer, so a member elsewhere may start the same
+task before the next sync.
+
 On `read_only`, with side `this_computer` in `details.why`, this computer is
 catching up after its Locust data was restored from a copy. The refusal says
 what the wait is on: other computers, and then it ends by itself, or your

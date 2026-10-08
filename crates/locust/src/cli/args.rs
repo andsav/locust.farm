@@ -534,6 +534,41 @@ mod tests {
         ));
     }
     #[test]
+    fn attempt_start_parses_without_a_task() {
+        let goal = "01".repeat(32);
+        let matches = command()
+            .try_get_matches_from(["locust", "attempt", "start", "--goal", &goal])
+            .unwrap();
+        let (name, fields) = selected(&matches);
+        let request = serde_json::from_value::<locust_proto::api::Request>(
+            serde_json::json!({name.as_str():values(&name,fields).unwrap()}),
+        )
+        .unwrap();
+        assert!(matches!(
+            request,
+            locust_proto::api::Request::AttemptStart {
+                task: None,
+                offer: None,
+                ..
+            }
+        ));
+        // A named task still parses as before.
+        let task = format!("task:{}", "02".repeat(32));
+        let matches = command()
+            .try_get_matches_from([
+                "locust", "attempt", "start", "--goal", &goal, "--task", &task,
+            ])
+            .unwrap();
+        let (name, fields) = selected(&matches);
+        assert!(matches!(
+            serde_json::from_value::<locust_proto::api::Request>(
+                serde_json::json!({name.as_str():values(&name,fields).unwrap()}),
+            )
+            .unwrap(),
+            locust_proto::api::Request::AttemptStart { task: Some(_), .. }
+        ));
+    }
+    #[test]
     fn old_commands_are_removed_and_catalog_has_nested_commands() {
         assert!(
             command()

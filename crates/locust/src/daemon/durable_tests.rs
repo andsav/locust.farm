@@ -263,7 +263,7 @@ fn unix_sqlite_claims_and_idempotent_events_survive_restart_and_finish() {
     let Response::Claimed(claim) = agent
         .call(Request::AttemptStart {
             goal,
-            task,
+            task: Some(task),
             offer: Some(assignment),
         })
         .unwrap()
@@ -301,7 +301,7 @@ fn unix_sqlite_claims_and_idempotent_events_survive_restart_and_finish() {
         agent
             .call(Request::AttemptStart {
                 goal,
-                task,
+                task: Some(task),
                 offer: Some(assignment)
             })
             .unwrap(),
@@ -623,7 +623,7 @@ fn two_real_daemons_join_claim_sync_large_payload_and_accept() {
     let Response::Claimed(claim) = w
         .call(Request::AttemptStart {
             goal,
-            task,
+            task: Some(task),
             offer: Some(assignment),
         })
         .unwrap()

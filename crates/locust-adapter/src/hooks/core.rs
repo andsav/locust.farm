@@ -312,7 +312,10 @@ pub fn observe(call: &OwnCall, instance: InstanceId, marks: &mut Marks) -> bool 
     ) {
         marks.worker = true;
     }
-    if !operation.read_only && !STOP_RULE_NEUTRAL.contains(&operation.name) {
+    // A start without a task that found nothing to take is answered with
+    // pending work, not a claim, and signed nothing: it is no progress either.
+    let started_nothing = operation.name == "attempt.start" && call.action == OwnAction::Other;
+    if !operation.read_only && !STOP_RULE_NEUTRAL.contains(&operation.name) && !started_nothing {
         // A write is progress: work shown before it may block once more.
         // A held claim stays shown until its generation changes, so a
         // progress note on the claim does not block its own turn end again.
@@ -921,6 +924,26 @@ mod tests {
             needed: 1,
             verdicts: vec![],
         }
+    }
+
+    #[test]
+    fn a_start_that_found_nothing_to_take_does_not_block_its_turn_end_again() {
+        let work = snapshot(PendingWork {
+            to_review: vec![review(9)],
+            ..PendingWork::default()
+        });
+        let mut marks = participant(true);
+        assert!(decide(STOP, &work, &mut marks).keep_going);
+        // A start without a task answered with pending work signed nothing,
+        // so the review already shown does not block again.
+        assert!(observe(&call("next-1", "attempt.start"), &mut marks));
+        assert!(marks.worker);
+        assert_eq!(decide(STOP, &work, &mut marks), Outcome::default());
+        // A start that took a task is progress.
+        let mut started = call("next-2", "attempt.start");
+        started.action = OwnAction::Claimed(claim(4, InstanceId([2; 16])));
+        assert!(observe(&started, &mut marks));
+        assert!(decide(STOP, &work, &mut marks).keep_going);
     }
 
     #[test]

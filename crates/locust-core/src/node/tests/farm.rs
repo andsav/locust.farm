@@ -224,7 +224,7 @@ fn multiple_attempts_are_reported_and_history_observation_is_unknown() {
         agent,
         Request::AttemptStart {
             goal,
-            task,
+            task: Some(task),
             offer: Some(offer),
         },
     ) else {
@@ -247,7 +247,7 @@ fn multiple_attempts_are_reported_and_history_observation_is_unknown() {
         agent,
         Request::AttemptStart {
             goal,
-            task: other_task,
+            task: Some(other_task),
             offer: Some(other_offer),
         },
     );
@@ -666,7 +666,7 @@ fn actual_parallel_flow_projects_approved_dag_and_revised_task_rounds() {
             agent,
             Request::AttemptStart {
                 goal,
-                task,
+                task: Some(task),
                 offer: None,
             },
         ) else {
@@ -942,7 +942,7 @@ fn duplicate_upstream_stage_prerequisites_are_deduplicated_in_snapshot() {
             agent,
             Request::AttemptStart {
                 goal,
-                task,
+                task: Some(task),
                 offer: None,
             },
         ) else {

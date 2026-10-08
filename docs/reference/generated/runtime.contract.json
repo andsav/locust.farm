@@ -2850,13 +2850,13 @@
                 "long": "task",
                 "name": "task",
                 "positional": false,
-                "required": true,
+                "required": false,
                 "short": null
               }
             ],
             "commands": [],
             "name": "start",
-            "summary": "Takes a task: starts an attempt on it, or recovers this session's claim on the same task and offer. The goal's rules and the agent's level decide whether it may."
+            "summary": "Takes a task: starts an attempt on it, or recovers this session's claim on the same task and offer. With no task, returns this session's claim or starts a task nobody attempts, else answers pending. Rules and level decide."
           },
           {
             "arguments": [
@@ -7402,7 +7402,7 @@
       "mcp_tool": "locust_attempt_start",
       "name": "attempt.start",
       "read_only": false,
-      "summary": "Takes a task: starts an attempt on it, or recovers this session's claim on the same task and offer. The goal's rules and the agent's level decide whether it may."
+      "summary": "Takes a task: starts an attempt on it, or recovers this session's claim on the same task and offer. With no task, returns this session's claim or starts a task nobody attempts, else answers pending. Rules and level decide."
     },
     {
       "audience": "agent",
@@ -10498,12 +10498,19 @@
                 ]
               },
               "task": {
-                "$ref": "#/$defs/TaskId"
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/TaskId"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Leave it out to get back this session's claim, or else an attempt\non the first task to start that nobody attempts, as far as this\ncomputer has heard. With neither, nothing is signed and the answer\nis the pending work."
               }
             },
             "required": [
-              "goal",
-              "task"
+              "goal"
             ],
             "type": "object"
           }
@@ -17982,7 +17989,7 @@
       },
       {
         "additionalProperties": false,
-        "description": "Answers `pending`.",
+        "description": "Answers `pending`, and `attempt.start` without a task when every task\nthe caller may start is attempted; nothing is signed then.",
         "properties": {
           "pending": {
             "$ref": "#/$defs/PendingWork"
