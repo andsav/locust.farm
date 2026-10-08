@@ -208,6 +208,15 @@ class Gate(unittest.TestCase):
         passed, reasons, facts = run.gate(trials)
         self.assertTrue(passed, reasons)
         self.assertAlmostEqual(facts['maxcut/independent/hidden_range'], 0.03)
+        self.assertEqual(facts['independent_trials_below_hidden_range'], [])
+
+    def test_a2_passes_when_one_independent_trial_has_spread(self):
+        trials = [self.trial('maxcut', 'independent', [0.95, 0.953, 0.963]), self.trial('maxcut', 'shared', [0.955, 0.956, 0.96], posts=2, reads=1),
+                  self.trial('vertex_cover', 'independent', [0.9475, 0.948, 0.9498]), self.trial('vertex_cover', 'solo', [0.957])]
+        passed, reasons, facts = run.gate(trials)
+        self.assertTrue(passed, reasons)
+        self.assertEqual(facts['independent_trials_with_hidden_range'], ['maxcut/independent'])
+        self.assertEqual(facts['independent_trials_below_hidden_range'], ['vertex_cover/independent'])
 
     def test_fails_on_saturation_or_missing_delivery(self):
         saturated = [self.trial('maxcut', 'independent', [1.0, 1.0, 1.0]), self.trial('maxcut', 'shared', [1.0, 1.0, 1.0], posts=1, reads=1),
@@ -216,6 +225,11 @@ class Gate(unittest.TestCase):
         self.assertFalse(passed)
         self.assertTrue(any('hidden range' in r for r in reasons))
         self.assertTrue(any('beat the reference' in r for r in reasons))
+        narrow = [self.trial('maxcut', 'independent', [0.95, 0.951, 0.952]), self.trial('maxcut', 'shared', [0.95, 0.96, 0.97], posts=1, reads=1),
+                  self.trial('vertex_cover', 'independent', [0.9475, 0.948, 0.9498]), self.trial('vertex_cover', 'solo', [0.957])]
+        passed, reasons, _ = run.gate(narrow)
+        self.assertFalse(passed)
+        self.assertTrue(any('no independent trial reached hidden range' in r for r in reasons))
         undelivered = [self.trial('maxcut', 'independent', [0.9, 1.0, 1.1]), self.trial('maxcut', 'shared', [0.9, 1.0, 1.1], posts=0, reads=0),
                        self.trial('vertex_cover', 'independent', [0.9, 1.0, 1.1]), self.trial('vertex_cover', 'solo', [0.9])]
         passed, reasons, _ = run.gate(undelivered)

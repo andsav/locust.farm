@@ -193,7 +193,8 @@ def table(result):
 def package(output, evidence):
     output, evidence = Path(output), Path(evidence)
     evidence.mkdir(parents=True, exist_ok=True)
-    for name in ('manifest.json', 'ledger.json', 'calibration-gate.json', 'daemon-events.jsonl'):
+    for name in ('manifest.json', 'ledger.json', 'calibration-gate.json', 'calibration-gate-preregistered-rule.json',
+                 'daemon-events.jsonl'):
         if (output / name).exists():
             shutil.copy2(output / name, evidence / name)
     for path in sorted((output / 'trials').glob('*/*.json')):

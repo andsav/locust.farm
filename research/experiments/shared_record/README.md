@@ -107,7 +107,9 @@ The scored phase runs only if all of the following hold (`run.py`, `gate`):
 2. In each group trial at least two agents, and in the solo trial the agent,
    produced a candidate valid on every public instance.
 3. In each independent trial, the three agents' final candidates' hidden
-   scores span at least 0.005.
+   scores span at least 0.005. (Relaxed post hoc by
+   [Amendment A2](#amendment-a2-post-hoc-8-october-2026-after-calibration-2s-verdict)
+   to: in at least one independent trial.)
 4. In the shared trial, at least one finding was published with a receipt and
    at least one read by a different agent returned a peer's finding.
 5. At least one calibration candidate scored below 1.0 on hidden instances.
@@ -256,6 +258,46 @@ log were moved to `voided/calibration-attempt-2-network-outage/` and are
 retained with the evidence. Nothing else was rerun or changed. If the rerun's
 gate passes, the scored phase proceeds under the original rule of no retries:
 a transport failure in a scored trial stays in that trial's result.
+
+## Amendment A2 (post hoc, 8 October 2026, after calibration 2's verdict)
+
+This amendment weakens the preregistration and is labelled as such. The
+vertex-cover rerun completed with no transport failures and the gate failed
+on one criterion only: `vertex_cover/independent` hidden range 0.0024, below
+0.005. Every other criterion passed: `maxcut/independent` range 0.0113; all
+agents produced fully valid candidates; the shared trial posted 33 findings
+and 13 reads returned peer findings; best hidden 0.9473. Calibration 2 cost
+$1.23 in total, $1.93 with calibration 1.
+
+The vertex-cover result is not the saturation criterion 3 was written to
+catch. In calibration 1 every candidate of every agent had one hidden score.
+In calibration 2 candidates within one agent ranged from 0.948 to 0.968,
+agents were still improving when their allowances ran out, and the solo agent
+with three times the allowance finished at 0.9568, 0.009 behind the best
+independent agent. The three independent agents simply ended close together.
+
+Decision, by the repository owner when asked: proceed to the scored phase
+under a relaxed criterion 3, "at least one independent calibration trial
+spans 0.005", rather than stop or tune the development family again. `run.py`
+records which rule applied in the gate output; the verdict under the
+preregistered rule is kept as `calibration-gate-preregistered-rule.json` with
+the evidence. The held-out set, arms, allowances, selector, analysis plan and
+ceilings are unchanged.
+
+Consequence for interpretation: the study no longer has calibration evidence
+that between-agent spread exists on every family of this kind. The scored
+phase measures that spread directly on each held-out task (the
+complementarity diagnostic), and the results note must report, per task,
+whether the independent agents spread by at least the smallest effect of
+interest before any shared-versus-independent difference on that task is
+read as informative.
+
+Two development-family observations from calibration 2 are recorded here so
+that they are not mistaken for scored results later: on maxcut, shared
+(0.9558) finished 0.004 behind independent (0.9516), with its three agents
+within 0.005 of one another while the independents spread over 0.011; on
+vertex cover, independent (0.9475) finished 0.009 ahead of solo (0.9568) at
+the same total allowance. One trial each.
 
 ## What this does not test
 
