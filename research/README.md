@@ -27,6 +27,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 - [Locust v2 A2: start the next task](v2-phase-a2-build-notes-2026-10-08.md)
 - [Review of side phases A2 and S1b as built](v2-side-a2-s1b-review-2026-10-08.md)
 - [Members not syncing on the local-network profile while the host is away](lan-sync-host-offline-2026-10-07.md)
+- [Locust v2 S1b: a failed start says what to do](v2-phase-s1b-build-notes-2026-10-08.md)
 
 - [A2A and Locust](a2a-assessment.md)
 - [Agent ergonomics audit and proposals](agent-ergonomics-2026-10-05.md)
