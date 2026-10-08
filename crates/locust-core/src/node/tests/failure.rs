@@ -12,6 +12,9 @@ struct Failing {
     inner: MemStore,
     fail: Rc<Cell<Option<bool>>>,
     effect_only: bool,
+    /// The injected failure finds stored data damaged rather than the
+    /// medium failed.
+    corrupt: bool,
 }
 impl Store for Failing {
     fn commit(&mut self, tx: &Commit) -> Result<(), StoreError> {
@@ -27,7 +30,11 @@ impl Store for Failing {
             if after {
                 self.inner.commit(tx)?;
             }
-            return Err(StoreError::Failed("injected durability failure".into()));
+            return Err(if self.corrupt {
+                StoreError::Corrupted("injected corruption".into())
+            } else {
+                StoreError::Failed("injected durability failure".into())
+            });
         }
         self.inner.commit(tx)
     }
@@ -138,6 +145,7 @@ fn failed_commit_before_or_after_durability_fences_node_and_reopen_resolves_outc
                 inner: store.reopen(),
                 fail: fail.clone(),
                 effect_only: false,
+                corrupt: false,
             },
             Counting::new(31),
             OWNER.digest(),
@@ -227,6 +235,46 @@ fn failed_commit_before_or_after_durability_fences_node_and_reopen_resolves_outc
 }
 
 #[test]
+fn a_failure_while_opening_keeps_its_kind_and_is_worded_once() {
+    for (corrupt, expected) in [
+        (true, StoreError::Corrupted("injected corruption".into())),
+        (
+            false,
+            StoreError::Failed("injected durability failure".into()),
+        ),
+    ] {
+        let store = MemStore::new();
+        let first = Node::open(
+            store.reopen(),
+            Counting::new(41),
+            OWNER.digest(),
+            "test".into(),
+            0,
+        );
+        assert!(first.is_ok());
+        drop(first);
+        // The file now reports a creation time, so the guard's commit at the
+        // next start records it again, after the node has loaded the store.
+        store.report_creation_time(Some(1));
+        let Err(error) = Node::open(
+            Failing {
+                inner: store.reopen(),
+                fail: Rc::new(Cell::new(Some(false))),
+                effect_only: false,
+                corrupt,
+            },
+            Counting::new(42),
+            OWNER.digest(),
+            "test".into(),
+            0,
+        ) else {
+            panic!("the start must fail at the guard's commit")
+        };
+        assert_eq!(error, expected);
+    }
+}
+
+#[test]
 fn exhausted_revision_refuses_before_changing_the_goal_projection() {
     let (mut daemon, _, _, agent, goal) = super::lifecycle::setup();
     let mut tx = crate::node::commit::Tx::none();
@@ -259,6 +307,7 @@ fn effect_and_recipient_records_commit_atomically_and_uncertain_commit_requires_
                 inner: store.reopen(),
                 fail: fail.clone(),
                 effect_only: true,
+                corrupt: false,
             },
             Counting::new(83),
             OWNER.digest(),
@@ -332,6 +381,7 @@ fn recipient_inbox_commit_failure_never_issues_a_positive_receipt_before_reopen(
                 inner: fixture.recipient.reopen(),
                 fail: fail.clone(),
                 effect_only: false,
+                corrupt: false,
             },
             Counting::new(91),
             OWNER.digest(),
@@ -445,6 +495,7 @@ fn sender_receipt_commit_failure_keeps_memory_pending_and_reopen_resolves_durabi
                 inner: fixture.sender.reopen(),
                 fail: fail.clone(),
                 effect_only: false,
+                corrupt: false,
             },
             Counting::new(94),
             OWNER.digest(),
@@ -553,6 +604,7 @@ fn cancellation_acknowledgment_and_terminal_report_commit_together() {
                     inner: d.store.reopen(),
                     fail: fail.clone(),
                     effect_only: false,
+                    corrupt: false,
                 },
                 Counting::new(91),
                 OWNER.digest(),

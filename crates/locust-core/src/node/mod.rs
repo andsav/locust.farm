@@ -208,17 +208,14 @@ impl<S: Store, E: Entropy> Node<S, E> {
         // Before any signature: the first `drive_flow` below signs with no
         // peer heard, so the guard must already hold what it holds.
         let found = node.store.marks()?;
-        node.guard_start(found, now_ms)
-            .map_err(|error| StoreError::Failed(error.to_string()))?;
+        node.guard_start(found, now_ms).map_err(settling)?;
         let ids: Vec<_> = node.goals.keys().copied().collect();
         for id in ids {
             let mut tx = commit::Tx::none();
             node.guard_settle(id, &mut tx);
             node.project_deliveries(id, &mut tx);
-            node.land_once(tx)
-                .map_err(|error| StoreError::Failed(error.to_string()))?;
-            node.drive_flow(id)
-                .map_err(|error| StoreError::Failed(error.to_string()))?;
+            node.land_once(tx).map_err(settling)?;
+            node.drive_flow(id).map_err(settling)?;
         }
         Ok(node)
     }
@@ -393,5 +390,24 @@ impl<S: Store, E: Entropy> Engine for Node<S, E> {
 
     fn stop_requested(&self) -> bool {
         self.stop || self.failed
+    }
+}
+
+/// A failure `open` meets while it settles what it loaded keeps its kind, so
+/// the daemon names the right next step, and its text is not wrapped twice:
+/// a store error that became an API error becomes that store error again.
+fn settling(error: ApiError) -> StoreError {
+    let detail = |kind: StoreError| {
+        let prefix = kind.to_string();
+        error
+            .message
+            .strip_prefix(&prefix)
+            .unwrap_or(&error.message)
+            .to_owned()
+    };
+    match error.code {
+        ErrorCode::Corrupted => StoreError::Corrupted(detail(StoreError::Corrupted(String::new()))),
+        ErrorCode::Internal => StoreError::Failed(detail(StoreError::Failed(String::new()))),
+        _ => StoreError::Failed(error.to_string()),
     }
 }
