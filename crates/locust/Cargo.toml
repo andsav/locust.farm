@@ -28,4 +28,5 @@ tracing.workspace = true
 
 [dev-dependencies]
 locust-proto = { workspace = true, features = ["testkit"] }
+rusqlite.workspace = true
 tempfile.workspace = true

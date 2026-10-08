@@ -12,8 +12,8 @@ use rusqlite::ErrorCode;
 /// says only what happened; the caller says what to do next.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum OpenError {
-    /// Another open store holds the directory's database: another program,
-    /// or a second handle in this process.
+    /// Another connection has the directory's database open: another
+    /// program, such as an sqlite3 shell, or a second handle in this process.
     InUse(PathBuf),
     /// The database is not this binary's current format. No conversion is performed.
     UnsupportedSchema { found: i64, known: i64 },

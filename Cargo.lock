@@ -1872,6 +1872,7 @@ dependencies = [
  "locust-store",
  "locust-workspace",
  "reqwest",
+ "rusqlite",
  "rustix",
  "semver",
  "serde",

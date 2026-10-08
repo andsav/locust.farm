@@ -153,6 +153,24 @@ fn a_second_open_of_one_state_directory_fails_until_the_first_is_dropped() {
 }
 
 #[test]
+fn a_database_another_program_has_open_is_in_use() {
+    let (dir, store) = scratch();
+    drop(store);
+    // An ordinary connection, as an sqlite3 shell opens it: one read, then
+    // left open.
+    let other = rusqlite::Connection::open(locust_proto::local::database_path(dir.path())).unwrap();
+    other
+        .pragma_query_value(None, "user_version", |row| row.get::<_, i64>(0))
+        .unwrap();
+    assert_eq!(
+        dir.open().unwrap_err(),
+        OpenError::InUse(dir.path().to_path_buf())
+    );
+    drop(other);
+    assert!(dir.open().is_ok());
+}
+
+#[test]
 fn the_database_is_opened_for_power_loss_durability_under_an_exclusive_lock() {
     let (dir, mut store) = scratch();
     store

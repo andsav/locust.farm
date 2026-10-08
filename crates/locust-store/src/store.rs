@@ -44,7 +44,8 @@ impl SqliteStore {
     /// its object directory, from which the leftovers of an interrupted
     /// commit are removed.
     ///
-    /// Fails with [`OpenError::InUse`] while another store holds `dir`, and
+    /// Fails with [`OpenError::InUse`] while another store or any other
+    /// connection, such as an sqlite3 shell, has `dir`'s database open, and
     /// with [`OpenError::UnsupportedSchema`] for any unsupported database format. Signed events of another protocol are refused with
     /// [`OpenError::UnsupportedProtocolVersion`] before initialization or garbage
     /// collection. Unsupported formats are checked before configuring WAL or collecting files.

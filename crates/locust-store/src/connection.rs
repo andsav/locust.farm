@@ -22,16 +22,14 @@ pub(crate) fn open(database: &Path, dir: &Path) -> Result<Connection, OpenError>
     // index in this process's memory.
     conn.pragma_update(None, "locking_mode", "EXCLUSIVE")
         .map_err(sql)?;
+    // That first access fails while any other connection has the database
+    // open, an sqlite3 shell as much as another store.
+    first_read(&conn, dir)?;
     crate::schema::check(&conn)?;
     check_protocol(&conn)?;
     let mode: String = conn
         .pragma_update_and_check(None, "journal_mode", "WAL", |row| row.get(0))
-        .map_err(|error| match error.sqlite_error_code() {
-            Some(ErrorCode::DatabaseBusy | ErrorCode::DatabaseLocked) => {
-                OpenError::InUse(dir.to_path_buf())
-            }
-            _ => sql(error).into(),
-        })?;
+        .map_err(|error| in_use(error, dir))?;
     if !mode.eq_ignore_ascii_case("wal") {
         return Err(OpenError::Store(locust_proto::store::StoreError::Failed(
             format!("the database refused write-ahead logging (journal mode {mode})"),
@@ -77,16 +75,26 @@ pub(crate) fn preflight(database: &Path, dir: &Path) -> Result<(), OpenError> {
     let conn =
         Connection::open_with_flags(database, OpenFlags::SQLITE_OPEN_READ_ONLY).map_err(sql)?;
     conn.busy_timeout(Duration::ZERO).map_err(sql)?;
-    // Read once with lock-aware error mapping before the shared checks.
-    conn.pragma_query_value(None, "user_version", |row| row.get::<_, i64>(0))
-        .map_err(|error| match error.sqlite_error_code() {
-            Some(ErrorCode::DatabaseBusy | ErrorCode::DatabaseLocked) => {
-                OpenError::InUse(dir.to_path_buf())
-            }
-            _ => sql(error).into(),
-        })?;
+    first_read(&conn, dir)?;
     crate::schema::check(&conn)?;
     check_protocol(&conn)
+}
+
+/// Reads once with lock-aware error mapping, before the shared checks.
+fn first_read(conn: &Connection, dir: &Path) -> Result<(), OpenError> {
+    conn.pragma_query_value(None, "user_version", |row| row.get::<_, i64>(0))
+        .map(drop)
+        .map_err(|error| in_use(error, dir))
+}
+
+/// A lock another connection holds is [`OpenError::InUse`], not a failure.
+fn in_use(error: rusqlite::Error, dir: &Path) -> OpenError {
+    match error.sqlite_error_code() {
+        Some(ErrorCode::DatabaseBusy | ErrorCode::DatabaseLocked) => {
+            OpenError::InUse(dir.to_path_buf())
+        }
+        _ => sql(error).into(),
+    }
 }
 
 /// Reject incompatible signed events before initialization or garbage collection.

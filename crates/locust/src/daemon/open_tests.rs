@@ -156,6 +156,28 @@ fn a_marks_directory_that_cannot_be_made_names_both_directories() {
 }
 
 #[test]
+fn a_database_another_program_has_open_says_to_close_it() {
+    let dir = short_dir();
+    let marks = marks_of(dir.path());
+    drop(SqliteStore::open(dir.path(), &marks).unwrap());
+    // An sqlite3 shell, say, that read the database and stayed open.
+    let other = rusqlite::Connection::open(local::database_path(dir.path())).unwrap();
+    other
+        .pragma_query_value(None, "user_version", |row| row.get::<_, i64>(0))
+        .unwrap();
+    let failure = refused_start(dir.path(), &marks);
+    assert_eq!(failure.code, ErrorCode::Unavailable);
+    assert_eq!(failure.exit_status(), 8);
+    assert_eq!(
+        failure.message,
+        format!(
+            "another program has the database in {} open. Close it, then start again.",
+            dir.path().display()
+        )
+    );
+}
+
+#[test]
 fn a_record_the_node_cannot_read_says_to_move_the_folder_aside() {
     let dir = short_dir();
     let marks = marks_of(dir.path());
