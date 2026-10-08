@@ -24,8 +24,10 @@ PRINCIPAL_NAME = re.compile(r'^[a-z0-9-]{1,32}$')  # The daemon's rule for `agen
 def principal_name(title, agent):
     """A daemon-valid principal name for an agent of a trial; task names may contain underscores."""
     name = f'{title}-{agent}'.replace('_', '-')
-    if len(name) > 32:
-        name = name.replace('-agent-', '-a')
+    for long, short in (('-agent-', '-a'), ('calibration-', 'cal-'), ('scored-', 'sc-')):
+        if len(name) <= 32:
+            break
+        name = name.replace(long, short, 1)
     if not PRINCIPAL_NAME.match(name):
         raise ValueError(f'{name!r} is not a valid principal name')
     return name
