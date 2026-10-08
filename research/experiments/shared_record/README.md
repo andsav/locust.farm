@@ -301,13 +301,37 @@ characters of `a-z`, `0-9` and `-`, and the harness derived
 shared arms had valid names and ran as scheduled; the task's solo and
 independent arms ran as scheduled. The harness now derives valid names and a
 test covers every phase, task and agent the study can produce (commits
-`0de79bf`, `5a0504d`). The missing trial was run on its own after the
-scheduled scored phase finished, with the same protocol, allowance and tools.
-The only differences are that it ran later in the day and alone on the host;
-CPU-time limits make host load irrelevant to scoring, and API conditions are
-not controlled in any trial. The run-level `manifest.json` records the source
-hashes of the last launch; the git history above gives the sources each
-trial ran under.
+`0de79bf`, `5a0504d`). The failure also cancelled the two tasks that had not yet started, `mkp` and
+`setcover`, because the task scheduler's `map` iterator cancels pending work
+when a task raises. These seven trials ran in a later launch of the same
+output directory under the same protocol, allowance and tools. The only
+differences are time of day and host load; CPU-time limits make host load
+irrelevant to scoring, and API conditions are not controlled in any trial.
+The run-level `manifest.json` records the source hashes of the last launch;
+the git history above gives the sources each trial ran under. Each launch's
+daemon log is kept as `daemon-events-launch-N.jsonl`.
+
+### Scored phase: `tsp` and `qap` voided by a second network outage
+
+Between 13:52:08 and 13:52:27 local time, ten agents' requests failed with
+`URLError` within seconds of each other: all seven agents of `qap` and three
+of the seven of `tsp` (its solo agent, one independent, one shared). The
+provider was reachable again at once. Under the preregistered rule these
+agents stop and their trials stand; applied here that would leave `qap` with
+almost no work in any arm and `tsp` with the solo arm cut off at $0.07 while
+two of three agents in each group arm ran to completion. An outage that
+removes different fractions of each arm is not the random, isolated transport
+failure the rule was written for.
+
+Rule applied: every scored trial with at least one agent lost in that window
+is voided and rerun, in full, whatever its scores. The rule was formulated
+from the failure timeline alone; the listing used to move the files then
+printed each voided trial's selected hidden score, so those numbers were seen
+before the rerun and are reported with it. That is all six `tsp` and `qap`
+trials. The voided trials are kept in
+`voided/scored-outage-1352/` and the results note reports the preregistered
+treatment (voided trials counted as they stand) beside the rerun as a
+sensitivity analysis. Spend on voided trials counts against the ceilings.
 
 Two development-family observations from calibration 2 are recorded here so
 that they are not mistaken for scored results later: on maxcut, shared

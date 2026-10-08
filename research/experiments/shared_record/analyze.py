@@ -193,10 +193,11 @@ def table(result):
 def package(output, evidence):
     output, evidence = Path(output), Path(evidence)
     evidence.mkdir(parents=True, exist_ok=True)
-    for name in ('manifest.json', 'ledger.json', 'calibration-gate.json', 'calibration-gate-preregistered-rule.json',
-                 'daemon-events.jsonl'):
+    for name in ('manifest.json', 'ledger.json', 'calibration-gate.json', 'calibration-gate-preregistered-rule.json'):
         if (output / name).exists():
             shutil.copy2(output / name, evidence / name)
+    for path in sorted(output.glob('daemon-events*.jsonl')):  # One daemon log per launch of the same output directory.
+        shutil.copy2(path, evidence / path.name)
     for path in sorted((output / 'trials').glob('*/*.json')):
         destination = evidence / 'trials' / path.parent.name / path.name
         destination.parent.mkdir(parents=True, exist_ok=True)
