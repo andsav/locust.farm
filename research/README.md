@@ -24,6 +24,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 - [Review of phase G1 as built, of S1a, A1 and the E1/E2 models, and of the hooks branch](v2-phase-g1-review-2026-10-07.md)
 - [Locust v2 phase G1 review fixes](v2-phase-g1-review-fixes-2026-10-07.md)
 - [Locust v2 G2: catching up in the person's words](v2-phase-g2-build-notes-2026-10-08.md)
+- [Review of phase G2 as built](v2-phase-g2-review-2026-10-08.md)
 - [Locust v2 A2: start the next task](v2-phase-a2-build-notes-2026-10-08.md)
 - [Review of side phases A2 and S1b as built](v2-side-a2-s1b-review-2026-10-08.md)
 - [Members not syncing on the local-network profile while the host is away](lan-sync-host-offline-2026-10-07.md)
