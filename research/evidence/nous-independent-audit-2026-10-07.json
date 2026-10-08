@@ -1,0 +1,178 @@
+{
+  "complete_question_ids": [
+    "1111915",
+    "1130345",
+    "1138269",
+    "1138286",
+    "1157310",
+    "1164917",
+    "1193623",
+    "1273937",
+    "1275259",
+    "1352590",
+    "1354427",
+    "1373941",
+    "1500754",
+    "1500755",
+    "1500770",
+    "601697",
+    "601698",
+    "601699",
+    "601700",
+    "654413",
+    "654415",
+    "669660",
+    "669662",
+    "669663",
+    "842008",
+    "842019",
+    "842020",
+    "842021"
+  ],
+  "complete_questions": 28,
+  "group_metrics_on_common_complete_set": {
+    "control": {
+      "ensemble_brier": 0.09326875000000001,
+      "individual_brier": 0.09326875000000001,
+      "max_identity_gap": 1.1102230246251565e-16,
+      "mean_pairwise_jsd_bits": 0.0,
+      "mean_raw_error_correlation": 1.0,
+      "pairwise_error_product": 0.09326875000000001
+    },
+    "control_b": {
+      "ensemble_brier": 0.08569031392857143,
+      "individual_brier": 0.08644251785714287,
+      "max_identity_gap": 1.1102230246251565e-16,
+      "mean_pairwise_jsd_bits": 0.002549522648722171,
+      "mean_raw_error_correlation": 0.990758260757346,
+      "pairwise_error_product": 0.08560673571428572
+    },
+    "placebo": {
+      "ensemble_brier": 0.09113492142857142,
+      "individual_brier": 0.09203538571428571,
+      "max_identity_gap": 5.551115123125783e-17,
+      "mean_pairwise_jsd_bits": 0.0024810834880550996,
+      "mean_raw_error_correlation": 0.9906972251807198,
+      "pairwise_error_product": 0.09103486984126984
+    },
+    "treatment": {
+      "ensemble_brier": 0.08884380428571428,
+      "individual_brier": 0.09048875714285715,
+      "max_identity_gap": 8.326672684688674e-17,
+      "mean_pairwise_jsd_bits": 0.006017358490678677,
+      "mean_raw_error_correlation": 0.9837562228877957,
+      "pairwise_error_product": 0.08866103174603175
+    }
+  },
+  "inputs_sha256": {
+    "artifacts/usefulness/heterogeneity/data/eval_set_mantic_baseline.jsonl": "ac37d8ab854a2fe9407c14ba092216a034ffd61a4a83ab4cf19d291060b1c56e",
+    "artifacts/usefulness/heterogeneity/results_heterogeneity.json": "3d2aeaa3880e4b390f573610d64110923dcc7187f2c5b748390194d9f979ba9d",
+    "artifacts/usefulness/heterogeneity/results_heterogeneity_controlb.json": "9f4b61b95205ab5c073d299a5fe5a4ea126b87a1daeabae9428086da07cf3d77",
+    "artifacts/usefulness/heterogeneity/results_heterogeneity_placebo.json": "cd44df2ecc9e6f74ef5412acad891030da94020f9f6bcbe8eb56321536f54008"
+  },
+  "limitations": [
+    "No claim about raw-wallet extraction, translator fidelity, or new-model performance.",
+    "Complete-case selection can be biased; parse failures are not scored as correct or incorrect.",
+    "Raw error correlation is descriptive and does not identify a shared-error cause.",
+    "Bootstrap does not correct multiple comparisons or dependence among related markets."
+  ],
+  "nominal_questions": 50,
+  "omitted_question_ids": [
+    "1102112",
+    "1111919",
+    "1112525",
+    "1138265",
+    "1209703",
+    "1209706",
+    "1311959",
+    "1335027",
+    "1335034",
+    "1358314",
+    "1363649",
+    "1370420",
+    "1384029",
+    "1391203",
+    "1509243",
+    "669661",
+    "842006",
+    "842009",
+    "842010",
+    "842015",
+    "842028",
+    "969422"
+  ],
+  "paired_contrasts": {
+    "treatment_minus_control_b": {
+      "ensemble_brier": {
+        "caution": "Questions may share events; this is not an event-cluster interval.",
+        "mean_difference": 0.003153490357142844,
+        "n_questions": 28,
+        "question_paired_bootstrap_95_percentile": [
+          -0.004736077142857158,
+          0.011553648928571417
+        ],
+        "resamples": 20000,
+        "seed": 20261007
+      },
+      "mean_pairwise_jsd_bits": {
+        "caution": "Questions may share events; this is not an event-cluster interval.",
+        "mean_difference": 0.0034678358419565065,
+        "n_questions": 28,
+        "question_paired_bootstrap_95_percentile": [
+          0.0016306740814453315,
+          0.0055942922934936285
+        ],
+        "resamples": 20000,
+        "seed": 20261007
+      }
+    },
+    "treatment_minus_placebo": {
+      "ensemble_brier": {
+        "caution": "Questions may share events; this is not an event-cluster interval.",
+        "mean_difference": -0.002291117142857146,
+        "n_questions": 28,
+        "question_paired_bootstrap_95_percentile": [
+          -0.03966032214285714,
+          0.04541488428571429
+        ],
+        "resamples": 20000,
+        "seed": 20261007
+      },
+      "mean_pairwise_jsd_bits": {
+        "caution": "Questions may share events; this is not an event-cluster interval.",
+        "mean_difference": 0.0035362750026235778,
+        "n_questions": 28,
+        "question_paired_bootstrap_95_percentile": [
+          0.0017072071206009367,
+          0.005619808289744052
+        ],
+        "resamples": 20000,
+        "seed": 20261007
+      }
+    }
+  },
+  "records_by_group": {
+    "control": {
+      "failed": 10,
+      "parsed": 490,
+      "records": 500
+    },
+    "control_b": {
+      "failed": 26,
+      "parsed": 474,
+      "records": 500
+    },
+    "placebo": {
+      "failed": 35,
+      "parsed": 465,
+      "records": 500
+    },
+    "treatment": {
+      "failed": 15,
+      "parsed": 485,
+      "records": 500
+    }
+  },
+  "scope": "Independent arithmetic audit of frozen forecasts; not a model rerun or full replication.",
+  "upstream_commit": "3ff0b996784cdc8f4db40210c0505371e667ee1e"
+}

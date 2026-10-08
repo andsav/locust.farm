@@ -1,0 +1,64 @@
+{
+  "review_date": "2026-10-07 America/Los_Angeles",
+  "pdfs": [
+    {
+      "name": "nous-v1",
+      "url": "https://arxiv.org/pdf/2606.13038v1",
+      "sha256": "4bec5de21223a9eeec2df5e7f224f0f4038b9d091f7fdd27d7bcbe930c4592d7",
+      "pages": 37,
+      "inspection": "Core methods/results and relevant appendices; rendered Table 6"
+    },
+    {
+      "name": "aggregation-v4",
+      "url": "https://arxiv.org/pdf/2604.20050v4",
+      "sha256": "108429dc6ee74a41b973d0ba8f47b1e6b6b75ddde708a0f8730e0f27c256c594",
+      "pages": 80,
+      "inspection": "Main design/results/extensions; not every supplementary table"
+    },
+    {
+      "name": "decision-markets-full",
+      "url": "https://yiling.seas.harvard.edu/files/2025/01/dm_full_version.pdf",
+      "sha256": "6fbe89c5e8b2fefbbb3992fcfe190a2cdc1da90df30965c9410c11b4a09d12e6",
+      "pages": 16,
+      "inspection": "Definitions, construction, incentive conditions and limitations; rendered theorem page"
+    },
+    {
+      "name": "silicon-crowd",
+      "url": "https://eprints.lse.ac.uk/125626/1/sciadv.adp1528.pdf",
+      "sha256": "c423aa9b2d718c60394990bcd0bdb3fbde8d745bf184adbc35dbd6e7dbb92052",
+      "pages": 15,
+      "inspection": "Main methods/results/limitations; rendered Table 2"
+    },
+    {
+      "name": "simulations-v3",
+      "url": "https://arxiv.org/pdf/2411.10109v3",
+      "sha256": "1ee1f32c2ba92eae7a91f28d204b9041a0f1cfb9ffc7201b3c52ac464f4e1fe2",
+      "pages": 86,
+      "inspection": "Main methods/results/limitations and selected supplementary normalization, robustness, retrieval/inference analyses"
+    },
+    {
+      "name": "decision-elicitation",
+      "url": "https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/decisionrules.pdf",
+      "sha256": "35ecbdd0f57e24d4494c3039bdac6a113ee4e01be64c5802b40fce874c74f206",
+      "pages": 8,
+      "inspection": "Supporting decision-rule and elicitation theory"
+    }
+  ],
+  "upstream_artifacts": {
+    "url": "https://github.com/WillChienT/nous-paper",
+    "commit": "3ff0b996784cdc8f4db40210c0505371e667ee1e",
+    "scope": "Frozen forecasts recomputed with original local audit; no model or extractor rerun"
+  },
+  "repository_snapshots": {
+    "locust": "7b1e139411b144d6658abeb3395aa9fe9c69e223",
+    "catalyst": "00101010ff9c961328ed968df489e949d1cdde56",
+    "merak10": "eb3d28e7f6a9d7e4c4288b839ac62cc91d0346ae"
+  },
+  "supporting_urls": [
+    "https://mason.gmu.edu/~rhanson/futarchy.html",
+    "https://www.forecastbench.org/assets/pdfs/forecastbench_updated_methodology.pdf"
+  ],
+  "next_reading_only": [
+    "https://arxiv.org/abs/2402.18563"
+  ]
+}
