@@ -1,0 +1,724 @@
+{
+  "scope": "Post-hoc probability-only scoring sensitivity; not a rerun and cannot repair messages already delivered",
+  "overrides": {
+    "1273937/structured/luna/exchange/9": 0.38,
+    "842010/published/sonnet/initial/5": 0.04,
+    "1273937/structured/mixed/exchange/8": 0.39,
+    "1273937/published/mixed/exchange/5": 0.41
+  },
+  "groups": {
+    "all/neutral/luna/initial": {
+      "questions": 20,
+      "clusters": 5,
+      "valid_agents": 200,
+      "cluster_equal_brier": 0.09129949722222223,
+      "mean_jsd_bits": 0.001316011197433891,
+      "attributed_usd": 0.08674199999999999
+    },
+    "all/neutral/luna/private": {
+      "questions": 20,
+      "clusters": 5,
+      "valid_agents": 200,
+      "cluster_equal_brier": 0.09769434383333332,
+      "mean_jsd_bits": 0.00098285093604604,
+      "attributed_usd": 0.17499375000000003
+    },
+    "all/neutral/luna/exchange": {
+      "questions": 20,
+      "clusters": 5,
+      "valid_agents": 200,
+      "cluster_equal_brier": 0.10510899116666667,
+      "mean_jsd_bits": 0.0002904200650556168,
+      "attributed_usd": 0.20013799999999998
+    },
+    "all/neutral/sonnet/initial": {
+      "questions": 20,
+      "clusters": 5,
+      "valid_agents": 200,
+      "cluster_equal_brier": 0.09403414166666665,
+      "mean_jsd_bits": 0.0007856787926055864,
+      "attributed_usd": 2.130750000000001
+    },
+    "all/neutral/sonnet/private": {
+      "questions": 20,
+      "clusters": 5,
+      "valid_agents": 200,
+      "cluster_equal_brier": 0.09058147694444445,
+      "mean_jsd_bits": 0.0006816067544157618,
+      "attributed_usd": 4.182536
+    },
+    "all/neutral/sonnet/exchange": {
+      "questions": 20,
+      "clusters": 5,
+      "valid_agents": 200,
+      "cluster_equal_brier": 0.08621458533333336,
+      "mean_jsd_bits": 0.00021101909002293253,
+      "attributed_usd": 4.870930000000001
+    },
+    "all/neutral/mixed/initial": {
+      "questions": 20,
+      "clusters": 5,
+      "valid_agents": 200,
+      "cluster_equal_brier": 0.09260015277777778,
+      "mean_jsd_bits": 0.0024307872605408617,
+      "attributed_usd": 1.1081550000000002
+    },
+    "all/neutral/mixed/private": {
+      "questions": 20,
+      "clusters": 5,
+      "valid_agents": 200,
+      "cluster_equal_brier": 0.09380539722222223,
+      "mean_jsd_bits": 0.002320464325995744,
+      "attributed_usd": 2.185277375
+    },
+    "all/neutral/mixed/exchange": {
+      "questions": 20,
+      "clusters": 5,
+      "valid_agents": 200,
+      "cluster_equal_brier": 0.096803755,
+      "mean_jsd_bits": 0.001099956318003763,
+      "attributed_usd": 2.4861057499999997
+    },
+    "all/published/luna/initial": {
+      "questions": 20,
+      "clusters": 5,
+      "valid_agents": 200,
+      "cluster_equal_brier": 0.07750499116666666,
+      "mean_jsd_bits": 0.0012680199756401167,
+      "attributed_usd": 0.091864
+    },
+    "all/published/luna/private": {
+      "questions": 20,
+      "clusters": 5,
+      "valid_agents": 200,
+      "cluster_equal_brier": 0.09984391477777776,
+      "mean_jsd_bits": 0.0008170183653380857,
+      "attributed_usd": 0.18751237499999998
+    },
+    "all/published/luna/exchange": {
+      "questions": 20,
+      "clusters": 5,
+      "valid_agents": 200,
+      "cluster_equal_brier": 0.09357990644444444,
+      "mean_jsd_bits": 0.00032584917526214113,
+      "attributed_usd": 0.21418675
+    },
+    "all/published/sonnet/initial": {
+      "questions": 20,
+      "clusters": 5,
+      "valid_agents": 200,
+      "cluster_equal_brier": 0.09196694722222222,
+      "mean_jsd_bits": 0.0003800670534494522,
+      "attributed_usd": 2.10995
+    },
+    "all/published/sonnet/private": {
+      "questions": 20,
+      "clusters": 5,
+      "valid_agents": 200,
+      "cluster_equal_brier": 0.09650300594444444,
+      "mean_jsd_bits": 0.00033208136790544333,
+      "attributed_usd": 4.253624
+    },
+    "all/published/sonnet/exchange": {
+      "questions": 20,
+      "clusters": 5,
+      "valid_agents": 200,
+      "cluster_equal_brier": 0.09089876855555555,
+      "mean_jsd_bits": 8.699981119911164e-05,
+      "attributed_usd": 4.96681
+    },
+    "all/published/mixed/initial": {
+      "questions": 20,
+      "clusters": 5,
+      "valid_agents": 200,
+      "cluster_equal_brier": 0.07726175972222223,
+      "mean_jsd_bits": 0.0030264889811812356,
+      "attributed_usd": 1.10312125
+    },
+    "all/published/mixed/private": {
+      "questions": 20,
+      "clusters": 5,
+      "valid_agents": 200,
+      "cluster_equal_brier": 0.09822355861111112,
+      "mean_jsd_bits": 0.00261461603202199,
+      "attributed_usd": 2.220508125
+    },
+    "all/published/mixed/exchange": {
+      "questions": 20,
+      "clusters": 5,
+      "valid_agents": 200,
+      "cluster_equal_brier": 0.08998369111111112,
+      "mean_jsd_bits": 0.001268976832284826,
+      "attributed_usd": 2.541994875
+    },
+    "all/structured/luna/initial": {
+      "questions": 20,
+      "clusters": 5,
+      "valid_agents": 200,
+      "cluster_equal_brier": 0.09039579116666668,
+      "mean_jsd_bits": 0.0014117680391866501,
+      "attributed_usd": 0.08874999999999998
+    },
+    "all/structured/luna/private": {
+      "questions": 20,
+      "clusters": 5,
+      "valid_agents": 200,
+      "cluster_equal_brier": 0.09608841894444445,
+      "mean_jsd_bits": 0.0010191332951718312,
+      "attributed_usd": 0.18148899999999998
+    },
+    "all/structured/luna/exchange": {
+      "questions": 20,
+      "clusters": 5,
+      "valid_agents": 200,
+      "cluster_equal_brier": 0.09789598561111111,
+      "mean_jsd_bits": 0.0003262073354014587,
+      "attributed_usd": 0.20847400000000002
+    },
+    "all/structured/sonnet/initial": {
+      "questions": 20,
+      "clusters": 5,
+      "valid_agents": 200,
+      "cluster_equal_brier": 0.09766720505555555,
+      "mean_jsd_bits": 0.0005131384620458546,
+      "attributed_usd": 2.0851300000000004
+    },
+    "all/structured/sonnet/private": {
+      "questions": 20,
+      "clusters": 5,
+      "valid_agents": 200,
+      "cluster_equal_brier": 0.0969629376111111,
+      "mean_jsd_bits": 0.0004893053839856386,
+      "attributed_usd": 4.151338
+    },
+    "all/structured/sonnet/exchange": {
+      "questions": 20,
+      "clusters": 5,
+      "valid_agents": 200,
+      "cluster_equal_brier": 0.09300755483333333,
+      "mean_jsd_bits": 0.0001495688537576725,
+      "attributed_usd": 4.87106
+    },
+    "all/structured/mixed/initial": {
+      "questions": 20,
+      "clusters": 5,
+      "valid_agents": 200,
+      "cluster_equal_brier": 0.08991672227777776,
+      "mean_jsd_bits": 0.0030405087574653907,
+      "attributed_usd": 1.09721275
+    },
+    "all/structured/mixed/private": {
+      "questions": 20,
+      "clusters": 5,
+      "valid_agents": 200,
+      "cluster_equal_brier": 0.09292001172222222,
+      "mean_jsd_bits": 0.0029807702076925196,
+      "attributed_usd": 2.1672882500000004
+    },
+    "all/structured/mixed/exchange": {
+      "questions": 20,
+      "clusters": 5,
+      "valid_agents": 200,
+      "cluster_equal_brier": 0.0928423381111111,
+      "mean_jsd_bits": 0.0012350232536146814,
+      "attributed_usd": 2.4973728750000004
+    },
+    "previous/neutral/luna/initial": {
+      "questions": 10,
+      "clusters": 2,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.2262470555555556,
+      "mean_jsd_bits": 0.0018196446332170175,
+      "attributed_usd": 0.0429905
+    },
+    "previous/neutral/luna/private": {
+      "questions": 10,
+      "clusters": 2,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.2421475783333333,
+      "mean_jsd_bits": 0.0011732826200943954,
+      "attributed_usd": 0.08739912500000001
+    },
+    "previous/neutral/luna/exchange": {
+      "questions": 10,
+      "clusters": 2,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.2608635716666666,
+      "mean_jsd_bits": 0.00021675633404654238,
+      "attributed_usd": 0.10000225000000001
+    },
+    "previous/neutral/sonnet/initial": {
+      "questions": 10,
+      "clusters": 2,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.23418729166666666,
+      "mean_jsd_bits": 0.0014412493491133007,
+      "attributed_usd": 1.15345
+    },
+    "previous/neutral/sonnet/private": {
+      "questions": 10,
+      "clusters": 2,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.2256414861111111,
+      "mean_jsd_bits": 0.001235848357432081,
+      "attributed_usd": 2.19374
+    },
+    "previous/neutral/sonnet/exchange": {
+      "questions": 10,
+      "clusters": 2,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.2147310833333334,
+      "mean_jsd_bits": 0.0003628041480473423,
+      "attributed_usd": 2.5316600000000005
+    },
+    "previous/neutral/mixed/initial": {
+      "questions": 10,
+      "clusters": 2,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.23011244444444445,
+      "mean_jsd_bits": 0.0033799577781067408,
+      "attributed_usd": 0.6004525
+    },
+    "previous/neutral/mixed/private": {
+      "questions": 10,
+      "clusters": 2,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.23307618055555557,
+      "mean_jsd_bits": 0.003119728728713794,
+      "attributed_usd": 1.148086125
+    },
+    "previous/neutral/mixed/exchange": {
+      "questions": 10,
+      "clusters": 2,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.24086125,
+      "mean_jsd_bits": 0.0014374687615452823,
+      "attributed_usd": 1.298076875
+    },
+    "previous/published/luna/initial": {
+      "questions": 10,
+      "clusters": 2,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.19138957166666665,
+      "mean_jsd_bits": 0.0015931305106054634,
+      "attributed_usd": 0.046307749999999995
+    },
+    "previous/published/luna/private": {
+      "questions": 10,
+      "clusters": 2,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.24734684944444443,
+      "mean_jsd_bits": 0.0007800649392328408,
+      "attributed_usd": 0.09447337499999998
+    },
+    "previous/published/luna/exchange": {
+      "questions": 10,
+      "clusters": 2,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.2316338911111111,
+      "mean_jsd_bits": 0.00028742703096695045,
+      "attributed_usd": 0.10731375
+    },
+    "previous/published/sonnet/initial": {
+      "questions": 10,
+      "clusters": 2,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.22896618055555554,
+      "mean_jsd_bits": 0.0006629628926917571,
+      "attributed_usd": 1.10998
+    },
+    "previous/published/sonnet/private": {
+      "questions": 10,
+      "clusters": 2,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.2404002661111111,
+      "mean_jsd_bits": 0.000546073471323853,
+      "attributed_usd": 2.192734
+    },
+    "previous/published/sonnet/exchange": {
+      "questions": 10,
+      "clusters": 2,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.22644378388888886,
+      "mean_jsd_bits": 9.77962188649552e-05,
+      "attributed_usd": 2.54319
+    },
+    "previous/published/mixed/initial": {
+      "questions": 10,
+      "clusters": 2,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.19162780555555559,
+      "mean_jsd_bits": 0.00430457071191258,
+      "attributed_usd": 0.579783125
+    },
+    "previous/published/mixed/private": {
+      "questions": 10,
+      "clusters": 2,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.2442123077777778,
+      "mean_jsd_bits": 0.0036258594472007083,
+      "attributed_usd": 1.143714125
+    },
+    "previous/published/mixed/exchange": {
+      "questions": 10,
+      "clusters": 2,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.22371702777777783,
+      "mean_jsd_bits": 0.0016742853062666162,
+      "attributed_usd": 1.3046087499999999
+    },
+    "previous/structured/luna/initial": {
+      "questions": 10,
+      "clusters": 2,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.22354957166666672,
+      "mean_jsd_bits": 0.0018223756968169906,
+      "attributed_usd": 0.04495974999999999
+    },
+    "previous/structured/luna/private": {
+      "questions": 10,
+      "clusters": 2,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.2375620161111111,
+      "mean_jsd_bits": 0.0012663534022190456,
+      "attributed_usd": 0.091131625
+    },
+    "previous/structured/luna/exchange": {
+      "questions": 10,
+      "clusters": 2,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.2422468077777778,
+      "mean_jsd_bits": 0.0001685604431296689,
+      "attributed_usd": 0.10517975
+    },
+    "previous/structured/sonnet/initial": {
+      "questions": 10,
+      "clusters": 2,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.24307116888888888,
+      "mean_jsd_bits": 0.0008767269644904323,
+      "attributed_usd": 1.12398
+    },
+    "previous/structured/sonnet/private": {
+      "questions": 10,
+      "clusters": 2,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.24141840277777776,
+      "mean_jsd_bits": 0.0007976993655129114,
+      "attributed_usd": 2.173802
+    },
+    "previous/structured/sonnet/exchange": {
+      "questions": 10,
+      "clusters": 2,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.23158995833333332,
+      "mean_jsd_bits": 0.0001923010935191294,
+      "attributed_usd": 2.5214299999999996
+    },
+    "previous/structured/mixed/initial": {
+      "questions": 10,
+      "clusters": 2,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.2230297744444444,
+      "mean_jsd_bits": 0.004374387247884133,
+      "attributed_usd": 0.5932383750000001
+    },
+    "previous/structured/mixed/private": {
+      "questions": 10,
+      "clusters": 2,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.23049343555555554,
+      "mean_jsd_bits": 0.004121833784595468,
+      "attributed_usd": 1.132653375
+    },
+    "previous/structured/mixed/exchange": {
+      "questions": 10,
+      "clusters": 2,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.23051814777777777,
+      "mean_jsd_bits": 0.0014854382753063371,
+      "attributed_usd": 1.3003115
+    },
+    "additional/neutral/luna/initial": {
+      "questions": 10,
+      "clusters": 3,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.0013344583333333331,
+      "mean_jsd_bits": 0.0008123777616507648,
+      "attributed_usd": 0.043751500000000006
+    },
+    "additional/neutral/luna/private": {
+      "questions": 10,
+      "clusters": 3,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.0013921874999999998,
+      "mean_jsd_bits": 0.0007924192519976844,
+      "attributed_usd": 0.087594625
+    },
+    "additional/neutral/luna/exchange": {
+      "questions": 10,
+      "clusters": 3,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.0012726041666666665,
+      "mean_jsd_bits": 0.00036408379606469123,
+      "attributed_usd": 0.10013574999999998
+    },
+    "additional/neutral/sonnet/initial": {
+      "questions": 10,
+      "clusters": 3,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.000598708333333334,
+      "mean_jsd_bits": 0.00013010823609787206,
+      "attributed_usd": 0.9773
+    },
+    "additional/neutral/sonnet/private": {
+      "questions": 10,
+      "clusters": 3,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.0005414708333333339,
+      "mean_jsd_bits": 0.00012736515139944251,
+      "attributed_usd": 1.988796
+    },
+    "additional/neutral/sonnet/exchange": {
+      "questions": 10,
+      "clusters": 3,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.0005369200000000006,
+      "mean_jsd_bits": 5.9234031998522764e-05,
+      "attributed_usd": 2.33927
+    },
+    "additional/neutral/mixed/initial": {
+      "questions": 10,
+      "clusters": 3,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.0009252916666666664,
+      "mean_jsd_bits": 0.0014816167429749822,
+      "attributed_usd": 0.5077025
+    },
+    "additional/neutral/mixed/private": {
+      "questions": 10,
+      "clusters": 3,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.000958208333333333,
+      "mean_jsd_bits": 0.0015211999232776939,
+      "attributed_usd": 1.0371912499999998
+    },
+    "additional/neutral/mixed/exchange": {
+      "questions": 10,
+      "clusters": 3,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.0007654250000000008,
+      "mean_jsd_bits": 0.000762443874462244,
+      "attributed_usd": 1.188028875
+    },
+    "additional/published/luna/initial": {
+      "questions": 10,
+      "clusters": 3,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.0015819374999999998,
+      "mean_jsd_bits": 0.0009429094406747698,
+      "attributed_usd": 0.04555625
+    },
+    "additional/published/luna/private": {
+      "questions": 10,
+      "clusters": 3,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.0015086249999999998,
+      "mean_jsd_bits": 0.0008539717914433306,
+      "attributed_usd": 0.09303900000000001
+    },
+    "additional/published/luna/exchange": {
+      "questions": 10,
+      "clusters": 3,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.0015439166666666665,
+      "mean_jsd_bits": 0.0003642713195573318,
+      "attributed_usd": 0.106873
+    },
+    "additional/published/sonnet/initial": {
+      "questions": 10,
+      "clusters": 3,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.0006341250000000007,
+      "mean_jsd_bits": 9.717121420714732e-05,
+      "attributed_usd": 0.99997
+    },
+    "additional/published/sonnet/private": {
+      "questions": 10,
+      "clusters": 3,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.0005714991666666673,
+      "mean_jsd_bits": 0.00011808926448703376,
+      "attributed_usd": 2.06089
+    },
+    "additional/published/sonnet/exchange": {
+      "questions": 10,
+      "clusters": 3,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.0005354250000000006,
+      "mean_jsd_bits": 7.62034035332681e-05,
+      "attributed_usd": 2.42362
+    },
+    "additional/published/mixed/initial": {
+      "questions": 10,
+      "clusters": 3,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.0010177291666666663,
+      "mean_jsd_bits": 0.0017484072504498915,
+      "attributed_usd": 0.523338125
+    },
+    "additional/published/mixed/private": {
+      "questions": 10,
+      "clusters": 3,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.0008977258333333345,
+      "mean_jsd_bits": 0.0016033726168432714,
+      "attributed_usd": 1.076794
+    },
+    "additional/published/mixed/exchange": {
+      "questions": 10,
+      "clusters": 3,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.0008281333333333342,
+      "mean_jsd_bits": 0.0008636683583030356,
+      "attributed_usd": 1.237386125
+    },
+    "additional/structured/luna/initial": {
+      "questions": 10,
+      "clusters": 3,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.0016266041666666666,
+      "mean_jsd_bits": 0.0010011603815563096,
+      "attributed_usd": 0.04379025
+    },
+    "additional/structured/luna/private": {
+      "questions": 10,
+      "clusters": 3,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.0017726875,
+      "mean_jsd_bits": 0.0007719131881246167,
+      "attributed_usd": 0.09035737499999999
+    },
+    "additional/structured/luna/exchange": {
+      "questions": 10,
+      "clusters": 3,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.0016621041666666665,
+      "mean_jsd_bits": 0.00048385422767324845,
+      "attributed_usd": 0.10329424999999999
+    },
+    "additional/structured/sonnet/initial": {
+      "questions": 10,
+      "clusters": 3,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.0007312291666666675,
+      "mean_jsd_bits": 0.0001495499596012768,
+      "attributed_usd": 0.96115
+    },
+    "additional/structured/sonnet/private": {
+      "questions": 10,
+      "clusters": 3,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.0006592941666666674,
+      "mean_jsd_bits": 0.00018091140245836586,
+      "attributed_usd": 1.977536
+    },
+    "additional/structured/sonnet/exchange": {
+      "questions": 10,
+      "clusters": 3,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.0006192858333333341,
+      "mean_jsd_bits": 0.00010683661399621562,
+      "attributed_usd": 2.34963
+    },
+    "additional/structured/mixed/initial": {
+      "questions": 10,
+      "clusters": 3,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.0011746875,
+      "mean_jsd_bits": 0.001706630267046648,
+      "attributed_usd": 0.503974375
+    },
+    "additional/structured/mixed/private": {
+      "questions": 10,
+      "clusters": 3,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.0012043958333333331,
+      "mean_jsd_bits": 0.0018397066307895725,
+      "attributed_usd": 1.034634875
+    },
+    "additional/structured/mixed/exchange": {
+      "questions": 10,
+      "clusters": 3,
+      "valid_agents": 100,
+      "cluster_equal_brier": 0.0010584649999999998,
+      "mean_jsd_bits": 0.0009846082319230256,
+      "attributed_usd": 1.1970613749999999
+    }
+  },
+  "contrasts": {
+    "all/neutral": {
+      "mixed_minus_luna_initial": 0.0013006555555555438,
+      "mixed_minus_sonnet_initial": -0.0014339888888888763,
+      "luna_exchange_minus_private": 0.0074146473333333435,
+      "sonnet_exchange_minus_private": -0.00436689161111109,
+      "mixed_exchange_minus_private": 0.00299835777777778
+    },
+    "all/published": {
+      "mixed_minus_luna_initial": -0.00024323144444443612,
+      "mixed_minus_sonnet_initial": -0.014705187499999994,
+      "luna_exchange_minus_private": -0.006264008333333321,
+      "sonnet_exchange_minus_private": -0.005604237388888891,
+      "mixed_exchange_minus_private": -0.008239867499999998
+    },
+    "all/structured": {
+      "mixed_minus_luna_initial": -0.00047906888888891996,
+      "mixed_minus_sonnet_initial": -0.00775048277777779,
+      "luna_exchange_minus_private": 0.0018075666666666629,
+      "sonnet_exchange_minus_private": -0.00395538277777778,
+      "mixed_exchange_minus_private": -7.767361111112037e-05
+    },
+    "previous/neutral": {
+      "mixed_minus_luna_initial": 0.003865388888888849,
+      "mixed_minus_sonnet_initial": -0.004074847222222205,
+      "luna_exchange_minus_private": 0.01871599333333332,
+      "sonnet_exchange_minus_private": -0.010910402777777689,
+      "mixed_exchange_minus_private": 0.007785069444444431
+    },
+    "previous/published": {
+      "mixed_minus_luna_initial": 0.00023823388888893904,
+      "mixed_minus_sonnet_initial": -0.03733837499999995,
+      "luna_exchange_minus_private": -0.015712958333333332,
+      "sonnet_exchange_minus_private": -0.013956482222222233,
+      "mixed_exchange_minus_private": -0.020495279999999977
+    },
+    "previous/structured": {
+      "mixed_minus_luna_initial": -0.0005197972222223124,
+      "mixed_minus_sonnet_initial": -0.02004139444444447,
+      "luna_exchange_minus_private": 0.004684791666666688,
+      "sonnet_exchange_minus_private": -0.009828444444444445,
+      "mixed_exchange_minus_private": 2.4712222222222913e-05
+    },
+    "additional/neutral": {
+      "mixed_minus_luna_initial": -0.00040916666666666673,
+      "mixed_minus_sonnet_initial": 0.00032658333333333237,
+      "luna_exchange_minus_private": -0.0001195833333333333,
+      "sonnet_exchange_minus_private": -4.5508333333333035e-06,
+      "mixed_exchange_minus_private": -0.00019278333333333226
+    },
+    "additional/published": {
+      "mixed_minus_luna_initial": -0.0005642083333333334,
+      "mixed_minus_sonnet_initial": 0.00038360416666666567,
+      "luna_exchange_minus_private": 3.529166666666676e-05,
+      "sonnet_exchange_minus_private": -3.607416666666667e-05,
+      "mixed_exchange_minus_private": -6.959250000000022e-05
+    },
+    "additional/structured": {
+      "mixed_minus_luna_initial": -0.00045191666666666666,
+      "mixed_minus_sonnet_initial": 0.0004434583333333325,
+      "luna_exchange_minus_private": -0.00011058333333333341,
+      "sonnet_exchange_minus_private": -4.000833333333328e-05,
+      "mixed_exchange_minus_private": -0.0001459308333333334
+    }
+  }
+}

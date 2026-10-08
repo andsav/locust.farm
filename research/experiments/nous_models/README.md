@@ -1,6 +1,9 @@
 # Nous: Luna, Sonnet and mixed teams
 
-Status: **live execution in progress; formatting amendment recorded**. This extends the
+Status: **complete: 4,200/4,200 unique requests; 4,196 valid responses**.
+See the [results](results-2026-10-08.md),
+[saved evidence](results-evidence-2026-10-08.json), and
+[scoring sensitivity](scoring-sensitivity-2026-10-08.json). This extends the
 [completed Luna profile experiment](../nous_transfer/results-2026-10-08.md) to
 separate model strength, model mixing, and communication effects. It does not
 change that experiment or discard its outputs.
