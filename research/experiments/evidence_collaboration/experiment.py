@@ -220,7 +220,7 @@ if __name__=='__main__':
                          json.loads(a.development_summary.read_text()) if a.development_summary else None)
         print(json.dumps({'folder':str(folder),'manifest_sha256':digest(m),'families':len(m['family_ids']),'configs':m['configs']}))
     elif a.command=='run':
-        if not 1<=a.workers<=32:raise ValueError('Workers must be 1-32')
+        if not 1<=a.workers<=64:raise ValueError('Workers must be 1-64')
         # Execute the snapshotted implementation, not mutable checkout source.
         frozen=a.folder.resolve()/'source'/'experiment.py'
         if Path(__file__).resolve()!=frozen:

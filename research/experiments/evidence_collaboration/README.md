@@ -91,6 +91,10 @@ manifests and cohorts, locks against duplicate runners, executes the dependency
 graph, and supports offline verification. Actual execution uses the snapshotted
 source. The ledger and all files live under this study's own output directory;
 they do not reuse the concurrently running Nous experiment's state.
+The CLI accepts 1–64 concurrent requests. Development v2 uses 16; later phases
+can use 64 to reduce elapsed time. This changes scheduling, not the request graph,
+prompts, allocations, scoring, or stop-on-error policy. Each phase retains its
+actual executable snapshot.
 
 [analysis.py](analysis.py) reports exact answer/support outcomes, both-variant
 family success, cost, stage validity/truncation, initial disagreement, damaged
