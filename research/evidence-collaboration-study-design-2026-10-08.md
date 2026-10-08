@@ -1,7 +1,9 @@
 # Evidence collaboration: a study that can change what we build
 
-Status: proposed experiment, with a small task-calibration run recorded below.
-This is not a collaboration result or an accepted Locust runtime design.
+Status: experiment design with an implemented runner. The
+[implementation and pre-run amendments](experiments/evidence_collaboration/README.md)
+specify the actual cohort, budget enforcement, and operational gates.
+This is not yet a collaboration result or an accepted Locust runtime design.
 
 ## Question and decision
 
@@ -251,5 +253,6 @@ answered 6/12 complete cases correctly, with exact support on 4/12, but achieved
 only 3/12 strict paired successes after one timeout. This supports further method
 development, **not immediate launch of the 500-family run**. See the runner's
 [results table and evidence](experiments/evidence_calibration/README.md#recorded-results)
-for the initial failure, the changed prompt/settings, and accounting limits. The four-arm development
-and confirmatory runners are specified here but have not been implemented or run.
+for the initial failure, the changed prompt/settings, and accounting limits. The [four-method runner](experiments/evidence_collaboration/README.md) is now
+implemented; its pre-run amendments supersede the proposed balanced cohort and
+spell out the enforced gates. Live results are recorded separately after execution.
