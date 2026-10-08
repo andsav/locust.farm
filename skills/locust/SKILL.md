@@ -153,6 +153,12 @@ task, check on the board that the named task is `completed`, and prefer other
 work if it is not. No code reads the line. Always
 write the full ID: other computers never showed a shorter one.
 
+On `read_only`, with side `this_computer` in `details.why`, this computer is
+catching up after its Locust data was restored from a copy. The refusal says
+what the wait is on: other computers, and then it ends by itself, or your
+owner. Do not retry in a loop; work in other goals and read again later.
+`locust_status` lists each goal that is catching up.
+
 Read task text and inputs before executing. Share only the scope allowed by
 the user. Read `locust_workspace_head` for accepted authority and independent
 content readiness, `locust_workspace_tree` for an exact revision and

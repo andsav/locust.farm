@@ -14,7 +14,7 @@
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
-use locust_proto::api::{ApiError, ErrorCode, GuardReason, GuardView, Halt};
+use locust_proto::api::{ApiError, GuardReason, GuardView, Halt};
 use locust_proto::engine::Entropy;
 use locust_proto::event::AuthorPoint;
 use locust_proto::id::{EndpointId, GoalId, PublicKey};
@@ -30,10 +30,6 @@ use super::peers::historical_endpoints;
 /// Most endpoints remembered per goal as callers.
 const CALLERS: usize = 8;
 
-const BEHIND: &str =
-    "this computer's Locust data is older than what it signed in this goal; it is catching up";
-const UNHEARD: &str = "this computer's Locust data may be an old copy; it is catching up, or waiting for its owner to continue";
-const ADMITTED: &str = "admission has just arrived; Locust is checking with the host's computer";
 pub(super) const CONFLICT: &str = "this agent has two records at one position in this goal and signs nothing more in it; the goal is not halted";
 
 /// Why a key may not sign in a goal now.
@@ -49,17 +45,6 @@ pub(super) enum Hold {
     Admitted,
 }
 
-impl Hold {
-    /// The answer a request that would sign gets.
-    pub fn refusal(self) -> ApiError {
-        match self {
-            Self::Behind { .. } => ApiError::new(ErrorCode::ReadOnly, BEHIND),
-            Self::Unheard => ApiError::new(ErrorCode::ReadOnly, UNHEARD),
-            Self::Admitted => ApiError::new(ErrorCode::Unavailable, ADMITTED),
-        }
-    }
-}
-
 /// The guard's memory. Only the marks outlive a start, through the store.
 #[derive(Debug, Default)]
 pub(super) struct Guard {
@@ -70,6 +55,9 @@ pub(super) struct Guard {
     /// Endpoints bound to no current member that called about a goal whose
     /// governance key is held here, newest last.
     callers: BTreeMap<GoalId, VecDeque<EndpointId>>,
+    /// Goals the marks name and the store does not hold, counted at a start
+    /// that put the data back from a copy; 0 after an ordinary start.
+    lost: u32,
 }
 
 impl Guard {
@@ -90,6 +78,11 @@ impl Guard {
     /// just landed waits for a hearing after it.
     pub fn unhear(&mut self, goal: &GoalId) {
         self.heard.remove(goal);
+    }
+
+    /// Goals this computer signed in that the copy it started from lacks.
+    pub fn lost(&self) -> u32 {
+        self.lost
     }
 }
 
@@ -163,6 +156,24 @@ impl<S: Store, E: Entropy> Node<S, E> {
     pub(super) fn admission_hold(&self, entry: &Entry) -> Option<Hold> {
         let governance = entry.state().governance?;
         self.hold(entry, &governance)
+    }
+
+    /// The view a refusal of `key` carries: the key's own hold, or, where
+    /// the key is held only because this daemon hosts the goal and the
+    /// goal's own key is held, that key's. `None` exactly when
+    /// [`Node::hold`] answers none.
+    pub(super) fn hold_view(&self, entry: &Entry, key: &PublicKey) -> Option<GuardView> {
+        self.hold(entry, key)?;
+        let source = match (self.own_hold(entry, key), self.hosted_governance(entry)) {
+            (Some(Hold::Behind { .. }), _) | (_, None) => *key,
+            (_, Some(governance))
+                if governance != *key && self.hold(entry, &governance).is_some() =>
+            {
+                governance
+            }
+            _ => *key,
+        };
+        self.guard_view(entry, &source)
     }
 
     fn hold_with(
@@ -484,6 +495,21 @@ impl<S: Store, E: Entropy> Node<S, E> {
             (true, false) => Start::Replaced,
             (false, true) => Start::MarksLost,
             (false, false) => Start::Unknown,
+        };
+        // The goals the kept marks name and this copy lacks were lost with
+        // it. The number lasts until the next ordinary start.
+        self.guard.lost = match start {
+            Start::Replaced | Start::Overwritten => {
+                let lost: BTreeSet<_> = self
+                    .guard
+                    .marks
+                    .keys()
+                    .map(|(goal, _)| *goal)
+                    .filter(|goal| !self.goals.contains_key(goal))
+                    .collect();
+                u32::try_from(lost.len()).unwrap_or(u32::MAX)
+            }
+            Start::Ordinary | Start::MarksLost | Start::Unknown => 0,
         };
         // Kept marks written while a goal was unheard keep that memory when
         // the store does not: a start with the marks lost rewrites them from

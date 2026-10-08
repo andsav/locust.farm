@@ -616,11 +616,6 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 "the principal is not a member",
             ));
         }
-        let mut place = self.next_place(entry, &governance)?;
-        place.epoch = place
-            .epoch
-            .checked_add(1)
-            .ok_or_else(|| crate::node::access::conflict("the key epoch is exhausted"))?;
         let last_accepted = entry
             .goal
             .points(&member)
@@ -633,17 +628,23 @@ impl<S: Store, E: Entropy> Node<S, E> {
             })
             .max_by_key(|point| point.seq)
             .copied();
+        let body = Body::MemberRemoved {
+            member,
+            admission: entry.state().members[&member].admission,
+            last_accepted,
+        };
+        let mut place = self.next_place(entry, &governance, &body)?;
+        place.epoch = place
+            .epoch
+            .checked_add(1)
+            .ok_or_else(|| crate::node::access::conflict("the key epoch is exhausted"))?;
         let key = ContentKey(self.random());
         let mut tx = Tx::none();
         let event = sign_at(
             goal,
             self.key_for(entry, &governance)?,
             place,
-            Body::MemberRemoved {
-                member,
-                admission: entry.state().members[&member].admission,
-                last_accepted,
-            },
+            body,
             Some((&key, "")),
             now,
             &mut tx,

@@ -21,6 +21,22 @@ pub struct GuardView {
     pub waiting: Vec<EndpointId>,
 }
 
+impl GuardView {
+    /// Whether only the person can end this hold, as far as this daemon can
+    /// tell: a copy of unknown age in a goal this daemon hosts, or the goal's
+    /// own records still missing after every other computer has answered.
+    /// A goal whose copy lists no other computer waits for a member's
+    /// computer to call, not for the person: continuing there would fork it.
+    pub fn waits_for_you(&self) -> bool {
+        self.by_host
+            && match self.reason {
+                GuardReason::Unheard => true,
+                GuardReason::Behind { .. } => self.waiting.is_empty() && !self.heard.is_empty(),
+                GuardReason::Admitted => false,
+            }
+    }
+}
+
 /// Why a key is held. Tagged the ordinary way, as `{"behind": {..}}`:
 /// responses travel in postcard too.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

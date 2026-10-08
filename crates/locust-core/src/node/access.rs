@@ -5,7 +5,9 @@
 //! make is `Denied`. The owner acting on a principal's behalf skips only
 //! the local level, never the shared rule.
 
-use locust_proto::api::{Act, ApiError, ErrorCode, Level, Membership, Refused, Voice, Why, render};
+use locust_proto::api::{
+    Act, ApiError, ErrorCode, GuardReason, Level, Membership, Refused, Voice, Why, render,
+};
 use locust_proto::engine::Entropy;
 use locust_proto::event::{Body, DecisionAction, Event, Scope, TaskId};
 use locust_proto::id::{GoalId, PublicKey};
@@ -42,6 +44,19 @@ pub(super) enum Attempted<'a> {
     },
 }
 
+/// The act a signed body stands for in a refusal, and the task it is about
+/// when it starts an attempt.
+pub(super) fn subject(body: &Body) -> (Act, Option<TaskId>) {
+    let task = match body {
+        Body::AttemptStarted { context, .. } => match context.scope {
+            Scope::Task(task) => Some(task),
+            _ => None,
+        },
+        _ => None,
+    };
+    (act(body), task)
+}
+
 fn act(body: &Body) -> Act {
     match body {
         Body::TaskOpened { .. } => Act::OpenTask,
@@ -64,7 +79,10 @@ fn act(body: &Body) -> Act {
         Body::TaskRevised { .. } => Act::Revise,
         Body::RulesBound { .. } => Act::ChangeRules,
         Body::LeaveRequested { .. } => Act::Leave,
-        Body::PublicationSet(_) => Act::Publish,
+        Body::PublicationSet(_) | Body::PublicationConsent(_) => Act::Publish,
+        Body::MemberAdmitted { .. } => Act::Invite,
+        Body::MemberRemoved { .. } => Act::RemoveMember,
+        Body::RoleHolders { .. } => Act::GiveRole,
         _ => Act::PersonCommand,
     }
 }
@@ -148,16 +166,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         why: Why,
     ) -> ApiError {
         let (act, task) = match attempted {
-            Attempted::Sign { event, .. } => (
-                act(&event.header().body),
-                match &event.header().body {
-                    Body::AttemptStarted { context, .. } => match context.scope {
-                        Scope::Task(task) => Some(task),
-                        _ => None,
-                    },
-                    _ => None,
-                },
-            ),
+            Attempted::Sign { event, .. } => subject(&event.header().body),
             Attempted::Resume { task } => (Act::Resume, Some(*task)),
             Attempted::Store => (Act::Post, None),
             Attempted::Withdraw => (Act::Withdraw, None),
@@ -166,7 +175,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
     }
 
     /// The refusal of `act` on `task`, in the agent's voice with the person's
-    /// facts in the details.
+    /// facts in the details. The goal's own key is named `host`, never by
+    /// its key.
     pub(super) fn refusal(
         &self,
         entry: &Entry,
@@ -175,17 +185,26 @@ impl<S: Store, E: Entropy> Node<S, E> {
         task: Option<TaskId>,
         why: Why,
     ) -> ApiError {
-        let agent_name = self
-            .principals
-            .get(&agent)
-            .map(|p| p.record.name.clone())
-            .unwrap_or_else(|| agent.to_string().chars().take(8).collect());
+        let agent_name = if entry.state().governance == Some(agent) {
+            "host".to_owned()
+        } else {
+            self.principals
+                .get(&agent)
+                .map(|p| p.record.name.clone())
+                .unwrap_or_else(|| agent.to_string().chars().take(8).collect())
+        };
         let task_title = task.and_then(|task| entry.task_title(&self.store, &task, None));
         let code = match &why {
             Why::YourSetting { .. } => ErrorCode::LevelRequired,
             Why::Rules { .. } => ErrorCode::NotEligible,
             Why::State { .. } => ErrorCode::Conflict,
             Why::OnlyYou { .. } => ErrorCode::Denied,
+            // A key just admitted waits a moment and needs nobody; a key of a
+            // copy put back waits to catch up.
+            Why::ThisComputer { hold } if hold.reason == GuardReason::Admitted => {
+                ErrorCode::Unavailable
+            }
+            Why::ThisComputer { .. } => ErrorCode::ReadOnly,
         };
         let refused = Refused {
             agent,

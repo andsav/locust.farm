@@ -3,7 +3,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use super::{Claim, Membership};
+use super::{Claim, GuardReason, GuardView, Membership};
 use crate::event::{AttemptStatus, TaskId};
 use crate::id::{EffectId, EventId, GoalId, PublicKey};
 use crate::organization::Selector;
@@ -93,6 +93,13 @@ pub enum Why {
         operation: String,
         host: bool,
     },
+    /// This computer is catching up after its Locust data was put back from
+    /// a copy, and signs nothing with the key yet. `hold` says why and what
+    /// the hold waits for. An agent held because the goal's own key is held
+    /// on the computer that hosts the goal carries that key's view.
+    ThisComputer {
+        hold: GuardView,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -156,6 +163,9 @@ pub enum Stall {
     RunnerRevoked,
     RunnerLeft,
     RunnerNotMember,
+    /// This daemon is catching up after a restore and the restore guard
+    /// holds the runner's key; the step is signed once the hold ends.
+    CatchingUp,
     Halted,
     CannotMaterialize,
 }
@@ -185,16 +195,21 @@ pub enum Voice {
 /// A refusal as one sentence: `WHO can't ACT: REASON (SIDE). FIX`. The
 /// person's voice names the agent by its name in the goal and quotes titles
 /// and role names; the agent's voice names it by its local name and says
-/// "this task", "this goal", "the host" and "a role".
+/// "this task", "this goal", "the host" and "a role". A refusal of the
+/// goal's own key, which only the host's computer holds, reads "You" to the
+/// person and "The host" to an agent, and names no key.
 pub fn render(refused: &Refused, voice: Voice) -> String {
-    let who = match voice {
-        Voice::Person => safe(
+    let by_host = matches!(&refused.why, Why::ThisComputer { hold } if hold.by_host && hold.key == refused.agent);
+    let who = match (voice, by_host) {
+        (Voice::Person, true) => "You".to_owned(),
+        (Voice::Agent, true) => "The host".to_owned(),
+        (Voice::Person, false) => safe(
             refused
                 .member_name
                 .as_deref()
                 .unwrap_or(&refused.agent_name),
         ),
-        Voice::Agent => refused.agent_name.clone(),
+        (Voice::Agent, false) => refused.agent_name.clone(),
     };
     let goal = refused.goal.map(|_| match voice {
         Voice::Person => refused
@@ -303,8 +318,53 @@ pub fn render(refused: &Refused, voice: Voice) -> String {
                 },
             )
         }
+        Why::ThisComputer { hold } => {
+            // Every hold is in a goal; with none named, the line that
+            // continues them all still runs as printed.
+            let line = refused.goal.map_or_else(
+                || "locust --owner goal continue --all".to_owned(),
+                |goal| continue_command(&goal.to_string()[..8]),
+            );
+            let owner = if by_host {
+                "the host".to_owned()
+            } else {
+                format!("{who}'s owner")
+            };
+            (
+                match hold.reason {
+                    GuardReason::Behind { .. } => {
+                        "the Locust data here is older than what this computer signed in the goal"
+                    }
+                    GuardReason::Unheard => "the Locust data here may be an old copy",
+                    GuardReason::Admitted => {
+                        "admission has just arrived; Locust is checking with the host's computer"
+                    }
+                }
+                .to_owned(),
+                "this computer".to_owned(),
+                match (hold.reason, hold.waits_for_you(), voice) {
+                    (GuardReason::Admitted, _, _) => "It ends by itself.".to_owned(),
+                    (_, false, Voice::Person) => {
+                        format!("It catches up by itself. To go on without waiting: {line}")
+                    }
+                    (_, false, Voice::Agent) => {
+                        format!("It catches up by itself, or {owner} can continue without waiting.")
+                    }
+                    (_, true, Voice::Person) => format!("It waits for you. To continue: {line}"),
+                    (_, true, Voice::Agent) => {
+                        format!("It waits for {owner}, who can continue with one command.")
+                    }
+                },
+            )
+        }
     };
     format!("{who} can't {act}: {reason} ({side}). {fix}")
+}
+
+/// The one line that ends the restore guard's holds in one goal, whose
+/// identifier is already cut by [`short`].
+pub fn continue_command(goal: &str) -> String {
+    format!("locust --owner goal continue --goal {goal}")
 }
 
 fn level_word(level: Level) -> &'static str {
@@ -914,6 +974,132 @@ mod tests {
                 "{agent}"
             );
         }
+    }
+
+    /// The hold of mockup G-4: the computer of Cedar, the only other member,
+    /// has not answered since this start.
+    fn hold(by_host: bool, reason: GuardReason) -> GuardView {
+        GuardView {
+            key: if by_host {
+                PublicKey([5; 32])
+            } else {
+                PublicKey([9; 32])
+            },
+            by_host,
+            reason,
+            heard: vec![],
+            waiting: vec![crate::id::EndpointId([6; 32])],
+        }
+    }
+
+    #[test]
+    fn this_computer_reads_the_same_facts_in_both_voices() {
+        let behind = GuardReason::Behind { held: 3, signed: 5 };
+        let mut refused = juniper(
+            Act::Post,
+            Why::ThisComputer {
+                hold: hold(false, behind),
+            },
+        );
+        refused.agent_name = "codex-maple-1a2b3c4d".into();
+        refused.member_name = Some("Maple".into());
+        // Mockup G-4, a hold that waits for a computer.
+        assert_eq!(
+            render(&refused, Voice::Person),
+            "Maple can't post to \"Parser cleanup\": the Locust data here is older than what this computer signed in the goal (this computer). It catches up by itself. To go on without waiting: locust --owner goal continue --goal c01d55aa"
+        );
+        assert_eq!(
+            render(&refused, Voice::Agent),
+            "codex-maple-1a2b3c4d can't post to this goal: the Locust data here is older than what this computer signed in the goal (this computer). It catches up by itself, or codex-maple-1a2b3c4d's owner can continue without waiting."
+        );
+        // A host command refused before any plan reads "You" and names no key.
+        let mut host = refused.clone();
+        host.agent = PublicKey([5; 32]);
+        host.agent_name = "host".into();
+        host.member_name = None;
+        host.act = Act::ChangeRules;
+        host.why = Why::ThisComputer {
+            hold: hold(true, behind),
+        };
+        let person = render(&host, Voice::Person);
+        assert_eq!(
+            person,
+            "You can't change the rules of \"Parser cleanup\": the Locust data here is older than what this computer signed in the goal (this computer). It catches up by itself. To go on without waiting: locust --owner goal continue --goal c01d55aa"
+        );
+        assert!(!person.contains("0505"), "{person}");
+        assert!(
+            render(&host, Voice::Agent).starts_with("The host can't change the rules of this goal"),
+            "{}",
+            render(&host, Voice::Agent)
+        );
+        // An agent held because the goal's own key is held carries that
+        // key's view and reads as itself.
+        let mut through = refused.clone();
+        through.why = Why::ThisComputer {
+            hold: hold(true, GuardReason::Unheard),
+        };
+        // A copy of unknown age in a goal this computer hosts waits for the
+        // person, whatever has answered.
+        assert_eq!(
+            render(&through, Voice::Person),
+            "Maple can't post to \"Parser cleanup\": the Locust data here may be an old copy (this computer). It waits for you. To continue: locust --owner goal continue --goal c01d55aa"
+        );
+        assert_eq!(
+            render(&through, Voice::Agent),
+            "codex-maple-1a2b3c4d can't post to this goal: the Locust data here may be an old copy (this computer). It waits for codex-maple-1a2b3c4d's owner, who can continue with one command."
+        );
+        // The goal's own records still missing after every other computer
+        // answered: only the person ends it too.
+        let mut answered = hold(true, behind);
+        answered.heard = std::mem::take(&mut answered.waiting);
+        through.why = Why::ThisComputer { hold: answered };
+        assert!(render(&through, Voice::Person).contains("It waits for you. To continue: "));
+        // A copy of unknown age on a member's computer waits for the host's.
+        through.why = Why::ThisComputer {
+            hold: hold(false, GuardReason::Unheard),
+        };
+        assert!(render(&through, Voice::Person).ends_with(
+            "It catches up by itself. To go on without waiting: locust --owner goal continue --goal c01d55aa"
+        ));
+        // A key just admitted ends by itself and prints no command.
+        let mut admitted = refused.clone();
+        admitted.why = Why::ThisComputer {
+            hold: hold(false, GuardReason::Admitted),
+        };
+        for voice in [Voice::Person, Voice::Agent] {
+            let text = render(&admitted, voice);
+            assert!(
+                text.ends_with(
+                    "admission has just arrived; Locust is checking with the host's computer (this computer). It ends by itself."
+                ),
+                "{text}"
+            );
+            assert!(!text.contains("locust"), "{text}");
+        }
+        // The agent's voice quotes nothing a member wrote, says no "you" and
+        // prints no command.
+        for refused in [refused, host, through, admitted] {
+            let mut written = refused.clone();
+            written.member_name = Some("MEMBER".into());
+            written.goal_title = Some("GOAL".into());
+            let agent = render(&written, Voice::Agent);
+            for word in ["MEMBER", "GOAL", "\"", "locust"] {
+                assert!(!agent.contains(word), "{agent}");
+            }
+            assert!(
+                !agent
+                    .split(|c: char| !c.is_alphanumeric())
+                    .any(|word| word == "you"),
+                "{agent}"
+            );
+        }
+        assert_eq!(
+            serde_json::to_value(Why::ThisComputer {
+                hold: hold(true, GuardReason::Unheard)
+            })
+            .unwrap()["side"],
+            "this_computer"
+        );
     }
 
     #[test]

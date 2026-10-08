@@ -4021,22 +4021,6 @@
               }
             ],
             "commands": [],
-            "name": "continue",
-            "summary": "goal continue"
-          },
-          {
-            "arguments": [
-              {
-                "action": "Set",
-                "help": "Value, or - for standard input on text fields",
-                "long": "goal",
-                "name": "goal",
-                "positional": false,
-                "required": true,
-                "short": null
-              }
-            ],
-            "commands": [],
             "name": "status",
             "summary": "Shows one goal: its host, members, roles, rules, shared files and each local agent's standing in it."
           },
@@ -4274,6 +4258,49 @@
             "commands": [],
             "name": "leave",
             "summary": null
+          },
+          {
+            "arguments": [
+              {
+                "action": "Set",
+                "help": "Visible goal title, identifier or unique prefix",
+                "long": "goal",
+                "name": "goal",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "SetTrue",
+                "help": "Every goal that is catching up",
+                "long": "all",
+                "name": "all",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "SetTrue",
+                "help": "Show the exact action and its plan identifier without acting",
+                "long": "plan",
+                "name": "plan",
+                "positional": false,
+                "required": false,
+                "short": null
+              },
+              {
+                "action": "Set",
+                "help": "Proceed only if this plan identifier still matches",
+                "long": "confirm",
+                "name": "confirm",
+                "positional": false,
+                "required": false,
+                "short": null
+              }
+            ],
+            "commands": [],
+            "name": "continue",
+            "summary": "Sign again in a goal that is catching up after this computer's data was put back from a copy"
           },
           {
             "arguments": [
@@ -7740,9 +7767,94 @@
         ],
         "type": "string"
       },
+      "EndpointId": {
+        "pattern": "^[0-9a-fA-F]{64}$",
+        "type": "string"
+      },
       "GoalId": {
         "pattern": "^[0-9a-fA-F]{64}$",
         "type": "string"
+      },
+      "GuardReason": {
+        "description": "Why a key is held. Tagged the ordinary way, as `{\"behind\": {..}}`:\nresponses travel in postcard too.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "description": "This daemon signed `signed` records with the key in the goal and holds\nthe first `held` of them.",
+            "properties": {
+              "behind": {
+                "properties": {
+                  "held": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "signed": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "held",
+                  "signed"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "behind"
+            ],
+            "type": "object"
+          },
+          {
+            "const": "unheard",
+            "description": "This daemon's data may be an old copy.",
+            "type": "string"
+          },
+          {
+            "const": "admitted",
+            "description": "The key was just admitted here and the host's computer has not been\nheard from since.",
+            "type": "string"
+          }
+        ]
+      },
+      "GuardView": {
+        "description": "One key of this daemon held in one goal, for its own reason. An agent held\nonly because the goal's governance key is held has no view of its own.",
+        "properties": {
+          "by_host": {
+            "description": "True for the goal's governance key, which this daemon holds as host.",
+            "type": "boolean"
+          },
+          "heard": {
+            "description": "Other computers in the goal heard from since this daemon started.",
+            "items": {
+              "$ref": "#/$defs/EndpointId"
+            },
+            "type": "array"
+          },
+          "key": {
+            "$ref": "#/$defs/PublicKey"
+          },
+          "reason": {
+            "$ref": "#/$defs/GuardReason"
+          },
+          "waiting": {
+            "description": "Other computers in the goal not heard from yet.",
+            "items": {
+              "$ref": "#/$defs/EndpointId"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "key",
+          "by_host",
+          "reason",
+          "heard",
+          "waiting"
+        ],
+        "type": "object"
       },
       "Level": {
         "enum": [
@@ -7999,6 +8111,23 @@
               "side",
               "operation",
               "host"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "This computer is catching up after its Locust data was put back from\na copy, and signs nothing with the key yet. `hold` says why and what\nthe hold waits for. An agent held because the goal's own key is held\non the computer that hosts the goal carries that key's view.",
+            "properties": {
+              "hold": {
+                "$ref": "#/$defs/GuardView"
+              },
+              "side": {
+                "const": "this_computer",
+                "type": "string"
+              }
+            },
+            "required": [
+              "side",
+              "hold"
             ],
             "type": "object"
           }
@@ -13379,6 +13508,12 @@
             },
             "type": "array"
           },
+          "lost_goals": {
+            "description": "For the owner, the goals this computer signed in that this copy of\nits Locust data does not hold, found at the last start that put the\ndata back from a copy; 0 again after the next ordinary start. A goal\nhosted here cannot come back from such a copy; one joined needs its\nticket again.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
           "waiting": {
             "description": "What a command of the person settles, oldest first, each with that\ncommand. Nothing that waits for another computer or for nobody.",
             "items": {
@@ -13391,7 +13526,8 @@
           "daemon_version",
           "agents",
           "waiting",
-          "goals"
+          "goals",
+          "lost_goals"
         ],
         "type": "object"
       },
@@ -16177,14 +16313,23 @@
         "type": "string"
       },
       "Stall": {
-        "enum": [
-          "runner_revoked",
-          "runner_left",
-          "runner_not_member",
-          "halted",
-          "cannot_materialize"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "runner_revoked",
+              "runner_left",
+              "runner_not_member",
+              "halted",
+              "cannot_materialize"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "catching_up",
+            "description": "This daemon is catching up after a restore and the restore guard\nholds the runner's key; the step is signed once the hold ends.",
+            "type": "string"
+          }
+        ]
       },
       "Stalled": {
         "properties": {
@@ -16586,6 +16731,30 @@
             },
             "required": [
               "set_ask"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "The goal is catching up after this computer's data was put back from\na copy, and no other computer can end the hold: only the person can\nsay the copy is the newest. The command continues the goal.",
+            "properties": {
+              "catching_up": {
+                "properties": {
+                  "holds": {
+                    "items": {
+                      "$ref": "#/$defs/GuardView"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "holds"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "catching_up"
             ],
             "type": "object"
           }

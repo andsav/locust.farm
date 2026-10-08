@@ -16,8 +16,8 @@ mod workspace_lifecycle;
 
 use locust_proto::API_VERSION;
 use locust_proto::api::{
-    ApiError, Caller, ClientHello, Credential, ErrorCode, Request, RequestFrame, Response,
-    ServerHello, SessionSecret,
+    ApiError, Caller, ClientHello, Credential, ErrorCode, GuardView, Request, RequestFrame,
+    Response, ServerHello, SessionSecret,
 };
 use locust_proto::engine::{ConnId, Engine, Entropy, Step};
 use locust_proto::id::{IdempotencyKey, PublicKey};
@@ -238,6 +238,20 @@ pub(super) fn session(tag: u8) -> SessionSecret {
 
 pub(super) fn code<T: std::fmt::Debug>(result: Result<T, ApiError>) -> ErrorCode {
     result.expect_err("the request must be refused").code
+}
+
+/// The restore guard's refusal of a request that would sign: its structured
+/// form, on this computer's side, and the hold it names. The message is the
+/// agent's voice of it.
+pub(super) fn this_computer(error: &ApiError) -> (locust_proto::api::Refused, GuardView) {
+    use locust_proto::api::{Voice, Why, render};
+    let refused = error.refused().expect("a refusal carries its details");
+    let Why::ThisComputer { hold } = refused.why.clone() else {
+        panic!("{refused:?}")
+    };
+    assert_eq!(error.message, render(&refused, Voice::Agent));
+    names_no_operation(error);
+    (refused, hold)
 }
 
 /// A refusal reaches models through the MCP bridge and people through the CLI.

@@ -168,15 +168,46 @@ fn run_mcp(matches: &ArgMatches, selected: &ArgMatches) -> Result<(), Failure> {
     })
 }
 fn print_failure(error: Failure, json_mode: bool) -> u8 {
+    let text = failure_text(&error, json_mode);
     let written = if json_mode {
-        print::stdout(format_args!(
-            "{}\n",
-            json!({"ok": false, "error": {"code": error.code.as_str(), "message": error.message, "details": error.details_json.as_deref().and_then(|text| serde_json::from_str::<Value>(text).ok())}})
-        ))
+        print::stdout(format_args!("{text}\n"))
     } else {
-        print::stderr(format_args!("locust: {error}{}\n", role_details(&error)))
+        print::stderr(format_args!("{text}\n"))
     };
     print::status(written, error.exit_status())
+}
+/// A failure as it is printed: one JSON envelope, or one line for a person.
+fn failure_text(error: &Failure, json_mode: bool) -> String {
+    if json_mode {
+        json!({"ok": false, "error": {"code": error.code.as_str(), "message": error.message, "details": error.details_json.as_deref().and_then(|text| serde_json::from_str::<Value>(text).ok())}}).to_string()
+    } else {
+        format!("locust: {error}{}", role_details(error))
+    }
+}
+/// Runs one command line in this process, as `locust` would, against the
+/// daemon its `--home` names: its exit status and what it prints, the
+/// output or the failure, in the words the person or the script reads.
+#[cfg(test)]
+pub(crate) fn run_for_test(arguments: &[&str]) -> (u8, String) {
+    let matches = args::command()
+        .try_get_matches_from(std::iter::once("locust").chain(arguments.iter().copied()))
+        .expect("the command line parses");
+    let json_mode = matches.get_flag("json");
+    match execute(&matches) {
+        Ok(output) if json_mode => (
+            output.status,
+            json!({"ok": output.ok, "result": output.result}).to_string(),
+        ),
+        Ok(output) => (output.status, output.human),
+        Err(error) => {
+            let error = if matches.get_flag("owner") && !json_mode {
+                error.for_person()
+            } else {
+                error
+            };
+            (error.exit_status(), failure_text(&error, json_mode))
+        }
+    }
 }
 /// The role a refusal is about, and the roles the goal has, which the daemon
 /// carries only as details: a person reads them after the sentence.
@@ -513,6 +544,10 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
         }
         _ => (Vec::new(), Vec::new()),
     };
+    let held = match (&known, &response) {
+        (Some(_), Response::Status(view)) => held(&mut client, view, on_behalf),
+        _ => Vec::new(),
+    };
     let goals = known
         .as_ref()
         .map(|known| {
@@ -528,6 +563,7 @@ fn execute(matches: &ArgMatches) -> Result<Output, Failure> {
         goals: &goals,
         members: &members,
         tasks: &tasks,
+        held: &held,
         now_ms: now_ms(),
         ..presentation::Reader::new(voice(matches), response_principal, &names)
     };
@@ -634,6 +670,36 @@ pub(super) fn members(
         Ok(Response::GoalStatus(view)) => view.members,
         _ => Vec::new(),
     }
+}
+/// The status of each goal that is catching up, so that its block names the
+/// computers it waits for; none for a goal whose read fails, since a view
+/// never fails for want of a name.
+fn held(
+    client: &mut LocalClient,
+    status: &DaemonStatus,
+    on_behalf: Option<PublicKey>,
+) -> Vec<locust_proto::api::GoalStatus> {
+    let mut goals: Vec<GoalId> = status
+        .goals
+        .iter()
+        .filter(|summary| {
+            summary
+                .guard
+                .iter()
+                .any(|hold| hold.reason != locust_proto::api::GuardReason::Admitted)
+        })
+        .map(|summary| summary.goal)
+        .collect();
+    goals.dedup();
+    goals
+        .into_iter()
+        .filter_map(
+            |goal| match client.call_with(Request::GoalStatus { goal }, None, on_behalf) {
+                Ok(Response::GoalStatus(view)) => Some(view),
+                _ => None,
+            },
+        )
+        .collect()
 }
 /// The goal's tasks, so that a task's prefix is unique among them.
 pub(super) fn board(

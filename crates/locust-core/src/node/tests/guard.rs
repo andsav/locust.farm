@@ -9,8 +9,8 @@ use super::*;
 use crate::node::guard::Hold;
 use crate::sync::Host;
 use locust_proto::api::{
-    DaemonStatus, GoalStatus, GoalSummary, GuardReason, GuardView, Halt, InvitationState,
-    InvitationSummary, Level, Membership,
+    Act, DaemonStatus, GoalStatus, GoalSummary, GuardReason, GuardView, Halt, InvitationState,
+    InvitationSummary, Level, Membership, Voice, render,
 };
 use locust_proto::engine::{ExchangeId, PeerEngine, PeerInput, PeerOutput, PeerTime};
 use locust_proto::event::{Body, Event, Scope};
@@ -681,11 +681,33 @@ fn a_copy_of_unknown_age_on_the_hosts_computer_waits_for_the_person() {
     assert!(waiting(&net.nodes[0], goal) > 0);
     let refused = post(&mut net, 0, 1, goal).unwrap_err();
     assert_eq!(refused.code, ErrorCode::ReadOnly);
+    // The agent is held through the goal's own key, whose view it carries:
+    // only the person ends that hold.
+    let (agent, hold) = this_computer(&refused);
+    assert_eq!((agent.agent, agent.act), (host, Act::Post));
+    assert_eq!((hold.key, hold.reason), (governance, GuardReason::Unheard));
+    assert!(hold.waits_for_you());
     assert!(
-        refused.message.contains("waiting for its owner"),
+        refused
+            .message
+            .ends_with("It waits for host's owner, who can continue with one command."),
         "{refused}"
     );
-    assert_eq!(code(rebind(&mut net.nodes[0], goal)), ErrorCode::ReadOnly);
+    let refused = rebind(&mut net.nodes[0], goal).unwrap_err();
+    assert_eq!(refused.code, ErrorCode::ReadOnly);
+    let (bind, _) = this_computer(&refused);
+    assert_eq!((bind.agent, bind.agent_name.as_str()), (governance, "host"));
+    assert_eq!(bind.act, Act::ChangeRules);
+    let person = render(&bind, Voice::Person);
+    assert!(
+        person.starts_with("You can't change the rules of \"Guarded\": ")
+            && person.ends_with(&format!(
+                "It waits for you. To continue: locust --owner goal continue --goal {}",
+                &goal.to_string()[..8]
+            )),
+        "{person}"
+    );
+    assert!(!person.contains(&governance.to_string()[..8]), "{person}");
 
     assert_eq!(continued(&mut net.nodes[0], goal), 2);
     assert_eq!(waiting(&net.nodes[0], goal), 0, "signed at once");
@@ -1166,8 +1188,12 @@ fn a_record_no_other_computer_holds_is_given_up_for_an_agent_key_and_kept_for_th
     assert_eq!(held.guard[0].waiting, vec![Network::endpoint(1)]);
     let error = post(&mut net, 0, HOST, goal).unwrap_err();
     assert_eq!(error.code, ErrorCode::ReadOnly);
+    let (_, hold) = this_computer(&error);
+    assert_eq!(hold.key, host);
     assert!(
-        error.message.contains("older than what it signed"),
+        error
+            .message
+            .contains("older than what this computer signed in the goal (this computer). It catches up by itself"),
         "{error}"
     );
     // Every other computer answered and none had it: the key gives it up.
@@ -1328,6 +1354,13 @@ fn the_persons_own_command_is_held_like_any_signature() {
     let error = daemon.call(owner, bind.clone()).unwrap_err();
     assert_eq!(error.code, ErrorCode::ReadOnly);
     assert!(error.message.contains("may be an old copy"), "{error}");
+    let (refused, hold) = this_computer(&error);
+    assert_eq!(refused.agent_name, "host");
+    assert!(hold.by_host && hold.key == refused.agent);
+    assert!(
+        render(&refused, Voice::Person).starts_with("You can't change the rules of"),
+        "{error}"
+    );
     // Issuing is not held; the admission it leads to is.
     let ticket = invite(daemon, goal);
     let local = daemon.enroll("local", 3);
@@ -1336,6 +1369,13 @@ fn the_persons_own_command_is_held_like_any_signature() {
         .unwrap_err();
     assert_eq!(error.code, ErrorCode::ReadOnly);
     assert!(error.message.contains("may be an old copy"), "{error}");
+    let (refused, hold) = this_computer(&error);
+    assert_eq!((refused.agent, refused.act), (local, Act::Join));
+    assert!(hold.by_host);
+    assert!(
+        error.message.starts_with("local can't join this goal: "),
+        "{error}"
+    );
     assert!(!daemon.node.goals[&goal].is_member(&local));
     assert!(
         invitations(daemon, goal)
@@ -2261,4 +2301,234 @@ fn an_agents_mark_is_kept_while_the_goals_own_key_is_held() {
         assert_eq!(entry.goal.fork_point(&host), None);
         assert_eq!(entry.goal.fork_point(&governance), None);
     }
+}
+
+/// What waits for the owner, as `status` lists it.
+fn waiting_for_you(daemon: &mut Daemon) -> Vec<locust_proto::api::WaitingForYou> {
+    let owner = daemon.owner();
+    let Response::Status(DaemonStatus { waiting, .. }) = daemon.ok(owner, Request::Status) else {
+        panic!()
+    };
+    daemon.node.disconnect(owner);
+    waiting
+}
+
+/// The goal's entry under "Waiting for you", which only a hold no other
+/// computer can end gets: its command continues the goal.
+fn listed(daemon: &mut Daemon, goal: GoalId) -> Option<Vec<GuardView>> {
+    let waiting = waiting_for_you(daemon);
+    let goals: Vec<String> = daemon.node.goals.keys().map(ToString::to_string).collect();
+    let found = waiting.into_iter().find(|item| item.goal == goal)?;
+    let locust_proto::api::WaitingKind::CatchingUp { holds } = found.kind else {
+        panic!("{found:?}")
+    };
+    assert_eq!((found.agent, found.agent_name), (None, None));
+    assert_eq!(
+        found.command,
+        locust_proto::api::continue_command(&locust_proto::api::short(&goal.to_string(), &goals))
+    );
+    Some(holds)
+}
+
+#[test]
+fn only_a_hold_no_other_computer_can_end_waits_for_the_person() {
+    // The goal's own record reached no other computer. While the member's
+    // computer is out of reach the hold waits for it and asks nobody.
+    let mut net = Network::with(2);
+    let (goal, _, _) = shared_goal(&mut net, &[1]);
+    let governance = governance_of(&net.nodes[0], goal);
+    let copy = snapshot(&net.nodes[0].store);
+    net.down.insert(1);
+    let owner = net.nodes[0].owner();
+    join_local(&mut net.nodes[0], owner, goal, 3);
+    net.start_over(0, copy);
+    assert_eq!(listed(&mut net.nodes[0], goal), None);
+    let error = post(&mut net, 0, HOST, goal).unwrap_err();
+    let (_, hold) = this_computer(&error);
+    assert!(!hold.waits_for_you());
+    assert!(
+        error
+            .message
+            .ends_with("It catches up by itself, or host's owner can continue without waiting."),
+        "{error}"
+    );
+    // The member's computer answered and sent nothing: only the person can
+    // end the hold now.
+    net.down.clear();
+    settle(&mut net);
+    let holds = listed(&mut net.nodes[0], goal).expect("listed for the person");
+    assert!(
+        holds
+            .iter()
+            .any(|view| view.key == governance && view.waits_for_you()),
+        "{holds:?}"
+    );
+    let error = post(&mut net, 0, HOST, goal).unwrap_err();
+    assert!(
+        error
+            .message
+            .ends_with("It waits for host's owner, who can continue with one command."),
+        "{error}"
+    );
+    assert_eq!(continued(&mut net.nodes[0], goal), 2);
+    assert_eq!(listed(&mut net.nodes[0], goal), None);
+
+    // A copy of unknown age of a goal this computer hosts waits for the
+    // person from the start, and still after every other computer answered.
+    let mut net = Network::with(2);
+    let (goal, _, _) = shared_goal(&mut net, &[1]);
+    let copy = snapshot_all(&net.nodes[0].store);
+    net.down.insert(1);
+    net.start_over(0, copy);
+    let holds = listed(&mut net.nodes[0], goal).expect("listed from the start");
+    assert_eq!(
+        unheard(&holds),
+        BTreeSet::from([
+            governance_of(&net.nodes[0], goal),
+            host_agent(&net.nodes[0])
+        ])
+    );
+    net.down.clear();
+    settle(&mut net);
+    let holds = listed(&mut net.nodes[0], goal).expect("listed after every answer");
+    assert!(holds.iter().all(|view| view.waiting.is_empty()));
+
+    // On a member's computer the same copy waits for the host's computer,
+    // and nothing waits for the person there.
+    let mut net = Network::with(2);
+    let (goal, _, joined) = shared_goal(&mut net, &[1]);
+    let member = joined[&1].0;
+    let copy = snapshot_all(&net.nodes[1].store);
+    net.down.insert(0);
+    net.start_over(1, copy);
+    assert!(waiting_for_you(&mut net.nodes[1]).is_empty());
+    let view = summary(&mut net.nodes[1], goal, member);
+    assert_eq!(reasons(&view.guard), [(member, GuardReason::Unheard)]);
+    assert!(!view.guard[0].waits_for_you());
+    let error = post(&mut net, 1, tag(1), goal).unwrap_err();
+    assert!(
+        error.message.ends_with(&format!(
+            "It catches up by itself, or {}'s owner can continue without waiting.",
+            "member"
+        )),
+        "{error}"
+    );
+
+    // A copy from before the goal's first member lists nobody to ask: it
+    // waits for a member's computer to call, and continuing would fork it.
+    let mut net = Network::with(2);
+    let (goal, _) = hosted(&mut net, 0, 1);
+    let copy = snapshot(&net.nodes[0].store);
+    join(&mut net, 0, 1, goal, 2);
+    net.down.insert(1);
+    net.start_over(0, copy);
+    let view = status(&mut net.nodes[0], goal);
+    assert!(view.guard[0].heard.is_empty() && view.guard[0].waiting.is_empty());
+    assert!(!view.guard[0].waits_for_you());
+    assert_eq!(listed(&mut net.nodes[0], goal), None);
+    let error = post(&mut net, 0, 1, goal).unwrap_err();
+    assert!(error.message.contains("It catches up by itself"), "{error}");
+}
+
+/// The agent enrolled as `host` on `daemon`: the host's agent of the goals
+/// [`hosted`] makes there.
+fn host_agent(daemon: &Daemon) -> PublicKey {
+    daemon
+        .node
+        .principals
+        .iter()
+        .find(|found| found.record.name == "host")
+        .unwrap()
+        .key
+        .public()
+}
+
+#[test]
+fn a_member_restored_from_an_older_copy_reads_that_it_catches_up_by_itself() {
+    // Behind on a member's computer: the agent's own record is missing.
+    let mut net = Network::with(2);
+    let (goal, _, joined) = shared_goal(&mut net, &[1]);
+    let member = joined[&1].0;
+    let copy = snapshot(&net.nodes[1].store);
+    let lost = posted(&mut net, 1, tag(1), goal);
+    settle(&mut net);
+    net.down.insert(0);
+    net.start_over(1, copy);
+    let error = post(&mut net, 1, tag(1), goal).unwrap_err();
+    assert_eq!(error.code, ErrorCode::ReadOnly);
+    let (refused, hold) = this_computer(&error);
+    assert_eq!((refused.agent, refused.act), (member, Act::Post));
+    assert_eq!(
+        hold.reason,
+        GuardReason::Behind {
+            held: lost.header().seq,
+            signed: lost.header().seq + 1
+        }
+    );
+    assert_eq!(
+        error.message,
+        "member can't post to this goal: the Locust data here is older than what this computer signed in the goal (this computer). It catches up by itself, or member's owner can continue without waiting."
+    );
+    let person = render(&refused, Voice::Person);
+    assert!(
+        person.ends_with(&format!(
+            "(this computer). It catches up by itself. To go on without waiting: locust --owner goal continue --goal {}",
+            &goal.to_string()[..8]
+        )),
+        "{person}"
+    );
+}
+
+#[test]
+fn a_copy_older_than_a_goal_counts_it_lost_until_the_next_ordinary_start() {
+    let mut net = Network::with(2);
+    let (kept, _) = hosted(&mut net, 0, 1);
+    join(&mut net, 0, 1, kept, 2);
+    let copy = snapshot(&net.nodes[0].store);
+    // Two goals made after the copy: one hosted here, one joined.
+    let owner = net.nodes[0].owner();
+    let host = host_agent(&net.nodes[0]);
+    let Response::GoalCreated { goal: hosted_since } = net.nodes[0].ok(
+        owner,
+        Request::GoalCreate {
+            name: "host".into(),
+            agent: host,
+            title: "Made since".into(),
+            formation_json: Some(peer_review()),
+            inputs: Default::default(),
+        },
+    ) else {
+        panic!()
+    };
+    let (joined_since, _) = hosted(&mut net, 1, 5);
+    let member = net.nodes[0].enroll("member-6", 6);
+    let ticket = invite(&mut net.nodes[1], joined_since);
+    net.nodes[0].ok(owner, join_request(member, ticket));
+    settle(&mut net);
+    assert!(net.nodes[0].node.goals[&joined_since].is_member(&member));
+    // The marks name a goal where a key of this computer signed.
+    posted(&mut net, 0, 6, joined_since);
+    assert!(net.nodes[0].node.goals.contains_key(&hosted_since));
+    net.start_over(0, copy);
+    assert!(!net.nodes[0].node.goals.contains_key(&hosted_since));
+    let lost = |daemon: &mut Daemon| {
+        let owner = daemon.owner();
+        let Response::Status(DaemonStatus { lost_goals, .. }) = daemon.ok(owner, Request::Status)
+        else {
+            panic!()
+        };
+        lost_goals
+    };
+    assert_eq!(lost(&mut net.nodes[0]), 2);
+    // An agent reads no count: it is the owner's.
+    let agent = net.nodes[0].connect(credential(1), None);
+    let Response::Status(DaemonStatus { lost_goals, .. }) = net.nodes[0].ok(agent, Request::Status)
+    else {
+        panic!()
+    };
+    assert_eq!(lost_goals, 0);
+    // The next start finds the same file beside the same marks: ordinary.
+    let store = net.nodes[0].store.reopen();
+    net.start_over(0, store);
+    assert_eq!(lost(&mut net.nodes[0]), 0);
 }

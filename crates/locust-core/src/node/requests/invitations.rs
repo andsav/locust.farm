@@ -1,7 +1,7 @@
 //! Local invitation issuance and durable intent to join a remote goal.
 
 use locust_proto::api::{
-    ApiError, ErrorCode, InvitationState, InvitationSummary, Membership, Response,
+    Act, ApiError, ErrorCode, InvitationState, InvitationSummary, Membership, Response, Why,
 };
 use locust_proto::engine::Entropy;
 use locust_proto::id::{BlobHash, EndpointId, GoalId, PublicKey};
@@ -379,12 +379,20 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 self.signer(&principal)?,
             );
             let mut tx = self.plan_join(&own, &request, now_ms).map_err(|refusal| {
-                match self
-                    .goals
-                    .get(&goal)
-                    .and_then(|entry| self.admission_hold(entry))
-                {
-                    Some(hold) if refusal == Refusal::CatchingUp => hold.refusal(),
+                // A person adding their own agent to a held goal reads the
+                // real reason: the join's own refusal, on this computer.
+                let held = self.goals.get(&goal).and_then(|entry| {
+                    let governance = entry.state().governance?;
+                    Some((entry, self.hold_view(entry, &governance)?))
+                });
+                match held {
+                    Some((entry, hold)) if refusal == Refusal::CatchingUp => self.refusal(
+                        entry,
+                        principal,
+                        Act::Join,
+                        None,
+                        Why::ThisComputer { hold },
+                    ),
                     _ => denied("the inviter refused this invitation; it may be revoked, expired or used; request a fresh invitation from the host"),
                 }
             })?;

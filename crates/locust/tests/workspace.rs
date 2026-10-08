@@ -188,7 +188,7 @@ impl State {
             assert_eq!(frame.on_behalf, Some(PRINCIPAL));
         }
         match frame.request {
-            Request::Status => Ok(Response::Status(DaemonStatus { daemon_version:"fixture".into(), endpoint:None, waiting:vec![],
+            Request::Status => Ok(Response::Status(DaemonStatus { lost_goals: 0, daemon_version:"fixture".into(), endpoint:None, waiting:vec![],
                 agents:vec![AgentView { agent:PRINCIPAL,name:"worker".into(),author_only:false,revoked:self.agent_revoked }],
                 goals:vec![GoalSummary { guard: vec![], restored: None, goal:GOAL,title:Some("workspace".into()),member:PRINCIPAL,membership:Membership::Member,name:"agent".into(),host_name:None,invitations_open:0,invitations_expire_ms:None,halted:None,abilities:Self::abilities() }] })),
             Request::GoalStatus { goal } => Ok(Response::GoalStatus(serde_json::from_value(json!({

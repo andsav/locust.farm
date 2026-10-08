@@ -31,11 +31,16 @@ use crate::testdir::short_dir;
 type LocalClient = Client<UnixStream>;
 
 pub(super) async fn local_endpoint(secret_key: [u8; 32]) -> Result<Endpoint, Failure> {
+    local_endpoint_at(secret_key, 0).await
+}
+
+/// A local endpoint on `port` of the loopback address; 0 takes any.
+async fn local_endpoint_at(secret_key: [u8; 32], port: u16) -> Result<Endpoint, Failure> {
     Endpoint::bind(EndpointConfig {
         secret_key,
         relays: RelayConfig::Disabled,
         lookup: Lookup::DISABLED,
-        ip_transport: IpTransport::Bind("127.0.0.1:0".parse().unwrap()),
+        ip_transport: IpTransport::Bind(std::net::SocketAddr::from(([127, 0, 0, 1], port))),
         port_mapping: false,
         budget: TransportBudget::default(),
     })
@@ -65,12 +70,27 @@ impl Running {
         E: Engine + PeerEngine + 'static,
         O: FnOnce(ProductionNode) -> E + Send + 'static,
     {
+        Self::start_on(home, marks, 0, observe)
+    }
+    /// A daemon on `home` whose marks directory is `marks`, listening on
+    /// `port` of the loopback address. Started again on the same port, it is
+    /// found where its tickets said: a member's computer, which knows no other
+    /// way to reach it, calls it there.
+    pub(super) fn start_at(home: &Path, marks: &Path, port: u16) -> Self {
+        Self::start_on(home, marks, port, std::convert::identity)
+    }
+    fn start_on<E, O>(home: &Path, marks: &Path, port: u16, observe: O) -> Self
+    where
+        E: Engine + PeerEngine + 'static,
+        O: FnOnce(ProductionNode) -> E + Send + 'static,
+    {
         let (shutdown, stopped) = tokio::sync::oneshot::channel();
         let (ready, waiting) = mpsc::channel();
         let state = home.to_path_buf();
         let marks = marks.to_path_buf();
         let thread = thread::spawn(move || {
-            run_networked_with(&state, &marks, observe, local_endpoint, move |_| {
+            let bind = move |secret| local_endpoint_at(secret, port);
+            run_networked_with(&state, &marks, observe, bind, move |_| {
                 ready.send(()).unwrap();
                 Ok(async move {
                     let _ = stopped.await;
@@ -971,7 +991,7 @@ fn replay(home: &Path, events: Vec<locust_proto::event::Event>) {
 
 /// The current rules, rebound unchanged: a record only the goal's own key
 /// signs, on the governance log rather than any member's.
-fn rebind_rules(owner: &mut LocalClient, goal: GoalId) -> Result<EventId, ClientError> {
+pub(super) fn rebind_rules(owner: &mut LocalClient, goal: GoalId) -> Result<EventId, ClientError> {
     let status = goal_status(owner, goal);
     owner
         .call(Request::RulesBind {
@@ -991,7 +1011,11 @@ fn rebind_rules(owner: &mut LocalClient, goal: GoalId) -> Result<EventId, Client
         .map(recorded)
 }
 
-fn task_open(client: &mut LocalClient, goal: GoalId, text: &str) -> Result<EventId, ClientError> {
+pub(super) fn task_open(
+    client: &mut LocalClient,
+    goal: GoalId,
+    text: &str,
+) -> Result<EventId, ClientError> {
     client
         .call(Request::TaskOpen {
             goal,
@@ -1003,7 +1027,7 @@ fn task_open(client: &mut LocalClient, goal: GoalId, text: &str) -> Result<Event
         .map(recorded)
 }
 
-fn goal_status(client: &mut LocalClient, goal: GoalId) -> GoalStatus {
+pub(super) fn goal_status(client: &mut LocalClient, goal: GoalId) -> GoalStatus {
     let Response::GoalStatus(status) = client.call(Request::GoalStatus { goal }).unwrap() else {
         panic!()
     };
@@ -1038,15 +1062,15 @@ fn header(home: &Path, marks: &Path, event: EventId) -> Header {
 
 /// A goal one daemon hosts for its agent, with another computer's agent
 /// admitted on both.
-struct Shared {
-    goal: GoalId,
+pub(super) struct Shared {
+    pub(super) goal: GoalId,
     /// Agent 1, on the host's computer.
-    host_agent: PublicKey,
+    pub(super) host_agent: PublicKey,
     /// Agent 2, on the member's computer.
-    member_agent: PublicKey,
+    pub(super) member_agent: PublicKey,
 }
 
-fn shared_goal(host: &Running, member: &Running) -> Shared {
+pub(super) fn shared_goal(host: &Running, member: &Running) -> Shared {
     let host_agent = host.enroll(1);
     let member_agent = member.enroll(2);
     let goal = goal(&mut host.owner(), host_agent);
@@ -1093,7 +1117,7 @@ fn shared_goal(host: &Running, member: &Running) -> Shared {
 }
 
 /// The computer `key` is bound to in `status`.
-fn endpoint_of(status: &GoalStatus, key: PublicKey) -> EndpointId {
+pub(super) fn endpoint_of(status: &GoalStatus, key: PublicKey) -> EndpointId {
     status
         .members
         .iter()
@@ -1105,9 +1129,9 @@ fn endpoint_of(status: &GoalStatus, key: PublicKey) -> EndpointId {
 /// The production node, opening no exchange until `open` is set: a daemon
 /// whose peers are out of reach. They cannot call it either, since every
 /// start binds a new port that no peer has been told.
-struct Gated {
-    node: ProductionNode,
-    open: Arc<AtomicBool>,
+pub(super) struct Gated {
+    pub(super) node: ProductionNode,
+    pub(super) open: Arc<AtomicBool>,
 }
 
 impl Engine for Gated {

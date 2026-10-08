@@ -46,6 +46,8 @@ mod system;
 mod worker;
 
 #[cfg(test)]
+mod catching_up_tests;
+#[cfg(test)]
 mod durable_tests;
 #[cfg(test)]
 mod reconcile_tests;

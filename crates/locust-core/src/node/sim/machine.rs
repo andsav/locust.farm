@@ -194,9 +194,11 @@ impl Machine {
     /// Everything the owner and the principal can read, as text: status,
     /// and for every goal its status, board, findings and pending work. Which
     /// peers are connected, which computers the restore guard has heard
-    /// from, and whether the data was restored, are left out, because only
-    /// those may differ after a restart: the first ordinary start with
-    /// nothing held forgets the restore.
+    /// from, whether the data was restored and how many goals the copy
+    /// lost are left out, because only those may differ after a restart:
+    /// the first ordinary start with nothing held forgets the restore. So is
+    /// a goal waiting for the owner to continue it, which follows from whom
+    /// the guard heard; the holds themselves are compared.
     /// `revisions: false` also leaves out the revision of pending work.
     /// `None` before the principal is enrolled.
     pub fn visible(&mut self, now_ms: u64, revisions: bool) -> Option<String> {
@@ -215,6 +217,10 @@ impl Machine {
             unheard(&mut summary.guard);
             summary.restored = None;
         }
+        status
+            .waiting
+            .retain(|item| !matches!(item.kind, locust_proto::api::WaitingKind::CatchingUp { .. }));
+        status.lost_goals = 0;
         let mut text = format!("{status:?}");
         for goal in status.goals.iter().map(|summary| summary.goal) {
             let reads = [

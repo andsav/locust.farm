@@ -92,7 +92,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
     }
 
     /// Desired steps this daemon should sign and cannot. The governance key
-    /// is no agent and no member: only signing or materialization can stall it.
+    /// is no agent and no member: only the restore guard, signing or
+    /// materialization can stall it. A runner the guard holds is catching up.
     pub(in crate::node) fn stalled(&self, entry: &Entry) -> Vec<Stalled> {
         let governance = entry.state().governance;
         entry
@@ -109,7 +110,9 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     if !self.hosts(entry) {
                         return None;
                     }
-                    if entry.goal.next(runner).is_none() {
+                    if self.hold(entry, runner).is_some() {
+                        Stall::CatchingUp
+                    } else if entry.goal.next(runner).is_none() {
                         Stall::Halted
                     } else if entry.failed_effects.contains(&desired.id) {
                         Stall::CannotMaterialize
@@ -124,6 +127,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     Stall::RunnerLeft
                 } else if !entry.is_member(runner) {
                     Stall::RunnerNotMember
+                } else if self.hold(entry, runner).is_some() {
+                    Stall::CatchingUp
                 } else if entry.goal.next(runner).is_none() {
                     Stall::Halted
                 } else if entry.failed_effects.contains(&desired.id) {

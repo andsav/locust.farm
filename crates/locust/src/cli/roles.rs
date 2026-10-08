@@ -3,7 +3,7 @@ use super::{LocalClient, Output, connection, presentation, resolve_goal, selecto
 use crate::failure::Failure;
 use clap::{Arg, ArgMatches, Command};
 use locust_core::organization::{RoleDuty, role_duties};
-use locust_proto::api::{GoalStatus, Request, Response};
+use locust_proto::api::{Act, GoalStatus, Request, Response};
 use locust_proto::event::Body;
 use locust_proto::id::PublicKey;
 use locust_proto::organization::{CompletionRule, Formation, Selector};
@@ -257,6 +257,8 @@ pub(super) fn run(
     else {
         unreachable!("typed response")
     };
+    // Nothing changes while the goal's own key is held: no undo line.
+    super::only_you::refuse_if_host_held(&view, Act::GiveRole, None)?;
     let expected = view.roles.get(role).cloned().unwrap_or_default();
     let formation = current_formation(client, socket, &view)?;
     let give = operation == "role.give";

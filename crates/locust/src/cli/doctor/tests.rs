@@ -76,3 +76,66 @@ fn nonexistent_prefix_and_disabled_service_are_read_only() {
     assert!(!prefix.exists());
     assert!(!home.exists());
 }
+
+#[test]
+fn doctor_names_the_marks_directory() {
+    use std::os::unix::fs::DirBuilderExt;
+    let root = crate::testdir::short_dir();
+    let home = root.path().join("daemon");
+    fs::DirBuilder::new().mode(0o700).create(&home).unwrap();
+    let marks = local::marks_dir(&home).unwrap();
+    let found = |home: &Path| {
+        let matches = super::super::args::command()
+            .try_get_matches_from(["locust", "doctor"])
+            .unwrap();
+        let (result, human, _, _) = run(&matches, home);
+        let check = result["checks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|check| check["name"] == "marks")
+            .unwrap()
+            .clone();
+        (check, human)
+    };
+    // Not made yet: the daemon creates it at its start, and doctor does not.
+    let (check, human) = found(&home);
+    assert_eq!(check["ok"], true, "{check}");
+    assert_eq!(check["detail"], marks.display().to_string());
+    assert!(
+        human.contains(&format!("ok marks: {}", marks.display())),
+        "{human}"
+    );
+    assert!(!marks.exists());
+    // Private: still the path.
+    fs::DirBuilder::new().mode(0o700).create(&marks).unwrap();
+    let (check, _) = found(&home);
+    assert_eq!(check["ok"], true, "{check}");
+    assert_eq!(check["detail"], marks.display().to_string());
+    // Readable by others: it fails, with what to do.
+    fs::set_permissions(&marks, fs::Permissions::from_mode(0o755)).unwrap();
+    let (check, human) = found(&home);
+    assert_eq!(check["ok"], false, "{check}");
+    assert!(
+        check["detail"]
+            .as_str()
+            .unwrap()
+            .contains(&marks.display().to_string())
+    );
+    assert!(
+        check["recovery"].as_str().unwrap().contains("chmod 700"),
+        "{check}"
+    );
+    assert!(human.contains("failed marks:"), "{human}");
+    // A file in its place.
+    fs::remove_dir(&marks).unwrap();
+    fs::write(&marks, b"").unwrap();
+    let (check, _) = found(&home);
+    assert_eq!(check["ok"], false, "{check}");
+    assert!(
+        check["detail"]
+            .as_str()
+            .unwrap()
+            .ends_with("is not a directory")
+    );
+}

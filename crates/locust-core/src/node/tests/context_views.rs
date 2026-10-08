@@ -1044,13 +1044,15 @@ fn goal_status_reports_each_stalled_runner_condition() {
         authoring::sign_at, callers::Actor, commit::Tx, identity::Principals, local,
     };
     use locust_proto::api::{Caller, Stall};
-    use locust_proto::event::{Body, Scope};
+    use locust_proto::event::{AuthorPoint, Body, Scope};
     use locust_proto::id::EventId;
     use locust_proto::organization::{CompletionRule, Selector};
+    use locust_proto::store::{Mark, MarkWrite};
     for reason in [
         Stall::RunnerRevoked,
         Stall::RunnerLeft,
         Stall::RunnerNotMember,
+        Stall::CatchingUp,
         Stall::Halted,
     ] {
         let (mut d, goal, members, _) = collaboration_view_setup(CompletionRule::Reviews {
@@ -1118,29 +1120,51 @@ fn goal_status_reports_each_stalled_runner_condition() {
                     },
                 );
             }
-            Stall::Halted => {
-                let mut place = d.node.next_place(&d.node.goals[&goal], &runner).unwrap();
-                place.seq += 1;
-                place.prev = Some(EventId([99; 32]));
-                let mut tx = Tx::none();
-                sign_at(
+            Stall::CatchingUp => {
+                // The marks name a record of the runner that this copy of the
+                // data lacks: the restore guard holds its key.
+                d.node.guard.apply(&[MarkWrite::Set(Mark {
                     goal,
-                    d.node.signer(&runner).unwrap(),
-                    place,
-                    Body::ContributionPublished {
-                        context,
-                        attempt: None,
-                        sources: vec![],
-                        artifacts: vec![],
+                    key: runner,
+                    point: AuthorPoint {
+                        seq: 99,
+                        id: EventId([98; 32]),
                     },
-                    None,
-                    1001,
-                    &mut tx,
-                )
-                .unwrap();
-                // A replica can receive a later record before its predecessor.
+                    shared: true,
+                    unheard: false,
+                })]);
+            }
+            Stall::Halted => {
+                // Two records of the runner at its next position, received
+                // from elsewhere: a forked key is no hold of the restore
+                // guard's, and it signs nothing more.
+                let body = Body::ContributionPublished {
+                    context,
+                    attempt: None,
+                    sources: vec![],
+                    artifacts: vec![],
+                };
+                let place = d
+                    .node
+                    .next_place(&d.node.goals[&goal], &runner, &body)
+                    .unwrap();
+                let mut tx = Tx::none();
+                for at_ms in [1001, 1002] {
+                    sign_at(
+                        goal,
+                        d.node.signer(&runner).unwrap(),
+                        place,
+                        body.clone(),
+                        None,
+                        at_ms,
+                        &mut tx,
+                    )
+                    .unwrap();
+                }
                 tx.authored = false;
+                tx.commit.marks.clear();
                 d.node.land_once(tx).unwrap();
+                assert!(d.node.goals[&goal].goal.fork_point(&runner).is_some());
                 assert!(d.node.goals[&goal].goal.next(&runner).is_none());
             }
         }

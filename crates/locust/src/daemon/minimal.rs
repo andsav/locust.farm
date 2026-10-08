@@ -95,6 +95,7 @@ impl MinimalEngine {
             Caller::Agent(key) | Caller::Author(key) => principal.key == key,
         };
         DaemonStatus {
+            lost_goals: 0,
             daemon_version: self.daemon_version.clone(),
             endpoint: None,
             waiting: Vec::new(),

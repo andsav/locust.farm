@@ -3,7 +3,7 @@ use super::{LocalClient, Output, acting_agent, confirm, connection, resolve_goal
 use crate::failure::Failure;
 use clap::{Arg, ArgAction, ArgMatches, Command};
 use locust_proto::api::{
-    Checkout, DirectoryIdentity, ErrorCode, GoalStatus, Request, Response, SessionSecret,
+    Act, Checkout, DirectoryIdentity, ErrorCode, GoalStatus, Request, Response, SessionSecret,
     SessionState, WorkspaceAuthority, WorkspaceCandidate, WorkspaceOperation,
     WorkspaceOperationKind, WorkspaceOperationState, WorkspaceProposalView, WorkspaceRecovery,
     WorkspaceRevisionView, WorkspaceView,
@@ -309,6 +309,12 @@ fn init_plan(
 ) -> Result<(confirm::Plan, WorkspaceView, InitialPolicy), Failure> {
     let head = api.head()?;
     let status = api.status()?;
+    // The goal's own key starts the shared tree and the host's agent shares
+    // its first files: neither signs while this computer is catching up.
+    super::only_you::refuse_if_host_held(&status, Act::ProposeFiles, None)?;
+    if let Some(agent) = status.host {
+        super::only_you::refuse_if_agent_held(&status, agent, Act::ProposeFiles)?;
+    }
     let policy = initial_policy(api, args)?;
     if let Some(epoch) = head.epoch
         && args.get_one::<String>("completion").is_some()

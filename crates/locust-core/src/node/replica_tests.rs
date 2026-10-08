@@ -1578,6 +1578,16 @@ fn a_newly_admitted_key_waits_for_the_hosts_computer_once() {
             .unwrap_err();
         assert_eq!(refused.code, locust_proto::api::ErrorCode::Unavailable);
         assert!(refused.message.contains("host's computer"), "{refused}");
+        // It ends by itself: neither voice prints a command.
+        let (details, hold) = crate::node::tests::this_computer(&refused);
+        assert_eq!(hold.reason, locust_proto::api::GuardReason::Admitted);
+        assert!(
+            refused
+                .message
+                .ends_with("(this computer). It ends by itself.")
+        );
+        let person = locust_proto::api::render(&details, locust_proto::api::Voice::Person);
+        assert!(!person.contains("locust "), "{person}");
     };
     assert_eq!(hold(&peers[1]), Some(Hold::Admitted));
     held(&mut peers[1]);
@@ -1699,20 +1709,24 @@ fn held_invalid_rules_are_excluded_through_the_daemons_definition_lookup() {
         let (object, blob) = seal_text(&goal, 0, &entry.keys[&0], source.as_bytes()).unwrap();
         let key = Keypair::from_seed(entry.local.governance.as_ref().unwrap().seed());
         let mut tx = Tx::none();
+        let body = Body::RulesBound {
+            expected: Some(previous),
+            binding: RulesBinding {
+                definition: DefinitionRef {
+                    semantic: semantic_hash(&formation).parse().unwrap(),
+                    object,
+                },
+                inputs: BTreeMap::new(),
+            },
+        };
         let invalid = sign_at(
             goal,
             &key,
-            peers[0].node.next_place(entry, &key.public()).unwrap(),
-            Body::RulesBound {
-                expected: Some(previous),
-                binding: RulesBinding {
-                    definition: DefinitionRef {
-                        semantic: semantic_hash(&formation).parse().unwrap(),
-                        object,
-                    },
-                    inputs: BTreeMap::new(),
-                },
-            },
+            peers[0]
+                .node
+                .next_place(entry, &key.public(), &body)
+                .unwrap(),
+            body,
             None,
             100,
             &mut tx,

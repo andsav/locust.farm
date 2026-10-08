@@ -1433,6 +1433,12 @@ pub struct DaemonStatus {
     /// One entry per goal and local agent in it: all of them for the
     /// owner, only the calling agent's own for an agent.
     pub goals: Vec<GoalSummary>,
+    /// For the owner, the goals this computer signed in that this copy of
+    /// its Locust data does not hold, found at the last start that put the
+    /// data back from a copy; 0 again after the next ordinary start. A goal
+    /// hosted here cannot come back from such a copy; one joined needs its
+    /// ticket again.
+    pub lost_goals: u32,
 }
 
 /// One thing only the person can settle, with the line that settles it.
@@ -1464,6 +1470,10 @@ pub enum WaitingKind {
         task: TaskId,
         task_title: Option<String>,
     },
+    /// The goal is catching up after this computer's data was put back from
+    /// a copy, and no other computer can end the hold: only the person can
+    /// say the copy is the newest. The command continues the goal.
+    CatchingUp { holds: Vec<GuardView> },
 }
 
 /// One enrolled principal.

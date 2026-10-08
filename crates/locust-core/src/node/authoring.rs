@@ -7,7 +7,7 @@
 //! hosts the goal, signs governance and the host's steps and is no member.
 
 use locust_proto::PROTOCOL_VERSION;
-use locust_proto::api::{ApiError, ErrorCode};
+use locust_proto::api::{ApiError, ErrorCode, Why};
 use locust_proto::crypto::{ContentKey, Keypair};
 use locust_proto::engine::Entropy;
 use locust_proto::event::{AuthorPoint, Body, Event, Header, PayloadRef};
@@ -17,7 +17,7 @@ use locust_proto::seal;
 use locust_proto::store::{Blob, Mark, MarkWrite, Store};
 
 use super::Node;
-use super::access::Attempted;
+use super::access::{Attempted, subject};
 use super::callers::Actor;
 use super::commit::Tx;
 use super::entry::Entry;
@@ -156,7 +156,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
         now_ms: u64,
         tx: &mut Tx,
     ) -> Result<EventId, ApiError> {
-        let place = self.next_place(entry, author)?;
+        let place = self.next_place(entry, author, &body)?;
         let key = match text {
             Some(_) => Some(entry.keys.get(&place.epoch).ok_or_else(|| {
                 ApiError::new(
@@ -213,8 +213,14 @@ impl<S: Store, E: Entropy> Node<S, E> {
     /// Where `author`'s next event in the goal goes, after the checks every
     /// signature needs: the goal is not halted, the author is a member, and
     /// the restore guard does not hold the author's key. The governance key
-    /// is no member and has not left; it skips the second test.
-    pub(super) fn next_place(&self, entry: &Entry, author: &PublicKey) -> Result<Place, ApiError> {
+    /// is no member and has not left; it skips the second test. A held key
+    /// is refused for the act `body` stands for, on this computer's side.
+    pub(super) fn next_place(
+        &self,
+        entry: &Entry,
+        author: &PublicKey,
+        body: &Body,
+    ) -> Result<Place, ApiError> {
         let governance = entry.state().governance.as_ref() == Some(author);
         if governance && entry.goal.evaluation().host_halt.is_some() {
             return Err(ApiError::new(
@@ -229,8 +235,9 @@ impl<S: Store, E: Entropy> Node<S, E> {
                 "the principal is not a current member of the goal",
             ));
         }
-        if let Some(hold) = self.hold(entry, author) {
-            return Err(hold.refusal());
+        if let Some(hold) = self.hold_view(entry, author) {
+            let (act, task) = subject(body);
+            return Err(self.refusal(entry, *author, act, task, Why::ThisComputer { hold }));
         }
         if !governance && entry.goal.fork_point(author).is_some() {
             return Err(ApiError::new(ErrorCode::Halted, CONFLICT));

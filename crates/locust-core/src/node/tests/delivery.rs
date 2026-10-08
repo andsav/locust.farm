@@ -635,7 +635,17 @@ fn a_restored_hosts_agent_is_held_until_its_own_records_return_and_then_extends(
     assert_eq!(hold(&net, 0, goal, &governance), None);
     let refused = try_host_note(&mut net, goal, "would reuse the lost position").unwrap_err();
     assert_eq!(refused.code, ErrorCode::ReadOnly);
-    assert!(refused.message.contains("older than what it signed"));
+    let (agent, view) = super::this_computer(&refused);
+    assert_eq!(
+        (agent.agent, view.key, view.by_host),
+        (source, source, false)
+    );
+    assert!(
+        refused
+            .message
+            .contains("older than what this computer signed in the goal (this computer)"),
+        "{refused}"
+    );
     assert!(!net.nodes[0].node.failed);
     // The member's computer sends the record back; the mark is met.
     for _ in 0..2 {

@@ -103,8 +103,9 @@ A command asks you to confirm when it shares something or cannot be undone with
 one command; the rest apply at once and print an `Undo:` line.
 
 - Confirm connecting an agent with `up` or `agent add`; starting, adding to,
-  joining or leaving a goal; inviting or removing a member; changing rules or
-  revising a task; starting a shared tree or connecting a named folder; and
+  joining or leaving a goal; continuing a goal that is catching up after a
+  restore, with `goal continue`; inviting or removing a member; changing rules
+  or revising a task; starting a shared tree or connecting a named folder; and
   publishing, withdrawing or consenting to a farm page. Use `--plan` to inspect
   the change, then repeat with the printed `--confirm PLAN_ID`. At a terminal
   the command can ask for confirmation directly.

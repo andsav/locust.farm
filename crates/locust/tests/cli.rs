@@ -91,6 +91,7 @@ fn envelope(output: &Output, status: i32) -> Value {
 }
 fn status(goals: Vec<GoalSummary>) -> Response {
     Response::Status(DaemonStatus {
+        lost_goals: 0,
         daemon_version: "stub".into(),
         endpoint: None,
         waiting: vec![],
@@ -116,6 +117,7 @@ fn abilities(goal: GoalId, agent: PublicKey) -> Abilities {
 }
 fn status_agents(agents: Vec<AgentView>) -> Response {
     Response::Status(DaemonStatus {
+        lost_goals: 0,
         daemon_version: "stub".into(),
         endpoint: None,
         waiting: vec![],
@@ -190,6 +192,7 @@ fn level_and_allow_apply_in_one_run_and_print_an_undo_that_names_the_agent() {
         };
         match frame.request {
             Request::Status => Ok(Response::Status(DaemonStatus {
+                lost_goals: 0,
                 daemon_version: "stub".into(),
                 endpoint: None,
                 waiting: vec![],
@@ -874,6 +877,7 @@ fn named_principal_is_resolved_via_status_before_impersonation() {
         if n == 1 {
             assert!(frame.on_behalf.is_none());
             Ok(Response::Status(DaemonStatus {
+                lost_goals: 0,
                 daemon_version: "stub".into(),
                 endpoint: None,
                 waiting: vec![],
@@ -1417,6 +1421,7 @@ fn agent_revoke_applies_at_once_and_prints_the_command_that_undoes_it() {
     );
     let handle = server(home.path(), 5, move |frame| match frame.request {
         Request::Status => Ok(Response::Status(DaemonStatus {
+            lost_goals: 0,
             daemon_version: "stub".into(),
             endpoint: None,
             waiting: vec![],
@@ -1980,6 +1985,7 @@ fn doctor_reports_ordered_failures_and_exit_one_without_creating_state() {
         names,
         [
             "state_directory",
+            "marks",
             "socket_path",
             "daemon_lock",
             "socket_connection",
@@ -2117,7 +2123,7 @@ fn doctor_succeeds_for_a_locked_private_home_and_valid_session() {
         .unwrap();
     let body = envelope(&output, 0);
     assert_eq!(body["ok"], true);
-    assert_eq!(body["result"]["checks"].as_array().unwrap().len(), 8);
+    assert_eq!(body["result"]["checks"].as_array().unwrap().len(), 9);
     assert!(
         body["result"]["checks"]
             .as_array()
@@ -3899,6 +3905,7 @@ fn disconnected_members_are_offered_reconnect_in_status_and_owner_commands() {
     let agent = PublicKey([2; 32]);
     let handle = server(home.path(), 4, move |frame| match frame.request {
         Request::Status => Ok(Response::Status(DaemonStatus {
+            lost_goals: 0,
             daemon_version: "stub".into(),
             endpoint: None,
             waiting: vec![],
@@ -4118,6 +4125,353 @@ fn a_leads_undo_restores_its_previous_holder_and_role_duties_are_explained() {
     assert!(
         unused.contains("No rule in the current rules names unused, so it changes nothing yet."),
         "{unused}"
+    );
+    handle.join().unwrap();
+}
+
+/// The goal's own key held on the host's computer: its records are missing
+/// and the computer of the member Cedar has not answered since this start.
+fn held_goal_status(goal: GoalId, held: bool) -> locust_proto::api::GoalStatus {
+    use locust_proto::api::{GuardReason, GuardView, MemberView, PeerView};
+    use locust_proto::id::EndpointId;
+    let mut status = hosted_goal_status(goal, PublicKey([2; 32]), true);
+    status.title = Some("Parser cleanup".into());
+    status.members.push(MemberView {
+        name: "Cedar".into(),
+        member: PublicKey([0x2f; 32]),
+        endpoint: EndpointId([0xce; 32]),
+        local: false,
+        admitted: 1,
+    });
+    status.peers.push(PeerView {
+        endpoint: EndpointId([0xce; 32]),
+        connected: false,
+        last_sync_ms: Some(1_000),
+    });
+    if held {
+        status.guard = vec![GuardView {
+            key: status.governance,
+            by_host: true,
+            reason: GuardReason::Behind { held: 4, signed: 6 },
+            heard: vec![],
+            waiting: vec![EndpointId([0xce; 32])],
+        }];
+        status.halted = Some(locust_proto::api::Halt::SignerRecovery);
+    }
+    status
+}
+
+/// The person's run of `args` at the terminal's words: its exit status, what
+/// it printed and what it reported as an error.
+fn person(home: &std::path::Path, args: &[&str]) -> (Option<i32>, String, String) {
+    let output = plain()
+        .arg("--home")
+        .arg(home)
+        .arg("--owner")
+        .args(args)
+        .output()
+        .unwrap();
+    (
+        output.status.code(),
+        String::from_utf8_lossy(&output.stdout).into_owned(),
+        String::from_utf8_lossy(&output.stderr).into_owned(),
+    )
+}
+
+#[test]
+fn goal_continue_shows_its_plan_and_needs_a_goal_or_all() {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    };
+    let home = scratch();
+    write_secret(&home.path().join("owner.credential"), &[1; 32]);
+    let goal = GoalId([4; 32]);
+    let quiet = GoalId([5; 32]);
+    // Neither or both of --goal and --all is a mistake in the command line.
+    for args in [
+        &["goal", "continue"][..],
+        &["goal", "continue", "--goal", &goal.to_string(), "--all"][..],
+    ] {
+        let (code, _, error) = person(home.path(), args);
+        assert_eq!(code, Some(2), "{error}");
+    }
+    let held = Arc::new(AtomicBool::new(true));
+    let held_on_server = Arc::clone(&held);
+    let handle = server(home.path(), 7, move |frame| match frame.request {
+        Request::Status => Ok(status(vec![
+            GoalSummary {
+                goal,
+                ..summary_fixture(goal)
+            },
+            GoalSummary {
+                goal: quiet,
+                ..summary_fixture(quiet)
+            },
+        ])),
+        Request::GoalStatus { goal: selected } => Ok(Response::GoalStatus(held_goal_status(
+            selected,
+            selected == goal && held_on_server.load(Ordering::SeqCst),
+        ))),
+        Request::GoalContinue { goal: selected } => {
+            assert_eq!(selected, goal, "only the goal that is catching up");
+            held_on_server.store(false, Ordering::SeqCst);
+            Ok(Response::Continued { keys: 2 })
+        }
+        other => panic!("goal continue sent {other:?}"),
+    });
+    // Mockup G-3, as the plan shows it.
+    let (code, plan, error) = person(
+        home.path(),
+        &["goal", "continue", "--goal", &goal.to_string(), "--plan"],
+    );
+    assert_eq!(code, Some(0), "{error}");
+    let expected = "\
+Goal: Parser cleanup (04040404) · host: you
+Continue: sign in this goal from this computer's copy of the data.
+  This copy is missing 2 records that this computer signed as host.
+  They may include a removal, a rule change or the end of the goal.
+  Not heard from since this start: Cedar's computer (2f2f2f2f), last seen ";
+    assert!(plan.starts_with(expected), "{plan}");
+    assert!(
+        plan.contains("\n  Wait until the computers of the members you added most recently have been on. A member added after this copy was made is not listed here, and its computer may hold them.\n  If another computer holds one of those records, the next record signed here conflicts with it. If these are the host's records, that stops joining, removing and rule changes in this goal for everyone, for good.\n  Safe when this is the newest copy of this computer's Locust data and no other copy is running.\nPlan id: plan-"),
+        "{plan}"
+    );
+    assert!(!plan.contains("Undo"), "{plan}");
+    // The same plan by script, with no clock reading in what it binds.
+    let shown = envelope(
+        &cli(home.path())
+            .args(["--owner", "goal", "continue", "--all", "--plan"])
+            .output()
+            .unwrap(),
+        0,
+    );
+    assert_eq!(shown["result"]["action"], "review_required");
+    let goals = shown["result"]["plan"]["goals"].as_array().unwrap();
+    assert_eq!(goals.len(), 1, "{shown}");
+    assert_eq!(goals[0]["goal"], goal.to_string());
+    assert_eq!(goals[0]["guard"][0]["reason"]["behind"]["signed"], 6);
+    let id = shown["result"]["plan_id"].as_str().unwrap().to_owned();
+    assert!(plan.contains(&id), "the same plan by --goal and --all");
+    let stale = envelope(
+        &cli(home.path())
+            .args(["--owner", "goal", "continue", "--all", "--confirm"])
+            .arg("plan-0000000000000000")
+            .output()
+            .unwrap(),
+        7,
+    );
+    assert_eq!(
+        stale["error"]["message"],
+        "the plan changed; run --plan again"
+    );
+    let (code, done, error) = person(
+        home.path(),
+        &[
+            "goal",
+            "continue",
+            "--goal",
+            &goal.to_string(),
+            "--confirm",
+            &id,
+        ],
+    );
+    assert_eq!(code, Some(0), "{error}");
+    assert_eq!(
+        done.trim_end(),
+        "Continued \"Parser cleanup\". This computer signs here again."
+    );
+    // Nothing is held any more: no plan, nothing sent, nothing changed.
+    let (code, again, error) = person(
+        home.path(),
+        &["goal", "continue", "--goal", &goal.to_string()],
+    );
+    assert_eq!(code, Some(0), "{error}");
+    assert_eq!(
+        again.trim_end(),
+        "\"Parser cleanup\" is not catching up. Nothing changed."
+    );
+    let (code, again, error) = person(home.path(), &["goal", "continue", "--all"]);
+    assert_eq!(code, Some(0), "{error}");
+    assert_eq!(again.trim_end(), "No goal is catching up. Nothing changed.");
+    held.store(true, Ordering::SeqCst);
+    // A stale plan id after the hold changed is refused the same way.
+    let (code, _, error) = person(
+        home.path(),
+        &[
+            "goal",
+            "continue",
+            "--goal",
+            &goal.to_string(),
+            "--confirm",
+            "plan-0000000000000000",
+        ],
+    );
+    assert_eq!(code, Some(7), "{error}");
+    assert!(
+        error.contains("conflict: the plan changed; run --plan again"),
+        "{error}"
+    );
+    handle.join().unwrap();
+}
+
+/// The status summary of the host's agent in `goal`.
+fn summary_fixture(goal: GoalId) -> GoalSummary {
+    let agent = PublicKey([2; 32]);
+    GoalSummary {
+        goal,
+        title: Some("Parser cleanup".into()),
+        member: agent,
+        name: "Maple".into(),
+        membership: Membership::Member,
+        host_name: Some("Maple".into()),
+        invitations_open: 0,
+        invitations_expire_ms: None,
+        halted: None,
+        abilities: abilities(goal, agent),
+        guard: vec![],
+        restored: None,
+    }
+}
+
+#[test]
+fn the_invite_plan_warns_while_the_host_is_catching_up() {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    };
+    let home = scratch();
+    write_secret(&home.path().join("owner.credential"), &[1; 32]);
+    let goal = GoalId([4; 32]);
+    let held = Arc::new(AtomicBool::new(true));
+    let held_on_server = Arc::clone(&held);
+    let handle = server(home.path(), 2, move |frame| match frame.request {
+        Request::GoalStatus { goal: selected } => Ok(Response::GoalStatus(held_goal_status(
+            selected,
+            held_on_server.load(Ordering::SeqCst),
+        ))),
+        Request::GoalInvitations { .. } => Ok(Response::Invitations {
+            invitations: vec![],
+        }),
+        other => panic!("the invite plan sent {other:?}"),
+    });
+    for catching_up in [true, false] {
+        held.store(catching_up, Ordering::SeqCst);
+        let shown = envelope(
+            &cli(home.path())
+                .args(["--owner", "goal", "invite", "--goal"])
+                .arg(goal.to_string())
+                .arg("--plan")
+                .output()
+                .unwrap(),
+            0,
+        );
+        assert_eq!(shown["result"]["action"], "review_required");
+        // Issuing a ticket signs nothing, so the plan stays and warns.
+        if catching_up {
+            assert_eq!(
+                shown["result"]["warning"],
+                "This computer is catching up; nobody is admitted until it has."
+            );
+        } else {
+            assert!(shown["result"].get("warning").is_none(), "{shown}");
+        }
+    }
+    handle.join().unwrap();
+}
+
+#[test]
+fn a_signing_command_in_a_goal_that_is_catching_up_shows_no_plan() {
+    let home = scratch();
+    write_secret(&home.path().join("owner.credential"), &[1; 32]);
+    let goal = GoalId([4; 32]);
+    let handle = server(home.path(), 4, move |frame| match frame.request {
+        Request::GoalStatus { goal: selected } => {
+            Ok(Response::GoalStatus(held_goal_status(selected, true)))
+        }
+        other => panic!("a held goal was sent {other:?}"),
+    });
+    let continue_line = "locust --owner goal continue --goal 04040404";
+    // Rules are bound with a plan and a yes; held, the command shows none.
+    let (code, out, error) = person(
+        home.path(),
+        &[
+            "rules",
+            "bind",
+            "--goal",
+            &goal.to_string(),
+            "--formation",
+            "open",
+            "--plan",
+        ],
+    );
+    assert_eq!(code, Some(9), "{out}{error}");
+    assert!(out.is_empty(), "{out}");
+    assert_eq!(
+        error.trim_end(),
+        format!(
+            "locust: read_only: You can't change the rules of \"Parser cleanup\": the Locust data here is older than what this computer signed in the goal (this computer). It catches up by itself. To go on without waiting: {continue_line}"
+        )
+    );
+    assert!(!error.contains("Plan id"), "{error}");
+    // A script reads the same refusal as data: its side and the hold.
+    let refused = envelope(
+        &cli(home.path())
+            .args(["--owner", "rules", "bind", "--goal"])
+            .arg(goal.to_string())
+            .args(["--formation", "open"])
+            .output()
+            .unwrap(),
+        9,
+    );
+    assert_eq!(refused["error"]["code"], "read_only");
+    assert_eq!(refused["error"]["details"]["why"]["side"], "this_computer");
+    assert_eq!(refused["error"]["details"]["agent_name"], "host");
+    assert!(
+        refused["error"]["message"]
+            .as_str()
+            .unwrap()
+            .starts_with("The host can't change the rules of this goal: "),
+        "{refused}"
+    );
+    // A role change applies at once and signs: the refusal, and no undo
+    // line, since nothing changed.
+    let (code, out, error) = person(
+        home.path(),
+        &[
+            "role",
+            "give",
+            "--goal",
+            &goal.to_string(),
+            "--member",
+            &PublicKey([0x2f; 32]).to_string(),
+            "lead",
+        ],
+    );
+    assert_eq!(code, Some(9), "{out}{error}");
+    assert!(out.is_empty() && !error.contains("Undo"), "{out}{error}");
+    assert!(
+        error.starts_with(
+            "locust: read_only: You can't give or take a role in \"Parser cleanup\": "
+        ) && error.trim_end().ends_with(continue_line),
+        "{error}"
+    );
+    // Removing a member is the host's act too.
+    let (code, _, error) = person(
+        home.path(),
+        &[
+            "member",
+            "remove",
+            "--goal",
+            &goal.to_string(),
+            "--member",
+            &PublicKey([0x2f; 32]).to_string(),
+        ],
+    );
+    assert_eq!(code, Some(9), "{error}");
+    assert!(
+        error.starts_with("locust: read_only: You can't remove a member from \"Parser cleanup\": "),
+        "{error}"
     );
     handle.join().unwrap();
 }

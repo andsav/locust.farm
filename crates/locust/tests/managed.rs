@@ -61,6 +61,7 @@ impl State {
         self.requests.push(request.clone());
         match request {
             Request::Status => Ok(Response::Status(DaemonStatus {
+                lost_goals: 0,
                 daemon_version: "fixture".into(),
                 endpoint: None,
                 waiting: vec![],

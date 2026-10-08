@@ -41,6 +41,12 @@ It holds the socket `daemon.sock`, the lock `daemon.lock`, the database
 `agents/` and `authors/`. `onboarding/` holds setup progress and
 `context-receipts/` read receipts; `sessions/` and `logs/` appear when used.
 
+Beside the data directory, never inside it, Locust keeps the marks directory:
+the home's path with `.marks` added, `~/.locust.marks` for the default home. It
+holds the last record this computer signed in each goal, so Locust can tell
+when the data directory was put back from an older copy. `locust --owner
+doctor` checks it.
+
 Uninstalling locust.farm never deletes the data directory.
 
 ## Environment variables
@@ -88,4 +94,30 @@ worker runs `cancel acknowledge` with `--outcome stopped`, `completed` or
 ## Backups
 
 There is no backup or restore command. Stop the daemon before you copy the data
-directory; it locks the database while it runs. Restoring a copy is untested.
+directory; it locks the database while it runs. Copy the data directory and not
+the marks directory beside it.
+
+A copy of the data directory holds the keys of every goal this computer hosts
+and of every agent on it. Whoever starts a daemon on a copy can act as you in
+those goals, so keep copies private. Never run two copies of the same data at
+once; nothing can protect a goal from that.
+
+A copy you put back is older than what this computer signed. Locust notices,
+signs nothing in the goals the copy is behind in, and catches up from the other
+members' computers by itself. `locust --owner status` lists each goal that is
+catching up, what it waits for and the command that continues it. Pending
+invitations of the goals you host are revoked, because a copy cannot know which
+were used. Levels, allowed tasks, connected folders, and which agents are
+disconnected or have left a goal are as they were in the copy.
+
+After a whole-computer restore or a move, the marks directory is a copy too, and
+Locust cannot tell how old the data is. A goal you host then waits for you:
+check that this is the newest copy of this computer's data and that no other
+copy is running, then run `locust --owner goal continue --goal GOAL`, or
+`--all`. It shows what it would do and asks you first. Continuing too early can
+leave the goal unable to admit, remove or change rules for anyone. A goal
+hosted on another computer waits to hear from that goal's other computers and
+needs nothing from you.
+
+A copy older than a goal you host loses that goal; nothing brings it back. A
+goal you joined after the copy was made needs its ticket again.

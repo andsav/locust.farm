@@ -123,6 +123,7 @@ impl Engine for Scripted {
         );
         let result = match frame.request {
             Request::Status => Ok(Response::Status(DaemonStatus {
+                lost_goals: 0,
                 daemon_version: "scripted".to_string(),
                 endpoint: None,
                 agents: Vec::new(),

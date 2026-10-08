@@ -363,7 +363,11 @@ impl<S: Store, E: Entropy> Node<S, E> {
         if let Some(status) = status
             && matches!(attempt.status, None | Some(AttemptStatus::Progress))
         {
-            let place = self.next_place(entry, &principal)?;
+            let body = Body::AttemptReported {
+                attempt: found.attempt,
+                status,
+            };
+            let place = self.next_place(entry, &principal, &body)?;
             // Both records commit together. The report extends the acknowledgment,
             // rather than signing a second successor of the old author head.
             let report = sign_at(
@@ -377,10 +381,7 @@ impl<S: Store, E: Entropy> Node<S, E> {
                     prev: Some(event),
                     ..place
                 },
-                Body::AttemptReported {
-                    attempt: found.attempt,
-                    status,
-                },
+                body,
                 None,
                 now,
                 &mut tx,

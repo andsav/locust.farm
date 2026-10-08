@@ -2,12 +2,13 @@
 
 pub(super) use locust_proto::api::safe;
 use locust_proto::api::{
-    Abilities, AgentView, DaemonStatus, GoalStatus, GoalSummary, Halt, Level, MemberView,
-    Membership, PendingWork, Response, Rule, SessionState, SessionView, TaskView, Voice,
-    WaitOutcome, WaitingForYou, WaitingKind, WorkItem, allow_command, level_command, quoted, short,
+    Abilities, AgentView, DaemonStatus, GoalStatus, GoalSummary, GuardReason, GuardView, Halt,
+    Level, MemberView, Membership, PendingWork, Response, Rule, SessionState, SessionView,
+    TaskView, Voice, WaitOutcome, WaitingForYou, WaitingKind, WorkItem, allow_command,
+    continue_command, level_command, quoted, short,
 };
 use locust_proto::event::{Body, Scope, TaskId};
-use locust_proto::id::{GoalId, PublicKey};
+use locust_proto::id::{EndpointId, GoalId, PublicKey};
 use locust_proto::organization::{CompletionRule, Formation, Selector};
 
 /// Who reads a view, and what the daemon already told them so that names
@@ -25,6 +26,9 @@ pub(super) struct Reader<'a> {
     pub members: &'a [MemberView],
     /// The goal's tasks, to cut a task's identifier and name its title.
     pub tasks: &'a [TaskView],
+    /// The status of each goal that is catching up, for the names of its
+    /// computers and when each was last seen.
+    pub held: &'a [GoalStatus],
     pub now_ms: u64,
 }
 
@@ -37,6 +41,7 @@ impl<'a> Reader<'a> {
             goals: &[],
             members: &[],
             tasks: &[],
+            held: &[],
             now_ms: 0,
         }
     }
@@ -323,6 +328,9 @@ fn scope(scope: Scope) -> String {
     }
 }
 
+/// A halt in a few words, where only the halt is at hand: a view that has
+/// the goal's holds prints the catching-up block instead, and the status
+/// view prints an agent's own conflict under that agent.
 fn halt(reason: Halt) -> &'static str {
     match reason {
         Halt::AuthorityConflict => {
@@ -336,6 +344,241 @@ fn halt(reason: Halt) -> &'static str {
         }
     }
 }
+
+/// How long before `now_ms` the moment `ms` was, in the largest whole unit.
+fn ago(ms: u64, now_ms: u64) -> String {
+    const MINUTE: u64 = 60_000;
+    const HOUR: u64 = 60 * MINUTE;
+    const DAY: u64 = 24 * HOUR;
+    let past = now_ms.saturating_sub(ms);
+    let (count, unit) = if past >= DAY {
+        (past / DAY, "day")
+    } else if past >= HOUR {
+        (past / HOUR, "hour")
+    } else if past >= MINUTE {
+        (past / MINUTE, "minute")
+    } else {
+        return "just now".into();
+    };
+    format!("{count} {unit}{} ago", if count == 1 { "" } else { "s" })
+}
+
+/// One other computer in a goal, named by the members bound to it, and
+/// with `now_ms` when this computer last synchronized with it. Without the
+/// goal's status at hand it is named by its endpoint.
+pub(super) fn computer(
+    endpoint: EndpointId,
+    view: Option<&GoalStatus>,
+    now_ms: Option<u64>,
+) -> String {
+    let members: Vec<&MemberView> = view
+        .map(|view| {
+            view.members
+                .iter()
+                .filter(|member| member.endpoint == endpoint)
+                .collect()
+        })
+        .unwrap_or_default();
+    let all = view.map(|view| view.members.as_slice()).unwrap_or_default();
+    let label = |member: &MemberView| {
+        (
+            chosen_name(&member.name),
+            super::selectors::member_key_prefix(all, member.member),
+        )
+    };
+    let mut named = match members.as_slice() {
+        // Before the goal's first record arrives, only the ticket names the
+        // host's computer.
+        [] if view.is_some_and(|view| view.host.is_none() && !view.hosted_here) => {
+            "the host's computer".to_owned()
+        }
+        [] => format!(
+            "a computer ({})",
+            endpoint.to_string().chars().take(8).collect::<String>()
+        ),
+        [member] => {
+            let (name, key) = label(member);
+            format!("{name}'s computer ({key})")
+        }
+        many => format!(
+            "the computer of {}",
+            many.iter()
+                .map(|member| {
+                    let (name, key) = label(member);
+                    format!("{name} ({key})")
+                })
+                .collect::<Vec<_>>()
+                .join(" and ")
+        ),
+    };
+    if let Some((at, now_ms)) = view
+        .and_then(|view| view.peers.iter().find(|peer| peer.endpoint == endpoint))
+        .and_then(|peer| peer.last_sync_ms)
+        .zip(now_ms)
+    {
+        named.push_str(&format!(", last seen {}", ago(at, now_ms)));
+    }
+    named
+}
+
+/// A goal's holds, one per key, as the catching-up block reads them. A key
+/// that was just admitted prints a line under its agent instead.
+fn goal_holds<'a>(views: impl IntoIterator<Item = &'a GuardView>) -> Vec<&'a GuardView> {
+    let mut holds: Vec<&GuardView> = Vec::new();
+    for view in views {
+        if view.reason != GuardReason::Admitted && !holds.iter().any(|held| held.key == view.key) {
+            holds.push(view);
+        }
+    }
+    holds
+}
+
+/// The block of a goal that is catching up, as mockups G-1, G-2 and G-5
+/// print it: the reason, what is missing and whose it is, whom or what the
+/// hold waits for, and the line that continues the goal. Lines after the
+/// first are indented by two spaces. No text names the goal's own key: its
+/// records are those "this computer signed as host".
+fn catching_up(
+    holds: &[&GuardView],
+    goal_id: &str,
+    view: Option<&GoalStatus>,
+    host_name: Option<&str>,
+    reader: &Reader,
+) -> Vec<String> {
+    let Some(first) = holds.first() else {
+        return Vec::new();
+    };
+    let owner = reader.owner();
+    let members = view.map(|view| view.members.as_slice()).unwrap_or_default();
+    let unheard = holds.iter().any(|hold| hold.reason == GuardReason::Unheard);
+    let hosted = holds.iter().any(|hold| hold.by_host);
+    let you = holds.iter().any(|hold| hold.waits_for_you());
+    // Every hold in a goal waits on the same computers.
+    let (heard, waiting) = (&first.heard, &first.waiting);
+    let nobody_known = heard.is_empty() && waiting.is_empty();
+    let mut lines = vec![if unheard {
+        "Catching up: this computer's Locust data may be an old copy.".to_owned()
+    } else {
+        "Catching up: this computer's Locust data is older than what it signed here.".to_owned()
+    }];
+    let missing: Vec<String> = holds
+        .iter()
+        .filter_map(|hold| {
+            let GuardReason::Behind { held, signed } = hold.reason else {
+                return None;
+            };
+            let count = signed.saturating_sub(held);
+            let records = format!("{count} record{}", if count == 1 { "" } else { "s" });
+            Some(if hold.by_host {
+                format!("{records} this computer signed as host")
+            } else {
+                let name = members
+                    .iter()
+                    .find(|member| member.member == hold.key)
+                    .map(|member| chosen_name(&member.name))
+                    .unwrap_or_else(|| label(hold.key, reader.names));
+                format!("{records} {name} signed")
+            })
+        })
+        .collect();
+    if !missing.is_empty() {
+        let after = if you {
+            format!("No computer that answered sent them. Waiting for {owner}.")
+        } else if nobody_known {
+            "This copy is older than the goal's first member, so it knows no computer to ask. It catches up when a member's computer connects.".to_owned()
+        } else {
+            "Nothing is signed here until they come back from another computer in the goal."
+                .to_owned()
+        };
+        lines.push(format!("  Missing: {}. {after}", missing.join(" and ")));
+    }
+    // A copy of unknown age on a member's computer waits for the host's.
+    let for_the_host = unheard && !hosted;
+    if unheard && hosted {
+        lines.push(format!(
+            "  Waiting for {owner}: only {owner} can say this is the newest copy of this computer's data."
+        ));
+    } else if for_the_host {
+        let endpoint = view.and_then(|view| {
+            let host = view.host?;
+            view.members
+                .iter()
+                .find(|member| member.member == host)
+                .map(|member| member.endpoint)
+        });
+        let seen = endpoint
+            .and_then(|endpoint| {
+                view?
+                    .peers
+                    .iter()
+                    .find(|peer| peer.endpoint == endpoint)?
+                    .last_sync_ms
+            })
+            .map(|at| format!(", last seen {}", ago(at, reader.now_ms)))
+            .unwrap_or_default();
+        lines.push(format!(
+            "  Waiting to hear from the host's computer{}{seen}. Nothing is needed from {owner}.",
+            host_name
+                .map(|name| format!(" ({})", chosen_name(name)))
+                .unwrap_or_default()
+        ));
+    }
+    if !for_the_host && !nobody_known {
+        // A computer heard from since this start needs no time beside it.
+        let list = |endpoints: &[EndpointId], now_ms| {
+            endpoints
+                .iter()
+                .map(|endpoint| computer(*endpoint, view, now_ms))
+                .collect::<Vec<_>>()
+                .join("; ")
+        };
+        lines.push(format!(
+            "  Heard from since this start: {}.",
+            if heard.is_empty() {
+                "nobody yet".to_owned()
+            } else {
+                list(heard, None)
+            }
+        ));
+        if !waiting.is_empty() {
+            lines.push(format!(
+                "  Not yet: {}.",
+                list(waiting, Some(reader.now_ms))
+            ));
+        }
+    }
+    let without = if you {
+        ""
+    } else if for_the_host {
+        " without it"
+    } else {
+        " without them"
+    };
+    let line = continue_command(goal_id);
+    lines.push(match reader.voice {
+        Voice::Person => format!("  To continue{without}: {line}"),
+        Voice::Agent => format!("  {owner} can continue{without}: {line}"),
+    });
+    lines
+}
+
+/// The line under a goal this computer found put back from a copy, while
+/// the goal still holds that finding, whether or not anything is held.
+fn restored_line(revoked: u32) -> String {
+    let settings = "Levels, allowed tasks, connected folders, and which agents are disconnected or have left are as they were in the copy.";
+    match revoked {
+        0 => format!("Restored from a copy. {settings}"),
+        1 => format!(
+            "Restored from a copy: 1 invitation was revoked, because a copy cannot know whether it was used. {settings}"
+        ),
+        many => format!(
+            "Restored from a copy: {many} invitations were revoked, because a copy cannot know whether they were used. {settings}"
+        ),
+    }
+}
+
+/// What a just admitted agent reads under its name.
+const JUST_ADMITTED: &str = "Just admitted: checking with the host's computer.";
 
 /// What an agent that is not a member of a goal can do about it; `owner` is
 /// "you" or "NAME's owner".
@@ -642,8 +885,9 @@ fn session(view: &SessionView, names: &[AgentView]) -> Vec<String> {
     lines
 }
 
-/// One sentence for what waits for the person.
-fn waiting_sentence(item: &WaitingForYou, goals: &[String]) -> String {
+/// One sentence for what waits for the person; `owner` is "you" or
+/// "NAME's owner".
+fn waiting_sentence(item: &WaitingForYou, goals: &[String], owner: &str) -> String {
     let who = item
         .agent_name
         .as_deref()
@@ -669,6 +913,20 @@ fn waiting_sentence(item: &WaitingForYou, goals: &[String]) -> String {
             "{who} wants to take {} in {goal} but is set to read",
             task_label(task, task_title)
         ),
+        WaitingKind::CatchingUp { holds } => {
+            if holds
+                .iter()
+                .any(|hold| hold.by_host && hold.reason == GuardReason::Unheard)
+            {
+                format!(
+                    "{goal} is catching up: this computer's Locust data may be an old copy, and only {owner} can say it is the newest"
+                )
+            } else {
+                format!(
+                    "{goal} is catching up: no computer that answered sent back what this computer signed as host"
+                )
+            }
+        }
     }
 }
 
@@ -695,7 +953,9 @@ fn goal_heading(summary: &GoalSummary, goal_id: &str, voice: Voice) -> String {
     format!(
         "{} ({goal_id}) · {host}{}",
         safe(summary.title.as_deref().unwrap_or("Title unavailable")),
-        if summary.halted.is_some() {
+        // Catching up and an agent's own conflict are said under the goal
+        // and under the agent; neither halts the goal.
+        if summary.halted == Some(Halt::AuthorityConflict) {
             " · halted"
         } else {
             ""
@@ -723,6 +983,20 @@ fn agent_lines(summary: &GoalSummary, agents: &[AgentView], voice: Voice) -> Vec
         ];
     }
     match summary.membership {
+        // Two of the agent's records at one position: it signs nothing more
+        // here, and the goal goes on. The host's agent cannot leave it.
+        Membership::Member if summary.halted == Some(Halt::SignerConflict) => vec![
+            format!("  {label}"),
+            format!(
+                "      {} can sign nothing more here: two of its records conflict. {}",
+                chosen_name(&summary.name),
+                if summary.abilities.host == Some(summary.member) {
+                    "Give its roles to another member."
+                } else {
+                    "Join with another agent."
+                }
+            ),
+        ],
         Membership::Member => {
             let roles = if summary.abilities.roles.is_empty() {
                 "member".to_owned()
@@ -735,9 +1009,20 @@ fn agent_lines(summary: &GoalSummary, agents: &[AgentView], voice: Voice) -> Vec
                     .collect::<Vec<_>>()
                     .join(", ")
             };
+            let admitted = summary
+                .guard
+                .iter()
+                .any(|hold| hold.key == summary.member && hold.reason == GuardReason::Admitted);
             vec![
                 format!("  {label} · {roles} · {}", tag(&summary.abilities.level)),
-                format!("      {}", standing_line(&summary.abilities, voice)),
+                format!(
+                    "      {}",
+                    if admitted {
+                        JUST_ADMITTED.to_owned()
+                    } else {
+                        standing_line(&summary.abilities, voice)
+                    }
+                ),
             ]
         }
         other => {
@@ -764,7 +1049,7 @@ fn status(status: &DaemonStatus, reader: &Reader) -> Vec<String> {
     } else {
         let mut lines = vec![format!("Waiting for {owner}")];
         for item in &status.waiting {
-            lines.push(format!("  {}", waiting_sentence(item, &goal_ids)));
+            lines.push(format!("  {}", waiting_sentence(item, &goal_ids, &owner)));
             lines.push(format!("    {}", item.command));
         }
         lines
@@ -776,16 +1061,28 @@ fn status(status: &DaemonStatus, reader: &Reader) -> Vec<String> {
         }
         seen.push(summary.goal);
         let goal_id = short(&summary.goal.to_string(), &goal_ids);
-        lines.push(String::new());
-        lines.push(goal_heading(summary, &goal_id, reader.voice));
-        if let Some(reason) = summary.halted {
-            lines.push(format!("  {}", halt(reason)));
-        }
-        for entry in status
+        let entries: Vec<&GoalSummary> = status
             .goals
             .iter()
             .filter(|entry| entry.goal == summary.goal)
-        {
+            .collect();
+        lines.push(String::new());
+        lines.push(goal_heading(summary, &goal_id, reader.voice));
+        if summary.halted == Some(Halt::AuthorityConflict) {
+            lines.push(format!("  {}", halt(Halt::AuthorityConflict)));
+        }
+        // Each summary repeats the goal's own hold: one block per goal.
+        let holds = goal_holds(entries.iter().flat_map(|entry| entry.guard.iter()));
+        let view = reader.held.iter().find(|view| view.goal == summary.goal);
+        lines.extend(
+            catching_up(&holds, &goal_id, view, summary.host_name.as_deref(), reader)
+                .into_iter()
+                .map(|line| format!("  {line}")),
+        );
+        if let Some(revoked) = summary.restored {
+            lines.push(format!("  {}", restored_line(revoked)));
+        }
+        for entry in entries {
             lines.extend(agent_lines(entry, &status.agents, reader.voice));
         }
         if summary.invitations_open > 0 {
@@ -804,6 +1101,14 @@ fn status(status: &DaemonStatus, reader: &Reader) -> Vec<String> {
                 "    locust --owner invitation revoke --goal {goal_id} --all"
             ));
         }
+    }
+    if status.lost_goals > 0 {
+        let count = status.lost_goals;
+        lines.push(String::new());
+        lines.push(format!(
+            "This copy of the Locust data is older than {count} goal{} this computer took part in. A goal you hosted cannot be brought back from it. A goal you joined needs its ticket again.",
+            if count == 1 { "" } else { "s" }
+        ));
     }
     let idle: Vec<String> = status
         .agents
@@ -851,8 +1156,23 @@ pub(super) fn goal_status(
         ),
         host_line(view, reader),
     ];
-    if let Some(reason) = view.halted {
+    let holds = goal_holds(&view.guard);
+    // The block below says what a hold of the restore guard waits for.
+    if let Some(reason) = view
+        .halted
+        .filter(|reason| *reason != Halt::SignerRecovery || holds.is_empty())
+    {
         lines.push(halt(reason).into());
+    }
+    lines.extend(catching_up(
+        &holds,
+        &goal_id,
+        Some(view),
+        view.host_name.as_deref(),
+        reader,
+    ));
+    if let Some(revoked) = view.restored {
+        lines.push(restored_line(revoked));
     }
     for item in &view.scope_halts {
         lines.push(format!(
@@ -984,6 +1304,13 @@ pub(super) fn goal_status(
             tag(&abilities.level),
             standing_line(abilities, reader.voice)
         ));
+        if view
+            .guard
+            .iter()
+            .any(|hold| hold.key == abilities.agent && hold.reason == GuardReason::Admitted)
+        {
+            lines.push(format!("  {JUST_ADMITTED}"));
+        }
         // The command goes on its own line under the sentence: a title is
         // another member's text and must not share a line with what the
         // reader is meant to copy.
@@ -1903,6 +2230,7 @@ mod tests {
         hosted.invitations_open = 1;
         hosted.invitations_expire_ms = Some(6 * DAY + 3_600_000);
         DaemonStatus {
+            lost_goals: 0,
             daemon_version: "0.1.0".into(),
             endpoint: Some(id("5c0e77aa")),
             agents: names(),
@@ -2137,6 +2465,491 @@ Daemon 0.1.0 · endpoint 5c0e77aa";
         );
     }
 
+    const DAY: u64 = 86_400_000;
+    const NOW: u64 = 30 * DAY;
+
+    /// The other computer of mockups G-1 and G-2: Cedar's, a friend's.
+    fn cedar() -> EndpointId {
+        EndpointId([0xce; 32])
+    }
+
+    /// The host's computer of "Static site search": Harbor's.
+    fn harbor() -> EndpointId {
+        EndpointId([0x4a; 32])
+    }
+
+    /// The goal's own key, which no text may name.
+    fn governance() -> PublicKey {
+        PublicKey([0x60; 32])
+    }
+
+    fn hold(key: PublicKey, by_host: bool, reason: GuardReason) -> GuardView {
+        GuardView {
+            key,
+            by_host,
+            reason,
+            heard: vec![],
+            waiting: vec![cedar()],
+        }
+    }
+
+    /// What `goal.status` answers about "Parser cleanup" on the host's
+    /// computer: Maple here, Cedar on Cedar's computer, last seen two days
+    /// ago.
+    fn parser_status(guard: Vec<GuardView>) -> GoalStatus {
+        let parser: GoalId = id("c01d55aa");
+        GoalStatus {
+            goal: parser,
+            title: Some("Parser cleanup".into()),
+            governance: governance(),
+            hosted_here: true,
+            host: Some(PublicKey([2; 32])),
+            host_name: Some("Maple".into()),
+            roles: Default::default(),
+            deciding: Default::default(),
+            acting_alone: Default::default(),
+            governance_head: None,
+            current_rules: None,
+            scope_halts: vec![],
+            members: vec![
+                MemberView {
+                    name: "Maple".into(),
+                    member: PublicKey([2; 32]),
+                    endpoint: EndpointId([0x5c; 32]),
+                    local: true,
+                    admitted: 1,
+                },
+                MemberView {
+                    name: "Cedar".into(),
+                    member: id("2f6b90c4"),
+                    endpoint: cedar(),
+                    local: false,
+                    admitted: 2,
+                },
+            ],
+            halted: Some(Halt::SignerRecovery),
+            workspace: None,
+            abilities: vec![],
+            stalled: vec![],
+            peers: vec![locust_proto::api::PeerView {
+                endpoint: cedar(),
+                connected: false,
+                last_sync_ms: Some(NOW - 2 * DAY),
+            }],
+            guard,
+            restored: Some(1),
+        }
+    }
+
+    /// What `goal.status` answers about "Static site search" on the
+    /// person's computer: Harbor's goal, last heard from three hours ago.
+    fn search_status(guard: Vec<GuardView>) -> GoalStatus {
+        GoalStatus {
+            goal: id("7f3a9c1e"),
+            title: Some("Static site search".into()),
+            hosted_here: false,
+            host: Some(PublicKey([8; 32])),
+            host_name: Some("Harbor".into()),
+            members: vec![
+                MemberView {
+                    name: "Harbor".into(),
+                    member: PublicKey([8; 32]),
+                    endpoint: harbor(),
+                    local: false,
+                    admitted: 1,
+                },
+                MemberView {
+                    name: "Maple".into(),
+                    member: PublicKey([2; 32]),
+                    endpoint: EndpointId([0x5c; 32]),
+                    local: true,
+                    admitted: 2,
+                },
+            ],
+            halted: None,
+            peers: vec![locust_proto::api::PeerView {
+                endpoint: harbor(),
+                connected: false,
+                last_sync_ms: Some(NOW - 3 * 3_600_000),
+            }],
+            restored: Some(0),
+            ..parser_status(guard)
+        }
+    }
+
+    /// The person's status with the goals of mockup G-1 or G-2: Maple in the
+    /// goal it hosts and, with `search`, in Harbor's goal.
+    fn catching_up_status(parser: &GoalStatus, search: Option<&GoalStatus>) -> DaemonStatus {
+        let mut hosted = summary(
+            (parser.goal, "Parser cleanup"),
+            0,
+            "Maple",
+            Membership::Member,
+            Level::Auto,
+            &["lead", "reviewer"],
+            Host::Here("Maple"),
+        );
+        hosted.halted = (!parser.guard.is_empty()).then_some(Halt::SignerRecovery);
+        hosted.guard = parser.guard.clone();
+        hosted.restored = parser.restored;
+        let mut goals = vec![hosted];
+        if let Some(search) = search {
+            let mut joined = summary(
+                (search.goal, "Static site search"),
+                0,
+                "Maple",
+                Membership::Member,
+                Level::Auto,
+                &[],
+                Host::Elsewhere("Harbor"),
+            );
+            joined.halted = Some(Halt::SignerRecovery);
+            joined.guard = search.guard.clone();
+            joined.restored = search.restored;
+            goals.push(joined);
+        }
+        DaemonStatus {
+            lost_goals: 0,
+            daemon_version: "0.1.0".into(),
+            endpoint: None,
+            agents: names()[..1].to_vec(),
+            waiting: vec![],
+            goals,
+        }
+    }
+
+    fn rendered(status: DaemonStatus, held: &[GoalStatus], voice: Voice) -> String {
+        let names = names();
+        let principal = (voice == Voice::Agent).then_some(names[0].agent);
+        let reader = Reader {
+            held,
+            now_ms: NOW,
+            ..Reader::new(voice, principal, &names)
+        };
+        let text = render(&Response::Status(status), None, &reader).unwrap();
+        // No text names the goal's own key.
+        assert!(!text.contains(&governance().to_string()[..8]), "{text}");
+        text
+    }
+
+    const RESTORED: &str = "Restored from a copy: 1 invitation was revoked, because a copy cannot know whether it was used. Levels, allowed tasks, connected folders, and which agents are disconnected or have left are as they were in the copy.";
+
+    #[test]
+    fn status_shows_who_a_goal_catching_up_waits_for_and_the_continue_line() {
+        // Mockup G-1: the host's own records are missing and another
+        // computer may send them back.
+        let behind = GuardReason::Behind { held: 4, signed: 6 };
+        let parser = parser_status(vec![hold(governance(), true, behind)]);
+        let text = rendered(
+            catching_up_status(&parser, None),
+            std::slice::from_ref(&parser),
+            Voice::Person,
+        );
+        let expected = format!(
+            "\
+Nothing is waiting for you.
+
+Parser cleanup (c01d55aa) · host: you
+  Catching up: this computer's Locust data is older than what it signed here.
+    Missing: 2 records this computer signed as host. Nothing is signed here until they come back from another computer in the goal.
+    Heard from since this start: nobody yet.
+    Not yet: Cedar's computer (2f6b90c4), last seen 2 days ago.
+    To continue without them: locust --owner goal continue --goal c01d55aa
+  {RESTORED}
+  Maple (codex-maple-1a2b3c4d) · lead, reviewer · auto
+      posts, reviews, decides; takes tasks on its own
+"
+        );
+        assert!(text.starts_with(&expected), "{text}");
+        // After Cedar's computer answered, the restored line stays.
+        let answered = parser_status(vec![]);
+        let text = rendered(catching_up_status(&answered, None), &[], Voice::Person);
+        assert!(
+            text.contains(&format!(
+                "Parser cleanup (c01d55aa) · host: you\n  {RESTORED}\n  Maple (codex-maple-1a2b3c4d) · lead"
+            )),
+            "{text}"
+        );
+        assert!(!text.contains("Catching up"), "{text}");
+
+        // Mockup G-2: a copy of unknown age waits for the person in the goal
+        // this computer hosts, and for the host's computer in Harbor's.
+        let mut unheard = hold(governance(), true, GuardReason::Unheard);
+        unheard.heard = std::mem::take(&mut unheard.waiting);
+        let parser = parser_status(vec![unheard.clone()]);
+        let mut maple = hold(PublicKey([2; 32]), false, GuardReason::Unheard);
+        maple.waiting = vec![harbor()];
+        let search = search_status(vec![maple]);
+        let mut status = catching_up_status(&parser, Some(&search));
+        status.waiting = vec![WaitingForYou {
+            goal: parser.goal,
+            title: parser.title.clone(),
+            agent: None,
+            agent_name: None,
+            kind: WaitingKind::CatchingUp {
+                holds: vec![unheard],
+            },
+            command: continue_command("c01d55aa"),
+        }];
+        let text = rendered(status, &[parser, search], Voice::Person);
+        let expected = format!(
+            "\
+Waiting for you
+  \"Parser cleanup\" is catching up: this computer's Locust data may be an old copy, and only you can say it is the newest
+    locust --owner goal continue --goal c01d55aa
+
+Parser cleanup (c01d55aa) · host: you
+  Catching up: this computer's Locust data may be an old copy.
+    Waiting for you: only you can say this is the newest copy of this computer's data.
+    Heard from since this start: Cedar's computer (2f6b90c4).
+    To continue: locust --owner goal continue --goal c01d55aa
+  {RESTORED}
+  Maple (codex-maple-1a2b3c4d) · lead, reviewer · auto
+      posts, reviews, decides; takes tasks on its own
+
+Static site search (7f3a9c1e) · host: Harbor's owner, on another computer
+  Catching up: this computer's Locust data may be an old copy.
+    Waiting to hear from the host's computer (Harbor), last seen 3 hours ago. Nothing is needed from you.
+    To continue without it: locust --owner goal continue --goal 7f3a9c1e
+  Restored from a copy. Levels, allowed tasks, connected folders, and which agents are disconnected or have left are as they were in the copy.
+  Maple (codex-maple-1a2b3c4d) · member · auto
+"
+        );
+        assert!(text.starts_with(&expected), "{text}");
+    }
+
+    #[test]
+    fn a_hosted_goal_of_unknown_age_is_listed_under_waiting_for_you() {
+        // From the start, with no other computer heard from, and still after
+        // every other computer answered.
+        for heard in [false, true] {
+            let mut unheard = hold(governance(), true, GuardReason::Unheard);
+            if heard {
+                unheard.heard = std::mem::take(&mut unheard.waiting);
+            }
+            assert!(unheard.waits_for_you());
+            let parser = parser_status(vec![unheard.clone()]);
+            let mut status = catching_up_status(&parser, None);
+            status.waiting = vec![WaitingForYou {
+                goal: parser.goal,
+                title: parser.title.clone(),
+                agent: None,
+                agent_name: None,
+                kind: WaitingKind::CatchingUp {
+                    holds: vec![unheard],
+                },
+                command: continue_command("c01d55aa"),
+            }];
+            let text = rendered(status.clone(), std::slice::from_ref(&parser), Voice::Person);
+            assert!(
+                text.starts_with("Waiting for you\n  \"Parser cleanup\" is catching up: this computer's Locust data may be an old copy, and only you can say it is the newest\n    locust --owner goal continue --goal c01d55aa\n"),
+                "{text}"
+            );
+            assert!(
+                text.contains("    Waiting for you: only you can say this is the newest copy of this computer's data.\n"),
+                "{text}"
+            );
+            // An agent reads the same, worded about its owner.
+            let text = rendered(status, &[parser], Voice::Agent);
+            assert!(
+                text.starts_with("Waiting for codex-maple-1a2b3c4d's owner\n  \"Parser cleanup\" is catching up: this computer's Locust data may be an old copy, and only codex-maple-1a2b3c4d's owner can say it is the newest\n"),
+                "{text}"
+            );
+            assert!(
+                text.contains("    codex-maple-1a2b3c4d's owner can continue: locust --owner goal continue --goal c01d55aa\n"),
+                "{text}"
+            );
+        }
+        // The goal's own records missing after every other computer answered.
+        let mut answered = hold(
+            governance(),
+            true,
+            GuardReason::Behind { held: 4, signed: 5 },
+        );
+        answered.heard = std::mem::take(&mut answered.waiting);
+        let parser = parser_status(vec![answered.clone()]);
+        let mut status = catching_up_status(&parser, None);
+        status.waiting = vec![WaitingForYou {
+            goal: parser.goal,
+            title: parser.title.clone(),
+            agent: None,
+            agent_name: None,
+            kind: WaitingKind::CatchingUp {
+                holds: vec![answered],
+            },
+            command: continue_command("c01d55aa"),
+        }];
+        let text = rendered(status, &[parser], Voice::Person);
+        assert!(
+            text.starts_with("Waiting for you\n  \"Parser cleanup\" is catching up: no computer that answered sent back what this computer signed as host\n"),
+            "{text}"
+        );
+        assert!(
+            text.contains("    Missing: 1 record this computer signed as host. No computer that answered sent them. Waiting for you.\n    Heard from since this start: Cedar's computer (2f6b90c4).\n    To continue: locust --owner goal continue --goal c01d55aa\n"),
+            "{text}"
+        );
+    }
+
+    #[test]
+    fn a_goal_waiting_for_a_call_is_not_listed_under_waiting_for_you() {
+        // Mockup G-5: the copy is older than the goal's first member, so it
+        // knows no computer to ask. Continuing would break the goal.
+        let mut nobody = hold(
+            governance(),
+            true,
+            GuardReason::Behind { held: 2, signed: 5 },
+        );
+        nobody.waiting.clear();
+        assert!(!nobody.waits_for_you());
+        let mut parser = parser_status(vec![nobody]);
+        parser.members.truncate(1);
+        parser.peers.clear();
+        let text = rendered(
+            catching_up_status(&parser, None),
+            std::slice::from_ref(&parser),
+            Voice::Person,
+        );
+        let expected = format!(
+            "\
+Nothing is waiting for you.
+
+Parser cleanup (c01d55aa) · host: you
+  Catching up: this computer's Locust data is older than what it signed here.
+    Missing: 3 records this computer signed as host. This copy is older than the goal's first member, so it knows no computer to ask. It catches up when a member's computer connects.
+    To continue without them: locust --owner goal continue --goal c01d55aa
+  {RESTORED}
+  Maple (codex-maple-1a2b3c4d) · lead, reviewer · auto
+"
+        );
+        assert!(text.starts_with(&expected), "{text}");
+    }
+
+    #[test]
+    fn the_hosts_hold_is_printed_once_per_goal_from_the_summaries() {
+        // Each local agent's summary repeats the goal's own hold, and the
+        // status read of the goal is not at hand: one block all the same,
+        // naming computers by their endpoints.
+        let parser = parser_status(vec![hold(
+            governance(),
+            true,
+            GuardReason::Behind { held: 4, signed: 6 },
+        )]);
+        let mut status = catching_up_status(&parser, None);
+        let mut juniper = summary(
+            (parser.goal, "Parser cleanup"),
+            1,
+            "Juniper",
+            Membership::Member,
+            Level::Read,
+            &[],
+            Host::Here("Maple"),
+        );
+        juniper.guard = parser.guard.clone();
+        juniper.halted = Some(Halt::SignerRecovery);
+        status.goals.push(juniper);
+        status.agents = names();
+        let text = rendered(status, &[], Voice::Person);
+        assert_eq!(text.matches("Catching up:").count(), 1, "{text}");
+        assert_eq!(text.matches("Missing:").count(), 1, "{text}");
+        assert!(!text.contains("halted"), "{text}");
+        assert!(
+            text.contains(&format!(
+                "    Not yet: a computer ({}).\n",
+                &cedar().to_string()[..8]
+            )),
+            "{text}"
+        );
+        assert!(
+            text.contains("  Juniper (claude-juniper-77aa0c52) · member · read\n"),
+            "{text}"
+        );
+    }
+
+    #[test]
+    fn a_just_admitted_agent_gets_one_line_and_no_block() {
+        // Mockup G-6, the second case.
+        let search: GoalId = id("7f3a9c1e");
+        let mut juniper = summary(
+            (search, "Static site search"),
+            1,
+            "Juniper",
+            Membership::Member,
+            Level::Auto,
+            &[],
+            Host::Elsewhere("Harbor"),
+        );
+        juniper.guard = vec![hold(PublicKey([3; 32]), false, GuardReason::Admitted)];
+        let status = DaemonStatus {
+            agents: names()[..2].to_vec(),
+            goals: vec![juniper],
+            ..catching_up_status(&parser_status(vec![]), None)
+        };
+        let text = rendered(status, &[], Voice::Person);
+        assert!(
+            text.contains("\nStatic site search (7f3a9c1e) · host: Harbor's owner, on another computer\n  Juniper (claude-juniper-77aa0c52) · member · auto\n      Just admitted: checking with the host's computer.\n"),
+            "{text}"
+        );
+        assert!(!text.contains("Catching up"), "{text}");
+        assert!(!text.contains("goal continue"), "{text}");
+    }
+
+    #[test]
+    fn an_agent_with_conflicting_records_reads_its_own_conflict() {
+        // Mockup G-6, the third case: the goal is not halted.
+        let parser: GoalId = id("c01d55aa");
+        let mut maple = summary(
+            (parser, "Parser cleanup"),
+            0,
+            "Maple",
+            Membership::Member,
+            Level::Auto,
+            &["lead", "reviewer"],
+            Host::Here("Maple"),
+        );
+        maple.abilities.host = Some(maple.member);
+        maple.halted = Some(Halt::SignerConflict);
+        let mut juniper = summary(
+            (parser, "Parser cleanup"),
+            1,
+            "Juniper",
+            Membership::Member,
+            Level::Auto,
+            &[],
+            Host::Here("Maple"),
+        );
+        juniper.halted = Some(Halt::SignerConflict);
+        let status = DaemonStatus {
+            agents: names()[..2].to_vec(),
+            goals: vec![juniper, maple],
+            ..catching_up_status(&parser_status(vec![]), None)
+        };
+        let text = rendered(status, &[], Voice::Person);
+        assert!(
+            text.contains("\nParser cleanup (c01d55aa) · host: you\n  Juniper (claude-juniper-77aa0c52)\n      Juniper can sign nothing more here: two of its records conflict. Join with another agent.\n  Maple (codex-maple-1a2b3c4d)\n      Maple can sign nothing more here: two of its records conflict. Give its roles to another member.\n"),
+            "{text}"
+        );
+        assert!(!text.contains("halted"), "{text}");
+    }
+
+    #[test]
+    fn status_says_when_this_copy_is_older_than_goals_it_took_part_in() {
+        // Mockup G-6, the first case: after the goals.
+        let mut status = catching_up_status(&parser_status(vec![]), None);
+        status.lost_goals = 2;
+        let text = rendered(status.clone(), &[], Voice::Person);
+        assert!(
+            text.contains("      posts, reviews, decides; takes tasks on its own\n\nThis copy of the Locust data is older than 2 goals this computer took part in. A goal you hosted cannot be brought back from it. A goal you joined needs its ticket again.\n"),
+            "{text}"
+        );
+        status.lost_goals = 1;
+        assert!(
+            rendered(status.clone(), &[], Voice::Person)
+                .contains("older than 1 goal this computer")
+        );
+        status.lost_goals = 0;
+        assert!(!rendered(status, &[], Voice::Person).contains("This copy of the Locust data"));
+    }
+
     #[test]
     fn every_printed_command_parses_as_printed() {
         use super::super::args;
@@ -2238,7 +3051,7 @@ Daemon 0.1.0 · endpoint 5c0e77aa";
             (Response::Status(p5_status()), None),
             (Response::Status(disconnected), None),
         ];
-        let views: Vec<String> = views
+        let mut views: Vec<String> = views
             .into_iter()
             .map(|(response, principal)| {
                 render(
@@ -2249,6 +3062,30 @@ Daemon 0.1.0 · endpoint 5c0e77aa";
                 .unwrap()
             })
             .collect();
+        // Goals catching up: one waits for the person, one for the host's
+        // computer, one for computers that have not answered.
+        let mut unheard = hold(governance(), true, GuardReason::Unheard);
+        unheard.heard = std::mem::take(&mut unheard.waiting);
+        let parser = parser_status(vec![unheard.clone()]);
+        let search = search_status(vec![hold(PublicKey([2; 32]), false, GuardReason::Unheard)]);
+        let mut catching = catching_up_status(&parser, Some(&search));
+        catching.waiting.push(WaitingForYou {
+            goal: parser.goal,
+            title: parser.title.clone(),
+            agent: None,
+            agent_name: None,
+            kind: WaitingKind::CatchingUp {
+                holds: vec![unheard],
+            },
+            command: continue_command("c01d55aa"),
+        });
+        views.push(rendered(catching, &[parser, search], Voice::Person));
+        let behind = parser_status(vec![hold(
+            governance(),
+            true,
+            GuardReason::Behind { held: 1, signed: 2 },
+        )]);
+        views.push(goal_status(&behind, None, &person()));
         // In a view, only Locust's own label may stand before a command on
         // its line. The text another member wrote prints inside quotation
         // marks it cannot close, and no command follows it on that line.
@@ -2319,6 +3156,19 @@ Daemon 0.1.0 · endpoint 5c0e77aa";
             }),
             Voice::Person,
         ));
+        for reason in [
+            GuardReason::Behind { held: 1, signed: 2 },
+            GuardReason::Unheard,
+        ] {
+            for by_host in [false, true] {
+                texts.push(refusal(
+                    &refused(Why::ThisComputer {
+                        hold: hold(agent_key, by_host, reason),
+                    }),
+                    Voice::Person,
+                ));
+            }
+        }
         for operation in OPERATIONS
             .iter()
             .filter(|operation| matches!(operation.audience, Audience::Owner | Audience::Host))
@@ -2362,6 +3212,7 @@ Daemon 0.1.0 · endpoint 5c0e77aa";
                 "context.read",
                 "delivery.acknowledge",
                 "event.show",
+                "goal.continue",
                 "invitation.revoke",
                 "level",
             ]

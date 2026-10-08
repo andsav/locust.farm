@@ -3,8 +3,8 @@
 use super::{Output, acting_agent, confirm, connection, presentation, resolve_goal};
 use crate::failure::Failure;
 use clap::{Arg, ArgAction, ArgMatches, Command};
-use locust_proto::api::Caller;
-use locust_proto::id::IdempotencyKey;
+use locust_proto::api::{Act, Caller};
+use locust_proto::id::{IdempotencyKey, PublicKey};
 use locust_proto::local;
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
@@ -114,6 +114,25 @@ pub(super) fn run(
     if matches!(operation, "farm.on" | "farm.off" | "farm.consent")
         && client.caller() == Caller::Owner
     {
+        // Each signs a publication record: none shows a plan it could not
+        // carry out while this computer is catching up in the goal.
+        let observed = match client
+            .call(locust_proto::api::Request::GoalStatus {
+                goal: goal.expect("write goal"),
+            })
+            .map_err(|error| connection::client_error(error, &socket))?
+        {
+            locust_proto::api::Response::GoalStatus(observed) => observed,
+            _ => unreachable!("typed response"),
+        };
+        match &fields["agent"] {
+            Value::Null => super::only_you::refuse_if_host_held(&observed, Act::Publish, None)?,
+            agent => {
+                let agent: PublicKey = serde_json::from_value(agent.clone())
+                    .map_err(|error| Failure::internal(error.to_string()))?;
+                super::only_you::refuse_if_agent_held(&observed, agent, Act::Publish)?;
+            }
+        }
         let plan = publication_plan(
             &mut client,
             &socket,

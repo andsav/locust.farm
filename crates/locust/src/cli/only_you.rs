@@ -7,8 +7,9 @@ use super::{
 use crate::failure::Failure;
 use clap::{Arg, ArgAction, ArgMatches, Command};
 use locust_proto::api::{
-    Abilities, Caller, DaemonStatus, ErrorCode, GoalStatus, InvitationState, Level, Membership,
-    Request, Response, Voice, shell_word, short,
+    Abilities, Act, Caller, DaemonStatus, ErrorCode, GoalStatus, GuardReason, GuardView,
+    InvitationState, Level, Membership, Refused, Request, Response, Voice, Why, render, shell_word,
+    short,
 };
 use locust_proto::event::TaskId;
 use locust_proto::id::{BlobHash, EventId, GoalId, IdempotencyKey, PublicKey};
@@ -77,6 +78,29 @@ pub(super) fn commands() -> Vec<(&'static str, Command)> {
         (
             "goal",
             confirm::flags(Command::new("leave").arg(goal_option())),
+        ),
+        (
+            "goal",
+            confirm::flags(
+                Command::new("continue")
+                    .about("Sign again in a goal that is catching up after this computer's data was put back from a copy")
+                    .arg(
+                        Arg::new("goal")
+                            .long("goal")
+                            .help("Visible goal title, identifier or unique prefix"),
+                    )
+                    .arg(
+                        Arg::new("all")
+                            .long("all")
+                            .action(ArgAction::SetTrue)
+                            .help("Every goal that is catching up"),
+                    )
+                    .group(
+                        clap::ArgGroup::new("which")
+                            .args(["goal", "all"])
+                            .required(true),
+                    ),
+            ),
         ),
         (
             "goal",
@@ -214,6 +238,7 @@ pub(super) fn owns(operation: &str) -> bool {
             | "goal.add"
             | "goal.join"
             | "goal.leave"
+            | "goal.continue"
             | "goal.invite"
             | "member.remove"
             | "rules.bind"
@@ -486,6 +511,126 @@ fn reviewed(
     }
 }
 
+/// What a command would sign, for the refusal it prints in place of its
+/// plan while this computer is catching up in the goal.
+struct Signing<'a> {
+    /// The agent the act is refused to; the goal's own key for a host
+    /// command.
+    who: PublicKey,
+    /// Its local name, or `host` for the goal's own key.
+    name: &'a str,
+    /// The key that would sign.
+    signer: PublicKey,
+    act: Act,
+    task: Option<(TaskId, Option<String>)>,
+}
+
+/// The hold that keeps `signer` from signing in the goal `observed`
+/// describes: the key's own, or, in a goal this computer hosts, the goal's
+/// own key's, with which every agent's key there is held.
+fn holding(observed: &GoalStatus, signer: PublicKey) -> Option<&GuardView> {
+    let own = observed.guard.iter().find(|hold| hold.key == signer);
+    if own.is_some_and(|hold| matches!(hold.reason, GuardReason::Behind { .. })) {
+        return own;
+    }
+    observed
+        .guard
+        .iter()
+        .find(|hold| observed.hosted_here && hold.by_host && hold.key != signer)
+        .or(own)
+}
+
+/// A command that would sign with a key this computer holds while it
+/// catches up computes no plan it could not carry out: it prints the
+/// daemon's refusal, which the person reads in their own voice with the
+/// line that continues the goal.
+fn refuse_if_held(observed: &GoalStatus, signing: Signing<'_>) -> Result<(), Failure> {
+    let Some(hold) = holding(observed, signing.signer) else {
+        return Ok(());
+    };
+    let (task, task_title) = signing.task.unzip();
+    let refused = Refused {
+        agent: signing.who,
+        agent_name: signing.name.to_owned(),
+        member_name: observed
+            .members
+            .iter()
+            .find(|member| member.member == signing.who)
+            .map(|member| member.name.clone()),
+        goal: Some(observed.goal),
+        goal_title: observed.title.clone(),
+        act: signing.act,
+        task,
+        task_title: task_title.flatten(),
+        why: Why::ThisComputer { hold: hold.clone() },
+    };
+    let code = if hold.reason == GuardReason::Admitted {
+        ErrorCode::Unavailable
+    } else {
+        ErrorCode::ReadOnly
+    };
+    Err(Failure {
+        details_json: Some(
+            serde_json::to_string(&refused)
+                .map_err(|error| Failure::internal(error.to_string()))?,
+        ),
+        ..Failure::new(code, render(&refused, Voice::Agent))
+    })
+}
+
+/// [`refuse_if_held`] for a host command, which the goal's own key signs.
+pub(super) fn refuse_if_host_held(
+    observed: &GoalStatus,
+    act: Act,
+    task: Option<(TaskId, Option<String>)>,
+) -> Result<(), Failure> {
+    refuse_if_held(
+        observed,
+        Signing {
+            who: observed.governance,
+            name: "host",
+            signer: observed.governance,
+            act,
+            task,
+        },
+    )
+}
+
+/// [`refuse_if_held`] for an act an agent of this computer signs itself.
+pub(super) fn refuse_if_agent_held(
+    observed: &GoalStatus,
+    agent: PublicKey,
+    act: Act,
+) -> Result<(), Failure> {
+    let name = observed
+        .abilities
+        .iter()
+        .find(|abilities| abilities.agent == agent)
+        .map(|abilities| abilities.name.clone())
+        .unwrap_or_else(|| agent.to_string().chars().take(8).collect());
+    refuse_if_held(
+        observed,
+        Signing {
+            who: agent,
+            name: &name,
+            signer: agent,
+            act,
+            task: None,
+        },
+    )
+}
+
+/// An agent's local name as the daemon writes it, else its key's first
+/// eight characters.
+fn local_name(known: &DaemonStatus, agent: PublicKey) -> String {
+    known
+        .agents
+        .iter()
+        .find(|known| known.agent == agent)
+        .map(|known| known.name.clone())
+        .unwrap_or_else(|| agent.to_string().chars().take(8).collect())
+}
+
 fn name_for(known: &DaemonStatus, agent: PublicKey) -> String {
     known
         .agents
@@ -541,6 +686,7 @@ pub(super) fn run(
         "goal.add" => goal_add(matches, args, &mut client, &socket),
         "goal.join" => goal_join(matches, args, &mut client, &socket, owner),
         "goal.leave" => goal_leave(matches, args, &mut client, &socket, owner),
+        "goal.continue" => goal_continue(matches, args, &mut client, &socket, owner),
         "goal.invite" => goal_invite(matches, args, &mut client, &socket, owner),
         "member.remove" => member_remove(matches, args, &mut client, &socket, owner),
         "rules.bind" => rules_bind(matches, args, &mut client, &socket, owner),
@@ -822,6 +968,17 @@ fn add_plan(
             "this goal is hosted on another computer; request an invitation from its host",
         ));
     }
+    // The goal's own key signs the admission.
+    refuse_if_held(
+        &goal_status,
+        Signing {
+            who: agent,
+            name: &selected.name,
+            signer: goal_status.governance,
+            act: Act::Join,
+            task: None,
+        },
+    )?;
     let standing = known
         .goals
         .iter()
@@ -1146,6 +1303,7 @@ fn leave_plan(
             "the host's agent cannot leave its own goal",
         ));
     }
+    refuse_if_agent_held(&observed, agent, Act::Leave)?;
     let known = status(client, socket, None)?;
     let standing = known
         .goals
@@ -1219,6 +1377,212 @@ fn goal_leave(
     ))
 }
 
+/// The plan of `goal continue` for one goal that is catching up, mockup
+/// G-3: each held key and why, the computers heard from and not, what a
+/// conflict would cost, and when continuing is safe. Last-seen times are
+/// words only, so the plan's identifier holds no clock reading.
+fn continue_block(observed: &GoalStatus, known: &DaemonStatus, now_ms: u64) -> String {
+    let goal_id = cut_goal_among(known, observed.goal);
+    let title = presentation::safe(observed.title.as_deref().unwrap_or("Title unavailable"));
+    let host = if observed.hosted_here {
+        "host: you".to_owned()
+    } else {
+        match &observed.host_name {
+            Some(name) => format!(
+                "host: {}'s owner, on another computer",
+                presentation::chosen_name(name)
+            ),
+            None => "host: on another computer".to_owned(),
+        }
+    };
+    let mut lines = vec![
+        format!("Goal: {title} ({goal_id}) · {host}"),
+        "Continue: sign in this goal from this computer's copy of the data.".to_owned(),
+    ];
+    let host_held = observed.guard.iter().any(|hold| hold.by_host);
+    let mut unheard = false;
+    for hold in &observed.guard {
+        let name = || {
+            observed
+                .members
+                .iter()
+                .find(|member| member.member == hold.key)
+                .map(|member| presentation::chosen_name(&member.name))
+                .unwrap_or_else(|| presentation::safe(&local_name(known, hold.key)))
+        };
+        match hold.reason {
+            GuardReason::Behind { held, signed } => {
+                let count = signed.saturating_sub(held);
+                let records = format!("{count} record{}", if count == 1 { "" } else { "s" });
+                lines.push(if hold.by_host {
+                    format!("  This copy is missing {records} that this computer signed as host.")
+                } else {
+                    format!("  This copy is missing {records} that {} signed.", name())
+                });
+            }
+            GuardReason::Unheard if !unheard => {
+                unheard = true;
+                lines.push(
+                    "  This copy may be older than what this computer signed here, and nothing on this computer can tell."
+                        .to_owned(),
+                );
+            }
+            GuardReason::Unheard => {}
+            GuardReason::Admitted => lines.push(format!(
+                "  {} was just admitted, and this computer has not heard from the host's computer since.",
+                name()
+            )),
+        }
+    }
+    if host_held {
+        lines
+            .push("  They may include a removal, a rule change or the end of the goal.".to_owned());
+    }
+    // Every hold in a goal waits on the same computers.
+    if let Some(hold) = observed.guard.first() {
+        let list = |endpoints: &[locust_proto::id::EndpointId], now_ms| {
+            endpoints
+                .iter()
+                .map(|endpoint| presentation::computer(*endpoint, Some(observed), now_ms))
+                .collect::<Vec<_>>()
+                .join("; ")
+        };
+        if !hold.heard.is_empty() {
+            lines.push(format!(
+                "  Heard from since this start: {}.",
+                list(&hold.heard, None)
+            ));
+        }
+        if !hold.waiting.is_empty() {
+            lines.push(format!(
+                "  Not heard from since this start: {}.",
+                list(&hold.waiting, Some(now_ms))
+            ));
+        }
+    }
+    if host_held {
+        lines.push("  Wait until the computers of the members you added most recently have been on. A member added after this copy was made is not listed here, and its computer may hold them.".to_owned());
+        lines.push("  If another computer holds one of those records, the next record signed here conflicts with it. If these are the host's records, that stops joining, removing and rule changes in this goal for everyone, for good.".to_owned());
+    } else {
+        lines.push("  If another computer holds one of those records, the next record signed here conflicts with it, and that agent signs nothing more in this goal.".to_owned());
+    }
+    lines.push(
+        "  Safe when this is the newest copy of this computer's Locust data and no other copy is running."
+            .to_owned(),
+    );
+    lines.join("\n")
+}
+
+/// One plan for every goal of `goals` that is catching up; `None` when none
+/// is.
+fn continue_plan(
+    client: &mut LocalClient,
+    socket: &Path,
+    goals: &[GoalId],
+) -> Result<Option<confirm::Plan>, Failure> {
+    let known = status(client, socket, None)?;
+    let now = now_ms()?;
+    let mut review = Vec::new();
+    let mut blocks = Vec::new();
+    for goal in goals {
+        let observed = observed(client, socket, *goal)?;
+        if observed.guard.is_empty() {
+            continue;
+        }
+        review.push(json!({"goal":observed.goal,"title":observed.title,"guard":observed.guard}));
+        blocks.push(continue_block(&observed, &known, now));
+    }
+    Ok((!review.is_empty()).then(|| confirm::Plan {
+        command: "goal continue",
+        review: json!({ "goals": review }),
+        human: blocks.join("\n\n"),
+        warning: None,
+        again: String::new(),
+    }))
+}
+
+/// `goal continue`: the person's word that this computer's copy of the data
+/// is the newest, in one goal or in every goal that is catching up. What is
+/// signed after it cannot be undone, so it shows its plan and asks for a
+/// yes, and prints no undo line.
+fn goal_continue(
+    matches: &ArgMatches,
+    args: &ArgMatches,
+    client: &mut LocalClient,
+    socket: &Path,
+    owner: bool,
+) -> Result<Output, Failure> {
+    let goals = match args.get_one::<String>("goal") {
+        Some(goal) => vec![resolve_goal(client, socket, goal, None)?],
+        None => {
+            let mut goals: Vec<GoalId> = status(client, socket, None)?
+                .goals
+                .iter()
+                .map(|summary| summary.goal)
+                .collect();
+            goals.dedup();
+            goals
+        }
+    };
+    let reviewed_goals = if owner {
+        let Some(plan) = continue_plan(client, socket, &goals)? else {
+            let human = match goals.as_slice() {
+                [goal] if args.get_one::<String>("goal").is_some() => {
+                    let title = observed(client, socket, *goal)?.title;
+                    format!(
+                        "\"{}\" is not catching up. Nothing changed.",
+                        presentation::safe(title.as_deref().unwrap_or("this goal"))
+                    )
+                }
+                _ => "No goal is catching up. Nothing changed.".to_owned(),
+            };
+            return Ok(Output::success(
+                json!({"continued": [], "changed": false}),
+                human,
+            ));
+        };
+        if let Some(output) = reviewed(matches, args, &plan, || {
+            continue_plan(client, socket, &goals)?.ok_or_else(|| {
+                Failure::new(ErrorCode::Conflict, "the plan changed; run --plan again")
+            })
+        })? {
+            return Ok(output);
+        }
+        plan.review["goals"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|entry| {
+                Ok((
+                    serde_json::from_value::<GoalId>(entry["goal"].clone())
+                        .map_err(|error| Failure::internal(format!("reviewed goal: {error}")))?,
+                    entry["title"].as_str().map(str::to_owned),
+                ))
+            })
+            .collect::<Result<Vec<_>, Failure>>()?
+    } else {
+        // An agent's request goes to the daemon's own check, which refuses it.
+        goals.into_iter().map(|goal| (goal, None)).collect()
+    };
+    let mut continued = Vec::new();
+    let mut lines = Vec::new();
+    for (goal, title) in reviewed_goals {
+        let response = call(client, socket, Request::GoalContinue { goal }, None)?;
+        let Response::Continued { keys } = response else {
+            unreachable!("typed response")
+        };
+        continued.push(json!({"goal": goal, "keys": keys}));
+        lines.push(format!(
+            "Continued \"{}\". This computer signs here again.",
+            presentation::safe(title.as_deref().unwrap_or("this goal"))
+        ));
+    }
+    Ok(Output::success(
+        json!({"continued": continued, "changed": true}),
+        lines.join("\n"),
+    ))
+}
+
 fn duration_ms(text: &str) -> Result<u64, Failure> {
     if text == "never" {
         return Err(Failure::usage(
@@ -1280,7 +1644,12 @@ fn invite_plan(
             role_words,
             typed_duration
         ),
-        warning: None,
+        // Issuing signs nothing; the admission the ticket leads to waits.
+        warning: observed
+            .guard
+            .iter()
+            .any(|hold| hold.by_host)
+            .then(|| "This computer is catching up; nobody is admitted until it has.".to_owned()),
         again: String::new(),
     })
 }
@@ -1351,6 +1720,7 @@ fn removal_plan(
             "the host's agent cannot be removed from its own goal",
         ));
     }
+    refuse_if_host_held(&observed, Act::RemoveMember, None)?;
     let present = observed.members.iter().any(|entry| entry.member == member);
     let label = presentation::member_label(member, &observed.members);
     Ok(confirm::Plan {
@@ -1424,6 +1794,7 @@ fn rules_plan(
     no_role: bool,
 ) -> Result<confirm::Plan, Failure> {
     let observed = observed(client, socket, goal)?;
+    refuse_if_host_held(&observed, Act::ChangeRules, None)?;
     let current = observed
         .current_rules
         .ok_or_else(|| Failure::unavailable("current rules have not arrived"))?;
@@ -1698,6 +2069,11 @@ fn revision_plan(
 ) -> Result<confirm::Plan, Failure> {
     let observed = observed(client, socket, goal)?;
     let detail = task_detail(client, socket, goal, task)?;
+    refuse_if_host_held(
+        &observed,
+        Act::Revise,
+        Some((task, detail.view.title.clone())),
+    )?;
     let title = detail.view.title.as_deref().unwrap_or("this task");
     let under_parent = detail.parent.is_some();
     Ok(confirm::Plan {

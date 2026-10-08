@@ -193,6 +193,61 @@ async fn authenticated_daemon_errors_are_structured_tool_errors() {
     daemon.join().unwrap();
 }
 #[tokio::test]
+async fn a_goal_catching_up_reaches_the_tool_as_this_computer() {
+    use locust_proto::api::{GuardReason, GuardView, Why};
+    let mut refused = refused();
+    refused.act = locust_proto::api::Act::Post;
+    refused.task = None;
+    refused.task_title = None;
+    refused.why = Why::ThisComputer {
+        hold: GuardView {
+            key: refused.agent,
+            by_host: false,
+            reason: GuardReason::Behind { held: 1, signed: 2 },
+            heard: vec![],
+            waiting: vec![locust_proto::id::EndpointId([6; 32])],
+        },
+    };
+    let dir = tempfile::tempdir().unwrap();
+    let socket = dir.path().join("s");
+    let (daemon, _) = fake_response(
+        &socket,
+        false,
+        false,
+        Err(ApiError {
+            code: ErrorCode::ReadOnly,
+            message: locust_proto::api::render(&refused, locust_proto::api::Voice::Agent),
+            details_json: Some(serde_json::to_string(&refused).unwrap()),
+        }),
+    );
+    let (input, mut writer) = tokio::io::duplex(8192);
+    let (output, reader) = tokio::io::duplex(8192);
+    let mut reader = BufReader::new(reader);
+    let bridge = tokio::spawn(serve(input, output, auth(socket), None));
+    initialize(&mut writer, &mut reader, VERSIONS[0]).await;
+    send(
+        &mut writer,
+        json!({"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"locust_status"}}),
+    )
+    .await;
+    let answer = receive(&mut reader).await;
+    assert_eq!(answer["result"]["isError"], true);
+    let error = &answer["result"]["structuredContent"]["error"];
+    assert_eq!(error["code"], "read_only");
+    assert_eq!(
+        error["message"],
+        "codex-maple-1a2b3c4d can't post to this goal: the Locust data here is older than what this computer signed in the goal (this computer). It catches up by itself, or codex-maple-1a2b3c4d's owner can continue without waiting."
+    );
+    assert_eq!(error["details"]["why"]["side"], "this_computer");
+    assert_eq!(
+        error["details"]["why"]["hold"]["reason"]["behind"]["signed"],
+        2
+    );
+    drop(writer);
+    bridge.await.unwrap().unwrap();
+    daemon.join().unwrap();
+}
+#[tokio::test]
 async fn owner_credentials_never_dispatch_a_model_operation() {
     let dir = tempfile::tempdir().unwrap();
     let socket = dir.path().join("s");

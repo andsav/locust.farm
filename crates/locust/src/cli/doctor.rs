@@ -54,6 +54,9 @@ fn check(checks: &mut Vec<Value>, name: &str, result: Result<String, Failure>) {
             "session_file" => {
                 "Restore the original selected session file with mode 0600; do not replace an enrolled session identity."
             }
+            "marks" => {
+                "Locust keeps what this computer last signed in this directory beside the daemon home. Make it a directory only you can read and write (chmod 700), or let the daemon create it, then rerun doctor."
+            }
             _ => "Review the reported selection and rerun doctor.",
         })
     };
@@ -72,6 +75,44 @@ fn private_home(home: &Path) -> Result<String, Failure> {
         )))
     }
 }
+/// The marks directory beside the home: private and writable, or one the
+/// daemon can create at its start. Doctor creates nothing.
+fn marks(home: &Path) -> Result<String, Failure> {
+    let marks = local::marks_dir(home)?;
+    let shown = marks.display().to_string();
+    let writable = |path: &Path| {
+        rustix::fs::access(
+            path,
+            rustix::fs::Access::WRITE_OK | rustix::fs::Access::EXEC_OK,
+        )
+        .is_ok()
+    };
+    match fs::symlink_metadata(&marks) {
+        Ok(metadata) => {
+            let mode = metadata.permissions().mode() & 0o7777;
+            if !metadata.is_dir() {
+                Err(Failure::invalid(format!("{shown} is not a directory")))
+            } else if mode & 0o077 != 0 {
+                Err(Failure::invalid(format!(
+                    "{shown} may be read by others (found {mode:04o})"
+                )))
+            } else if !writable(&marks) {
+                Err(Failure::invalid(format!("{shown} cannot be written")))
+            } else {
+                Ok(shown)
+            }
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            match marks.parent().filter(|parent| writable(parent)) {
+                Some(_) => Ok(shown),
+                None => Err(Failure::invalid(format!(
+                    "{shown} cannot be created: its parent directory cannot be written"
+                ))),
+            }
+        }
+        Err(error) => Err(Failure::invalid(format!("{shown}: {error}"))),
+    }
+}
 pub(super) fn run(matches: &ArgMatches, home: &Path) -> (Value, String, u8, bool) {
     let args = matches
         .subcommand_matches("doctor")
@@ -80,6 +121,7 @@ pub(super) fn run(matches: &ArgMatches, home: &Path) -> (Value, String, u8, bool
         args.get_one::<String>("client").is_some() || args.get_one::<String>("prefix").is_some();
     let mut checks = Vec::new();
     check(&mut checks, "state_directory", private_home(home));
+    check(&mut checks, "marks", marks(home));
     let socket = local::socket_path(home).map_err(Failure::from);
     check(
         &mut checks,

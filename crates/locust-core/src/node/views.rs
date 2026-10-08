@@ -5,8 +5,9 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use locust_proto::api::{
     self, ApiError, Attempting, BlobState, BlobStatus, CancelItem, ContextNews, DeliveryItem,
-    EventDetail, EventView, GoalSummary, Level, Membership, PendingWork, ReviewItem, TaskDetail,
-    TaskView, Verdict, WaitingForYou, WaitingKind, WorkItem, allow_command, level_command, short,
+    EventDetail, EventView, GoalSummary, GuardView, Level, Membership, PendingWork, ReviewItem,
+    TaskDetail, TaskView, Verdict, WaitingForYou, WaitingKind, WorkItem, allow_command,
+    continue_command, level_command, short,
 };
 use locust_proto::engine::Entropy;
 use locust_proto::event::{
@@ -165,14 +166,49 @@ impl<S: Store, E: Entropy> Node<S, E> {
         Ok(summaries)
     }
 
-    /// What a command of the person settles: one entry per task an agent
-    /// wanted while its level is below auto, oldest first. At ask the command
-    /// allows the task; at read an allowance would not help, so it sets the
-    /// agent to ask. A joining or disconnected agent, a halted goal, a task
-    /// the agent already holds an attempt on and a task the rules no longer
-    /// let it start give no entry: no command of the person settles those.
+    /// What a command of the person settles. First each goal this daemon
+    /// hosts that is catching up where, as far as it can tell, no other
+    /// computer can end the hold: a copy of unknown age, from the start, or
+    /// the goal's own records missing after every other computer answered.
+    /// A hold that still waits for a computer prompts no person, and nor
+    /// does a goal that waits for a member's computer to call. Then one
+    /// entry per task an agent wanted while its level is below auto, oldest
+    /// first. At ask the command allows the task; at read an allowance would
+    /// not help, so it sets the agent to ask. A joining or disconnected
+    /// agent, a halted goal, a task the agent already holds an attempt on and
+    /// a task the rules no longer let it start give no entry: no command of
+    /// the person settles those.
     pub(super) fn waiting_for(&self, summaries: &[GoalSummary]) -> Vec<WaitingForYou> {
         let goals: Vec<String> = self.goals.keys().map(ToString::to_string).collect();
+        let mut catching_up = Vec::new();
+        let mut listed = BTreeSet::new();
+        for summary in summaries {
+            let Some(entry) = self.goals.get(&summary.goal) else {
+                continue;
+            };
+            let waits_for_you = self
+                .hosted_governance(entry)
+                .and_then(|governance| self.guard_view(entry, &governance))
+                .is_some_and(|view| view.waits_for_you());
+            if !waits_for_you || !listed.insert(summary.goal) {
+                continue;
+            }
+            let mut holds: Vec<GuardView> = summaries
+                .iter()
+                .filter(|other| other.goal == summary.goal)
+                .flat_map(|other| other.guard.iter().cloned())
+                .collect();
+            holds.sort_by_key(|view| view.key);
+            holds.dedup_by_key(|view| view.key);
+            catching_up.push(WaitingForYou {
+                goal: summary.goal,
+                title: summary.title.clone(),
+                agent: None,
+                agent_name: None,
+                kind: WaitingKind::CatchingUp { holds },
+                command: continue_command(&short(&summary.goal.to_string(), &goals)),
+            });
+        }
         let mut waiting = Vec::new();
         for summary in summaries {
             if summary.membership != Membership::Member
@@ -235,7 +271,8 @@ impl<S: Store, E: Entropy> Node<S, E> {
             }
         }
         waiting.sort_by_key(|(since, _)| *since);
-        waiting.into_iter().map(|(_, entry)| entry).collect()
+        catching_up.extend(waiting.into_iter().map(|(_, entry)| entry));
+        catching_up
     }
 
     /// Whether the rules let `member` start the current round of `task`, by

@@ -35,6 +35,10 @@ impl<S: Store, E: Entropy> Node<S, E> {
             agents,
             waiting: self.waiting_for(&goals),
             goals,
+            lost_goals: match actor.principal {
+                None => self.guard.lost(),
+                Some(_) => 0,
+            },
         }))
     }
 

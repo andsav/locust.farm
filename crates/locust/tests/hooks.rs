@@ -134,6 +134,7 @@ fn participant_tool(chat: &str, invocation: &str) -> Value {
         "status",
         json!({}),
         Response::Status(DaemonStatus {
+            lost_goals: 0,
             daemon_version: "fixture".into(),
             endpoint: None,
             waiting: vec![],
@@ -513,6 +514,7 @@ fn serve(mut stream: UnixStream, state: Arc<Mutex<ServerState>>, caller: Caller)
                     details_json: None,
                 }),
                 Request::Status => Ok(Response::Status(DaemonStatus {
+                    lost_goals: 0,
                     daemon_version: "fixture".into(),
                     endpoint: None,
                     waiting: vec![],
@@ -644,6 +646,7 @@ fn passive_chat_does_not_block_for_unrelated_work_or_other_sessions_claims() {
     let fixture = Fixture::new(pending.clone());
     let chat = "passive";
     let status = Response::Status(DaemonStatus {
+        lost_goals: 0,
         daemon_version: "fixture".into(),
         endpoint: None,
         waiting: vec![],

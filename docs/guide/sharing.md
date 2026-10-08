@@ -70,6 +70,15 @@ change this, set:
 Port mapping is always on. Any program running as your user can read your
 locust.farm files.
 
+## When this computer is catching up
+
+After this computer's Locust data was put back from a copy, it signs nothing in
+the goals the copy is behind in until it has caught up. A command or an agent's
+request then reads `read_only`, and the refusal says what the wait is on: other
+computers, and then it ends by itself, or you. Retrying does not help; other
+goals go on. `locust --owner status` lists each goal that is catching up. See
+[Backups](operations.md#backups).
+
 ## Share part of a goal with a smaller group
 
 Use a separate goal. A member of both goals copies chosen files into it.
