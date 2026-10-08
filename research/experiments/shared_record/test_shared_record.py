@@ -325,6 +325,23 @@ class SharedArmTools(unittest.TestCase):
         self.assertLess(len(prompt), 4000)
 
 
+class RecordNames(unittest.TestCase):
+    def test_every_study_trial_yields_valid_distinct_principal_names(self):
+        import record
+        names = set()
+        for phase in ('calibration', 'scored'):
+            for task in problems.DEVELOPMENT + problems.HELD_OUT:
+                for i in range(run.CONFIG['arms']['shared']):
+                    name = record.principal_name(f'{phase}-{task}', f'agent-{i}')
+                    self.assertRegex(name, record.PRINCIPAL_NAME)
+                    self.assertNotIn(name, names)
+                    names.add(name)
+        self.assertEqual(record.principal_name('scored-unrelated_machines', 'agent-2'), 'scored-unrelated-machines-a2')
+        self.assertEqual(record.principal_name('scored-coloring', 'agent-0'), 'scored-coloring-agent-0')
+        with self.assertRaises(ValueError):
+            record.principal_name('x' * 40, 'agent-0')
+
+
 class Manifest(unittest.TestCase):
     def test_instance_digest_is_stable_and_order_sensitive(self):
         items = problems.instances('t', 'mkp', 'public')

@@ -6,6 +6,7 @@ go through the daemon, never through harness memory.
 """
 import json
 from pathlib import Path
+import re
 import shutil
 import sys
 import threading
@@ -17,6 +18,17 @@ from client_qualification.runtime import Profile  # noqa: E402
 from check_shared_context_models import raw_call, enroll  # noqa: E402
 
 MAX_FINDING_BYTES = 12000
+PRINCIPAL_NAME = re.compile(r'^[a-z0-9-]{1,32}$')  # The daemon's rule for `agent enroll` names.
+
+
+def principal_name(title, agent):
+    """A daemon-valid principal name for an agent of a trial; task names may contain underscores."""
+    name = f'{title}-{agent}'.replace('_', '-')
+    if len(name) > 32:
+        name = name.replace('-agent-', '-a')
+    if not PRINCIPAL_NAME.match(name):
+        raise ValueError(f'{name!r} is not a valid principal name')
+    return name
 
 
 class Daemon:
@@ -34,12 +46,13 @@ class Daemon:
         return self.daemon.binary_metadata
 
     def goal(self, title, agents):
+        names = {agent: principal_name(title, agent) for agent in agents}  # Validate before touching the daemon.
         with self.lock:
             created = raw_call(self.daemon, ['--agent', 'qualification', 'goal', 'create',
                                               '--title', title, '--formation', 'open'], owner=True)
             goal = created['goal_created']['goal']
             self.daemon.goal = goal
-            roles = {name: enroll(self.daemon, self.profile, title + '-' + name) for name in agents}
+            roles = {agent: enroll(self.daemon, self.profile, names[agent]) for agent in agents}
         return Goal(self, goal, roles)
 
     def call(self, args, role, stdin=None):
