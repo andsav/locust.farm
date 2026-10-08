@@ -176,6 +176,31 @@ class IntegrationTests(unittest.TestCase):
             e.ledger.reserve('unit',job,.01,60,.25)
             resumed=Experiment(folder,self.transport_class())
             self.assertEqual(resumed.records[job['id']]['status'],'interrupted')
+    def test_archive_and_blinded_review_queue(self):
+        import gzip
+        from evidence import export, review_queue
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ,{'OPENAI_API_KEY':'test-only'}):
+            folder=self.setup_run(tmp)
+            def alternative(req,timeout):
+                value=json.loads(self.opener(req,timeout).read())
+                content=value['output'][0]['content'][0]
+                parsed=json.loads(content['text'])
+                if parsed['answerable']:parsed['support_ids']=[0,1]
+                content['text']=json.dumps(parsed)
+                return io.BytesIO(json.dumps(value).encode())
+            Experiment(folder,self.transport_class(alternative)).run(workers=4)
+            out=Path(tmp)/'export'
+            result=export(Path(tmp),'unit',out)
+            self.assertEqual(result['records'],76)
+            records=[json.loads(line) for line in gzip.decompress((out/'unit-records.jsonl.gz').read_bytes()).splitlines()]
+            self.assertEqual(len(records),76);self.assertTrue(all('request' in r for r in records))
+            review=review_queue(Path(tmp),'unit',out)
+            self.assertEqual(review['unique_candidates'],2)
+            queue=json.loads((out/'unit-blinded-review.json').read_text())
+            for item in queue:
+                self.assertNotIn('config',item);self.assertNotIn('gold_answer',item)
+                self.assertEqual(item['candidate_support_ids'],[0,1])
+
     def test_manifest_change_refused(self):
         with tempfile.TemporaryDirectory() as tmp:
             folder=self.setup_run(tmp);m=json.loads((folder/'manifest.json').read_text());m['effort']='low';atomic_json(folder/'manifest.json',m)

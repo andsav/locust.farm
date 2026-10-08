@@ -164,4 +164,20 @@ training contamination. Source-title overlap and alternative valid citations can
 also limit conclusions. This study measures bounded evidence investigations,
 not open-web research, forecasting profit, or autonomous team formation.
 
-Live findings and retained evidence are recorded when the phases finish.
+The [retained run records](../../evidence/evidence-study-2026-10-08/README.md)
+include the failed initial allocation check. Its 19/102 truncated calls justified
+[raising development allocations](development-amendment.json) to 24,000/48,000
+before the 40-family development comparison. The 6,000/12,000 phase was discontinued
+after two families; its missing remaining cases are not treated as observed scores.
+The 48,000 allocation is the next candidate for the gate, chosen for completion
+headroom before comparing quality. A further 96,000 development phase is permitted
+only if its technical gate fails; it must be separately frozen before main.
+
+[evidence.py](evidence.py) exports complete visible records and frozen source,
+and can build an arm-blinded queue of unique nonmatching final answers/citations.
+The primary scores are unaffected by any later annotation review. Model limits and
+accounting rates were checked against the
+[official Luna documentation](https://developers.openai.com/api/docs/models/gpt-6-luna)
+on October 8, 2026. The 48,000 cap is below its documented output limit.
+The current test suite has 18 passing tests, including archive reconstruction and
+blinded-queue separation.

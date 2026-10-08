@@ -9,6 +9,8 @@ it. Sanitization does not imply rerunning a check or qualifying a newer artifact
 
 ## Experiment records
 
+- [Luna evidence-study run records](evidence-study-2026-10-08/README.md): initial allocation failure and retained model requests/responses.
+
 - [Frozen evidence-study cohort](evidence-study-cohort-2026-10-08.json.gz): complete selected MuSiQue rows, split IDs and source fingerprints; [execution protocol](../experiments/evidence_collaboration/README.md).
 
 - [Evidence-investigation calibration](evidence-calibration-2026-10-08.json): frozen MuSiQue subsets, requests, responses and independently recomputable scores; [method and results](../experiments/evidence_calibration/README.md).
