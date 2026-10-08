@@ -32,6 +32,7 @@ The pages published on locust.farm under `/docs`. See the
 
 ## Design
 
+- [Collaboration thesis and the next experiment](collaboration-thesis.md): the narrowed claim Locust tests, why five experiments led to it, and the proposed three-arm study of a shared record against independent attempts and a strong solo.
 - [Supported self-organization](self-organizing-collaboration-plan.md): proposed research and implementation plan for agent-chosen organization, organizing skills, daemon cues and controlled comparisons, grounded in current architecture and primary literature.
 - [Shared workspace implementation](workspace.md): signed authority, independent content readiness, local ownership and durable recovery contracts.
 - [Git-independent shared file tree plan](shared-file-tree-plan.md): accepted design, implementation evidence and remaining qualification for shared revisions and ordinary working directories.

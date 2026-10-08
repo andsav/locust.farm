@@ -5,6 +5,9 @@ combines the supplied literature report with our retained experiments. It makes
 no production change, launches no experiment, and does not replace the frozen
 protocols or results linked below.
 
+Decision: the [collaboration thesis](../docs/collaboration-thesis.md) records
+the narrowed claim and the three-arm experiment adopted from this synthesis.
+
 ## Finding
 
 **We have already experimented with model mixtures. We have not demonstrated a

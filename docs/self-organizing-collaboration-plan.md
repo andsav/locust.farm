@@ -4,7 +4,10 @@ Status: proposed, 7 October 2026. The owner requested this plan after clarifying
 that Locust should let agents organize themselves, with help from skills and
 daemon cues. The detailed design and experiments below are proposals, not an
 approved change to the [v2 build order](master-plan.md). This document authorizes
-no new experiment spending and introduces no production behavior.
+no new experiment spending and introduces no production behavior. The
+[collaboration thesis](collaboration-thesis.md) of 8 October narrows the
+working hypothesis below and defers this plan's core comparison until a shared
+record has shown a signal against independent attempts.
 
 ## The question
 
