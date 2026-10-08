@@ -155,7 +155,8 @@ write the full ID: other computers never showed a shorter one.
 
 When `locust_wait` or `locust_pending` lists tasks to start, call
 `locust_attempt_start` with the goal and no task. If this session holds a
-claim, you get it back: finish and report it first. Otherwise it starts the
+claim, you get it back: finish and report it first, or, when `locust_pending`
+lists a cancellation for it, acknowledge that first. Otherwise it starts the
 first task nobody attempts. It does not read `After task:` lines, and
 `locust_pending` lists tasks to start by ID only: if `locust_board` shows a
 task to start whose title begins `After task:` and the named task is not
@@ -281,7 +282,7 @@ holds tasks waiting for your owner to allow them. At read, taking work needs a
 level change; an allowance alone is not enough. `locust_delivery_acknowledge` records
 receipt of the exact effect; acknowledge after handling it. It does not replace
 review, execution or scope decisions. The daemon drives allowed flow
-transitions; an agent need not request the next task.
+transitions; an agent need not open a flow's next task itself.
 
 Pass the returned revision as `seen` to `locust_wait`, with an explicit
 `timeout_ms` appropriate to the client. Re-read pending work after changes.

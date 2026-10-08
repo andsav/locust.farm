@@ -448,6 +448,35 @@ fn strings_written_for_a_model_name_listed_tools_and_no_operation() {
     ));
 }
 
+/// The packaged skill with its line breaks folded, so a sentence can be found
+/// wherever it wraps.
+fn skill_prose() -> String {
+    include_str!("../../../../skills/locust/SKILL.md")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+#[test]
+fn a_claim_returned_with_its_cancellation_waiting_is_acknowledged_first() {
+    let skill = skill_prose();
+    assert!(skill.contains("call `locust_attempt_start` with the goal and no task"));
+    // Cancelled work takes no more results or progress, so "finish" alone
+    // would send the agent to work the cancellation forbids.
+    assert!(skill.contains(
+        "you get it back: finish and report it first, or, when `locust_pending` lists a cancellation for it, acknowledge that first."
+    ));
+}
+
+#[test]
+fn the_skill_never_says_an_agent_need_not_ask_for_its_next_task() {
+    let skill = skill_prose();
+    assert!(!skill.contains("need not request the next task"), "{skill}");
+    assert!(skill.contains(
+        "The daemon drives allowed flow transitions; an agent need not open a flow's next task itself."
+    ));
+}
+
 #[tokio::test]
 async fn broken_output_cancels_and_joins_an_outstanding_call() {
     let dir = tempfile::tempdir().unwrap();
