@@ -283,7 +283,7 @@ fn log(message: std::fmt::Arguments<'_>) {
 
 /// What starting over with a new data folder loses.
 const STARTING_FRESH: &str = "A new data folder starts with no goals. Goals you host cannot \
-    continue from it, and goals you joined need a new invitation.";
+    continue from it, and each goal you joined needs its ticket again.";
 
 /// A start that could not open the store of `home`, whose marks directory
 /// is `marks`: what happened, then the one thing to do and, where that is

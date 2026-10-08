@@ -141,4 +141,4 @@ default); the daemon needs both. To copy a data directory, see
 | The marks directory or its file has the wrong mode | Run the `chmod` the message names, then start again. |
 
 A new data directory starts with no goals. Goals you host cannot continue from
-it, and goals you joined need a new invitation.
+it, and each goal you joined needs its ticket again.

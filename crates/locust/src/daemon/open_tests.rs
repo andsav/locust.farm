@@ -16,7 +16,7 @@ use crate::failure::Failure;
 use crate::testdir::short_dir;
 
 const LOSS: &str = "A new data folder starts with no goals. Goals you host cannot continue \
-    from it, and goals you joined need a new invitation.";
+    from it, and each goal you joined needs its ticket again.";
 
 #[test]
 fn each_store_open_failure_says_one_next_step() {
