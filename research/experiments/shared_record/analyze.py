@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Analyze a shared-record study run and package its evidence. Makes no API calls."""
 import argparse
+import gzip
 import json
 from pathlib import Path
 import random
@@ -27,10 +28,11 @@ def load(output):
     return manifest, ledger, trials, gate
 
 
-def arm_spend_at(ledger, prefix, when):
+def arm_spend_at(ledger, prefix, when, since=0.0):
+    """Arm spend settled by `when`. `since` excludes entries of a voided earlier run of the same task-arm."""
     total = 0.0
     for entry in ledger:
-        if not entry['label'].startswith(prefix):
+        if not entry['label'].startswith(prefix) or entry['reserved_at'] < since:
             continue
         settled = entry.get('settled_at', entry['reserved_at'])
         if settled <= when:
@@ -44,9 +46,10 @@ def candidates_of(trial):
 
 def matched(trial, ledger, levels):
     prefix = f"{trial['phase']}/{trial['task']}/{trial['arm']}/"
+    since = trial.get('started', 0.0)
     rows = {}
     for level in levels:
-        eligible = [c for c in candidates_of(trial) if arm_spend_at(ledger, prefix, c['time']) <= level + 1e-12]
+        eligible = [c for c in candidates_of(trial) if arm_spend_at(ledger, prefix, c['time'], since) <= level + 1e-12]
         chosen = select(eligible)
         rows[f'{level:.2f}'] = None if chosen is None else dict(hidden=chosen['hidden']['normalized'],
                                                                 public=chosen['public']['normalized'],
@@ -77,6 +80,20 @@ def paired(per_task, key):
     return out
 
 
+def spend_split(trial, ledger):
+    """This run's own spend, and spend a voided earlier run left under the same labels before this run started."""
+    prefix = f"{trial['phase']}/{trial['task']}/{trial['arm']}/"
+    since = trial.get('started', 0.0)
+    own = inherited = 0.0
+    for entry in ledger:
+        if entry['label'].startswith(prefix):
+            if entry['reserved_at'] >= since:
+                own += entry.get('cost', entry['reserved'])
+            else:
+                inherited += entry.get('cost', entry['reserved'])
+    return own, inherited
+
+
 def trial_summary(trial, ledger):
     agents = trial['agents']
     cands = candidates_of(trial)
@@ -84,8 +101,11 @@ def trial_summary(trial, ledger):
     oracle = min(cands, key=lambda c: (c['hidden']['normalized'], c['time'])) if cands else None
     finals = {a['name']: select(a['candidates'])['hidden']['normalized'] for a in agents if a['candidates']}
     initials = {a['name']: a['candidates'][0]['hidden']['normalized'] for a in agents if a['candidates']}
+    own, inherited = spend_split(trial, ledger)
     summary = dict(
-        arm=trial['arm'], k=trial['k'], spent_usd=trial['spent_usd'],
+        arm=trial['arm'], k=trial['k'], spent_usd=own, recorded_spent_usd=trial['spent_usd'],
+        # Runs before the per-session allowance fix enforced allowances per label: a rerun's agents had nominal minus inherited.
+        inherited_usd=inherited, effective_allowance_usd=CONFIG['task_arm_allowance_usd'] - inherited,
         allowance_usd=CONFIG['task_arm_allowance_usd'],
         hidden=None if selected is None else selected['hidden']['normalized'],
         public=None if selected is None else selected['public']['normalized'],
@@ -132,7 +152,23 @@ def record_diagnostics(trial):
     return out
 
 
-def analyze(output):
+def contrasts(per_task):
+    out = dict(paired_full_spend=paired(per_task, 'hidden'), paired_oracle=paired(per_task, 'oracle_hidden'))
+    levels = {}
+    for level in list(next(iter(per_task.values()))['solo']['matched']):
+        flat = {task: {arm: dict(hidden=(arms[arm]['matched'][level] or {}).get('hidden')) for arm in arms}
+                for task, arms in per_task.items()}
+        levels[level] = paired(flat, 'hidden')
+    out['paired_matched_spend'] = levels
+    out['arm_totals'] = {arm: dict(spent_usd=sum(a[arm]['spent_usd'] for a in per_task.values()),
+                                   mean_hidden=statistics.fmean(a[arm]['hidden'] for a in per_task.values() if a[arm]['hidden'] is not None),
+                                   mean_elapsed_seconds=statistics.fmean(a[arm]['elapsed_seconds'] for a in per_task.values()),
+                                   transport_failures=sum(a[arm]['transport_failures'] for a in per_task.values()))
+                         for arm in ARMS if all(arm in a for a in per_task.values())}
+    return out
+
+
+def analyze(output, exclude=()):
     manifest, ledger, trials, gate = load(output)
     result = dict(config=manifest['config'], spent_usd=manifest.get('spent_usd'), gate=gate,
                   ledger=dict(entries=len(ledger), failed=sum(e['status'] == 'failed' for e in ledger),
@@ -144,75 +180,82 @@ def analyze(output):
         per_task = {task: {arm: trial_summary(t, ledger) for arm, t in arms.items()} for task, arms in tasks.items()}
         block = dict(tasks=per_task)
         if phase == 'scored':
-            block['paired_full_spend'] = paired(per_task, 'hidden')
-            block['paired_oracle'] = paired(per_task, 'oracle_hidden')
-            levels = {}
-            for level in list(next(iter(per_task.values()))['solo']['matched']):
-                flat = {task: {arm: dict(hidden=(arms[arm]['matched'][level] or {}).get('hidden')) for arm in arms}
-                        for task, arms in per_task.items()}
-                levels[level] = paired(flat, 'hidden')
-            block['paired_matched_spend'] = levels
-            block['arm_totals'] = {arm: dict(spent_usd=sum(a[arm]['spent_usd'] for a in per_task.values()),
-                                             mean_hidden=statistics.fmean(a[arm]['hidden'] for a in per_task.values() if a[arm]['hidden'] is not None),
-                                             mean_elapsed_seconds=statistics.fmean(a[arm]['elapsed_seconds'] for a in per_task.values()),
-                                             transport_failures=sum(a[arm]['transport_failures'] for a in per_task.values()))
-                                   for arm in ARMS if all(arm in a for a in per_task.values())}
+            block.update(contrasts(per_task))
+            if exclude:
+                # The preregistered analysis above keeps every task; this repeats it without the tasks named on the command line.
+                kept = {task: arms for task, arms in per_task.items() if task not in exclude}
+                block['excluding'] = dict(tasks=sorted(exclude), **contrasts(kept))
         result['phases'][phase] = block
     return result
+
+
+def contrast_tables(block):
+    lines = ['\nPaired differences in selected hidden score (negative favours the first arm):\n',
+             '| Contrast | n | Mean | Median | Wins | Losses | Ties | 95% bootstrap |',
+             '| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |']
+    for name, p in block['paired_full_spend'].items():
+        ci = p['bootstrap_95']
+        lines.append(f"| {name} | {p['n']} | {p['mean']:+.4f} | {p['median']:+.4f} | {p['wins']} | {p['losses']} | {p['ties']} | "
+                     + ('—' if ci is None else f'[{ci[0]:+.4f}, {ci[1]:+.4f}]') + ' |')
+    lines += ['\nAt matched arm spend (selected hidden score among candidates produced within that spend):\n',
+              '| Spend ≤ | Contrast | n | Mean | Wins | Losses |', '| --- | --- | ---: | ---: | ---: | ---: |']
+    for level, pairs in block['paired_matched_spend'].items():
+        for name, p in pairs.items():
+            lines.append(f"| ${level} | {name} | {p['n']} | {p['mean']:+.4f} | {p['wins']} | {p['losses']} |")
+    return lines
 
 
 def table(result):
     lines = []
     for phase, block in result['phases'].items():
         lines.append(f'\n## {phase}\n')
-        lines.append('| Task | Arm | Selected hidden | Public | Oracle hidden | Spent $ | Turns | Elapsed s |')
-        lines.append('| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |')
+        lines.append('| Task | Arm | Selected hidden | Public | Oracle hidden | Spent $ | Inherited $ | Turns | Elapsed s |')
+        lines.append('| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |')
         for task, arms in block['tasks'].items():
             for arm, s in arms.items():
                 h = '—' if s['hidden'] is None else f"{s['hidden']:.4f}"
                 p = '—' if s['public'] is None else f"{s['public']:.4f}"
                 o = '—' if s['oracle_hidden'] is None else f"{s['oracle_hidden']:.4f}"
-                lines.append(f"| {task} | {arm} | {h} | {p} | {o} | {s['spent_usd']:.3f} | {s['turns']} | {s['elapsed_seconds']:.0f} |")
+                lines.append(f"| {task} | {arm} | {h} | {p} | {o} | {s['spent_usd']:.3f} | {s['inherited_usd']:.3f} | "
+                             f"{s['turns']} | {s['elapsed_seconds']:.0f} |")
         if 'paired_full_spend' in block:
-            lines.append('\nPaired differences in selected hidden score (negative favours the first arm):\n')
-            lines.append('| Contrast | n | Mean | Median | Wins | Losses | Ties | 95% bootstrap |')
-            lines.append('| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |')
-            for name, p in block['paired_full_spend'].items():
-                ci = p['bootstrap_95']
-                lines.append(f"| {name} | {p['n']} | {p['mean']:+.4f} | {p['median']:+.4f} | {p['wins']} | {p['losses']} | {p['ties']} | "
-                             + ('—' if ci is None else f'[{ci[0]:+.4f}, {ci[1]:+.4f}]') + ' |')
-            lines.append('\nAt matched arm spend (selected hidden score among candidates produced within that spend):\n')
-            lines.append('| Spend ≤ | Contrast | n | Mean | Wins | Losses |')
-            lines.append('| --- | --- | ---: | ---: | ---: | ---: |')
-            for level, pairs in block['paired_matched_spend'].items():
-                for name, p in pairs.items():
-                    lines.append(f"| ${level} | {name} | {p['n']} | {p['mean']:+.4f} | {p['wins']} | {p['losses']} |")
+            lines += contrast_tables(block)
+            if 'excluding' in block:
+                lines.append(f"\n### Excluding {', '.join(block['excluding']['tasks'])}")
+                lines += contrast_tables(block['excluding'])
     return '\n'.join(lines)
 
 
+def compressed_copy(source, destination):
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with open(source, 'rb') as reader, gzip.open(destination, 'wb', compresslevel=9) as writer:
+        shutil.copyfileobj(reader, writer)
+
+
 def package(output, evidence):
+    """Small files verbatim; full conversations, voided trials and daemon logs gzipped (about 12:1)."""
     output, evidence = Path(output), Path(evidence)
     evidence.mkdir(parents=True, exist_ok=True)
     for name in ('manifest.json', 'ledger.json', 'calibration-gate.json', 'calibration-gate-preregistered-rule.json'):
         if (output / name).exists():
             shutil.copy2(output / name, evidence / name)
     for path in sorted(output.glob('daemon-events*.jsonl')):  # One daemon log per launch of the same output directory.
-        shutil.copy2(path, evidence / path.name)
+        compressed_copy(path, evidence / (path.name + '.gz'))
     for path in sorted((output / 'trials').glob('*/*.json')):
-        destination = evidence / 'trials' / path.parent.name / path.name
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(path, destination)
+        compressed_copy(path, evidence / 'trials' / path.parent.name / (path.name + '.gz'))
     # Trials voided by infrastructure failure and rerun are kept beside the live ones, never analyzed as results.
-    if (output / 'voided').exists():
-        shutil.copytree(output / 'voided', evidence / 'voided', dirs_exist_ok=True)
+    for path in sorted((output / 'voided').glob('*/*')) if (output / 'voided').exists() else []:
+        compressed_copy(path, evidence / 'voided' / path.parent.name / (path.name + '.gz'))
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--evidence', type=Path)
+    parser.add_argument('--exclude', nargs='*', default=(), metavar='TASK',
+                        help='also report the scored contrasts without these tasks; the full analysis is kept')
     args = parser.parse_args()
-    result = analyze(args.output)
+    result = analyze(args.output, exclude=tuple(args.exclude))
     destination = (args.evidence or args.output) / 'analysis.json'
     if args.evidence:
         package(args.output, args.evidence)

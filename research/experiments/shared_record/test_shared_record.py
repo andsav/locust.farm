@@ -179,6 +179,39 @@ class LedgerAndSession(unittest.TestCase):
         self.assertEqual(len(session.history), 4)  # user + reasoning + one call + message
         self.assertAlmostEqual(ledger.spent(), (100 * 0.125 + 50 * 0.5) / 1e6)
 
+    def test_session_allowance_ignores_a_voided_run_under_the_same_label(self):
+        response = {'id': 'resp', 'model': luna.MODEL, 'status': 'completed',
+                    'usage': {'input_tokens': 100, 'output_tokens': 50}, 'output': []}
+
+        class Opener:
+            def __init__(self, request, timeout):
+                pass
+
+            def __enter__(self):
+                return io.StringIO(json.dumps(response))
+
+            def __exit__(self, *a):
+                return False
+        with tempfile.TemporaryDirectory() as d:
+            import os
+            os.environ.setdefault('OPENAI_API_KEY', 'test-key')
+            ledger = luna.Ledger(Path(d) / 'l.json', ceiling=5.0)
+            earlier = ledger.reserve('scored/t/solo/agent-0', 'scored', 0.4, phase_ceiling=5.0)
+            ledger.fail(earlier, 'URLError')  # a voided run's charge stays in the ledger
+            session = luna.Session('sys', run.BASE_TOOLS, ledger, 'scored/t/solo/agent-0', 'scored', 5.0, 0.42, opener=Opener)
+            self.assertEqual(session.spent(), 0.0)
+            session.user('hello')
+            session.request()
+            self.assertAlmostEqual(session.spent(), (100 * 0.125 + 50 * 0.5) / 1e6)
+            self.assertAlmostEqual(ledger.spent('scored/t/solo/agent-0'), 0.4 + session.spent())
+            def timing_out(request, timeout):
+                raise TimeoutError()
+            failed = luna.Session('sys', run.BASE_TOOLS, ledger, 'scored/t/solo/agent-1', 'scored', 5.0, 0.42, opener=timing_out)
+            failed.user('hello')
+            with self.assertRaises(luna.TransportFailure):
+                failed.request()
+            self.assertGreater(failed.spent(), 0.0)  # its own failed reservation still counts
+
 
 def candidate(agent, public, hidden, t):
     return dict(agent=agent, index=0, time=t, public={'normalized': public, 'valid_instances': 5},
@@ -254,6 +287,31 @@ class MatchedSpend(unittest.TestCase):
         rows = analyze.matched(trial, ledger, [0.16, 0.30])
         self.assertEqual(rows['0.16']['agent'], 'agent-0')
         self.assertEqual(rows['0.30']['agent'], 'agent-1')
+
+    def test_voided_earlier_run_of_the_same_task_arm_is_not_counted(self):
+        # A rerun shares the ledger and the label prefix with the voided run it replaces.
+        ledger = [dict(label='scored/qap/solo/agent-0', reserved=0.1, cost=0.30, reserved_at=0, settled_at=10),
+                  dict(label='scored/qap/solo/agent-0', reserved=0.1, cost=0.05, reserved_at=100, settled_at=110)]
+        self.assertAlmostEqual(analyze.arm_spend_at(ledger, 'scored/qap/solo/', 120), 0.35)
+        self.assertAlmostEqual(analyze.arm_spend_at(ledger, 'scored/qap/solo/', 120, since=100), 0.05)
+        trial = dict(phase='scored', task='qap', arm='solo', started=100,
+                     agents=[dict(candidates=[candidate('agent-0', 0.95, 0.96, 111)])])
+        self.assertEqual(analyze.matched(trial, ledger, [0.14])['0.14']['agent'], 'agent-0')
+        self.assertIsNone(analyze.matched(dict(trial, started=0), ledger, [0.14])['0.14'])
+        own, inherited = analyze.spend_split(trial, ledger)
+        self.assertAlmostEqual(own, 0.05)
+        self.assertAlmostEqual(inherited, 0.30)
+
+    def test_excluded_tasks_get_a_second_set_of_contrasts(self):
+        def summary(hidden):
+            return dict(hidden=hidden, oracle_hidden=hidden, spent_usd=0.1, elapsed_seconds=1, transport_failures=0,
+                        matched={'0.14': dict(hidden=hidden)})
+        per_task = {'a': {arm: summary(h) for arm, h in zip(analyze.ARMS, (0.9, 0.8, 0.7))},
+                    'b': {arm: summary(h) for arm, h in zip(analyze.ARMS, (0.9, 0.8, 5.0))}}
+        full = analyze.contrasts(per_task)['paired_full_spend']['shared-independent']
+        kept = analyze.contrasts({'a': per_task['a']})['paired_full_spend']['shared-independent']
+        self.assertEqual((full['n'], full['wins'], full['losses']), (2, 1, 1))
+        self.assertEqual((kept['n'], kept['wins'], kept['losses']), (1, 1, 0))
 
 
 class FakeGoal:

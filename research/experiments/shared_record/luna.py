@@ -126,12 +126,14 @@ class Session:
         self.effort, self.opener = effort, opener
         self.history = []
         self.requests = []
+        self.items = []
 
     def user(self, text):
         self.history.append({'role': 'user', 'content': text})
 
     def spent(self):
-        return self.ledger.spent(self.label)
+        # Only this session's reservations: the ledger may hold a voided earlier run under the same label.
+        return sum(item.get('cost', item['reserved']) for item in self.items)
 
     def payload(self):
         definitions = [dict(type='function', name=t['name'], description=t['description'],
@@ -151,6 +153,7 @@ class Session:
                        include=['reasoning.encrypted_content'], service_tier='default')
         item = self.ledger.reserve(self.label, self.phase, reserved, self.phase_ceiling)
         item.update(max_output_tokens=maximum, input_token_bound=bound)
+        self.items.append(item)
         self.ledger.save()
         started = time.time()
         try:
