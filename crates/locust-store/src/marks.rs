@@ -48,7 +48,7 @@ use locust_proto::event::AuthorPoint;
 use locust_proto::id::{EventId, GoalId, PublicKey};
 use locust_proto::store::{FileId, Mark, MarkWrite, StoreError};
 
-use crate::error::file;
+use crate::error::{OpenError, file};
 use crate::files::{create_directories, sync_directory, sync_file};
 
 const FILE: &str = "marks";
@@ -76,17 +76,12 @@ pub(crate) struct MarksFile {
 
 /// Uses the marks directory `dir`, creating it owner-only if missing, and
 /// reads its marks: ascending by goal and key, or `None` when they are lost.
-/// A directory or file that others may read is refused, as the state
-/// directory is.
-pub(crate) fn open(dir: &Path) -> Result<(MarksFile, Option<Vec<Mark>>), StoreError> {
+/// A directory or file that others may read is refused with
+/// [`OpenError::MarksNotPrivate`], as the state directory is refused.
+pub(crate) fn open(dir: &Path) -> Result<(MarksFile, Option<Vec<Mark>>), OpenError> {
     create_directories(dir, sync_directory)?;
     let metadata = fs::metadata(dir).map_err(|error| file("inspect", dir, error))?;
-    private(
-        dir,
-        "directory",
-        metadata.permissions().mode(),
-        DIRECTORY_MODE,
-    )?;
+    private(dir, metadata.permissions().mode(), DIRECTORY_MODE)?;
     let mut marks = MarksFile {
         dir: dir.to_owned(),
         file: None,
@@ -98,12 +93,12 @@ pub(crate) fn open(dir: &Path) -> Result<(MarksFile, Option<Vec<Mark>>), StoreEr
     let mut found = match OpenOptions::new().read(true).write(true).open(&path) {
         Ok(found) => found,
         Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok((marks, None)),
-        Err(error) => return Err(file("open", &path, error)),
+        Err(error) => return Err(file("open", &path, error).into()),
     };
     let metadata = found
         .metadata()
         .map_err(|error| file("inspect", &path, error))?;
-    private(&path, "file", metadata.permissions().mode(), FILE_MODE)?;
+    private(&path, metadata.permissions().mode(), FILE_MODE)?;
     let mut bytes = Vec::new();
     found
         .read_to_end(&mut bytes)
@@ -177,16 +172,17 @@ impl MarksFile {
 }
 
 /// Refuses a marks directory or file whose `mode` lets anyone but its owner
-/// in, naming the `chmod` that fixes it.
-fn private(path: &Path, what: &str, mode: u32, wanted: u32) -> Result<(), StoreError> {
+/// in.
+fn private(path: &Path, mode: u32, wanted: u32) -> Result<(), OpenError> {
     let mode = mode & 0o777;
     if mode & 0o077 == 0 {
         return Ok(());
     }
-    Err(StoreError::Failed(format!(
-        "marks {what} {path} has mode {mode:04o}; it must be {wanted:04o}: chmod {wanted:o} {path}",
-        path = path.display()
-    )))
+    Err(OpenError::MarksNotPrivate {
+        path: path.to_owned(),
+        mode,
+        wanted,
+    })
 }
 
 /// A new, empty marks file at `path` whose header names its own identity.

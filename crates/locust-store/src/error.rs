@@ -8,17 +8,25 @@ use std::path::{Path, PathBuf};
 use locust_proto::store::StoreError;
 use rusqlite::ErrorCode;
 
-/// Why [`crate::SqliteStore::open`] could not open a state directory.
+/// Why [`crate::SqliteStore::open`] could not open a state directory. Each
+/// says only what happened; the caller says what to do next.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum OpenError {
-    /// Another open store holds the directory: a second daemon on the same
-    /// state directory, or a second handle in this process.
+    /// Another open store holds the directory's database: another program,
+    /// or a second handle in this process.
     InUse(PathBuf),
     /// The database is not this binary's current format. No conversion is performed.
     UnsupportedSchema { found: i64, known: i64 },
     /// Persisted signed events use another protocol. Their bytes cannot be
     /// migrated in place without invalidating event identifiers/signatures.
     UnsupportedProtocolVersion { found: u8, known: u8 },
+    /// The marks directory, or the marks file in it, lets someone other than
+    /// its owner in: its permission bits are `mode` and must be `wanted`.
+    MarksNotPrivate {
+        path: PathBuf,
+        mode: u32,
+        wanted: u32,
+    },
     /// The directory or database could not be opened, initialized or checked.
     Store(StoreError),
 }
@@ -28,16 +36,21 @@ impl fmt::Display for OpenError {
         match self {
             Self::InUse(dir) => write!(
                 f,
-                "state directory {} is in use by another Locust store; is another daemon running on it?",
+                "another program has the database in {} open",
                 dir.display()
             ),
             Self::UnsupportedSchema { found, known } => write!(
                 f,
-                "the database has unsupported schema version {found}; this binary supports only version {known}; initialize a fresh state directory; existing data was not converted"
+                "the database has unsupported schema version {found}; this binary supports only version {known}"
             ),
             Self::UnsupportedProtocolVersion { found, known } => write!(
                 f,
-                "the state directory contains event protocol version {found}, but this binary supports version {known}; use the matching Locust release or a separate state directory"
+                "the state directory contains event protocol version {found}, but this binary supports version {known}"
+            ),
+            Self::MarksNotPrivate { path, mode, wanted } => write!(
+                f,
+                "{} has mode {mode:04o}; it must be {wanted:04o}",
+                path.display()
             ),
             Self::Store(error) => error.fmt(f),
         }

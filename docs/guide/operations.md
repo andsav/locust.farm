@@ -121,3 +121,24 @@ needs nothing from you.
 
 A copy older than a goal you host loses that goal; nothing brings it back. A
 goal you joined after the copy was made needs its ticket again.
+
+## If the daemon will not start
+
+When the daemon cannot open its data, it stops and prints what happened and
+then what to do. It never deletes a damaged data directory, or one made by
+another version, and never starts over on its own. Beside the data directory is
+its marks directory, the same name with `.marks` added (`~/.locust.marks` by
+default); the daemon needs both. To copy a data directory, see
+[Backups](#backups).
+
+| The message says | Do this |
+| --- | --- |
+| A daemon is already running on the data directory | Stop it, then start again. |
+| Another program has the database open | Close that program (an `sqlite3` shell, for example), then start again. |
+| The database has another schema or event protocol version | Start the Locust version that made the data directory, or move the directory aside, do not delete it, and start with a new one. No version converts it. |
+| Stored data is corrupted | Move the data directory aside and do not delete it: it holds your keys and every record. |
+| Storage failed | Check that the disk has space and that you can read and write the data directory and the marks directory, then start again. |
+| The marks directory or its file has the wrong mode | Run the `chmod` the message names, then start again. |
+
+A new data directory starts with no goals. Goals you host cannot continue from
+it, and goals you joined need a new invitation.

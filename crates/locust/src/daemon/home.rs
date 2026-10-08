@@ -150,7 +150,7 @@ fn lock(home: &Path) -> Result<File, Failure> {
                 process => format!(" (process {process})"),
             };
             return Err(Failure::unavailable(format!(
-                "a daemon is already running on {}{holder}",
+                "a daemon is already running on {}{holder}. Stop it, then start again.",
                 home.display()
             )));
         }
@@ -221,8 +221,14 @@ mod tests {
         };
         assert_eq!(refused.code, ErrorCode::Unavailable);
         assert_eq!(refused.exit_status(), 8);
-        assert!(refused.message.contains(&dir.path().display().to_string()));
-        assert!(refused.message.contains(&std::process::id().to_string()));
+        assert_eq!(
+            refused.message,
+            format!(
+                "a daemon is already running on {} (process {}). Stop it, then start again.",
+                dir.path().display(),
+                std::process::id()
+            )
+        );
         assert_eq!(
             lock_holder(dir.path()).unwrap(),
             Some(std::process::id().to_string())

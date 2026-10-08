@@ -2615,9 +2615,23 @@ fn a_role_refusal_names_the_role_and_the_goals_roles_for_the_person() {
 #[test]
 fn corrupt_database_startup_preserves_corrupted_code_and_cleans_socket() {
     let home = scratch();
-    fs::write(home.path().join("locust.db"), b"not a SQLite database").unwrap();
+    let database = home.path().join("locust.db");
+    fs::write(&database, b"not a SQLite database").unwrap();
     let output = cli(home.path()).args(["daemon", "run"]).output().unwrap();
-    assert_eq!(envelope(&output, 11)["error"]["code"], "corrupted");
+    let error = &envelope(&output, 11)["error"];
+    assert_eq!(error["code"], "corrupted");
+    assert_eq!(
+        error["message"],
+        format!(
+            "stored data is corrupted: file is not a database. Move {} aside and do not delete \
+             it: it holds your keys and every record. A new data folder starts with no goals. \
+             Goals you host cannot continue from it, and goals you joined need a new \
+             invitation.",
+            home.path().display()
+        )
+    );
+    // The damaged database is left exactly as it was found.
+    assert_eq!(fs::read(&database).unwrap(), b"not a SQLite database");
     assert!(!home.path().join("daemon.sock").exists());
 }
 
@@ -2631,7 +2645,15 @@ fn held_daemon_lock_is_unavailable() {
         .unwrap();
     lock.try_lock().unwrap();
     let output = cli(home.path()).args(["daemon", "run"]).output().unwrap();
-    assert_eq!(envelope(&output, 8)["error"]["code"], "unavailable");
+    let error = &envelope(&output, 8)["error"];
+    assert_eq!(error["code"], "unavailable");
+    assert_eq!(
+        error["message"],
+        format!(
+            "a daemon is already running on {}. Stop it, then start again.",
+            home.path().display()
+        )
+    );
 }
 
 #[test]

@@ -1447,17 +1447,21 @@ fn a_marks_directory_or_file_others_may_read_is_refused() {
     let chmod = |path: &Path, mode: u32| {
         fs::set_permissions(path, fs::Permissions::from_mode(mode)).unwrap();
     };
-    let refused = |mode: &str| match dir.open() {
-        Err(OpenError::Store(StoreError::Failed(detail))) => {
-            assert!(detail.contains(mode), "{detail}");
-        }
-        other => panic!("opened with mode {mode}: {other:?}"),
+    let refused = |path: &Path, mode: u32, wanted: u32| {
+        assert_eq!(
+            dir.open().err(),
+            Some(OpenError::MarksNotPrivate {
+                path: path.to_owned(),
+                mode,
+                wanted
+            })
+        );
     };
     chmod(&dir.marks, 0o755);
-    refused("0755");
+    refused(&dir.marks, 0o755, 0o700);
     chmod(&dir.marks, 0o700);
     chmod(&dir.marks_file(), 0o644);
-    refused("0644");
+    refused(&dir.marks_file(), 0o644, 0o600);
     chmod(&dir.marks_file(), 0o600);
     assert_eq!(reopen(&dir).marks().unwrap().kept, Some(vec![kept]));
 

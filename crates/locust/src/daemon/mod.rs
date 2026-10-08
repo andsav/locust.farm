@@ -23,11 +23,13 @@ use std::path::PathBuf;
 
 use locust_core::node::Node;
 use locust_net::Endpoint;
+use locust_proto::api::ErrorCode;
 #[cfg(test)]
 use locust_proto::engine::Entropy;
 use locust_proto::engine::{Engine, PeerEngine, PeerInput};
 use locust_proto::local;
-use locust_store::SqliteStore;
+use locust_proto::store::StoreError;
+use locust_store::{OpenError, SqliteStore};
 use tokio::signal::unix::{SignalKind, signal};
 
 use crate::failure::Failure;
@@ -49,6 +51,8 @@ mod worker;
 mod catching_up_tests;
 #[cfg(test)]
 mod durable_tests;
+#[cfg(test)]
+mod open_tests;
 #[cfg(test)]
 mod reconcile_tests;
 #[cfg(test)]
@@ -124,7 +128,8 @@ where
     let init_version = daemon_version.clone();
     let mut engine = worker::EngineThread::start_networked(
         move || {
-            let store = SqliteStore::open(&init_home, &init_marks).map_err(store_open_failure)?;
+            let failed = |error| store_open_failure(&init_home, &init_marks, error);
+            let store = SqliteStore::open(&init_home, &init_marks).map_err(failed)?;
             let mut node = Node::open(
                 store,
                 system::OsEntropy,
@@ -132,7 +137,7 @@ where
                 init_version,
                 system::now_ms(),
             )
-            .map_err(|error| Failure::from(locust_proto::api::ApiError::from(error)))?;
+            .map_err(|error| failed(OpenError::Store(error)))?;
             node.set_checkout_files(Box::new(checkout::LocalCheckoutFiles {
                 home: init_home.clone(),
             }));
@@ -276,15 +281,50 @@ fn log(message: std::fmt::Arguments<'_>) {
     let _ = writeln!(std::io::stderr().lock(), "{message}");
 }
 
-fn store_open_failure(error: locust_store::OpenError) -> Failure {
-    use locust_proto::api::{ApiError, ErrorCode};
-    use locust_store::OpenError;
-    match error {
-        OpenError::Store(error) => ApiError::from(error).into(),
-        error @ OpenError::InUse(_) => Failure::new(ErrorCode::Unavailable, error.to_string()),
-        error @ (OpenError::UnsupportedSchema { .. }
-        | OpenError::UnsupportedProtocolVersion { .. }) => {
-            Failure::new(ErrorCode::UnsupportedVersion, error.to_string())
-        }
-    }
+/// What starting over with a new data folder loses.
+const STARTING_FRESH: &str = "A new data folder starts with no goals. Goals you host cannot \
+    continue from it, and goals you joined need a new invitation.";
+
+/// A start that could not open the store of `home`, whose marks directory
+/// is `marks`: what happened, then the one thing to do and, where that is
+/// starting over, what starting over loses. `Node::open`'s failures come as
+/// [`OpenError::Store`].
+fn store_open_failure(home: &Path, marks: &Path, error: OpenError) -> Failure {
+    let (code, next) = match &error {
+        OpenError::InUse(_) => (
+            ErrorCode::Unavailable,
+            "Close it, then start again.".to_owned(),
+        ),
+        OpenError::UnsupportedSchema { .. } | OpenError::UnsupportedProtocolVersion { .. } => (
+            ErrorCode::UnsupportedVersion,
+            format!(
+                "The data folder {} was made by another Locust version, and no version \
+                 converts it. Start the version that made it, or move the folder aside, do not \
+                 delete it, and start with a new one. {STARTING_FRESH}",
+                home.display()
+            ),
+        ),
+        OpenError::MarksNotPrivate { path, wanted, .. } => (
+            ErrorCode::Internal,
+            format!("Run chmod {wanted:o} {}, then start again.", path.display()),
+        ),
+        OpenError::Store(StoreError::Corrupted(_)) => (
+            ErrorCode::Corrupted,
+            format!(
+                "Move {} aside and do not delete it: it holds your keys and every record. \
+                 {STARTING_FRESH}",
+                home.display()
+            ),
+        ),
+        OpenError::Store(StoreError::Failed(_)) => (
+            ErrorCode::Internal,
+            format!(
+                "Check that the disk has space and that you can read and write {} and {}, \
+                 then start again.",
+                home.display(),
+                marks.display()
+            ),
+        ),
+    };
+    Failure::new(code, format!("{error}. {next}"))
 }
