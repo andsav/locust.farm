@@ -9,7 +9,7 @@
 | `doctor` cannot reach the daemon | Check `service status`; use one `--home`. |
 | The agent has no locust.farm tools | Start a new chat; run `doctor --client CLIENT`. |
 | A formation is invalid | Fix each [reported problem](formation-authoring.md#read-the-problems-locustfarm-reports). |
-| An action is refused | Read which side refused: your level, the goal’s rule, or an act only you or the host can do. Follow its named next step; inspect `goal status`, `pending` and `task show` for context. |
+| An action is refused | Read which side refused: your level, the goal’s rule, the goal’s state, an act only you or the host can do, or this computer, which is catching up after a [restore](operations.md#backups). Follow its named next step; inspect `goal status`, `pending` and `task show` for context. |
 | Two results both count | Expected; the lead may run `scope select` when the rules name one. |
 | `workspace update` refuses | Inspect `workspace status`; preserve local conflicts and check the requested revision. |
 | A workspace operation is uncertain | Run `workspace recover` with its exact operation ID; inspect unknown states before changing files. |
