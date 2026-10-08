@@ -2625,8 +2625,8 @@ fn corrupt_database_startup_preserves_corrupted_code_and_cleans_socket() {
         format!(
             "stored data is corrupted: file is not a database. Move {} aside and do not delete \
              it: it holds your keys and every record. A new data folder starts with no goals. \
-             Goals you host cannot continue from it, and goals you joined need a new \
-             invitation.",
+             Goals you host cannot continue from it, and each goal you joined needs its \
+             ticket again.",
             home.path().display()
         )
     );
