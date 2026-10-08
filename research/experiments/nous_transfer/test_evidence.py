@@ -27,6 +27,13 @@ class SavedEvidenceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             p=Path(tmp)/'fixture.json';p.write_text(json.dumps(b))
             with self.assertRaises(ValueError):verify(p)
+    def test_revision_change_is_scored_against_initial_forecast(self):
+        b=self.bundle();r=dict(b['records'][0]);r['label']='q1/neutral/exchange/0';r['stage']='exchange'
+        obj=json.loads(r['text']);obj['probability']=.8;obj['used_peer_ids']=[3];r['text']=json.dumps(obj)
+        d=diagnostics(b['analysis_input'],b['records']+[r])['revision_diagnostics_descriptive_only']['neutral/exchange']
+        self.assertEqual(d['helpful'],1);self.assertEqual(d['harmful'],0)
+        self.assertEqual(d['self_reported_peer_use'],1)
+        self.assertAlmostEqual(d['mean_individual_brier_change'],-.21)
     def test_diagnostics_use_case_specific_evidence_ids(self):
         b=self.bundle();b['analysis_input']['cases'][0]['public']['evidence'][0]['id']='article-1'
         obj=json.loads(b['records'][0]['text']);obj['evidence_ids']=['article-1'];b['records'][0]['text']=json.dumps(obj)

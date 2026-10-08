@@ -13,7 +13,7 @@ from protocol import (BRANCHES, CONDITIONS, N_AGENTS, analyze, code_hashes, dige
                       label, prepare, request_plan)
 # Reuse the prior experiment's transport, never its study design or analysis.
 sys.path.insert(0,str(Path(__file__).resolve().parent.parent/'luna_decision_pilot'))
-from run import Runner, INPUT_RATE, OUTPUT_RATE
+from run import Runner, INPUT_RATE, OUTPUT_RATE, digest as transport_digest
 
 
 class Experiment(Runner):
@@ -50,7 +50,8 @@ class Experiment(Runner):
             if condition not in CONDITIONS or stage not in ('initial',*BRANCHES) or not 0<=agent<N_AGENTS:
                 raise ValueError('Unexpected record identity')
             plan=request_plan(self.frozen,records,cases[qid],condition,stage,agent)
-            if plan is None or digest(self.body(*plan))!=r['request_sha256']:
+            request_digest = digest if r.get('simulated') else transport_digest
+            if plan is None or request_digest(self.body(*plan))!=r['request_sha256']:
                 raise ValueError('Recorded request differs from frozen inputs')
 
     def call(self,case,condition,stage,agent):

@@ -3,6 +3,8 @@ from pathlib import Path
 import tempfile
 from datetime import date
 import unittest
+from unittest.mock import patch
+import io
 from protocol import (BASE, BRANCHES, CONDITIONS, INITIAL, N_AGENTS, REVIEW, analyze,
                       code_hashes, digest, group_metrics, label, pad_bytes,
                       profile_blocks, request_plan)
@@ -23,6 +25,19 @@ def initial_records(manifest):
 
 
 class ProtocolTests(unittest.TestCase):
+    def test_live_transport_hashes_verify_and_reject_tampering(self):
+        m=fixture()
+        response={'status':'completed','model':'gpt-6-luna','usage':{'input_tokens':100,'output_tokens':20},
+                  'output':[{'type':'message','content':[{'type':'output_text','text':json.dumps({'probability':.6,'evidence_ids':['brief'],'explanation':'fixture','used_peer_ids':[]})}]}]}
+        with tempfile.TemporaryDirectory() as tmp:
+            f=Path(tmp);(f/'manifest.json').write_text(json.dumps(m));(f/'manifest.sha256').write_text(digest(m))
+            runner=Experiment(f)
+            with patch.dict('os.environ',{'OPENAI_API_KEY':'unit-test-placeholder'}), patch('urllib.request.urlopen',return_value=io.StringIO(json.dumps(response))):
+                runner.call(m['cases'][0],'neutral','initial',0)
+            runner.verify_records()
+            self.assertEqual(len(Experiment(f).records),1)
+            runner.records[0]['request_sha256']='tampered'
+            with self.assertRaises(ValueError):runner.verify_records()
     def test_byte_padding_handles_unicode(self):
         m=fixture();self.assertEqual(len({len(s.encode()) for xs in m['profile_blocks'].values() for s in xs}),1)
         self.assertEqual(len(pad_bytes('é',5).encode()),5)

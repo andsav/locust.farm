@@ -249,7 +249,15 @@ python3 research/experiments/nous_transfer/evidence.py export output/nous-transf
 python3 research/experiments/nous_transfer/evidence.py verify path/to/evidence.json --upstream output/nous-paper-review-2026-10-07
 ```
 
-Request reconstruction requires the runner code version used by the saved run.
+Exports record a Git revision whose four generation-code blobs match the frozen
+hashes. Use `export --code-revision REV` when exporting after a code change.
+Historical request verification checks those original blobs, rebuilds every
+other manifest field from upstream, and uses the transport's actual JSON hash
+format. This allows the corrected verifier to audit an earlier run without
+changing its frozen manifest or making new API calls. A regression test exercises
+the real transport with a mocked HTTP response; simulated requests use their
+separately recorded hash format.
+
 For prospective runs, the original frozen cohort is additionally needed;
 `evidence.py verify` currently supports upstream request reconstruction only for
 historical smoke/replay runs. It still recomputes prospective scores and costs
