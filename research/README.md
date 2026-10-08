@@ -7,6 +7,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 
 ## Investigations and experiments
 
+- [Luna decision pilot: live results and evidence](luna-decision-pilot-results-2026-10-08.md)
 - [Luna decision pilot: personas, procedures, and aggregation](experiments/luna_decision_pilot/README.md)
 - [Agent crowds, simulations, and decision markets: paper review and research agenda](agent-crowds-and-decision-markets-2026-10-07.md)
 - [c11: UX lessons for Locust](c11-ux-lessons-2026-10-07.md)
