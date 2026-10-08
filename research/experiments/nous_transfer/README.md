@@ -238,3 +238,19 @@ pin, preparation fingerprint, simulated call count and test scope. The live smok
 historical replay, prospective data collection and directional behavioral probes
 have **not** been run as part of creating this experiment. No scientific effect
 estimate is reported from the simulated plumbing check.
+
+Saved live runs can be exported without redistributing upstream prompt or brief
+bodies. The exporter retains original model responses, source/request hashes,
+minimal scoring labels, costs and diagnostics. Verification recomputes the
+statistics; supplying the pinned upstream checkout also rebuilds every request:
+
+```sh
+python3 research/experiments/nous_transfer/evidence.py export output/nous-transfer-smoke path/to/evidence.json
+python3 research/experiments/nous_transfer/evidence.py verify path/to/evidence.json --upstream output/nous-paper-review-2026-10-07
+```
+
+Request reconstruction requires the runner code version used by the saved run.
+For prospective runs, the original frozen cohort is additionally needed;
+`evidence.py verify` currently supports upstream request reconstruction only for
+historical smoke/replay runs. It still recomputes prospective scores and costs
+without `--upstream`. Pending or simulated records are rejected by the live exporter.
