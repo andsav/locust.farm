@@ -8,6 +8,21 @@ from test_experiment import fixture
 
 
 class SavedEvidenceTests(unittest.TestCase):
+    def test_recovery_ledger_rejects_changed_retry_input(self):
+        from recover import selected_records
+        b=self.bundle();r=b['records'][0];r['request_sha256']='same-request'
+        failed={**r,'status':'transport_error'};failed.pop('usage');failed.pop('cost_usd')
+        completed={**r,'label':r['label']+'#attempt2','logical_label':r['label']}
+        attempts=[failed,completed];b['records']=selected_records(attempts)
+        b['settings']['ceiling_usd']=1
+        b['summary']=analyze(b['analysis_input'],b['records']);b['diagnostics']=diagnostics(b['analysis_input'],b['records'])
+        b['recovery']={'attempts':attempts,'accounted_usd_including_all_attempts':.0010225}
+        with tempfile.TemporaryDirectory() as tmp:
+            p=Path(tmp)/'fixture.json';p.write_text(json.dumps(b))
+            self.assertEqual(verify(p)['verified_attempts'],2)
+            failed['request_sha256']='changed';p.write_text(json.dumps(b))
+            with self.assertRaises(ValueError):verify(p)
+
     def bundle(self):
         m=fixture()
         record={'label':'q1/neutral/initial/0','case_id':'q1','condition':'neutral','stage':'initial','status':'completed',

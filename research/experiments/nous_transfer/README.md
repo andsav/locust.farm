@@ -193,6 +193,25 @@ checks hashes and recorded request bodies; it refuses ambiguous pending/transpor
 failures. There are no automatic paid retries. Output truncation/invalid schemas
 are retained rather than silently repaired by extra calls.
 
+An explicitly requested recovery can use [recover.py](recover.py). It preserves
+the original run directory and creates a separate continuation directory with
+an amendment, all attempt records, and a selected-response view. Connection
+failures can receive up to four total attempts per logical request with 5/15/30
+second backoff. Completed responses, including schema-invalid responses, are
+never retried. The first completed response is retained. Every attempt's usage or
+full reservation counts against the original aggregate ceiling. Authentication,
+request-shape and accounting errors stop further dispatch.
+
+```sh
+python3 research/experiments/nous_transfer/recover.py output/nous-transfer-verified-smoke-2026-10-08 output/nous-transfer-completed-2026-10-08 --evidence research/experiments/nous_transfer/smoke-evidence-2026-10-08.json --upstream output/nous-paper-review-2026-10-07
+```
+
+Use the same Python runtime as the original evidence export for exact floating
+point recomputation (the saved 2026-10-08 evidence uses Python 3.9.7). Recovery
+exports retain the full attempt ledger and report its aggregate cost separately
+from selected-response scoring costs. Verification checks that selection keeps
+the first completed answer and that every retry has the same request hash.
+
 The runner reuses the existing [bounded API transport](../luna_decision_pilot/run.py)
 with reservations before each request, a process lock, and four concurrent cases.
 The $10 smoke ceiling is a hard accounting ceiling, not a spending target. The

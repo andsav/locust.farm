@@ -90,6 +90,11 @@ def export(folder, destination, code_revision='HEAD'):
             'source_hashes':manifest['source_hashes'],'code_hashes':manifest['code_hashes'],
             'settings':{k:manifest[k] for k in ('phase','as_of','ceiling_usd','model','effort','max_output_tokens','input_rate_per_million','output_rate_per_million')},
             'analysis_input':slim,'records':records,'summary':analyze(slim,records),'diagnostics':diagnostics(manifest,records)}
+    if (folder/'attempts.json').exists():
+        attempts=json.loads((folder/'attempts.json').read_text())
+        bundle['recovery']={'amendment':json.loads((folder/'amendment.json').read_text()),
+                            'attempts':attempts,
+                            'accounted_usd_including_all_attempts':sum(r.get('cost_usd',r['reserved_usd']) for r in attempts)}
     destination.write_text(json.dumps(bundle,indent=2,allow_nan=False)+'\n')
     return {'output':str(destination),'records':len(records),'summary_sha256':digest(bundle['summary'])}
 
@@ -100,7 +105,20 @@ def verify(path, upstream=None):
     if diagnostics(slim,records)!=bundle['diagnostics']:raise ValueError('Diagnostic mismatch')
     if any(r.get('simulated') or r['status']=='pending' for r in records):raise ValueError('Not finalized live evidence')
     settings=bundle['settings']
-    for r in records:
+    attempts=records
+    if 'recovery' in bundle:
+        from recover import selected_records
+        recovery=bundle['recovery'];attempts=recovery['attempts']
+        if selected_records(attempts)!=records:raise ValueError('Recovery selection mismatch')
+        if any(r.get('simulated') or r['status']=='pending' for r in attempts):raise ValueError('Unfinalized recovery attempt')
+        expected=sum(r.get('cost_usd',r['reserved_usd']) for r in attempts)
+        if expected!=recovery['accounted_usd_including_all_attempts']:raise ValueError('Recovery accounting mismatch')
+        if expected>settings['ceiling_usd']:raise ValueError('Recovery exceeded ceiling')
+        selected={r['label']:r for r in records}
+        for r in attempts:
+            name=r.get('logical_label',r['label'])
+            if r['request_sha256']!=selected[name]['request_sha256']:raise ValueError('Retry changed request body')
+    for r in attempts:
         if 'usage' in r:
             expected=(r['usage']['input_tokens']*settings['input_rate_per_million']+r['usage']['output_tokens']*settings['output_rate_per_million'])/1e6
             if abs(expected-r['cost_usd'])>1e-12 or r['cost_usd']>r['reserved_usd']:raise ValueError('Accounting mismatch')
@@ -119,7 +137,7 @@ def verify(path, upstream=None):
             runner=object.__new__(Experiment);runner.frozen=rebuilt
             if analysis_input(runner.frozen)!=slim:raise ValueError('Analysis labels differ from frozen source')
             runner.records=records;runner.verify_records();verified_requests=True
-    return {'verified_records':len(records),'scores_and_costs_recomputed':True,'request_hashes_rebuilt_from_upstream':verified_requests}
+    return {'verified_records':len(records),'verified_attempts':len(attempts),'scores_and_costs_recomputed':True,'request_hashes_rebuilt_from_upstream':verified_requests}
 
 
 def main():
