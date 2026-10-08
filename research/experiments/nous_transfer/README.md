@@ -1,7 +1,9 @@
 # Nous: profile transfer and communication
 
-Status: **implemented experiment harness; verified offline; no live model results
-from this experiment yet**. This is separate from the
+Status: **implemented experiment harness; partial Luna smoke results, inconclusive**.
+The [2026-10-08 run report](results-2026-10-08.md) and
+[saved response evidence](smoke-evidence-2026-10-08.json) preserve 638 completed
+calls before network errors stopped the run. This is separate from the
 [evidence-collaboration study](../../evidence-collaboration-study-design-2026-10-08.md).
 It tests behavioral-profile injection in probabilistic forecasting, not retrieval
 or multi-hop question answering.
@@ -234,10 +236,11 @@ records, manifests and resolution sources when reporting results.
 ## Verification record
 
 [Offline verification metadata](verification.json) records the checked upstream
-pin, preparation fingerprint, simulated call count and test scope. The live smoke,
-historical replay, prospective data collection and directional behavioral probes
-have **not** been run as part of creating this experiment. No scientific effect
-estimate is reported from the simulated plumbing check.
+pin, preparation fingerprint, simulated call count and test scope at creation.
+The subsequent [live smoke report](results-2026-10-08.md) records the interrupted
+run and verifier repair. Historical replay, prospective data collection and
+directional behavioral probes remain **unrun**. No scientific effect estimate is
+reported from the simulated plumbing check or established by the partial smoke.
 
 Saved live runs can be exported without redistributing upstream prompt or brief
 bodies. The exporter retains original model responses, source/request hashes,

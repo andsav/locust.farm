@@ -8,6 +8,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 ## Investigations and experiments
 
 - [Nous profile transfer and communication: separate experiment](experiments/nous_transfer/README.md)
+- [Nous transfer: interrupted Luna smoke results](experiments/nous_transfer/results-2026-10-08.md)
 
 - [Evidence collaboration: experiment design and task calibration](evidence-collaboration-study-design-2026-10-08.md)
 - [Evidence-investigation calibration: runner and results](experiments/evidence_calibration/README.md)
