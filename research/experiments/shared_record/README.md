@@ -171,7 +171,8 @@ calls and results), every candidate's source and both scores with timestamps
 and spend, shared-goal IDs, principals, receipts and reads, the calibration
 gate and the daemon's event log. Hidden reasoning is not retained. API keys
 and daemon secrets never enter the records. `analyze.py --evidence DIR` copies
-these into the evidence folder and writes `analysis.json`.
+these, and any `voided/` trials, into the evidence folder and writes
+`analysis.json`.
 
 ## Run
 
@@ -233,6 +234,28 @@ own ceilings ($2.00 calibration, $8.50 scored) keep the total under it.
 
 The amendment was decided after seeing development-family results only. No
 held-out task had been run.
+
+### Calibration attempt 2 (amended protocol): vertex cover voided by a network outage
+
+The amended calibration's maxcut trials completed and met their criteria:
+independent hidden range 0.0113, 33 findings posted, 13 reads returned peer
+findings, best hidden 0.9516. Between 11:50 and 11:56 local time, while the
+vertex-cover trials were in their first minutes, every one of their four
+agents lost a request: two hung until the client timed out after 1529 s and
+two failed at once with `URLError`. `api.openai.com` answered normally again
+minutes later and the provider's status page reported no incident. The gate
+therefore failed on four transport failures and on the vertex-cover criteria
+those failures caused ($0.78 spent on this attempt).
+
+Because this is an infrastructure failure and not evidence about the
+protocol, the two vertex-cover trials were rerun, once, in the same output
+directory: the finished maxcut trials were loaded unchanged, the ledger kept
+every entry including the four failed reservations, and the voided
+vertex-cover trial files, that attempt's gate verdict, manifest and daemon
+log were moved to `voided/calibration-attempt-2-network-outage/` and are
+retained with the evidence. Nothing else was rerun or changed. If the rerun's
+gate passes, the scored phase proceeds under the original rule of no retries:
+a transport failure in a scored trial stays in that trial's result.
 
 ## What this does not test
 

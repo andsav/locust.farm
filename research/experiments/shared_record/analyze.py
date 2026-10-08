@@ -200,6 +200,9 @@ def package(output, evidence):
         destination = evidence / 'trials' / path.parent.name / path.name
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(path, destination)
+    # Trials voided by infrastructure failure and rerun are kept beside the live ones, never analyzed as results.
+    if (output / 'voided').exists():
+        shutil.copytree(output / 'voided', evidence / 'voided', dirs_exist_ok=True)
 
 
 def main():
