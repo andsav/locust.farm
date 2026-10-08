@@ -1,0 +1,339 @@
+{
+ "binary": {
+  "mtime_ns": 1791481698520528504,
+  "path": "/Users/andrei/Projects26/locust/output/shared-record-2026-10-08b/bin/locust",
+  "sha256": "74e8a05a061489dda54ac931dd95704ee99b9577d0a24fed4e107dea9babf01c",
+  "size": 113975272
+ },
+ "config": {
+  "amendment": "A1: instance sizes raised about tenfold and instances delivered through run_python rather than the prompt, after the first calibration saturated (README, Amendment A1). A2 (post hoc): gate criterion 3 requires the hidden range in at least one independent calibration trial, not each, after calibration 2 failed only on vertex cover at 0.0024 (README, Amendment A2)",
+  "arms": {
+   "independent": 3,
+   "shared": 3,
+   "solo": 1
+  },
+  "calibration": {
+   "ceiling_usd": 2.0,
+   "tasks": [
+    [
+     "maxcut",
+     [
+      "independent",
+      "shared"
+     ]
+    ],
+    [
+     "vertex_cover",
+     [
+      "independent",
+      "solo"
+     ]
+    ]
+   ]
+  },
+  "cpu_seconds_per_instance": 2,
+  "effort": "high",
+  "gate": {
+   "independent_trials_with_range": "at least one (A2); the preregistered rule was each",
+   "max_transport_failures": 1,
+   "min_agents_with_valid_candidate": 2,
+   "min_hidden_range": 0.005
+  },
+  "hidden_instances": 10,
+  "history_token_soft_limit": 150000,
+  "k": 3,
+  "max_turns": 150,
+  "model": "gpt-6-luna",
+  "nudge_fraction": 0.4,
+  "public_instances": 5,
+  "rates": {
+   "input": 0.125,
+   "output": 0.5
+  },
+  "scored": {
+   "arms": [
+    "solo",
+    "independent",
+    "shared"
+   ],
+   "ceiling_usd": 8.5,
+   "concurrent_tasks": 2,
+   "tasks": [
+    "tsp",
+    "coloring",
+    "unrelated_machines",
+    "mkp",
+    "setcover",
+    "qap"
+   ]
+  },
+  "study_ceiling_usd": 15.0,
+  "study_seed": "shared-record-2026-10-08",
+  "task_arm_allowance_usd": 0.42
+ },
+ "finished": 1791496562.0812328,
+ "instances": {
+  "coloring": {
+   "hidden": {
+    "count": 10,
+    "sha256": "7949a64c8f0b035d3def408e94f3ea8c3c1a6f0ef1a3899d32bf55e394384f4b"
+   },
+   "public": {
+    "count": 5,
+    "sha256": "ae01ee044dc5bda03ec7c8a93321945e8241362926b0cb30f6b962556ea24a5a"
+   }
+  },
+  "maxcut": {
+   "hidden": {
+    "count": 10,
+    "sha256": "f12699af0a32da8a2023fa527336d96a01767c65ca456188d3fda0d3096dbee2"
+   },
+   "public": {
+    "count": 5,
+    "sha256": "de333e79c675ddd1b2689e750b905cfed052fa36b0580611301d9976e99b1206"
+   }
+  },
+  "mkp": {
+   "hidden": {
+    "count": 10,
+    "sha256": "1478adb43c4588562d92db60d89e538ff875aaea8381c98c7361e7dabf15118e"
+   },
+   "public": {
+    "count": 5,
+    "sha256": "5b487b90f5a0a4e0087504194a16cec99ec645a06d9528cca7aa47d26b541b60"
+   }
+  },
+  "qap": {
+   "hidden": {
+    "count": 10,
+    "sha256": "45c571eb9a0e4ad98c809337b83666c986d6dc75c55b85a3f1cbcb3bbd70d9c9"
+   },
+   "public": {
+    "count": 5,
+    "sha256": "63846290ad40371c4f86aeed9fdf3f9f4677a22044a664483d573486c34b5262"
+   }
+  },
+  "setcover": {
+   "hidden": {
+    "count": 10,
+    "sha256": "d8ff3fb0d88c9a249a2453090c9d2724c56b8b6ed55201c27fa7c3bd5e936a10"
+   },
+   "public": {
+    "count": 5,
+    "sha256": "f238eab74fa54cb7ead275929dd3bd2e097da2844f4046cb4d41671edc47af47"
+   }
+  },
+  "tsp": {
+   "hidden": {
+    "count": 10,
+    "sha256": "9cf9e58d2be1fa8ae7c27ea955b830769e9dc36792c1a3444d37e1cecad8ac9e"
+   },
+   "public": {
+    "count": 5,
+    "sha256": "b102815224d5e56c28ac8cb47bcd5b5b3cc9f3b491f3e30c9822cdd50f851fe5"
+   }
+  },
+  "unrelated_machines": {
+   "hidden": {
+    "count": 10,
+    "sha256": "d5cb069811c72dbadbfe4393b102197dbc90de7c09d2bb94ddf2dd038b858fcd"
+   },
+   "public": {
+    "count": 5,
+    "sha256": "d6f047b58e2528df5c7f0fa477d128e8df86d68a088c4c6b1f293cf4bd0a36ff"
+   }
+  },
+  "vertex_cover": {
+   "hidden": {
+    "count": 10,
+    "sha256": "56524debcb4630e84ae42a5412f51328449964b31afc52598446008ef17a6fd1"
+   },
+   "public": {
+    "count": 5,
+    "sha256": "35fedbcbdcaf4ddb9d81d3bb3525784aa96b67ababb68d35003419137db1acb0"
+   }
+  }
+ },
+ "python": "3.12.1 (main, Dec  8 2023, 18:57:37) [Clang 14.0.3 (clang-1403.0.22.14.1)]",
+ "reference_costs": {
+  "coloring": {
+   "hidden": [
+    11.0,
+    11.0,
+    10.0,
+    11.0,
+    11.0,
+    11.0,
+    11.0,
+    12.0,
+    12.0,
+    11.0
+   ],
+   "public": [
+    11.0,
+    11.0,
+    11.0,
+    11.0,
+    11.0
+   ]
+  },
+  "maxcut": {
+   "hidden": [
+    20260.0,
+    19723.0,
+    18126.0,
+    16956.0,
+    16706.0,
+    18296.0,
+    19296.0,
+    18355.0,
+    17361.0,
+    19620.0
+   ],
+   "public": [
+    16817.0,
+    17170.0,
+    19256.0,
+    18927.0,
+    19036.0
+   ]
+  },
+  "mkp": {
+   "hidden": [
+    8833.0,
+    9864.0,
+    8998.0,
+    8924.0,
+    8691.0,
+    8782.0,
+    8968.0,
+    9815.0,
+    9103.0,
+    8515.0
+   ],
+   "public": [
+    9384.0,
+    8814.0,
+    8763.0,
+    9001.0,
+    8967.0
+   ]
+  },
+  "qap": {
+   "hidden": [
+    423990.0,
+    429224.0,
+    407272.0,
+    399164.0,
+    405794.0,
+    455426.0,
+    425644.0,
+    419798.0,
+    452204.0,
+    429190.0
+   ],
+   "public": [
+    454944.0,
+    433574.0,
+    434424.0,
+    417068.0,
+    418174.0
+   ]
+  },
+  "setcover": {
+   "hidden": [
+    291.0,
+    285.0,
+    336.0,
+    278.0,
+    233.0,
+    297.0,
+    242.0,
+    287.0,
+    295.0,
+    260.0
+   ],
+   "public": [
+    309.0,
+    261.0,
+    229.0,
+    269.0,
+    248.0
+   ]
+  },
+  "tsp": {
+   "hidden": [
+    19293.20862167966,
+    19361.29105871716,
+    19379.739062034743,
+    19820.284118587515,
+    19824.866950774445,
+    19158.944142147695,
+    19817.167747722593,
+    19441.91195339355,
+    19512.976746386776,
+    19594.151189772925
+   ],
+   "public": [
+    19227.891970829918,
+    19450.732814380146,
+    19478.599781726418,
+    19605.429762432177,
+    19010.500962944763
+   ]
+  },
+  "unrelated_machines": {
+   "hidden": [
+    296.0,
+    284.0,
+    275.0,
+    282.0,
+    281.0,
+    260.0,
+    265.0,
+    307.0,
+    310.0,
+    278.0
+   ],
+   "public": [
+    289.0,
+    307.0,
+    285.0,
+    295.0,
+    261.0
+   ]
+  },
+  "vertex_cover": {
+   "hidden": [
+    557.0,
+    551.0,
+    548.0,
+    561.0,
+    557.0,
+    543.0,
+    546.0,
+    549.0,
+    534.0,
+    557.0
+   ],
+   "public": [
+    560.0,
+    546.0,
+    521.0,
+    535.0,
+    538.0
+   ]
+  }
+ },
+ "source_sha256": {
+  "analyze.py": "dce123dc3ee3ccc6419b81911203591bdad63bde97e2275193468b402d91ea10",
+  "luna.py": "ae2edc1de9a8eac53d180542278b0d3164882c4e17675ba5f31f303438d23db8",
+  "problems.py": "bb646ac1df54a07d071c2bc1d5b4f42ecf46c0e9154b5123696bb2616eb2bac7",
+  "record.py": "0467ca5ef75b1068c70b64d82b7041037a1fb42c4d53f7e7554160798116b000",
+  "run.py": "39a28c3629351ac71e0be78749aceab13b0ce9f9417f4f58eadc770c2b45eb59",
+  "scoring.py": "585118bb53d285b7e43185185857212080f1cc40083640ba2196ec1491942d59",
+  "test_shared_record.py": "6aa12eac5f4c2a0b8c436e002a298b509ffe754dfe736c40b4d14e817fc8f4e1"
+ },
+ "spent_usd": 6.52539625,
+ "started": 1791493436.7621498
+}

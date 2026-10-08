@@ -1,0 +1,34 @@
+{
+ "facts": {
+  "best_hidden_any": 0.9473014719244048,
+  "independent_trials_below_hidden_range": [
+   "vertex_cover/independent"
+  ],
+  "independent_trials_with_hidden_range": [
+   "maxcut/independent"
+  ],
+  "maxcut/independent/agents_with_valid_candidate": 3,
+  "maxcut/independent/final_hidden_scores": [
+   0.9629288734643934,
+   0.9533078143357571,
+   0.9516456504907985
+  ],
+  "maxcut/independent/hidden_range": 0.011283222973594853,
+  "maxcut/shared/agents_with_valid_candidate": 3,
+  "maxcut/shared/findings_posted": 33,
+  "maxcut/shared/reads_returning_peer_findings": 13,
+  "transport_failures": 0,
+  "vertex_cover/independent/agents_with_valid_candidate": 3,
+  "vertex_cover/independent/final_hidden_scores": [
+   0.9480283481737234,
+   0.9474831909867345,
+   0.9498455387970198
+  ],
+  "vertex_cover/independent/hidden_range": 0.0023623478102853257,
+  "vertex_cover/solo/agents_with_valid_candidate": 1
+ },
+ "passed": true,
+ "reasons": [],
+ "spent_usd": 1.2294213749999992,
+ "time": 1791491726.677472
+}

@@ -7,6 +7,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 
 ## Investigations and experiments
 
+- [Shared record versus independent attempts versus strong solo: results](shared-record-study-results-2026-10-08.md)
 - [Shared record versus independent attempts versus strong solo: protocol](experiments/shared_record/README.md)
 - [Model mixtures and communication: evidence and research direction](model-mixtures-and-communication-synthesis-2026-10-08.md)
 - [Evidence collaboration: completed development and failed qualification](evidence-collaboration-development-results-2026-10-08.md)
@@ -120,6 +121,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 ## Evidence appendices
 
 - [Luna evidence-study run records](evidence/evidence-study-2026-10-08/README.md)
+- [Shared-record study: run records](evidence/shared-record-study-2026-10-08/README.md)
 - [Shared-record study: first calibration (gate failed)](evidence/shared-record-calibration-1-2026-10-08/README.md)
 
 - [Three-agent board trial evidence](evidence/role-free-board-2026-10-05/README.md)

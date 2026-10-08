@@ -2,10 +2,14 @@
 
 Status: preregistered protocol, 8 October 2026, for the experiment proposed in
 the [collaboration thesis](../../../docs/collaboration-thesis.md). This file and
-the code beside it are committed before any scored call. Results are reported
-separately and do not modify this file, with one exception: the first
-calibration failed its gate and the protocol was amended once, before any
-scored call, as recorded in [Amendment A1](#amendment-a1-8-october-2026-before-any-scored-call).
+the code beside it were committed before any scored call. The study has run;
+its results are in the
+[results note](../../shared-record-study-results-2026-10-08.md), which does
+not modify the protocol above the amendments. Deviations are recorded here in
+order: [Amendment A1](#amendment-a1-8-october-2026-before-any-scored-call)
+(before any scored call), [Amendment A2](#amendment-a2-post-hoc-8-october-2026-after-calibration-2s-verdict)
+(post hoc), and the infrastructure events and harness defect in the sections
+that follow A2.
 
 ## Question
 
@@ -183,7 +187,7 @@ cd research/experiments/shared_record
 /opt/homebrew/bin/python3.12 -m unittest test_shared_record.py
 /opt/homebrew/bin/python3.12 run.py --output ../../../output/shared-record-2026-10-08b --phase all
 /opt/homebrew/bin/python3.12 analyze.py --output ../../../output/shared-record-2026-10-08b \
-  --evidence ../../evidence/shared-record-study-2026-10-08
+  --evidence ../../evidence/shared-record-study-2026-10-08 --exclude tsp
 ```
 
 `OPENAI_API_KEY` must be in the environment. Python 3.12 or newer is required
@@ -332,6 +336,45 @@ trials. The voided trials are kept in
 `voided/scored-outage-1352/` and the results note reports the preregistered
 treatment (voided trials counted as they stand) beside the rerun as a
 sensitivity analysis. Spend on voided trials counts against the ceilings.
+
+### Reruns inherited voided spend against their allowances (found at analysis)
+
+Found after the scored phase, while checking the matched-spend tables. Each
+agent's allowance was enforced as the sum of ledger entries under the agent's
+label, and the ledger correctly kept every voided run's entries. So every
+rerun in the same output directory started with the voided run's charges
+already counted against its agents' allowances, and the recorded `spent_usd`
+of those trials includes them. The ledger itself, the ceilings and the study
+total are unaffected. Nominal allowance per arm is $0.42 in every row below;
+"effective" is what the agents could actually use.
+
+| Rerun trial | Inherited | Effective allowance | Own spend |
+| --- | ---: | ---: | ---: |
+| calibration `vertex_cover/independent` | $0.051 | $0.369 | $0.296 |
+| calibration `vertex_cover/solo` | $0.018 | $0.402 | $0.156 |
+| scored `qap/independent` | $0.044 | $0.376 | $0.273 |
+| scored `qap/shared` | $0.043 | $0.377 | $0.333 |
+| scored `qap/solo` | $0.016 | $0.405 | $0.323 |
+| scored `tsp/independent` | $0.309 | $0.111 (agents $0.073, $0.018, $0.020) | $0.092 |
+| scored `tsp/shared` | $0.348 | $0.072 (agents $0.012, $0.015, $0.045) | $0.057 |
+| scored `tsp/solo` | $0.071 | $0.349 | $0.172 |
+
+The `tsp` rerun is therefore not a matched comparison: its group arms ran on
+about a quarter of their allowance against a solo arm with most of its own,
+and the voided `tsp` was cut off asymmetrically by the outage. `qap` and the
+calibration vertex cover carried a handicap of about a tenth of the group
+arms' allowance and a twenty-fifth of the solo arm's. The other four scored
+tasks ran once and are unaffected.
+
+Decision, by the repository owner when asked (options: rerun `tsp`, rerun
+`tsp` and `qap`, or stop spending): no more spending. The results note reports
+`tsp` as uninformative, `qap` and the calibration vertex cover with this
+caveat, and gives the contrasts with and without `tsp`. The `tsp` scores had
+been seen twice and the `qap` scores once when the decision was made. The
+harness now charges each agent only its own session's reservations (commit
+`ac32c37`, with a test); `analyze.py` reports each trial's own spend and the
+inherited amount, matches spend within the trial's own run, and
+`--exclude TASK` adds the contrasts without named tasks beside the full set.
 
 Two development-family observations from calibration 2 are recorded here so
 that they are not mistaken for scored results later: on maxcut, shared

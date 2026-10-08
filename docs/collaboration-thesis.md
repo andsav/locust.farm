@@ -2,8 +2,13 @@
 
 Status: decision recorded 8 October 2026 from the research linked below. The
 narrowed thesis is accepted as the claim Locust tests. The experiment direction
-is a proposal: it is not a frozen protocol and authorizes no spending. Nothing
-in this document changes runtime behavior.
+below was a proposal; it has since been run once as the
+[shared-record study](../research/shared-record-study-results-2026-10-08.md)
+(protocol: [shared_record](../research/experiments/shared_record/README.md)).
+That exploratory run found no measurable advantage of the shared record over
+independent attempts at equal spend and a small, sub-threshold edge for
+independent attempts over one agent with the pooled budget; see the note for
+its limits. Nothing in this document changes runtime behavior.
 
 ## The thesis Locust tests
 

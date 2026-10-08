@@ -1,0 +1,2231 @@
+{
+ "config": {
+  "amendment": "A1: instance sizes raised about tenfold and instances delivered through run_python rather than the prompt, after the first calibration saturated (README, Amendment A1). A2 (post hoc): gate criterion 3 requires the hidden range in at least one independent calibration trial, not each, after calibration 2 failed only on vertex cover at 0.0024 (README, Amendment A2)",
+  "arms": {
+   "independent": 3,
+   "shared": 3,
+   "solo": 1
+  },
+  "calibration": {
+   "ceiling_usd": 2.0,
+   "tasks": [
+    [
+     "maxcut",
+     [
+      "independent",
+      "shared"
+     ]
+    ],
+    [
+     "vertex_cover",
+     [
+      "independent",
+      "solo"
+     ]
+    ]
+   ]
+  },
+  "cpu_seconds_per_instance": 2,
+  "effort": "high",
+  "gate": {
+   "independent_trials_with_range": "at least one (A2); the preregistered rule was each",
+   "max_transport_failures": 1,
+   "min_agents_with_valid_candidate": 2,
+   "min_hidden_range": 0.005
+  },
+  "hidden_instances": 10,
+  "history_token_soft_limit": 150000,
+  "k": 3,
+  "max_turns": 150,
+  "model": "gpt-6-luna",
+  "nudge_fraction": 0.4,
+  "public_instances": 5,
+  "rates": {
+   "input": 0.125,
+   "output": 0.5
+  },
+  "scored": {
+   "arms": [
+    "solo",
+    "independent",
+    "shared"
+   ],
+   "ceiling_usd": 8.5,
+   "concurrent_tasks": 2,
+   "tasks": [
+    "tsp",
+    "coloring",
+    "unrelated_machines",
+    "mkp",
+    "setcover",
+    "qap"
+   ]
+  },
+  "study_ceiling_usd": 15.0,
+  "study_seed": "shared-record-2026-10-08",
+  "task_arm_allowance_usd": 0.42
+ },
+ "gate": {
+  "facts": {
+   "best_hidden_any": 0.9473014719244048,
+   "independent_trials_below_hidden_range": [
+    "vertex_cover/independent"
+   ],
+   "independent_trials_with_hidden_range": [
+    "maxcut/independent"
+   ],
+   "maxcut/independent/agents_with_valid_candidate": 3,
+   "maxcut/independent/final_hidden_scores": [
+    0.9629288734643934,
+    0.9533078143357571,
+    0.9516456504907985
+   ],
+   "maxcut/independent/hidden_range": 0.011283222973594853,
+   "maxcut/shared/agents_with_valid_candidate": 3,
+   "maxcut/shared/findings_posted": 33,
+   "maxcut/shared/reads_returning_peer_findings": 13,
+   "transport_failures": 0,
+   "vertex_cover/independent/agents_with_valid_candidate": 3,
+   "vertex_cover/independent/final_hidden_scores": [
+    0.9480283481737234,
+    0.9474831909867345,
+    0.9498455387970198
+   ],
+   "vertex_cover/independent/hidden_range": 0.0023623478102853257,
+   "vertex_cover/solo/agents_with_valid_candidate": 1
+  },
+  "passed": true,
+  "reasons": [],
+  "spent_usd": 1.2294213749999992,
+  "time": 1791491726.677472
+ },
+ "ledger": {
+  "by_phase": {
+   "calibration": 1.229421375,
+   "scored": 5.295974875
+  },
+  "entries": 1805,
+  "failed": 15,
+  "total_usd": 6.52539625
+ },
+ "phases": {
+  "calibration": {
+   "tasks": {
+    "maxcut": {
+     "independent": {
+      "agent_final_hidden": {
+       "agent-0": 0.9629288734643934,
+       "agent-1": 0.9533078143357571,
+       "agent-2": 0.9516456504907985
+      },
+      "agent_initial_hidden": {
+       "agent-0": 0.976242426867498,
+       "agent-1": 1.3573164987357809,
+       "agent-2": 0.9599185702142404
+      },
+      "allowance_usd": 0.42,
+      "arm": "independent",
+      "best_final_agent": "agent-2",
+      "best_initial_agent": "agent-2",
+      "budget_stops": 0,
+      "candidates": 87,
+      "complementarity_range": 0.011283222973594853,
+      "effective_allowance_usd": 0.42,
+      "elapsed_seconds": 1056.5863518714905,
+      "fully_valid_candidates": 87,
+      "hidden": 0.9516456504907985,
+      "inherited_usd": 0.0,
+      "integration_regret": 2.1656857914775784e-05,
+      "k": 3,
+      "matched": {
+       "0.14": {
+        "agent": "agent-1",
+        "candidates": 51,
+        "hidden": 0.9554680859127553,
+        "public": 0.9489068701620508
+       },
+       "0.28": {
+        "agent": "agent-2",
+        "candidates": 79,
+        "hidden": 0.9516239936328837,
+        "public": 0.9487862640615748
+       },
+       "0.42": {
+        "agent": "agent-2",
+        "candidates": 87,
+        "hidden": 0.9516456504907985,
+        "public": 0.9486108370063373
+       }
+      },
+      "nudged": 0,
+      "oracle_hidden": 0.9516239936328837,
+      "public": 0.9486108370063373,
+      "recorded_spent_usd": 0.3346455,
+      "spent_usd": 0.33464550000000004,
+      "transport_failures": 0,
+      "turns": 104
+     },
+     "shared": {
+      "agent_final_hidden": {
+       "agent-0": 0.955825424068349,
+       "agent-1": 0.9555871986312866,
+       "agent-2": 0.9602380088684833
+      },
+      "agent_initial_hidden": {
+       "agent-0": 0.9796425535601168,
+       "agent-1": 0.9750946133980152,
+       "agent-2": 0.976031272502829
+      },
+      "allowance_usd": 0.42,
+      "arm": "shared",
+      "best_final_agent": "agent-1",
+      "best_initial_agent": "agent-1",
+      "budget_stops": 3,
+      "candidates": 57,
+      "complementarity_range": 0.004650810237196712,
+      "effective_allowance_usd": 0.42,
+      "elapsed_seconds": 769.1168751716614,
+      "fully_valid_candidates": 57,
+      "hidden": 0.955825424068349,
+      "inherited_usd": 0.0,
+      "integration_regret": 0.0006767768098365767,
+      "k": 3,
+      "matched": {
+       "0.14": {
+        "agent": "agent-0",
+        "candidates": 31,
+        "hidden": 0.9576175290607962,
+        "public": 0.9572177269039318
+       },
+       "0.28": {
+        "agent": "agent-2",
+        "candidates": 48,
+        "hidden": 0.9602380088684833,
+        "public": 0.9537091857991798
+       },
+       "0.42": {
+        "agent": "agent-0",
+        "candidates": 57,
+        "hidden": 0.955825424068349,
+        "public": 0.9533254391158477
+       }
+      },
+      "nudged": 0,
+      "oracle_hidden": 0.9551486472585125,
+      "public": 0.9533254391158477,
+      "record": {
+       "agents": [
+        {
+         "best_hidden_after": 0.9551486472585125,
+         "best_hidden_before": 0.9796425535601168,
+         "candidates_after": 20,
+         "candidates_after_improving_own_public_best": 19,
+         "candidates_before_first_peer_finding": 2,
+         "name": "agent-0",
+         "posted": 9,
+         "reads": 3,
+         "refused": 0
+        },
+        {
+         "best_hidden_after": 0.9555871986312866,
+         "best_hidden_before": 0.9750946133980152,
+         "candidates_after": 19,
+         "candidates_after_improving_own_public_best": 19,
+         "candidates_before_first_peer_finding": 1,
+         "name": "agent-1",
+         "posted": 11,
+         "reads": 8,
+         "refused": 0
+        },
+        {
+         "best_hidden_after": 0.9575904579884027,
+         "best_hidden_before": 0.976031272502829,
+         "candidates_after": 14,
+         "candidates_after_improving_own_public_best": 12,
+         "candidates_before_first_peer_finding": 1,
+         "name": "agent-2",
+         "posted": 13,
+         "reads": 4,
+         "refused": 0
+        }
+       ],
+       "findings_delivered": 47,
+       "findings_posted": 33,
+       "reads": 15,
+       "reads_refused": 0,
+       "reads_with_new_findings": 13,
+       "receipts": 33
+      },
+      "recorded_spent_usd": 0.37385725000000003,
+      "spent_usd": 0.3738572499999999,
+      "transport_failures": 0,
+      "turns": 110
+     }
+    },
+    "vertex_cover": {
+     "independent": {
+      "agent_final_hidden": {
+       "agent-0": 0.9480283481737234,
+       "agent-1": 0.9474831909867345,
+       "agent-2": 0.9498455387970198
+      },
+      "agent_initial_hidden": {
+       "agent-0": 0.9587497728511721,
+       "agent-1": 0.9478466291113938,
+       "agent-2": 0.9545702344175904
+      },
+      "allowance_usd": 0.42,
+      "arm": "independent",
+      "best_final_agent": "agent-1",
+      "best_initial_agent": "agent-1",
+      "budget_stops": 2,
+      "candidates": 56,
+      "complementarity_range": 0.0023623478102853257,
+      "effective_allowance_usd": 0.368663375,
+      "elapsed_seconds": 884.6742079257965,
+      "fully_valid_candidates": 56,
+      "hidden": 0.9474831909867345,
+      "inherited_usd": 0.051336625,
+      "integration_regret": 0.00018171906232966606,
+      "k": 3,
+      "matched": {
+       "0.14": {
+        "agent": "agent-1",
+        "candidates": 26,
+        "hidden": 0.9476649100490642,
+        "public": 0.9514814814814815
+       },
+       "0.28": {
+        "agent": "agent-1",
+        "candidates": 52,
+        "hidden": 0.9474831909867345,
+        "public": 0.95
+       },
+       "0.42": {
+        "agent": "agent-1",
+        "candidates": 56,
+        "hidden": 0.9474831909867345,
+        "public": 0.95
+       }
+      },
+      "nudged": 0,
+      "oracle_hidden": 0.9473014719244048,
+      "public": 0.95,
+      "recorded_spent_usd": 0.34710287500000003,
+      "spent_usd": 0.29576625000000006,
+      "transport_failures": 0,
+      "turns": 83
+     },
+     "solo": {
+      "agent_final_hidden": {
+       "agent-0": 0.956750863165546
+      },
+      "agent_initial_hidden": {
+       "agent-0": 1.4619298564419407
+      },
+      "allowance_usd": 0.42,
+      "arm": "solo",
+      "best_final_agent": "agent-0",
+      "best_initial_agent": "agent-0",
+      "budget_stops": 0,
+      "candidates": 16,
+      "complementarity_range": null,
+      "effective_allowance_usd": 0.40170612499999997,
+      "elapsed_seconds": 887.8342192173004,
+      "fully_valid_candidates": 14,
+      "hidden": 0.956750863165546,
+      "inherited_usd": 0.018293875,
+      "integration_regret": 0.0012720334363074404,
+      "k": 1,
+      "matched": {
+       "0.14": {
+        "agent": "agent-0",
+        "candidates": 15,
+        "hidden": 0.956750863165546,
+        "public": 0.9585185185185185
+       },
+       "0.28": {
+        "agent": "agent-0",
+        "candidates": 16,
+        "hidden": 0.956750863165546,
+        "public": 0.9585185185185185
+       },
+       "0.42": {
+        "agent": "agent-0",
+        "candidates": 16,
+        "hidden": 0.956750863165546,
+        "public": 0.9585185185185185
+       }
+      },
+      "nudged": 1,
+      "oracle_hidden": 0.9554788297292386,
+      "public": 0.9585185185185185,
+      "recorded_spent_usd": 0.17381574999999996,
+      "spent_usd": 0.15552187499999998,
+      "transport_failures": 0,
+      "turns": 31
+     }
+    }
+   }
+  },
+  "scored": {
+   "arm_totals": {
+    "independent": {
+     "mean_elapsed_seconds": 792.1848173538843,
+     "mean_hidden": 0.8882583052774332,
+     "spent_usd": 1.5611948749999998,
+     "transport_failures": 0
+    },
+    "shared": {
+     "mean_elapsed_seconds": 596.2259865999222,
+     "mean_hidden": 1.7855980494283201,
+     "spent_usd": 1.822312125,
+     "transport_failures": 0
+    },
+    "solo": {
+     "mean_elapsed_seconds": 1029.9440762996674,
+     "mean_hidden": 0.9103661676229025,
+     "spent_usd": 1.08154375,
+     "transport_failures": 1
+    }
+   },
+   "excluding": {
+    "arm_totals": {
+     "independent": {
+      "mean_elapsed_seconds": 831.0800940513611,
+      "mean_hidden": 0.8761397927132523,
+      "spent_usd": 1.4693124999999998,
+      "transport_failures": 0
+     },
+     "shared": {
+      "mean_elapsed_seconds": 651.7507746696472,
+      "mean_hidden": 1.9527479160270236,
+      "spent_usd": 1.7648133750000001,
+      "transport_failures": 0
+     },
+     "solo": {
+      "mean_elapsed_seconds": 1034.3186523914337,
+      "mean_hidden": 0.897757303893664,
+      "spent_usd": 0.909226875,
+      "transport_failures": 0
+     }
+    },
+    "paired_full_spend": {
+     "independent-solo": {
+      "bootstrap_95": [
+       -0.061633437992609855,
+       0.0027497212780695167
+      ],
+      "diffs": [
+       -0.0990990990990992,
+       -0.0008950968583205654,
+       -0.009974795807431103,
+       0.009985734664764712,
+       -0.008104298801973275
+      ],
+      "losses": 1,
+      "mean": -0.021617511180411886,
+      "median": -0.008104298801973275,
+      "n": 5,
+      "ties": 0,
+      "wins": 4
+     },
+     "shared-independent": {
+      "bootstrap_95": [
+       -0.0027853582136451614,
+       3.232420807304222
+      ],
+      "diffs": [
+       5.387387387387387,
+       0.001060855535787275,
+       0.001351317628856652,
+       -0.005349500713266786,
+       -0.0014094432699083281
+      ],
+      "losses": 3,
+      "mean": 1.0766081233137712,
+      "median": 0.001060855535787275,
+      "n": 5,
+      "ties": 0,
+      "wins": 2
+     },
+     "shared-solo": {
+      "bootstrap_95": [
+       -0.00722173636468908,
+       3.1721755241275575
+      ],
+      "diffs": [
+       5.288288288288288,
+       0.0001657586774667097,
+       -0.00862347817857445,
+       0.004636233951497926,
+       -0.009513742071881603
+      ],
+      "losses": 3,
+      "mean": 1.0549906121333594,
+      "median": 0.0001657586774667097,
+      "n": 5,
+      "ties": 0,
+      "wins": 2
+     }
+    },
+    "paired_matched_spend": {
+     "0.14": {
+      "independent-solo": {
+       "bootstrap_95": [
+        -0.06153503193531682,
+        0.0012518610783547768
+       ],
+       "diffs": [
+        -0.0990990990990992,
+        -0.0008950968583205654,
+        -0.009482765520965941,
+        0.007489300998573478,
+        -0.008104298801973275
+       ],
+       "losses": 1,
+       "mean": -0.0220183918563571,
+       "median": -0.008104298801973275,
+       "n": 5,
+       "ties": 0,
+       "wins": 4
+      },
+      "shared-independent": {
+       "bootstrap_95": [
+        -0.0003073143051843141,
+        3.2329761208945236
+       ],
+       "diffs": [
+        5.387387387387387,
+        0.0013592211552274636,
+        0.0009882981543449798,
+        -0.002139800285306692,
+        0.0035236081747710424
+       ],
+       "losses": 4,
+       "mean": 1.078223742917285,
+       "median": 0.0013592211552274636,
+       "n": 5,
+       "ties": 0,
+       "wins": 1
+      },
+      "shared-solo": {
+       "bootstrap_95": [
+        -0.005137238338147898,
+        3.1731267349901855
+       ],
+       "diffs": [
+        5.288288288288288,
+        0.00046412429690689816,
+        -0.008494467366620961,
+        0.005349500713266786,
+        -0.004580690627202233
+       ],
+       "losses": 3,
+       "mean": 1.0562053510609277,
+       "median": 0.00046412429690689816,
+       "n": 5,
+       "ties": 0,
+       "wins": 2
+      }
+     },
+     "0.28": {
+      "independent-solo": {
+       "bootstrap_95": [
+        -0.061633437992609855,
+        0.0006099209927628024
+       ],
+       "diffs": [
+        -0.0990990990990992,
+        -0.0008950968583205654,
+        -0.009974795807431103,
+        0.006419400855920188,
+        -0.008104298801973275
+       ],
+       "losses": 1,
+       "mean": -0.02233077794218079,
+       "median": -0.008104298801973275,
+       "n": 5,
+       "ties": 0,
+       "wins": 4
+      },
+      "shared-independent": {
+       "bootstrap_95": [
+        -0.0018408213776955674,
+        3.232420807304222
+       ],
+       "diffs": [
+        5.387387387387387,
+        0.0011824118992629362,
+        0.001351317628856652,
+        -0.003566333808844524,
+        -0.0014094432699083281
+       ],
+       "losses": 3,
+       "mean": 1.0769890679673508,
+       "median": 0.0011824118992629362,
+       "n": 5,
+       "ties": 0,
+       "wins": 2
+      },
+      "shared-solo": {
+       "bootstrap_95": [
+        -0.0071974250919939475,
+        3.171818890746673
+       ],
+       "diffs": [
+        5.288288288288288,
+        0.0002873150409423708,
+        -0.00862347817857445,
+        0.0028530670470756636,
+        -0.009513742071881603
+       ],
+       "losses": 3,
+       "mean": 1.05465829002517,
+       "median": 0.0002873150409423708,
+       "n": 5,
+       "ties": 0,
+       "wins": 2
+      }
+     },
+     "0.42": {
+      "independent-solo": {
+       "bootstrap_95": [
+        -0.061633437992609855,
+        0.0027497212780695167
+       ],
+       "diffs": [
+        -0.0990990990990992,
+        -0.0008950968583205654,
+        -0.009974795807431103,
+        0.009985734664764712,
+        -0.008104298801973275
+       ],
+       "losses": 1,
+       "mean": -0.021617511180411886,
+       "median": -0.008104298801973275,
+       "n": 5,
+       "ties": 0,
+       "wins": 4
+      },
+      "shared-independent": {
+       "bootstrap_95": [
+        -0.0027853582136451614,
+        3.232420807304222
+       ],
+       "diffs": [
+        5.387387387387387,
+        0.001060855535787275,
+        0.001351317628856652,
+        -0.005349500713266786,
+        -0.0014094432699083281
+       ],
+       "losses": 3,
+       "mean": 1.0766081233137712,
+       "median": 0.001060855535787275,
+       "n": 5,
+       "ties": 0,
+       "wins": 2
+      },
+      "shared-solo": {
+       "bootstrap_95": [
+        -0.00722173636468908,
+        3.1721755241275575
+       ],
+       "diffs": [
+        5.288288288288288,
+        0.0001657586774667097,
+        -0.00862347817857445,
+        0.004636233951497926,
+        -0.009513742071881603
+       ],
+       "losses": 3,
+       "mean": 1.0549906121333594,
+       "median": 0.0001657586774667097,
+       "n": 5,
+       "ties": 0,
+       "wins": 2
+      }
+     }
+    },
+    "paired_oracle": {
+     "independent-solo": {
+      "bootstrap_95": [
+       -0.006209000149294841,
+       0.0019961427648354847
+      ],
+      "diffs": [
+       0.0,
+       -0.000718287602355927,
+       -0.006732104340554712,
+       0.005349500713266675,
+       -0.008104298801973164
+      ],
+      "losses": 1,
+      "mean": -0.0020410380063234255,
+      "median": -0.000718287602355927,
+      "n": 5,
+      "ties": 1,
+      "wins": 3
+     },
+     "shared-independent": {
+      "bootstrap_95": [
+       -0.0019258202567759898,
+       0.000293781720975983
+      ],
+      "diffs": [
+       0.0,
+       0.0006409335528714255,
+       -0.0004538920537343616,
+       -0.0032097004279599828,
+       0.0
+      ],
+      "losses": 1,
+      "mean": -0.0006045317857645838,
+      "median": 0.0,
+      "n": 5,
+      "ties": 2,
+      "wins": 2
+     },
+     "shared-solo": {
+      "bootstrap_95": [
+       -0.006299778560041713,
+       0.0008404493042257766
+      ],
+      "diffs": [
+       0.0,
+       -7.735404948450153e-05,
+       -0.007185996394289074,
+       0.002139800285306692,
+       -0.008104298801973164
+      ],
+      "losses": 1,
+      "mean": -0.0026455697920880093,
+      "median": -7.735404948450153e-05,
+      "n": 5,
+      "ties": 1,
+      "wins": 3
+     }
+    },
+    "tasks": [
+     "tsp"
+    ]
+   },
+   "paired_full_spend": {
+    "independent-solo": {
+     "bootstrap_95": [
+      -0.05514271852139122,
+      -0.00029471933366231884
+     ],
+     "diffs": [
+      -0.0990990990990992,
+      -0.0008950968583205654,
+      -0.009974795807431103,
+      0.009985734664764712,
+      -0.024559618170755915,
+      -0.008104298801973275
+     ],
+     "losses": 1,
+     "mean": -0.022107862345469225,
+     "median": -0.009039547304702189,
+     "n": 6,
+     "ties": 0,
+     "wins": 5
+    },
+    "shared-independent": {
+     "bootstrap_95": [
+      -0.002175826188401009,
+      2.6938503141429293
+     ],
+     "diffs": [
+      5.387387387387387,
+      0.001060855535787275,
+      0.001351317628856652,
+      -0.005349500713266786,
+      0.0009978483364647683,
+      -0.0014094432699083281
+     ],
+     "losses": 4,
+     "mean": 0.8973397441508868,
+     "median": 0.0010293519361260217,
+     "n": 6,
+     "ties": 0,
+     "wins": 2
+    },
+    "shared-solo": {
+     "bootstrap_95": [
+      -0.013162878387752411,
+      2.6418939797609844
+     ],
+     "diffs": [
+      5.288288288288288,
+      0.0001657586774667097,
+      -0.00862347817857445,
+      0.004636233951497926,
+      -0.023561769834291146,
+      -0.009513742071881603
+     ],
+     "losses": 3,
+     "mean": 0.8752318818054176,
+     "median": -0.0042288597505538705,
+     "n": 6,
+     "ties": 0,
+     "wins": 3
+    }
+   },
+   "paired_matched_spend": {
+    "0.14": {
+     "independent-solo": {
+      "bootstrap_95": [
+       -0.05514271852139122,
+       -0.0009628537935710094
+      ],
+      "diffs": [
+       -0.0990990990990992,
+       -0.0008950968583205654,
+       -0.009482765520965941,
+       0.007489300998573478,
+       -0.024559618170755915,
+       -0.008104298801973275
+      ],
+      "losses": 1,
+      "mean": -0.02244192957542357,
+      "median": -0.008793532161469608,
+      "n": 6,
+      "ties": 0,
+      "wins": 5
+     },
+     "shared-independent": {
+      "bootstrap_95": [
+       -8.978719824280039e-05,
+       2.694610394440937
+      ],
+      "diffs": [
+       5.387387387387387,
+       0.0013592211552274636,
+       0.0009882981543449798,
+       -0.002139800285306692,
+       0.0009978483364647683,
+       0.0035236081747710424
+      ],
+      "losses": 5,
+      "mean": 0.8986860938204816,
+      "median": 0.001178534745846116,
+      "n": 6,
+      "ties": 0,
+      "wins": 1
+     },
+     "shared-solo": {
+      "bootstrap_95": [
+       -0.012227691976553453,
+       2.6428831076820094
+      ],
+      "diffs": [
+       5.288288288288288,
+       0.00046412429690689816,
+       -0.008494467366620961,
+       0.005349500713266786,
+       -0.023561769834291146,
+       -0.004580690627202233
+      ],
+      "losses": 3,
+      "mean": 0.8762441642450579,
+      "median": -0.0020582831651476674,
+      "n": 6,
+      "ties": 0,
+      "wins": 3
+     }
+    },
+    "0.28": {
+     "independent-solo": {
+      "bootstrap_95": [
+       -0.05514271852139122,
+       -0.001483497269943827
+      ],
+      "diffs": [
+       -0.0990990990990992,
+       -0.0008950968583205654,
+       -0.009974795807431103,
+       0.006419400855920188,
+       -0.024559618170755915,
+       -0.008104298801973275
+      ],
+      "losses": 1,
+      "mean": -0.022702251313609978,
+      "median": -0.009039547304702189,
+      "n": 6,
+      "ties": 0,
+      "wins": 5
+     },
+     "shared-independent": {
+      "bootstrap_95": [
+       -0.001567634906454766,
+       2.693852923781797
+      ],
+      "diffs": [
+       5.387387387387387,
+       0.0011824118992629362,
+       0.001351317628856652,
+       -0.003566333808844524,
+       0.0009978483364647683,
+       -0.0014094432699083281
+      ],
+      "losses": 4,
+      "mean": 0.8976571980288698,
+      "median": 0.0010901301178638523,
+      "n": 6,
+      "ties": 0,
+      "wins": 2
+     },
+     "shared-solo": {
+      "bootstrap_95": [
+       -0.013122359599927191,
+       2.641596785276914
+      ],
+      "diffs": [
+       5.288288288288288,
+       0.0002873150409423708,
+       -0.00862347817857445,
+       0.0028530670470756636,
+       -0.023561769834291146,
+       -0.009513742071881603
+      ],
+      "losses": 3,
+      "mean": 0.8749549467152598,
+      "median": -0.00416808156881604,
+      "n": 6,
+      "ties": 0,
+      "wins": 3
+     }
+    },
+    "0.42": {
+     "independent-solo": {
+      "bootstrap_95": [
+       -0.05514271852139122,
+       -0.00029471933366231884
+      ],
+      "diffs": [
+       -0.0990990990990992,
+       -0.0008950968583205654,
+       -0.009974795807431103,
+       0.009985734664764712,
+       -0.024559618170755915,
+       -0.008104298801973275
+      ],
+      "losses": 1,
+      "mean": -0.022107862345469225,
+      "median": -0.009039547304702189,
+      "n": 6,
+      "ties": 0,
+      "wins": 5
+     },
+     "shared-independent": {
+      "bootstrap_95": [
+       -0.002175826188401009,
+       2.6938503141429293
+      ],
+      "diffs": [
+       5.387387387387387,
+       0.001060855535787275,
+       0.001351317628856652,
+       -0.005349500713266786,
+       0.0009978483364647683,
+       -0.0014094432699083281
+      ],
+      "losses": 4,
+      "mean": 0.8973397441508868,
+      "median": 0.0010293519361260217,
+      "n": 6,
+      "ties": 0,
+      "wins": 2
+     },
+     "shared-solo": {
+      "bootstrap_95": [
+       -0.013162878387752411,
+       2.6418939797609844
+      ],
+      "diffs": [
+       5.288288288288288,
+       0.0001657586774667097,
+       -0.00862347817857445,
+       0.004636233951497926,
+       -0.023561769834291146,
+       -0.009513742071881603
+      ],
+      "losses": 3,
+      "mean": 0.8752318818054176,
+      "median": -0.0042288597505538705,
+      "n": 6,
+      "ties": 0,
+      "wins": 3
+     }
+    }
+   },
+   "paired_oracle": {
+    "independent-solo": {
+     "bootstrap_95": [
+      -0.01283197941895716,
+      0.000771868851818458
+     ],
+     "diffs": [
+      0.0,
+      -0.000718287602355927,
+      -0.006732104340554712,
+      0.005349500713266675,
+      -0.022483667502352644,
+      -0.008104298801973164
+     ],
+     "losses": 1,
+     "mean": -0.005448142922328296,
+     "median": -0.0037251959714553196,
+     "n": 6,
+     "ties": 1,
+     "wins": 4
+    },
+    "shared-independent": {
+     "bootstrap_95": [
+      -0.0015736766307904808,
+      0.0007777573522374884
+     ],
+     "diffs": [
+      0.0,
+      0.0006409335528714255,
+      -0.0004538920537343616,
+      -0.0032097004279599828,
+      0.0015752489082769827,
+      0.0
+     ],
+     "losses": 2,
+     "mean": -0.0002412350034243227,
+     "median": 0.0,
+     "n": 6,
+     "ties": 2,
+     "wins": 2
+    },
+    "shared-solo": {
+     "bootstrap_95": [
+      -0.012645958448863756,
+      -0.0002808163243421813
+     ],
+     "diffs": [
+      0.0,
+      -7.735404948450153e-05,
+      -0.007185996394289074,
+      0.002139800285306692,
+      -0.02090841859407566,
+      -0.008104298801973164
+     ],
+     "losses": 1,
+     "mean": -0.0056893779257526185,
+     "median": -0.0036316752218867876,
+     "n": 6,
+     "ties": 1,
+     "wins": 4
+    }
+   },
+   "tasks": {
+    "coloring": {
+     "independent": {
+      "agent_final_hidden": {
+       "agent-0": 0.8288288288288288,
+       "agent-1": 0.8198198198198198,
+       "agent-2": 11.855855855855856
+      },
+      "agent_initial_hidden": {
+       "agent-0": 0.9459459459459459,
+       "agent-1": 0.8198198198198198,
+       "agent-2": 0.9369369369369369
+      },
+      "allowance_usd": 0.42,
+      "arm": "independent",
+      "best_final_agent": "agent-1",
+      "best_initial_agent": "agent-1",
+      "budget_stops": 0,
+      "candidates": 19,
+      "complementarity_range": 11.036036036036036,
+      "effective_allowance_usd": 0.42,
+      "elapsed_seconds": 559.7946202754974,
+      "fully_valid_candidates": 15,
+      "hidden": 0.8198198198198198,
+      "inherited_usd": 0.0,
+      "integration_regret": 0.0,
+      "k": 3,
+      "matched": {
+       "0.14": {
+        "agent": "agent-1",
+        "candidates": 18,
+        "hidden": 0.8198198198198198,
+        "public": 0.8181818181818182
+       },
+       "0.28": {
+        "agent": "agent-1",
+        "candidates": 19,
+        "hidden": 0.8198198198198198,
+        "public": 0.8181818181818182
+       },
+       "0.42": {
+        "agent": "agent-1",
+        "candidates": 19,
+        "hidden": 0.8198198198198198,
+        "public": 0.8181818181818182
+       }
+      },
+      "nudged": 3,
+      "oracle_hidden": 0.8198198198198198,
+      "public": 0.8181818181818182,
+      "recorded_spent_usd": 0.145712,
+      "spent_usd": 0.14571200000000004,
+      "transport_failures": 0,
+      "turns": 56
+     },
+     "shared": {
+      "agent_final_hidden": {
+       "agent-0": 6.207207207207207,
+       "agent-1": 6.207207207207207,
+       "agent-2": 6.207207207207207
+      },
+      "agent_initial_hidden": {
+       "agent-0": 1.0,
+       "agent-1": 1.0,
+       "agent-2": 0.9369369369369369
+      },
+      "allowance_usd": 0.42,
+      "arm": "shared",
+      "best_final_agent": "agent-0",
+      "best_initial_agent": "agent-2",
+      "budget_stops": 0,
+      "candidates": 23,
+      "complementarity_range": 0.0,
+      "effective_allowance_usd": 0.42,
+      "elapsed_seconds": 514.6468570232391,
+      "fully_valid_candidates": 13,
+      "hidden": 6.207207207207207,
+      "inherited_usd": 0.0,
+      "integration_regret": 5.387387387387387,
+      "k": 3,
+      "matched": {
+       "0.14": {
+        "agent": "agent-1",
+        "candidates": 15,
+        "hidden": 6.207207207207207,
+        "public": 0.8181818181818182
+       },
+       "0.28": {
+        "agent": "agent-1",
+        "candidates": 22,
+        "hidden": 6.207207207207207,
+        "public": 0.8181818181818182
+       },
+       "0.42": {
+        "agent": "agent-1",
+        "candidates": 23,
+        "hidden": 6.207207207207207,
+        "public": 0.8181818181818182
+       }
+      },
+      "nudged": 2,
+      "oracle_hidden": 0.8198198198198198,
+      "public": 0.8181818181818182,
+      "record": {
+       "agents": [
+        {
+         "best_hidden_after": 0.8198198198198198,
+         "best_hidden_before": 1.0,
+         "candidates_after": 10,
+         "candidates_after_improving_own_public_best": 9,
+         "candidates_before_first_peer_finding": 1,
+         "name": "agent-0",
+         "posted": 7,
+         "reads": 6,
+         "refused": 0
+        },
+        {
+         "best_hidden_after": 0.8198198198198198,
+         "best_hidden_before": 1.0,
+         "candidates_after": 6,
+         "candidates_after_improving_own_public_best": 5,
+         "candidates_before_first_peer_finding": 2,
+         "name": "agent-1",
+         "posted": 5,
+         "reads": 4,
+         "refused": 0
+        },
+        {
+         "best_hidden_after": 0.8198198198198198,
+         "best_hidden_before": 0.9369369369369369,
+         "candidates_after": 3,
+         "candidates_after_improving_own_public_best": 3,
+         "candidates_before_first_peer_finding": 1,
+         "name": "agent-2",
+         "posted": 5,
+         "reads": 3,
+         "refused": 0
+        }
+       ],
+       "findings_delivered": 24,
+       "findings_posted": 17,
+       "reads": 13,
+       "reads_refused": 0,
+       "reads_with_new_findings": 11,
+       "receipts": 17
+      },
+      "recorded_spent_usd": 0.30640449999999997,
+      "spent_usd": 0.3064044999999999,
+      "transport_failures": 0,
+      "turns": 94
+     },
+     "solo": {
+      "agent_final_hidden": {
+       "agent-0": 0.918918918918919
+      },
+      "agent_initial_hidden": {
+       "agent-0": 0.954954954954955
+      },
+      "allowance_usd": 0.42,
+      "arm": "solo",
+      "best_final_agent": "agent-0",
+      "best_initial_agent": "agent-0",
+      "budget_stops": 0,
+      "candidates": 6,
+      "complementarity_range": null,
+      "effective_allowance_usd": 0.42,
+      "elapsed_seconds": 424.95999789237976,
+      "fully_valid_candidates": 6,
+      "hidden": 0.918918918918919,
+      "inherited_usd": 0.0,
+      "integration_regret": 0.0990990990990992,
+      "k": 1,
+      "matched": {
+       "0.14": {
+        "agent": "agent-0",
+        "candidates": 6,
+        "hidden": 0.918918918918919,
+        "public": 0.8181818181818182
+       },
+       "0.28": {
+        "agent": "agent-0",
+        "candidates": 6,
+        "hidden": 0.918918918918919,
+        "public": 0.8181818181818182
+       },
+       "0.42": {
+        "agent": "agent-0",
+        "candidates": 6,
+        "hidden": 0.918918918918919,
+        "public": 0.8181818181818182
+       }
+      },
+      "nudged": 1,
+      "oracle_hidden": 0.8198198198198198,
+      "public": 0.8181818181818182,
+      "recorded_spent_usd": 0.046405,
+      "spent_usd": 0.046405,
+      "transport_failures": 0,
+      "turns": 21
+     }
+    },
+    "mkp": {
+     "independent": {
+      "agent_final_hidden": {
+       "agent-0": 0.9674670969025229,
+       "agent-1": 0.9669035173991358,
+       "agent-2": 0.9678870188854386
+      },
+      "agent_initial_hidden": {
+       "agent-0": 0.9736885725967754,
+       "agent-1": 0.9744179107776292,
+       "agent-2": 0.9720972892930945
+      },
+      "allowance_usd": 0.42,
+      "arm": "independent",
+      "best_final_agent": "agent-1",
+      "best_initial_agent": "agent-2",
+      "budget_stops": 0,
+      "candidates": 52,
+      "complementarity_range": 0.0009835014863027736,
+      "effective_allowance_usd": 0.42,
+      "elapsed_seconds": 887.7699840068817,
+      "fully_valid_candidates": 49,
+      "hidden": 0.9669035173991358,
+      "inherited_usd": 0.0,
+      "integration_regret": 9.945520648002582e-05,
+      "k": 3,
+      "matched": {
+       "0.14": {
+        "agent": "agent-1",
+        "candidates": 28,
+        "hidden": 0.9669035173991358,
+        "public": 0.963097331345011
+       },
+       "0.28": {
+        "agent": "agent-1",
+        "candidates": 45,
+        "hidden": 0.9669035173991358,
+        "public": 0.963097331345011
+       },
+       "0.42": {
+        "agent": "agent-1",
+        "candidates": 52,
+        "hidden": 0.9669035173991358,
+        "public": 0.963097331345011
+       }
+      },
+      "nudged": 0,
+      "oracle_hidden": 0.9668040621926558,
+      "public": 0.963097331345011,
+      "recorded_spent_usd": 0.333340375,
+      "spent_usd": 0.3333403749999999,
+      "transport_failures": 0,
+      "turns": 84
+     },
+     "shared": {
+      "agent_final_hidden": {
+       "agent-0": 0.9679643729349231,
+       "agent-1": 0.9677433613649674,
+       "agent-2": 0.9674449957455272
+      },
+      "agent_initial_hidden": {
+       "agent-0": 0.9707822704518582,
+       "agent-1": 1.0,
+       "agent-2": 1.428972406705491
+      },
+      "allowance_usd": 0.42,
+      "arm": "shared",
+      "best_final_agent": "agent-2",
+      "best_initial_agent": "agent-0",
+      "budget_stops": 3,
+      "candidates": 33,
+      "complementarity_range": 0.0005193771893958754,
+      "effective_allowance_usd": 0.42,
+      "elapsed_seconds": 607.2762939929962,
+      "fully_valid_candidates": 30,
+      "hidden": 0.9679643729349231,
+      "inherited_usd": 0.0,
+      "integration_regret": 0.0005193771893958754,
+      "k": 3,
+      "matched": {
+       "0.14": {
+        "agent": "agent-0",
+        "candidates": 17,
+        "hidden": 0.9682627385543633,
+        "public": 0.9637873088650982
+       },
+       "0.28": {
+        "agent": "agent-2",
+        "candidates": 27,
+        "hidden": 0.9680859292983988,
+        "public": 0.9635869928108793
+       },
+       "0.42": {
+        "agent": "agent-0",
+        "candidates": 33,
+        "hidden": 0.9679643729349231,
+        "public": 0.9633644194173029
+       }
+      },
+      "nudged": 0,
+      "oracle_hidden": 0.9674449957455272,
+      "public": 0.9633644194173029,
+      "record": {
+       "agents": [
+        {
+         "best_hidden_after": 0.9677544119434652,
+         "best_hidden_before": 0.9707822704518582,
+         "candidates_after": 9,
+         "candidates_after_improving_own_public_best": 9,
+         "candidates_before_first_peer_finding": 1,
+         "name": "agent-0",
+         "posted": 9,
+         "reads": 6,
+         "refused": 0
+        },
+        {
+         "best_hidden_after": 0.9677433613649674,
+         "best_hidden_before": 1.0,
+         "candidates_after": 10,
+         "candidates_after_improving_own_public_best": 9,
+         "candidates_before_first_peer_finding": 1,
+         "name": "agent-1",
+         "posted": 8,
+         "reads": 6,
+         "refused": 0
+        },
+        {
+         "best_hidden_after": 0.9674449957455272,
+         "best_hidden_before": 1.428972406705491,
+         "candidates_after": 11,
+         "candidates_after_improving_own_public_best": 11,
+         "candidates_before_first_peer_finding": 1,
+         "name": "agent-2",
+         "posted": 8,
+         "reads": 7,
+         "refused": 0
+        }
+       ],
+       "findings_delivered": 40,
+       "findings_posted": 25,
+       "reads": 19,
+       "reads_refused": 0,
+       "reads_with_new_findings": 13,
+       "receipts": 25
+      },
+      "recorded_spent_usd": 0.375738625,
+      "spent_usd": 0.37573862499999994,
+      "transport_failures": 0,
+      "turns": 99
+     },
+     "solo": {
+      "agent_final_hidden": {
+       "agent-0": 0.9677986142574564
+      },
+      "agent_initial_hidden": {
+       "agent-0": 0.9731360436718862
+      },
+      "allowance_usd": 0.42,
+      "arm": "solo",
+      "best_final_agent": "agent-0",
+      "best_initial_agent": "agent-0",
+      "budget_stops": 0,
+      "candidates": 23,
+      "complementarity_range": null,
+      "effective_allowance_usd": 0.42,
+      "elapsed_seconds": 935.9279139041901,
+      "fully_valid_candidates": 23,
+      "hidden": 0.9677986142574564,
+      "inherited_usd": 0.0,
+      "integration_regret": 0.0002762644624446642,
+      "k": 1,
+      "matched": {
+       "0.14": {
+        "agent": "agent-0",
+        "candidates": 23,
+        "hidden": 0.9677986142574564,
+        "public": 0.9634757061140912
+       },
+       "0.28": {
+        "agent": "agent-0",
+        "candidates": 23,
+        "hidden": 0.9677986142574564,
+        "public": 0.9634757061140912
+       },
+       "0.42": {
+        "agent": "agent-0",
+        "candidates": 23,
+        "hidden": 0.9677986142574564,
+        "public": 0.9634757061140912
+       }
+      },
+      "nudged": 1,
+      "oracle_hidden": 0.9675223497950117,
+      "public": 0.9634757061140912,
+      "recorded_spent_usd": 0.137805875,
+      "spent_usd": 0.137805875,
+      "transport_failures": 0,
+      "turns": 29
+     }
+    },
+    "qap": {
+     "independent": {
+      "agent_final_hidden": {
+       "agent-0": 0.9870188756001474,
+       "agent-1": 0.974767086045974,
+       "agent-2": 0.9900247333501895
+      },
+      "agent_initial_hidden": {
+       "agent-0": 0.9996285053626592,
+       "agent-1": 1.0253435619131832,
+       "agent-2": 0.9946455804615479
+      },
+      "allowance_usd": 0.42,
+      "arm": "independent",
+      "best_final_agent": "agent-1",
+      "best_initial_agent": "agent-2",
+      "budget_stops": 1,
+      "candidates": 74,
+      "complementarity_range": 0.015257647304215527,
+      "effective_allowance_usd": 0.375892875,
+      "elapsed_seconds": 916.0419492721558,
+      "fully_valid_candidates": 72,
+      "hidden": 0.974767086045974,
+      "inherited_usd": 0.044107125,
+      "integration_regret": 0.0,
+      "k": 3,
+      "matched": {
+       "0.14": {
+        "agent": "agent-1",
+        "candidates": 51,
+        "hidden": 0.974767086045974,
+        "public": 0.9757249613563996
+       },
+       "0.28": {
+        "agent": "agent-1",
+        "candidates": 74,
+        "hidden": 0.974767086045974,
+        "public": 0.9757249613563996
+       },
+       "0.42": {
+        "agent": "agent-1",
+        "candidates": 74,
+        "hidden": 0.974767086045974,
+        "public": 0.9757249613563996
+       }
+      },
+      "nudged": 1,
+      "oracle_hidden": 0.974767086045974,
+      "public": 0.9757249613563996,
+      "recorded_spent_usd": 0.31746237499999996,
+      "spent_usd": 0.27335525,
+      "transport_failures": 0,
+      "turns": 86
+     },
+     "shared": {
+      "agent_final_hidden": {
+       "agent-0": 0.9762337600577817,
+       "agent-1": 0.9758387233014715,
+       "agent-2": 0.9761184036748306
+      },
+      "agent_initial_hidden": {
+       "agent-0": 0.993291437778415,
+       "agent-1": 0.995751589210741,
+       "agent-2": 0.9977677362792999
+      },
+      "allowance_usd": 0.42,
+      "arm": "shared",
+      "best_final_agent": "agent-1",
+      "best_initial_agent": "agent-0",
+      "budget_stops": 3,
+      "candidates": 59,
+      "complementarity_range": 0.0003950367563102519,
+      "effective_allowance_usd": 0.376734625,
+      "elapsed_seconds": 813.3300709724426,
+      "fully_valid_candidates": 59,
+      "hidden": 0.9761184036748306,
+      "inherited_usd": 0.043265374999999995,
+      "integration_regret": 0.0018052096825910136,
+      "k": 3,
+      "matched": {
+       "0.14": {
+        "agent": "agent-2",
+        "candidates": 30,
+        "hidden": 0.9757553842003189,
+        "public": 0.9750595871343686
+       },
+       "0.28": {
+        "agent": "agent-2",
+        "candidates": 54,
+        "hidden": 0.9761184036748306,
+        "public": 0.9745119044530031
+       },
+       "0.42": {
+        "agent": "agent-2",
+        "candidates": 59,
+        "hidden": 0.9761184036748306,
+        "public": 0.9745119044530031
+       }
+      },
+      "nudged": 0,
+      "oracle_hidden": 0.9743131939922396,
+      "public": 0.9745119044530031,
+      "record": {
+       "agents": [
+        {
+         "best_hidden_after": 0.975588705998014,
+         "best_hidden_before": 0.993291437778415,
+         "candidates_after": 19,
+         "candidates_after_improving_own_public_best": 17,
+         "candidates_before_first_peer_finding": 1,
+         "name": "agent-0",
+         "posted": 5,
+         "reads": 5,
+         "refused": 0
+        },
+        {
+         "best_hidden_after": 0.9757407880865577,
+         "best_hidden_before": 0.9925672821989092,
+         "candidates_after": 20,
+         "candidates_after_improving_own_public_best": 17,
+         "candidates_before_first_peer_finding": 2,
+         "name": "agent-1",
+         "posted": 5,
+         "reads": 6,
+         "refused": 0
+        },
+        {
+         "best_hidden_after": 0.9743131939922396,
+         "best_hidden_before": 0.9977677362792999,
+         "candidates_after": 16,
+         "candidates_after_improving_own_public_best": 16,
+         "candidates_before_first_peer_finding": 1,
+         "name": "agent-2",
+         "posted": 8,
+         "reads": 6,
+         "refused": 0
+        }
+       ],
+       "findings_delivered": 30,
+       "findings_posted": 18,
+       "reads": 17,
+       "reads_refused": 0,
+       "reads_with_new_findings": 14,
+       "receipts": 18
+      },
+      "recorded_spent_usd": 0.376145625,
+      "spent_usd": 0.33288025,
+      "transport_failures": 0,
+      "turns": 107
+     },
+     "solo": {
+      "agent_final_hidden": {
+       "agent-0": 0.984741881853405
+      },
+      "agent_initial_hidden": {
+       "agent-0": 0.9839786463564097
+      },
+      "allowance_usd": 0.42,
+      "arm": "solo",
+      "best_final_agent": "agent-0",
+      "best_initial_agent": "agent-0",
+      "budget_stops": 0,
+      "candidates": 46,
+      "complementarity_range": null,
+      "effective_allowance_usd": 0.40447225,
+      "elapsed_seconds": 1667.5575821399689,
+      "fully_valid_candidates": 45,
+      "hidden": 0.984741881853405,
+      "inherited_usd": 0.01552775,
+      "integration_regret": 0.0032426914668763906,
+      "k": 1,
+      "matched": {
+       "0.14": {
+        "agent": "agent-0",
+        "candidates": 21,
+        "hidden": 0.9842498515669399,
+        "public": 0.984759408836318
+       },
+       "0.28": {
+        "agent": "agent-0",
+        "candidates": 41,
+        "hidden": 0.984741881853405,
+        "public": 0.9843062500695029
+       },
+       "0.42": {
+        "agent": "agent-0",
+        "candidates": 46,
+        "hidden": 0.984741881853405,
+        "public": 0.9843062500695029
+       }
+      },
+      "nudged": 0,
+      "oracle_hidden": 0.9814991903865287,
+      "public": 0.9843062500695029,
+      "recorded_spent_usd": 0.338847125,
+      "spent_usd": 0.323319375,
+      "transport_failures": 0,
+      "turns": 65
+     }
+    },
+    "setcover": {
+     "independent": {
+      "agent_final_hidden": {
+       "agent-0": 0.8880171184022825,
+       "agent-1": 0.8919400855920114,
+       "agent-2": 0.891583452211127
+      },
+      "agent_initial_hidden": {
+       "agent-0": 0.9390156918687589,
+       "agent-1": 0.916191155492154,
+       "agent-2": 0.9226105563480742
+      },
+      "allowance_usd": 0.42,
+      "arm": "independent",
+      "best_final_agent": "agent-0",
+      "best_initial_agent": "agent-1",
+      "budget_stops": 0,
+      "candidates": 62,
+      "complementarity_range": 0.003922967189728954,
+      "effective_allowance_usd": 0.42,
+      "elapsed_seconds": 848.1857888698578,
+      "fully_valid_candidates": 59,
+      "hidden": 0.891583452211127,
+      "inherited_usd": 0.0,
+      "integration_regret": 0.006062767475035757,
+      "k": 3,
+      "matched": {
+       "0.14": {
+        "agent": "agent-0",
+        "candidates": 33,
+        "hidden": 0.8890870185449358,
+        "public": 0.9027355623100304
+       },
+       "0.28": {
+        "agent": "agent-0",
+        "candidates": 52,
+        "hidden": 0.8880171184022825,
+        "public": 0.9019756838905775
+       },
+       "0.42": {
+        "agent": "agent-2",
+        "candidates": 62,
+        "hidden": 0.891583452211127,
+        "public": 0.9012158054711246
+       }
+      },
+      "nudged": 0,
+      "oracle_hidden": 0.8855206847360912,
+      "public": 0.9012158054711246,
+      "recorded_spent_usd": 0.363355625,
+      "spent_usd": 0.36335562499999996,
+      "transport_failures": 0,
+      "turns": 87
+     },
+     "shared": {
+      "agent_final_hidden": {
+       "agent-0": 0.8862339514978602,
+       "agent-1": 0.8848074179743224,
+       "agent-2": 0.8830242510699001
+      },
+      "agent_initial_hidden": {
+       "agent-0": 0.891583452211127,
+       "agent-1": 0.9479315263908702,
+       "agent-2": 0.8937232524964337
+      },
+      "allowance_usd": 0.42,
+      "arm": "shared",
+      "best_final_agent": "agent-2",
+      "best_initial_agent": "agent-0",
+      "budget_stops": 3,
+      "candidates": 54,
+      "complementarity_range": 0.003209700427960094,
+      "effective_allowance_usd": 0.42,
+      "elapsed_seconds": 739.7315962314606,
+      "fully_valid_candidates": 50,
+      "hidden": 0.8862339514978602,
+      "inherited_usd": 0.0,
+      "integration_regret": 0.003922967189728954,
+      "k": 3,
+      "matched": {
+       "0.14": {
+        "agent": "agent-0",
+        "candidates": 30,
+        "hidden": 0.8869472182596291,
+        "public": 0.9012158054711246
+       },
+       "0.28": {
+        "agent": "agent-1",
+        "candidates": 44,
+        "hidden": 0.884450784593438,
+        "public": 0.9004559270516718
+       },
+       "0.42": {
+        "agent": "agent-0",
+        "candidates": 54,
+        "hidden": 0.8862339514978602,
+        "public": 0.8974164133738601
+       }
+      },
+      "nudged": 0,
+      "oracle_hidden": 0.8823109843081313,
+      "public": 0.8974164133738601,
+      "record": {
+       "agents": [
+        {
+         "best_hidden_after": 0.8823109843081313,
+         "best_hidden_before": 0.891583452211127,
+         "candidates_after": 19,
+         "candidates_after_improving_own_public_best": 13,
+         "candidates_before_first_peer_finding": 1,
+         "name": "agent-0",
+         "posted": 8,
+         "reads": 4,
+         "refused": 0
+        },
+        {
+         "best_hidden_after": 0.884450784593438,
+         "best_hidden_before": 0.8972895863052782,
+         "candidates_after": 14,
+         "candidates_after_improving_own_public_best": 12,
+         "candidates_before_first_peer_finding": 2,
+         "name": "agent-1",
+         "posted": 9,
+         "reads": 7,
+         "refused": 0
+        },
+        {
+         "best_hidden_after": 0.8830242510699001,
+         "best_hidden_before": 0.8937232524964337,
+         "candidates_after": 17,
+         "candidates_after_improving_own_public_best": 13,
+         "candidates_before_first_peer_finding": 1,
+         "name": "agent-2",
+         "posted": 11,
+         "reads": 6,
+         "refused": 0
+        }
+       ],
+       "findings_delivered": 39,
+       "findings_posted": 28,
+       "reads": 17,
+       "reads_refused": 0,
+       "reads_with_new_findings": 15,
+       "receipts": 28
+      },
+      "recorded_spent_usd": 0.37277475000000004,
+      "spent_usd": 0.3727747500000001,
+      "transport_failures": 0,
+      "turns": 102
+     },
+     "solo": {
+      "agent_final_hidden": {
+       "agent-0": 0.8815977175463623
+      },
+      "agent_initial_hidden": {
+       "agent-0": 0.9828815977175464
+      },
+      "allowance_usd": 0.42,
+      "arm": "solo",
+      "best_final_agent": "agent-0",
+      "best_initial_agent": "agent-0",
+      "budget_stops": 0,
+      "candidates": 28,
+      "complementarity_range": null,
+      "effective_allowance_usd": 0.42,
+      "elapsed_seconds": 1167.0280520915985,
+      "fully_valid_candidates": 26,
+      "hidden": 0.8815977175463623,
+      "inherited_usd": 0.0,
+      "integration_regret": 0.0014265335235377208,
+      "k": 1,
+      "matched": {
+       "0.14": {
+        "agent": "agent-0",
+        "candidates": 26,
+        "hidden": 0.8815977175463623,
+        "public": 0.898176291793313
+       },
+       "0.28": {
+        "agent": "agent-0",
+        "candidates": 28,
+        "hidden": 0.8815977175463623,
+        "public": 0.898176291793313
+       },
+       "0.42": {
+        "agent": "agent-0",
+        "candidates": 28,
+        "hidden": 0.8815977175463623,
+        "public": 0.898176291793313
+       }
+      },
+      "nudged": 1,
+      "oracle_hidden": 0.8801711840228246,
+      "public": 0.898176291793313,
+      "recorded_spent_usd": 0.19639075,
+      "spent_usd": 0.19639075,
+      "transport_failures": 0,
+      "turns": 39
+     }
+    },
+    "tsp": {
+     "independent": {
+      "agent_final_hidden": {
+       "agent-0": 0.9488508680983386,
+       "agent-1": 0.9554315686443485,
+       "agent-2": 0.9673747658221964
+      },
+      "agent_initial_hidden": {
+       "agent-0": 2.4883529075235766,
+       "agent-1": 0.9554315686443485,
+       "agent-2": 0.9752315221436536
+      },
+      "allowance_usd": 0.42,
+      "arm": "independent",
+      "best_final_agent": "agent-0",
+      "best_initial_agent": "agent-1",
+      "budget_stops": 2,
+      "candidates": 18,
+      "complementarity_range": 0.018523897723857763,
+      "effective_allowance_usd": 0.11145575000000002,
+      "elapsed_seconds": 597.7084338665009,
+      "fully_valid_candidates": 17,
+      "hidden": 0.9488508680983386,
+      "inherited_usd": 0.30854424999999996,
+      "integration_regret": 0.0005774005718122144,
+      "k": 3,
+      "matched": {
+       "0.14": {
+        "agent": "agent-0",
+        "candidates": 18,
+        "hidden": 0.9488508680983386,
+        "public": 0.9531013742384518
+       },
+       "0.28": {
+        "agent": "agent-0",
+        "candidates": 18,
+        "hidden": 0.9488508680983386,
+        "public": 0.9531013742384518
+       },
+       "0.42": {
+        "agent": "agent-0",
+        "candidates": 18,
+        "hidden": 0.9488508680983386,
+        "public": 0.9531013742384518
+       }
+      },
+      "nudged": 0,
+      "oracle_hidden": 0.9482734675265264,
+      "public": 0.9531013742384518,
+      "recorded_spent_usd": 0.40042662500000004,
+      "spent_usd": 0.091882375,
+      "transport_failures": 0,
+      "turns": 40
+     },
+     "shared": {
+      "agent_final_hidden": {
+       "agent-0": 0.9681478307134737,
+       "agent-1": 0.9681478307134737,
+       "agent-2": 0.9498487164348034
+      },
+      "agent_initial_hidden": {
+       "agent-0": 1.1188480312981939,
+       "agent-1": 0.9911103763290446,
+       "agent-2": 0.9860070449942023
+      },
+      "allowance_usd": 0.42,
+      "arm": "shared",
+      "best_final_agent": "agent-2",
+      "best_initial_agent": "agent-2",
+      "budget_stops": 3,
+      "candidates": 11,
+      "complementarity_range": 0.01829911427867026,
+      "effective_allowance_usd": 0.07187350000000003,
+      "elapsed_seconds": 318.602046251297,
+      "fully_valid_candidates": 11,
+      "hidden": 0.9498487164348034,
+      "inherited_usd": 0.34812649999999995,
+      "integration_regret": 0.0,
+      "k": 3,
+      "matched": {
+       "0.14": {
+        "agent": "agent-2",
+        "candidates": 11,
+        "hidden": 0.9498487164348034,
+        "public": 0.9497428677654247
+       },
+       "0.28": {
+        "agent": "agent-2",
+        "candidates": 11,
+        "hidden": 0.9498487164348034,
+        "public": 0.9497428677654247
+       },
+       "0.42": {
+        "agent": "agent-2",
+        "candidates": 11,
+        "hidden": 0.9498487164348034,
+        "public": 0.9497428677654247
+       }
+      },
+      "nudged": 0,
+      "oracle_hidden": 0.9498487164348034,
+      "public": 0.9497428677654247,
+      "record": {
+       "agents": [
+        {
+         "best_hidden_after": 0.9681478307134737,
+         "best_hidden_before": 0.9852340786313741,
+         "candidates_after": 1,
+         "candidates_after_improving_own_public_best": 1,
+         "candidates_before_first_peer_finding": 2,
+         "name": "agent-0",
+         "posted": 2,
+         "reads": 3,
+         "refused": 0
+        },
+        {
+         "best_hidden_after": 0.9681478307134737,
+         "best_hidden_before": 0.9911103763290446,
+         "candidates_after": 3,
+         "candidates_after_improving_own_public_best": 3,
+         "candidates_before_first_peer_finding": 1,
+         "name": "agent-1",
+         "posted": 2,
+         "reads": 2,
+         "refused": 0
+        },
+        {
+         "best_hidden_after": 0.9498487164348034,
+         "best_hidden_before": 0.9594730783806765,
+         "candidates_after": 2,
+         "candidates_after_improving_own_public_best": 2,
+         "candidates_before_first_peer_finding": 2,
+         "name": "agent-2",
+         "posted": 4,
+         "reads": 2,
+         "refused": 0
+        }
+       ],
+       "findings_delivered": 8,
+       "findings_posted": 8,
+       "reads": 7,
+       "reads_refused": 0,
+       "reads_with_new_findings": 5,
+       "receipts": 8
+      },
+      "recorded_spent_usd": 0.40562525000000005,
+      "spent_usd": 0.057498750000000015,
+      "transport_failures": 0,
+      "turns": 37
+     },
+     "solo": {
+      "agent_final_hidden": {
+       "agent-0": 0.9734104862690945
+      },
+      "agent_initial_hidden": {
+       "agent-0": 15.940015373829826
+      },
+      "allowance_usd": 0.42,
+      "arm": "solo",
+      "best_final_agent": "agent-0",
+      "best_initial_agent": "agent-0",
+      "budget_stops": 0,
+      "candidates": 23,
+      "complementarity_range": null,
+      "effective_allowance_usd": 0.348646875,
+      "elapsed_seconds": 1008.0711958408356,
+      "fully_valid_candidates": 22,
+      "hidden": 0.9734104862690945,
+      "inherited_usd": 0.07135312499999999,
+      "integration_regret": 0.0026533512402154846,
+      "k": 1,
+      "matched": {
+       "0.14": {
+        "agent": "agent-0",
+        "candidates": 23,
+        "hidden": 0.9734104862690945,
+        "public": 0.9699539343878344
+       },
+       "0.28": {
+        "agent": "agent-0",
+        "candidates": 23,
+        "hidden": 0.9734104862690945,
+        "public": 0.9699539343878344
+       },
+       "0.42": {
+        "agent": "agent-0",
+        "candidates": 23,
+        "hidden": 0.9734104862690945,
+        "public": 0.9699539343878344
+       }
+      },
+      "nudged": 0,
+      "oracle_hidden": 0.9707571350288791,
+      "public": 0.9699539343878344,
+      "recorded_spent_usd": 0.24367,
+      "spent_usd": 0.172316875,
+      "transport_failures": 1,
+      "turns": 24
+     }
+    },
+    "unrelated_machines": {
+     "independent": {
+      "agent_final_hidden": {
+       "agent-0": 0.7367864693446089,
+       "agent-1": 0.7346723044397463,
+       "agent-2": 0.7276250880902043
+      },
+      "agent_initial_hidden": {
+       "agent-0": 1.0,
+       "agent-1": 0.7441860465116279,
+       "agent-2": 0.7276250880902043
+      },
+      "allowance_usd": 0.42,
+      "arm": "independent",
+      "best_final_agent": "agent-2",
+      "best_initial_agent": "agent-2",
+      "budget_stops": 1,
+      "candidates": 58,
+      "complementarity_range": 0.009161381254404577,
+      "effective_allowance_usd": 0.42,
+      "elapsed_seconds": 943.6081278324127,
+      "fully_valid_candidates": 58,
+      "hidden": 0.7276250880902043,
+      "inherited_usd": 0.0,
+      "integration_regret": 0.0014094432699083281,
+      "k": 3,
+      "matched": {
+       "0.14": {
+        "agent": "agent-2",
+        "candidates": 22,
+        "hidden": 0.7276250880902043,
+        "public": 0.720946416144746
+       },
+       "0.28": {
+        "agent": "agent-2",
+        "candidates": 47,
+        "hidden": 0.7276250880902043,
+        "public": 0.720946416144746
+       },
+       "0.42": {
+        "agent": "agent-2",
+        "candidates": 58,
+        "hidden": 0.7276250880902043,
+        "public": 0.720946416144746
+       }
+      },
+      "nudged": 0,
+      "oracle_hidden": 0.726215644820296,
+      "public": 0.720946416144746,
+      "recorded_spent_usd": 0.35354925,
+      "spent_usd": 0.3535492499999999,
+      "transport_failures": 0,
+      "turns": 106
+     },
+     "shared": {
+      "agent_final_hidden": {
+       "agent-0": 0.7265680056377731,
+       "agent-1": 0.7265680056377731,
+       "agent-2": 0.726215644820296
+      },
+      "agent_initial_hidden": {
+       "agent-0": 0.8128964059196617,
+       "agent-1": 0.8865398167723749,
+       "agent-2": 0.8763213530655392
+      },
+      "allowance_usd": 0.42,
+      "arm": "shared",
+      "best_final_agent": "agent-2",
+      "best_initial_agent": "agent-0",
+      "budget_stops": 3,
+      "candidates": 32,
+      "complementarity_range": 0.00035236081747713754,
+      "effective_allowance_usd": 0.42,
+      "elapsed_seconds": 583.7690551280975,
+      "fully_valid_candidates": 31,
+      "hidden": 0.726215644820296,
+      "inherited_usd": 0.0,
+      "integration_regret": 0.0,
+      "k": 3,
+      "matched": {
+       "0.14": {
+        "agent": "agent-2",
+        "candidates": 14,
+        "hidden": 0.7311486962649754,
+        "public": 0.7251217814892137
+       },
+       "0.28": {
+        "agent": "agent-2",
+        "candidates": 25,
+        "hidden": 0.726215644820296,
+        "public": 0.721642310368824
+       },
+       "0.42": {
+        "agent": "agent-2",
+        "candidates": 32,
+        "hidden": 0.726215644820296,
+        "public": 0.721642310368824
+       }
+      },
+      "nudged": 0,
+      "oracle_hidden": 0.726215644820296,
+      "public": 0.721642310368824,
+      "record": {
+       "agents": [
+        {
+         "best_hidden_after": 0.7265680056377731,
+         "best_hidden_before": 0.8128964059196617,
+         "candidates_after": 14,
+         "candidates_after_improving_own_public_best": 13,
+         "candidates_before_first_peer_finding": 1,
+         "name": "agent-0",
+         "posted": 14,
+         "reads": 12,
+         "refused": 0
+        },
+        {
+         "best_hidden_after": 0.7265680056377731,
+         "best_hidden_before": 0.8865398167723749,
+         "candidates_after": 8,
+         "candidates_after_improving_own_public_best": 8,
+         "candidates_before_first_peer_finding": 1,
+         "name": "agent-1",
+         "posted": 6,
+         "reads": 7,
+         "refused": 0
+        },
+        {
+         "best_hidden_after": 0.726215644820296,
+         "best_hidden_before": 0.8763213530655392,
+         "candidates_after": 7,
+         "candidates_after_improving_own_public_best": 7,
+         "candidates_before_first_peer_finding": 1,
+         "name": "agent-2",
+         "posted": 8,
+         "reads": 5,
+         "refused": 0
+        }
+       ],
+       "findings_delivered": 50,
+       "findings_posted": 28,
+       "reads": 24,
+       "reads_refused": 0,
+       "reads_with_new_findings": 19,
+       "receipts": 28
+      },
+      "recorded_spent_usd": 0.3770152499999999,
+      "spent_usd": 0.3770152500000001,
+      "transport_failures": 0,
+      "turns": 116
+     },
+     "solo": {
+      "agent_final_hidden": {
+       "agent-0": 0.7357293868921776
+      },
+      "agent_initial_hidden": {
+       "agent-0": 1.0
+      },
+      "allowance_usd": 0.42,
+      "arm": "solo",
+      "best_final_agent": "agent-0",
+      "best_initial_agent": "agent-0",
+      "budget_stops": 0,
+      "candidates": 17,
+      "complementarity_range": null,
+      "effective_allowance_usd": 0.42,
+      "elapsed_seconds": 976.1197159290314,
+      "fully_valid_candidates": 17,
+      "hidden": 0.7357293868921776,
+      "inherited_usd": 0.0,
+      "integration_regret": 0.0014094432699084392,
+      "k": 1,
+      "matched": {
+       "0.14": {
+        "agent": "agent-0",
+        "candidates": 13,
+        "hidden": 0.7357293868921776,
+        "public": 0.7292971468336813
+       },
+       "0.28": {
+        "agent": "agent-0",
+        "candidates": 17,
+        "hidden": 0.7357293868921776,
+        "public": 0.7292971468336813
+       },
+       "0.42": {
+        "agent": "agent-0",
+        "candidates": 17,
+        "hidden": 0.7357293868921776,
+        "public": 0.7292971468336813
+       }
+      },
+      "nudged": 1,
+      "oracle_hidden": 0.7343199436222692,
+      "public": 0.7292971468336813,
+      "recorded_spent_usd": 0.20530587499999997,
+      "spent_usd": 0.20530587499999997,
+      "transport_failures": 0,
+      "turns": 46
+     }
+    }
+   }
+  }
+ },
+ "spent_usd": 6.52539625
+}
