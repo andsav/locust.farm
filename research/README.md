@@ -10,6 +10,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 - [Luna evidence collaboration: implemented study and execution protocol](experiments/evidence_collaboration/README.md)
 
 - [Nous profile transfer and communication: separate experiment](experiments/nous_transfer/README.md)
+- [Nous: Luna, Sonnet and mixed teams](experiments/nous_models/README.md)
 - [Nous transfer: completed Luna run results](experiments/nous_transfer/results-2026-10-08.md)
 
 - [Evidence collaboration: experiment design and task calibration](evidence-collaboration-study-design-2026-10-08.md)
