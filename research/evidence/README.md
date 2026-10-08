@@ -9,7 +9,7 @@ it. Sanitization does not imply rerunning a check or qualifying a newer artifact
 
 ## Experiment records
 
-- [Luna evidence-study run records](evidence-study-2026-10-08/README.md): initial allocation failure and retained model requests/responses.
+- [Luna evidence-study run records](evidence-study-2026-10-08/README.md): initial allocation failure, completed 40-family development, failed readiness gate, annotation audit and retained model requests/responses.
 
 - [Frozen evidence-study cohort](evidence-study-cohort-2026-10-08.json.gz): complete selected MuSiQue rows, split IDs and source fingerprints; [execution protocol](../experiments/evidence_collaboration/README.md).
 

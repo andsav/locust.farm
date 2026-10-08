@@ -7,6 +7,13 @@ divided work with private rechecking, and divided work with evidence exchange.
 It uses direct API calls, not Locust participants. No runtime/networking or market
 claim follows from this experiment.
 
+**Execution status:** the [40-family development run](../../evidence-collaboration-development-results-2026-10-08.md)
+is complete. The 48k configuration passed technical readiness, but no S/I
+configuration met its cost-matching rule. A qualitative source audit also found
+conflicts between some benchmark annotations and the evidence-sufficiency task.
+Main/repeat evaluation was not dispatched. Retained scores are development
+diagnostics, not confirmatory evidence of collaboration benefit or equivalence.
+
 ## Amendments frozen before live calls
 
 The complete official MuSiQue archive was downloaded, all ZIP entries passed CRC

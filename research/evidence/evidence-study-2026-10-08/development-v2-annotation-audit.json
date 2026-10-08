@@ -1,0 +1,341 @@
+{
+  "reviewer": "Codex assistant qualitative audit, not independent human adjudication",
+  "selection": "First three unique nonmatching affirmative candidates in frozen hash-ordered queue; arm and gold mapping not inspected before judgments. Not a representative failure-rate estimate.",
+  "queue_sha256": "f314e1667b52c903acf82120713d53e02c00ec4cd4544e9eb4555f446b4ff7a0",
+  "judgments": [
+    {
+      "review_id": "1275d1f5428b0f1b4f356beee269dd2ed28db926d6028ba80b85e394658b8e60",
+      "judgment": "supported",
+      "reason": "Documents 4 and 16 connect Spain top scorer David Villa to Barcelona; document 17 explicitly lists the 2009 sextuple. Answer is verbose but supported.",
+      "question": "What series of wins did the sports team that the all time highest goal scorer in spain national team was a member or achieve in 2009?",
+      "candidate_answer": "Barcelona completed the sextuple, winning La Liga, the Copa del Rey, the UEFA Champions League, the Spanish Super Cup, the UEFA Super Cup, and the FIFA Club World Cup in 2009.",
+      "candidate_support_ids": [
+        4,
+        16,
+        17
+      ],
+      "unblinded_mapping": [
+        {
+          "case_id": "3hop1__92788_648104_13493/1/r0",
+          "config": "I_24000",
+          "gold_answerable": true,
+          "gold_answer": "continental treble",
+          "gold_aliases": [],
+          "gold_support_ids": [
+            4,
+            16,
+            17
+          ]
+        }
+      ]
+    },
+    {
+      "review_id": "9f9f03826bec762bc2a6d19387140b6f32ba0ad88fab9372b26b7974e14fd5b6",
+      "judgment": "plausible_derived",
+      "reason": "Documents 19 and 17 connect Man in Space Soonest to the US Air Force and Israel. Document 2 states 6 million Jews are 75.4% of population, yielding about 7.96 million. Approximate answer is arithmetically supported, but not an exact quoted span.",
+      "question": "The population of the country that worked with the outfit behind Man in Space Soonest numbers how much?",
+      "candidate_answer": "about 8 million",
+      "candidate_support_ids": [
+        19,
+        17,
+        2
+      ],
+      "unblinded_mapping": [
+        {
+          "case_id": "3hop1__6362_14336_21111/1/r0",
+          "config": "S_direct_48000",
+          "gold_answerable": true,
+          "gold_answer": "6 million",
+          "gold_aliases": [],
+          "gold_support_ids": [
+            2,
+            17,
+            19
+          ]
+        }
+      ]
+    },
+    {
+      "review_id": "d6a3d9185026696a340578366f676fe1be28358c18e2265f583297ba336a9c7f",
+      "judgment": "supported_with_question_typo",
+      "reason": "Document 12 names Abuse of Reason rather than the question's Abuse of power, and places it in WWII. Documents 5 and 9 establish the permanent members and veto. Candidate gives the explicitly named countries and a valid alternate support route.",
+      "question": "Who holds veto power in the organization that the victors of the conflict active when Hayek began \"Abuse of power\" were given permanent seats in.",
+      "candidate_answer": "The permanent members of the UN Security Council: Russia, the United Kingdom, France, China, and the United States.",
+      "candidate_support_ids": [
+        12,
+        5,
+        9
+      ],
+      "unblinded_mapping": [
+        {
+          "case_id": "3hop1__30390_36635_87083/1/r0",
+          "config": "S_direct_48000",
+          "gold_answerable": true,
+          "gold_answer": "permanent members of the United Nations Security Council",
+          "gold_aliases": [
+            "United Nations Security Council",
+            "UN Security Council"
+          ],
+          "gold_support_ids": [
+            5,
+            12,
+            18
+          ]
+        }
+      ]
+    }
+  ],
+  "primary_labels_changed": false,
+  "post_unblinding_observations": [
+    "The Barcelona annotation selects continental treble; the candidate names all six documented trophies. The question asks generally for a series of wins, so this is a plausible supported answer excluded by exact matching.",
+    "The Israel annotation gives 6 million, although the supporting paragraph says this is the Jewish population, 75.4% of the total. The candidate estimates the total instead.",
+    "The Security Council candidate names the permanent members and uses an alternative paragraph explicitly describing their veto. Both answer phrasing and the exact support set differ from annotation."
+  ],
+  "abstention_diagnostic": {
+    "blinded": false,
+    "selection": "First four complete-evidence abstentions by S_direct_48000, sorted by SHA-256 of case ID. Gold/support and model record inspected together.",
+    "eligible_count": 22,
+    "cases": [
+      {
+        "case_id": "4hop1__370129_621192_10659_59955/1/r0",
+        "job_id": "4hop1__370129_621192_10659_59955/1/r0/S_direct_48000/final/0",
+        "question": "What country is between Lithuania and the country many expelled French Jews relocated to, along with the country of citizenship of Marie Antoinette's mother?",
+        "gold_answer": "Kaliningrad Oblast",
+        "model_output": {
+          "answerable": false,
+          "answer": "",
+          "support_ids": [
+            2,
+            16,
+            17,
+            8
+          ],
+          "evidence": [
+            {
+              "doc_id": 2,
+              "quote": "many Jews emigrated eastwards, settling in Poland and Hungary."
+            },
+            {
+              "doc_id": 16,
+              "quote": "a Russian exclave between Poland and Lithuania on the Baltic Sea."
+            },
+            {
+              "doc_id": 17,
+              "quote": "youngest daughter of Empress Maria Theresa"
+            },
+            {
+              "doc_id": 8,
+              "quote": "to queen Maria Theresa of Hungary"
+            }
+          ],
+          "missing_links": [
+            "The documents do not establish the citizenship of Marie Antoinette\u2019s mother; being described as Queen of Hungary does not establish citizenship."
+          ],
+          "conflicts": [],
+          "changed_by": [],
+          "confidence": 0.94
+        },
+        "annotated_support": [
+          {
+            "id": 2,
+            "title": "Middle Ages",
+            "text": "Jewish communities were expelled from England in 1290 and from France in 1306. Although some were allowed back into France, most were not, and many Jews emigrated eastwards, settling in Poland and Hungary. The Jews were expelled from Spain in 1492, and dispersed to Turkey, France, Italy, and Holland. The rise of banking in Italy during the 13th century continued throughout the 14th century, fuelled partly by the increasing warfare of the period and the needs of the papacy to move money between kingdoms. Many banking firms loaned money to royalty, at great risk, as some were bankrupted when kings defaulted on their loans.[AE]"
+          },
+          {
+            "id": 8,
+            "title": "C\u00e9sar Gabriel de Choiseul",
+            "text": "After having served in the Army, he was appointed in 1756 ambassador in Vienna, to emperor Francis I and to queen Maria Theresa of Hungary. In 1761, he was plenipotentiary to the Augsburg convention."
+          },
+          {
+            "id": 16,
+            "title": "Kaliningrad",
+            "text": "Kaliningrad (Russian: \u041a\u0430\u043b\u0438\u043d\u0438\u043d\u0433\u0440\u0430\u0434, IPA: (k\u0259lj\u026anj\u026an\u02c8\u0261rat); former German name: K\u00f6nigsberg; Yiddish: \u05e7\u05e2\u05e0\u05d9\u05d2\u05e1\u05d1\u05e2\u05e8\u05d2, Kenigsberg; Russian: \u041a\u0451\u043d\u0438\u0433\u0441\u0431\u0435\u0440\u0433, tr. Kyonigsberg; Old Prussian: Twangste, Kunnegsgarbs, Knigsberg) is the administrative center of Kaliningrad Oblast, a Russian exclave between Poland and Lithuania on the Baltic Sea."
+          },
+          {
+            "id": 17,
+            "title": "Florimond Claude, Comte de Mercy-Argenteau",
+            "text": "He was born in Li\u00e8ge, Belgium, to Antoine, comte de Mercy-Argenteau, and entered the diplomatic service of Austria in Paris in the train of Reichsf\u00fcrst Kaunitz. He became Austrian minister in Turin at the court of King Charles Emmanuel III of Sardinia, in St. Petersburg at the court of Catherine the Great, and then Paris at the court of King Louis XV of France in 1766. In Paris, his first work was to strengthen the alliance between France and Austria, which was cemented in 1770 by the marriage of the dauphin, afterwards Louis XVI, with Archduchess Maria Antonia of Austria, youngest daughter of Empress Maria Theresa, afterwards known as Queen Marie Antoinette. When Louis and Marie Antoinette ascended the throne of France in 1774, Mercy-Argenteau became one of the most powerful personages at the French court due to his influence over Marie-Antoinette, which made her unpopular with the French nobility and French people. He was in Paris during the turbulent years that led up to the French Revolution, and gave powerful aid to the finance ministers Lom\u00e9nie de Brienne and Necker. In 1792, he became governor-general of the Austrian Netherlands, which had just been reduced to obedience by Austria. There, his ability and experience made him a very successful ruler. Although at first in favor of moderate courses, Mercy-Argenteau supported the action of Austria in making war upon its former ally after the outbreak of the French Revolution, and in July 1794, he was appointed Austrian ambassador to Britain, but he died a few days after his arrival in London."
+          }
+        ],
+        "assessment": "The question asks for a country, whereas the annotated answer is a Russian oblast. It also substitutes citizenship for being queen of Hungary. The model located all four annotated paragraphs and rejected the citizenship inference."
+      },
+      {
+        "case_id": "4hop3__773800_152874_161616_77103/1/r0",
+        "job_id": "4hop3__773800_152874_161616_77103/1/r0/S_direct_48000/final/0",
+        "question": "When did the city the 2010 Sony Ericsson Open \u2013 Men's Singles winner is from become the capitol of the state Knowles is from?",
+        "gold_answer": "1839",
+        "model_output": {
+          "answerable": false,
+          "answer": "",
+          "support_ids": [
+            3,
+            5,
+            13
+          ],
+          "evidence": [
+            {
+              "doc_id": 5,
+              "quote": "Andy Roddick beat Tom\u00e1\u0161 Berdych 7\u20135, 6\u20134 to win"
+            },
+            {
+              "doc_id": 13,
+              "quote": "Though she is from Texas"
+            },
+            {
+              "doc_id": 3,
+              "quote": "By 1839, Waterloo would adopt the name Austin and become the capital of the Republic of Texas."
+            }
+          ],
+          "missing_links": [
+            "The documents do not establish which city Andy Roddick is from.",
+            "The capital statement is about the Republic of Texas, not explicitly the state of Texas."
+          ],
+          "conflicts": [],
+          "changed_by": [],
+          "confidence": 0.98
+        },
+        "annotated_support": [
+          {
+            "id": 3,
+            "title": "History of Austin, Texas",
+            "text": "The recorded history of Austin, Texas, began in the 1830s when Anglo - American settlers arrived in Central Texas. In 1837 settlers founded the village of Waterloo on the banks of the Colorado River, the first permanent settlement in the area. By 1839, Waterloo would adopt the name Austin and become the capital of the Republic of Texas."
+          },
+          {
+            "id": 4,
+            "title": "Andy Roddick",
+            "text": "In 2015, Roddick played for the Austin Aces in World Team Tennis. This was his eighth season in World Team Tennis and the fifth team for which he has played. He was also the 2015 Champion of the QQQ Champions Series; a feat that he repeated again in 2017."
+          },
+          {
+            "id": 5,
+            "title": "2010 Sony Ericsson Open \u2013 Men's Singles",
+            "text": "Andy Roddick beat Tom\u00e1\u0161 Berdych 7\u20135, 6\u20134 to win his first Masters 1000 event since 2006. It was his second title at the Sony Ericsson Open and his second title of 2010."
+          },
+          {
+            "id": 13,
+            "title": "Suga Mama",
+            "text": "The accompanying music video for \"Suga Mama\" was released to British music channels in April 2007. It was shot in black-and-white and was co-directed by Melina Matsoukas alongside Knowles for the B'Day Anthology Video Album, which was released the same month; \"Suga Mama\" was one of eight videos shot in two weeks for the video album. It begins with Knowles sitting in a chair, wearing men's clothing and smoking a cigar. She gets up and begins to pole dance. The remainder of the video presents Knowles dancing on top of a sugar cube, dancing with backing dancers whose faces are partially concealed, lying in a circle of light, and riding a mechanical bull. Knowles said she is meant to \"slowly become a woman\" during the video, adding \"Well, a sexier woman \u2013 I'm always a woman.\"Knowles rehearsed the pole dancing using two ballet bars, which was when it was decided to add a pole above her head to form an arc. Though she is from Texas, she had never previously been on mechanical bull. There were no problems during warm-ups, but the man operating the bull during the video shoot programmed it to go faster, causing Knowles to fall off when she tried to perform tricks such as lifting up her foot, leaning back and turning around. To minimize the time Knowles spent on the bull, the director shot the sequence at twelve frames per second (see frame rate) and Knowles sang twice as quickly, but it wasn't until 4:00 am that they completed work."
+          }
+        ],
+        "assessment": "The only annotated Andy Roddick paragraph establishes that he played for the Austin Aces, not that he is from Austin. The model identifies this missing hometown link. The date paragraph describes the Republic of Texas, while the question says state."
+      },
+      {
+        "case_id": "3hop1__305282_282081_73772/1/r0",
+        "job_id": "3hop1__305282_282081_73772/1/r0/S_direct_48000/final/0",
+        "question": "When was the start of the battle of the birthplace of the performer of III?",
+        "gold_answer": "December 14, 1814",
+        "model_output": {
+          "answerable": false,
+          "answer": "",
+          "support_ids": [
+            7,
+            19,
+            17
+          ],
+          "evidence": [
+            {
+              "doc_id": 7,
+              "quote": "\"III\" features keyboardist Robert Walter and guitarist Will Bernard"
+            },
+            {
+              "doc_id": 19,
+              "quote": "second solo album of New Orleans drummer Stanton Moore"
+            },
+            {
+              "doc_id": 17,
+              "quote": "fought between December 14, 1814 and January 18, 1815"
+            }
+          ],
+          "missing_links": [
+            "The documents do not establish that Stanton Moore was born in New Orleans; being described as a New Orleans drummer does not establish his birthplace."
+          ],
+          "conflicts": [],
+          "changed_by": [],
+          "confidence": 0.97
+        },
+        "annotated_support": [
+          {
+            "id": 7,
+            "title": "III (Stanton Moore album)",
+            "text": "III is Stanton Moore's third studio solo album released 2006. As each of Moore's solo albums have had unique character, \"III\" features keyboardist Robert Walter and guitarist Will Bernard for a 1970s-like soul funk with a \"sense of authenticity\" as \"artists who live it.\""
+          },
+          {
+            "id": 17,
+            "title": "Battle of New Orleans",
+            "text": "The Battle of New Orleans was a series of engagements fought between December 14, 1814 and January 18, 1815, constituting the last major battle of the War of 1812. American combatants, commanded by Major General Andrew Jackson, prevented a much larger British force, commanded by Admiral Alexander Cochrane and General Edward Pakenham, from seizing New Orleans and the vast territory the United States had acquired with the Louisiana Purchase."
+          },
+          {
+            "id": 19,
+            "title": "Flyin' the Koop",
+            "text": "Flyin' the Koop is the second solo album by New Orleans drummer Stanton Moore. The album includes funk, rock and jazz. Moore's line-up for \"Flyin' the Koop\" is in part a combination of musicians with whom he played at a \"SuperJam\" at Tipitina's during Jazz Fest 2000."
+          }
+        ],
+        "assessment": "The annotated source calls Stanton Moore a New Orleans drummer; it does not establish New Orleans as his birthplace. The model identified the other links and rejected this substitution."
+      },
+      {
+        "case_id": "4hop3__373866_5189_276146_86687/1/r0",
+        "job_id": "4hop3__373866_5189_276146_86687/1/r0/S_direct_48000/final/0",
+        "question": "A country was in effective control of both political and military functions of the organization the People's Socialist Republic of Albania belonged to. When did this country agree to a unified Germany inside the organization that ran an annual event called Exercise Reforger?",
+        "gold_answer": "May 1990",
+        "model_output": {
+          "answerable": false,
+          "answer": "",
+          "support_ids": [
+            5,
+            8,
+            1,
+            15
+          ],
+          "evidence": [
+            {
+              "doc_id": 5,
+              "quote": "All member countries, with the exception of the Socialist Republic of Romania and the People's Republic of Albania participated in the invasion."
+            },
+            {
+              "doc_id": 8,
+              "quote": "the USSR dominated the Warsaw Treaty armed forces."
+            },
+            {
+              "doc_id": 1,
+              "quote": "Exercise Campaign Reforger ... was an annual exercise and campaign conducted, during the Cold War, by NATO."
+            },
+            {
+              "doc_id": 15,
+              "quote": "In May 1990 he repeated his remark in the context of NATO membership"
+            }
+          ],
+          "missing_links": [
+            "The documents do not establish that the USSR controlled the Warsaw Pact's political functions.",
+            "The May 1990 statement permits Germany to choose its alignments, but does not explicitly establish Soviet agreement to a unified Germany inside NATO."
+          ],
+          "conflicts": [],
+          "changed_by": [],
+          "confidence": 0.95
+        },
+        "annotated_support": [
+          {
+            "id": 0,
+            "title": "Hero of Socialist Labour (Albania)",
+            "text": "Hero of Socialist Labour () was an honorary title in Albania and other Warsaw Pact countries. It was the highest degree of distinction for exceptional achievements in national economy and culture. It provided a similar status to the title People's Hero of Albania that was awarded for heroic deeds, but unlike the latter, was awarded to citizens who contributed to the development of Albania's industry, agriculture, transportation, trade, science and technology and promoted the might and the glory of Albania."
+          },
+          {
+            "id": 1,
+            "title": "Exercise Reforger",
+            "text": "Exercise Campaign Reforger (from return of forces to Germany) was an annual exercise and campaign conducted, during the Cold War, by NATO. The exercise was intended to ensure that NATO had the ability to quickly deploy forces to West Germany in the event of a conflict with the Warsaw Pact. Although most troops deployed were from the United States, the operation also involved a substantial number of troops from other NATO countries including Canada and the United Kingdom."
+          },
+          {
+            "id": 8,
+            "title": "Warsaw Pact",
+            "text": "The Warsaw Treaty's organization was two-fold: the Political Consultative Committee handled political matters, and the Combined Command of Pact Armed Forces controlled the assigned multi-national forces, with headquarters in Warsaw, Poland. Furthermore, the Supreme Commander of the Unified Armed Forces of the Warsaw Treaty Organization which commands and controls all the military forces of the member countries was also a First Deputy Minister of Defense of the USSR, and the Chief of Combined Staff of the Unified Armed Forces of the Warsaw Treaty Organization was also a First Deputy Chief of the General Staff of the Armed Forces of the USSR. Therefore, although ostensibly an international collective security alliance, the USSR dominated the Warsaw Treaty armed forces."
+          },
+          {
+            "id": 15,
+            "title": "German reunification",
+            "text": "Horst Teltschik, Kohl's foreign policy advisor, later recalled that Germany would have paid ``100 billion deutschmarks ''if the Soviets demanded it. The USSR did not make such great demands, however, with Gorbachev stating in February 1990 that`` The Germans must decide for themselves what path they choose to follow''. In May 1990 he repeated his remark in the context of NATO membership while meeting Bush, amazing both the Americans and Germans. This removed the last significant roadblock to Germany being free to choose its international alignments, though Kohl made no secret that he intended for the reunified Germany to inherit West Germany's seats in NATO and the EC."
+          }
+        ],
+        "assessment": "The annotated Warsaw Pact paragraph establishes Soviet military domination but not explicit political control. The May 1990 paragraph supports a permissive-alignment interpretation; the model may be overly literal about agreement. This is an interpretation-sensitive case, not a definitive invalid-label ruling."
+      }
+    ]
+  },
+  "limitations": "Seven selected diagnostic examples, including related mismatch candidates rather than a random sample of all families. This does not estimate dataset-wide annotation error or establish corrected scores. Primary scores and labels are unchanged. No main/repeat model outputs were generated."
+}

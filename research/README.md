@@ -7,6 +7,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 
 ## Investigations and experiments
 
+- [Evidence collaboration: completed development and failed qualification](evidence-collaboration-development-results-2026-10-08.md)
 - [Luna evidence collaboration: implemented study and execution protocol](experiments/evidence_collaboration/README.md)
 
 - [Nous profile transfer and communication: separate experiment](experiments/nous_transfer/README.md)
