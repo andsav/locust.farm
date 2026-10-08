@@ -312,10 +312,19 @@ pub fn observe(call: &OwnCall, instance: InstanceId, marks: &mut Marks) -> bool 
     ) {
         marks.worker = true;
     }
-    // A start without a task that found nothing to take is answered with
-    // pending work, not a claim, and signed nothing: it is no progress either.
-    let started_nothing = operation.name == "attempt.start" && call.action == OwnAction::Other;
-    if !operation.read_only && !STOP_RULE_NEUTRAL.contains(&operation.name) && !started_nothing {
+    // Two answers to a start sign nothing, so they are no progress either:
+    // pending work, when a start without a task found nothing to take, and a
+    // claim this chat already knows at the same generation, which a start
+    // without a task returns while the session holds it.
+    let signed_nothing = match call.action {
+        OwnAction::Other => operation.name == "attempt.start",
+        OwnAction::Claimed(claim) => marks
+            .goals
+            .get(&claim.goal)
+            .is_some_and(|baseline| baseline.claims.contains(&claim)),
+        _ => false,
+    };
+    if !operation.read_only && !STOP_RULE_NEUTRAL.contains(&operation.name) && !signed_nothing {
         // A write is progress: work shown before it may block once more.
         // A held claim stays shown until its generation changes, so a
         // progress note on the claim does not block its own turn end again.
@@ -944,6 +953,46 @@ mod tests {
         started.action = OwnAction::Claimed(claim(4, InstanceId([2; 16])));
         assert!(observe(&started, &mut marks));
         assert!(decide(STOP, &work, &mut marks).keep_going);
+    }
+
+    #[test]
+    fn a_start_that_returns_the_held_claim_does_not_block_its_turn_end_again() {
+        let held = claim(3, InstanceId([2; 16]));
+        let work = snapshot(PendingWork {
+            claimed: vec![held],
+            to_start: vec![WorkItem {
+                task: TaskId::Authored(EventId([4; 32])),
+                offer: None,
+                attempting: vec![],
+                results: 0,
+                unattended: true,
+            }],
+            ..PendingWork::default()
+        });
+        // In the person's own chat, so a worker can end its turn to ask.
+        let stop = Event::Stop { unattended: false };
+        let mut marks = participant(true);
+        assert!(decide(stop.clone(), &work, &mut marks).keep_going);
+        // Obeying the line with no task returns the held claim, which signs
+        // nothing, so the free task already shown does not block again.
+        for (id, operation) in [
+            ("next-1", "attempt.start"),
+            ("next-2", "attempt.start"),
+            ("same-generation", "attempt.takeover"),
+        ] {
+            let mut again = call(id, operation);
+            again.action = OwnAction::Claimed(held);
+            assert!(observe(&again, &mut marks));
+            assert_eq!(decide(stop.clone(), &work, &mut marks), Outcome::default());
+        }
+        // A new generation is progress.
+        let mut taken = call("new-generation", "attempt.takeover");
+        taken.action = OwnAction::Claimed(Claim {
+            generation: 2,
+            ..held
+        });
+        assert!(observe(&taken, &mut marks));
+        assert!(decide(stop, &work, &mut marks).keep_going);
     }
 
     #[test]

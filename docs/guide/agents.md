@@ -97,8 +97,9 @@ A chat that started, asked to start or took over an attempt, or called `locust_w
 one `Locust:` line when it stops with work waiting. The line contains counts,
 IDs and tool names. The chat acts through its MCP tools. If it ignores the line,
 stopping again goes through until a new work ID arrives or that chat writes to
-Locust. Reading context, acknowledging it and a start without a task that found
-nothing to take are not writes for this rule, and
+Locust. Reading context, acknowledging it and a start that took nothing new
+(it found no free task, or returned an attempt the chat already holds) are not
+writes for this rule, and
 an attempt the chat was already told it holds does not hold it again after a
 progress note, so a worker can always end its turn to ask its owner. Other
 chats are only reminded of attempts held by their session.
