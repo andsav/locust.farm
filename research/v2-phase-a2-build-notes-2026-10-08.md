@@ -1,7 +1,7 @@
 # Locust v2 A2: start the next task
 
-Status: implemented in `47379f9`; the required checks and the exit drill
-passed, except five `check_docs.py` lines that fail on the base commit too
+Status: implemented in `f1e00cf`, on top of G2 (`47379f9` before the rebase
+below); the required checks and the exit drill passed, except five `check_docs.py` lines that fail on the base commit too
 (see Verification). This is
 phase A2 of the [agent memory and store plan](../docs/agent-memory-and-store-plan.md)
 (section "A2: Start the next task"), one of the phases alongside the fifteen
@@ -159,7 +159,7 @@ task. Passed:
 
 ## Verification
 
-On `47379f9`, Python 3.13:
+On `47379f9`, before the rebase onto G2, Python 3.13:
 
 - `cargo fmt --all --check`: clean.
 - `cargo clippy --locked --workspace --all-targets -- -D warnings`: clean.
@@ -185,20 +185,21 @@ On `47379f9`, Python 3.13:
 
 The [review of A2 and S1b](v2-side-a2-s1b-review-2026-10-08.md) found three
 A2 defects, none blocking. All three are fixed on `side/a2`, after S1b's two
-commits were cherry-picked onto it (`f015564`, `e82cd8c`; the master plan's
+commits were cherry-picked onto it (now `0b025a8`, `bee405d`; the master plan's
 pieces table now reads "A1, A2, A3 and S1"). Review numbers are its headings.
 
 | # | Finding | Disposition | Commit | Test or text | Note |
 | --- | --- | --- | --- | --- | --- |
-| 1 | A start without a task that returns the held claim re-arms the stop block | Fixed | `01bbf6e` | `a_start_that_returns_the_held_claim_does_not_block_its_turn_end_again` ([core.rs](../crates/locust-adapter/src/hooks/core.rs)); the Hooks section of the [agents guide](../docs/guide/agents.md) | `observe` treats an `attempt.start` or `attempt.takeover` answered with a claim already in the chat's baseline at the same generation as no write, beside the pending answer. The test obeys the free-task line twice with no task and once by a takeover at the same generation, in a person's chat; it fails without the fix. A new generation still counts. The review's optional change to the free-task line was not made: the skill says to finish a held claim first, and a line naming the task would start a second attempt beside it. |
-| 2 | The skill tells an agent to "finish" a returned claim whose cancellation is waiting | Fixed | `a079e67` | `a_claim_returned_with_its_cancellation_waiting_is_acknowledged_first` ([mcp tests](../crates/locust/src/mcp/tests.rs)); [SKILL.md](../skills/locust/SKILL.md) | The review's sentence: "finish and report it first, or, when `locust_pending` lists a cancellation for it, acknowledge that first." |
-| 3 | An older skill sentence says an agent need not request the next task | Fixed | `a079e67` | `the_skill_never_says_an_agent_need_not_ask_for_its_next_task` | Now "an agent need not open a flow's next task itself", the review's words. |
+| 1 | A start without a task that returns the held claim re-arms the stop block | Fixed | `4b0d11b` | `a_start_that_returns_the_held_claim_does_not_block_its_turn_end_again` ([core.rs](../crates/locust-adapter/src/hooks/core.rs)); the Hooks section of the [agents guide](../docs/guide/agents.md) | `observe` treats an `attempt.start` or `attempt.takeover` answered with a claim already in the chat's baseline at the same generation as no write, beside the pending answer. The test obeys the free-task line twice with no task and once by a takeover at the same generation, in a person's chat; it fails without the fix. A new generation still counts. The review's optional change to the free-task line was not made: the skill says to finish a held claim first, and a line naming the task would start a second attempt beside it. |
+| 2 | The skill tells an agent to "finish" a returned claim whose cancellation is waiting | Fixed | `16e05b5` | `a_claim_returned_with_its_cancellation_waiting_is_acknowledged_first` ([mcp tests](../crates/locust/src/mcp/tests.rs)); [SKILL.md](../skills/locust/SKILL.md) | The review's sentence: "finish and report it first, or, when `locust_pending` lists a cancellation for it, acknowledge that first." |
+| 3 | An older skill sentence says an agent need not request the next task | Fixed | `16e05b5` | `the_skill_never_says_an_agent_need_not_ask_for_its_next_task` | Now "an agent need not open a flow's next task itself", the review's words. |
 
 Finding 4 is S1b's, recorded in its
-[build notes](v2-phase-s1b-build-notes-2026-10-08.md); finding 5 waits for G2.
+[build notes](v2-phase-s1b-build-notes-2026-10-08.md), and so is finding 5,
+fixed after G2 landed.
 
-Verification, on the tree of `32ec5a5` (all three fix commits and S1b's
-finding 4): `cargo fmt --all --check` clean; workspace clippy with
+Verification, before the rebase, on the tree of `32ec5a5` (all three fix
+commits and S1b's finding 4): `cargo fmt --all --check` clean; workspace clippy with
 `-D warnings` clean; `cargo test --locked --workspace` 39 suites, 1,365
 passed, 0 failed, 12 ignored; `cargo build --locked -p locust`, then
 `check_formations.py` verifies with the contract unchanged;
@@ -206,3 +207,37 @@ passed, 0 failed, 12 ignored; `cargo build --locked -p locust`, then
 335 with 10 skipped, OK; `check_docs.py` prints only the five baseline lines.
 The full set ran once on that final tree; each fix commit ran its own new
 tests, and each new test was seen to fail without its fix.
+
+### After the rebase onto G2
+
+`side/a2` was rebased onto `claude/great-mayer-24qjuv` at `a2cde40` (G2). The
+commit hashes above are the rebased ones; the verification paragraphs before
+this one ran before the rebase. Conflicts, each resolved by keeping both
+sides:
+
+- `INSTRUCTIONS` in [mcp.rs](../crates/locust/src/mcp.rs): A2's attempt
+  sentence, then G2's `read_only` sentence, in the plan's order A3, A2, A4,
+  G2.
+- [SKILL.md](../skills/locust/SKILL.md): A2's paragraph, then G2's
+  `read_only` paragraph, both after A1's ordering paragraph.
+- `research/README.md`: G2's notes, then these.
+- `docs/guide/operations.md` (S1b's commit): G2's Backups section, then
+  S1b's "If the daemon will not start". S1b's "Restoring a copy is
+  untested." is dropped, since G2's Backups now describes restoring a copy;
+  S1b's link to `#backups` still matches the heading.
+- The runtime contract merged as text; regenerated at A2's commit with
+  `cargo build --locked -p locust` and `check_formations.py --write`, it was
+  byte-identical.
+
+Then S1b's finding 5 was fixed and its starting-over sentence aligned with
+G2's lost-goals line; see the S1b
+[build notes](v2-phase-s1b-build-notes-2026-10-08.md#after-the-review).
+
+Verification on the tip `4061862`, Python 3.13: `cargo fmt --all --check`
+clean; workspace clippy with `-D warnings` clean; `cargo test --locked
+--workspace` 39 suites, 1,386 passed, 0 failed, 12 ignored; `cargo build
+--locked -p locust`, then `check_formations.py` verifies; `check_documentation.py`
+passes all four recipes; the Python helper tests ran 335 with 10 skipped, OK;
+`check_docs.py` prints only the five baseline lines. The A2 exit drill and the
+held-database drill (exit 8, "Close it, then start again.") passed again on
+the tip's binary.

@@ -127,7 +127,8 @@ one stays byte-identical, which the plan listed as unverified.
   pattern predates G1 (`82cabad`, `1f23a0e`); G1 added the guard's call to
   it. Fixing it means changing `Node::open`'s error mapping in
   `node/mod.rs`, which G2 may be editing for `lost_goals`, so it is left; the
-  next step printed after it is right.
+  next step printed after it is right. Fixed after G2 landed (review finding 5,
+  below).
 - The state directory's other refusals in home.rs (cannot be created, open
   to others, not a directory, a damaged owner credential, a socket path too
   long) keep their texts: the plan names only the lock sentence there.
@@ -169,7 +170,7 @@ Linux 6.18 on ext4, rustc 1.96.1, Python 3.13.
 
 ## Commits
 
-- `f015564` (`bcaa62f` on `side/s1b`, cherry-picked onto `side/a2`): the
+- `0b025a8` (`bcaa62f` on `side/s1b`, cherry-picked onto `side/a2` and rebased onto G2): the
   sentences, `MarksNotPrivate`, the guide section and the tests.
 - The commit containing these notes adds their index entry and marks S1
   built in the master plan; its hash is reported with the handoff.
@@ -178,13 +179,24 @@ Linux 6.18 on ext4, rustc 1.96.1, Python 3.13.
 
 The [review of A2 and S1b](v2-side-a2-s1b-review-2026-10-08.md) found two S1b
 defects, none blocking. S1b's commits were cherry-picked onto `side/a2`
-(`f015564`, `e82cd8c`), where finding 4 is fixed. Review numbers are its
-headings.
+(now `0b025a8`, `bee405d`, after the rebase onto G2), where findings 4 and 5
+are fixed. Review numbers are its headings.
 
 | # | Finding | Disposition | Commit | Test or text | Note |
 | --- | --- | --- | --- | --- | --- |
-| 4 | A program holding the database is reported as a storage failure, not as in use | Fixed | `32ec5a5` | `a_database_another_program_has_open_is_in_use` ([store tests](../crates/locust-store/src/tests.rs)), `a_database_another_program_has_open_says_to_close_it` ([open tests](../crates/locust/src/daemon/open_tests.rs)) | Under the exclusive lock the first access was `schema::check`, whose error became `Failed`. [connection.rs](../crates/locust-store/src/connection.rs) now reads once with the preflight's lock-aware mapping (`first_read`, `in_use`) before it. Both tests hold `locust.db` with an ordinary rusqlite connection that read `user_version`, as an `sqlite3` shell does, and fail without the fix; the daemon test checks the whole message and exit 8. `rusqlite` is a dev-dependency of `locust` for it. By hand, a daemon started while Python's `sqlite3` held the database printed "… open. Close it, then start again." and exited 8. |
-| 5 | `Node::open` still turns guard, settle and flow errors into `Failed` | Deferred | | | Left until G2 has landed, as under "Not done, and why"; the orchestrator will ask for it then. |
+| 4 | A program holding the database is reported as a storage failure, not as in use | Fixed | `8dc8f9c` | `a_database_another_program_has_open_is_in_use` ([store tests](../crates/locust-store/src/tests.rs)), `a_database_another_program_has_open_says_to_close_it` ([open tests](../crates/locust/src/daemon/open_tests.rs)) | Under the exclusive lock the first access was `schema::check`, whose error became `Failed`. [connection.rs](../crates/locust-store/src/connection.rs) now reads once with the preflight's lock-aware mapping (`first_read`, `in_use`) before it. Both tests hold `locust.db` with an ordinary rusqlite connection that read `user_version`, as an `sqlite3` shell does, and fail without the fix; the daemon test checks the whole message and exit 8. `rusqlite` is a dev-dependency of `locust` for it. By hand, a daemon started while Python's `sqlite3` held the database printed "… open. Close it, then start again." and exited 8. |
+| 5 | `Node::open` still turns guard, settle and flow errors into `Failed` | Fixed after G2 landed | `3eb488f` | `a_failure_while_opening_keeps_its_kind_and_is_worded_once` ([failure tests](../crates/locust-core/src/node/tests/failure.rs)) | `settling` in [node/mod.rs](../crates/locust-core/src/node/mod.rs) turns an API error met by `guard_start`, `land_once` or `drive_flow` back into the store error it came from: `corrupted` becomes `Corrupted`, `internal` becomes `Failed`, each with its text once. So damaged data met at the guard's first commit gets the move-aside step and exit 11, and a failed medium reads "storage failed: X" once. Any other code stays `Failed` and keeps its code in the text. The failure tests' store can now inject damaged data; the test reaches the guard's commit by changing the file's reported creation time, and fails without the fix (`Failed("corrupted: stored data is corrupted: …")`). |
 
-Verification is that of the A2 fixes, on the same tree, in the A2
-[build notes](v2-phase-a2-build-notes-2026-10-08.md#after-the-review).
+**One word for a joined goal.** S1b's starting-over sentence said goals you
+joined "need a new invitation"; G2 prints the host safety plan's G-6 line, "A
+goal you joined needs its ticket again." The store plan gives S1b's words as
+"need a new invitation" but says they were checked against the lost-goals
+wording, which G-6 now is, so S1b follows G2: "each goal you joined needs its
+ticket again", in the daemon's messages, `operations.md` and the tests
+(`589a9e7`). That commit missed the damaged-database CLI test, which fails on
+it alone; `4061862` updates it. The sentences above that quote the old words
+describe S1b as built.
+
+Verification of findings 4 and 5 is that of the A2 fixes in the A2
+[build notes](v2-phase-a2-build-notes-2026-10-08.md#after-the-rebase-onto-g2),
+on the tip `4061862`.

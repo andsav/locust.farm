@@ -379,9 +379,9 @@ changes signed bytes, and it rides in J2's step.
 
 | Phase | What works afterwards | Lands |
 | --- | --- | --- |
-| S1 | Nothing removes stored content; a failed start says what to do | Built: removal as S1a (`28c6425`), sentences as S1b (`f015564`) |
+| S1 | Nothing removes stored content; a failed start says what to do | Built: removal as S1a (`28c6425`), sentences as S1b (`0b025a8`) |
 | A1 | Agent tools say what they return; a context page holds at most 32 items | Built (`60c22d1`) |
-| A2 | An agent starts a free task in one call | Built (`47379f9`) |
+| A2 | An agent starts a free task in one call | Built (`f1e00cf`) |
 | A3 | The first compact page lists current findings | Built (`c8aa2c3`) |
 | A4 | `status` lists held tasks and how to resume | Recovery instructions landed (`c5623d7`); CLI claim lines wait for a window with no unmerged G2 or E2 status work |
 | A5 | One ID cutter; later, short IDs an agent was shown | before R7 (cutter); after R7 (bridge) |
