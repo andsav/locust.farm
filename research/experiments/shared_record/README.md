@@ -3,7 +3,9 @@
 Status: preregistered protocol, 8 October 2026, for the experiment proposed in
 the [collaboration thesis](../../../docs/collaboration-thesis.md). This file and
 the code beside it are committed before any scored call. Results are reported
-separately and do not modify this file.
+separately and do not modify this file, with one exception: the first
+calibration failed its gate and the protocol was amended once, before any
+scored call, as recorded in [Amendment A1](#amendment-a1-8-october-2026-before-any-scored-call).
 
 ## Question
 
@@ -66,10 +68,19 @@ functions are in `problems.py`; instances derive from the study seed.
 Development and held-out families share no problem template. The held-out set
 is fixed here and will not change after calibration.
 
+Instance sizes (Amendment A1): max cut n 580–620 at edge probability 0.05;
+vertex cover n 780–820 at 0.01; TSP 580–620 points; colouring n 280–320 at
+0.1; 290–310 jobs on 12 machines; 290–310 items in 10 knapsack dimensions at
+0.3 tightness; set cover over 580–620 elements with 450 sets; QAP n 68–72. Each
+family's `shape` string states its generator to the agent, so that agents can
+target the distribution rather than the five public instances.
+
 ## Tools and limits
 
 - `run_python(source)`: free experimentation with the public instances as
-  `INSTANCES`; 20 CPU seconds; nothing recorded.
+  `INSTANCES`; 20 CPU seconds; nothing recorded. The instances are not in the
+  prompt (Amendment A1); the prompt states the generator and the reference and
+  fallback costs, and tells the agent to inspect `INSTANCES`.
 - `evaluate(source)`: scores on public instances, returns per-instance cost
   against the reference, records the candidate; the hidden score is computed
   at the same moment and stored, never shown.
@@ -151,8 +162,10 @@ is charged to the agent that caused it. Daemon operations are local and free.
 
 ## Retained evidence
 
-`run.py` writes a manifest (configuration, source hashes, binary hash, frozen
-instances and reference costs), the ledger, every trial with its agents' full
+`run.py` writes a manifest (configuration, source hashes, binary hash, a
+digest of each family's frozen public and hidden instance lists, which
+regenerate exactly from the study seed and `problems.py`, and reference
+costs), the ledger, every trial with its agents' full
 visible conversations (system and task prompts are in source, outputs, tool
 calls and results), every candidate's source and both scores with timestamps
 and spend, shared-goal IDs, principals, receipts and reads, the calibration
@@ -165,14 +178,61 @@ these into the evidence folder and writes `analysis.json`.
 ```sh
 cd research/experiments/shared_record
 /opt/homebrew/bin/python3.12 -m unittest test_shared_record.py
-/opt/homebrew/bin/python3.12 run.py --output ../../../output/shared-record-2026-10-08 --phase all
-/opt/homebrew/bin/python3.12 analyze.py --output ../../../output/shared-record-2026-10-08 \
+/opt/homebrew/bin/python3.12 run.py --output ../../../output/shared-record-2026-10-08b --phase all
+/opt/homebrew/bin/python3.12 analyze.py --output ../../../output/shared-record-2026-10-08b \
   --evidence ../../evidence/shared-record-study-2026-10-08
 ```
 
 `OPENAI_API_KEY` must be in the environment. Python 3.12 or newer is required
 by the daemon helpers. A rerun with the same `--output` loads finished trials
-instead of paying for them again.
+instead of paying for them again. The first calibration ran in
+`output/shared-record-2026-10-08`; the amended study uses a fresh directory so
+nothing from the failed calibration is reused.
+
+## Amendment A1 (8 October 2026, before any scored call)
+
+The first calibration, run with the protocol as committed in `e493d60`, failed
+the gate on criterion 3: in `maxcut/independent` all three agents' final
+candidates had the same hidden score, 0.9352, a range of 0.0000. The other
+criteria passed: no transport failures; every agent produced a fully valid
+candidate; the shared trial published 13 findings with receipts and 7 reads
+returned peer findings; vertex cover's independent range was 0.0058, but only
+because one agent's public-score tie-break picked an earlier candidate; every
+vertex-cover agent, in both arms, also reached one hidden score, 0.9595. The
+four trials cost $0.70. The instances (max cut n≈60, vertex cover n≈80, and
+held-out families of similar scale) were small enough that 1.5 CPU seconds of
+plain Python converged to the same local optimum whatever the approach, which
+leaves nothing for selection or a shared record to add. A local check without
+API calls showed that simple local search also converges well inside the CPU
+budget on the held-out families at their original sizes (2-opt on 100-point
+tours and swap descent on 20-facility assignments finish in a fraction of a
+second), so the same saturation was expected there. The evidence of this
+calibration is retained in
+[shared-record-calibration-1-2026-10-08](../../evidence/shared-record-calibration-1-2026-10-08/).
+
+What changed, in this order and before any scored call:
+
+1. Instance sizes rose about tenfold in every family, development and
+   held-out, to the values in the Tasks section. Families, generators' forms,
+   validators, cost functions, fallbacks and reference heuristics are the
+   same. The QAP reference now computes each swap's cost change directly
+   instead of recomputing the whole cost; a test checks it returns the same
+   permutation as the full recomputation.
+2. The public instances moved out of the prompt into `run_python`'s
+   `INSTANCES`, because inlining them at the new sizes would have cost a large
+   share of each allowance in input tokens on every turn. The prompt now states
+   each family's generator (`shape`) in place of the instance data. This applies
+   identically to every arm.
+3. The manifest records instance digests instead of the instances themselves.
+
+What did not change: the question, the arms, k, the allowances, the selector,
+the gate and its thresholds, the development/held-out split, the analysis plan,
+the smallest effect worth acting on, and the ceilings. The $0.70 spent on the
+first calibration counts against the $15.00 study ceiling; the amended run's
+own ceilings ($2.00 calibration, $8.50 scored) keep the total under it.
+
+The amendment was decided after seeing development-family results only. No
+held-out task had been run.
 
 ## What this does not test
 

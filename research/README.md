@@ -120,6 +120,7 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 ## Evidence appendices
 
 - [Luna evidence-study run records](evidence/evidence-study-2026-10-08/README.md)
+- [Shared-record study: first calibration (gate failed)](evidence/shared-record-calibration-1-2026-10-08/README.md)
 
 - [Three-agent board trial evidence](evidence/role-free-board-2026-10-05/README.md)
 - [Evidence for the v2 complexity count](evidence/v2-complexity-count-2026-10-06/README.md)

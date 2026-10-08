@@ -31,6 +31,35 @@ class Problems(unittest.TestCase):
                 with self.assertRaises((ValueError, TypeError, IndexError, KeyError)):
                     problem.validate(a, 'not a solution')
                 json.dumps(a), json.dumps(reference)
+                self.assertTrue(problem.shape.strip(), 'every family states its generator for the prompt')
+
+    def test_qap_reference_delta_matches_full_recomputation(self):
+        qap = problems.FAMILIES['qap']
+        for seed in range(4):
+            rng = random.Random(seed)
+            n = rng.randint(6, 14)
+
+            def symmetric():
+                m = [[0] * n for _ in range(n)]
+                for i in range(n):
+                    for j in range(i + 1, n):
+                        m[i][j] = m[j][i] = rng.randint(0, 20)
+                return m
+            inst = {'flow': symmetric(), 'distance': symmetric()}
+            p = list(range(n))
+            current = qap.cost(inst, p)
+            improved = True
+            while improved:
+                improved = False
+                for i in range(n):
+                    for j in range(i + 1, n):
+                        p[i], p[j] = p[j], p[i]
+                        trial = qap.cost(inst, p)
+                        if trial < current:
+                            current, improved = trial, True
+                        else:
+                            p[i], p[j] = p[j], p[i]
+            self.assertEqual(qap.reference(inst), p)
 
     def test_validators_reject_specific_violations(self):
         tsp = problems.FAMILIES['tsp']
@@ -272,6 +301,21 @@ class SharedArmTools(unittest.TestCase):
             self.assertEqual([t['name'] for t in agent.session.tools], ['run_python', 'evaluate'])
             self.assertEqual(agent.tool('read_record', {}), {'error': 'unknown tool'})
             self.assertIn('alone', agent.session.history[0]['content'])
+
+    def test_prompt_states_generator_and_keeps_instances_out(self):
+        public = problems.instances('t', 'tsp', 'public')
+        prompt = run.task_prompt('tsp', 'solo', 0.42, public, problems.reference_costs('tsp', public))
+        self.assertIn(problems.FAMILIES['tsp'].shape, prompt)
+        self.assertIn('INSTANCES', prompt)
+        self.assertNotIn(json.dumps(public[0]['points'][:3], separators=(',', ':'))[1:-1], prompt)
+        self.assertLess(len(prompt), 4000)
+
+
+class Manifest(unittest.TestCase):
+    def test_instance_digest_is_stable_and_order_sensitive(self):
+        items = problems.instances('t', 'mkp', 'public')
+        self.assertEqual(run.instances_digest(items), run.instances_digest(json.loads(json.dumps(items))))
+        self.assertNotEqual(run.instances_digest(items), run.instances_digest(list(reversed(items))))
 
 
 if __name__ == '__main__':

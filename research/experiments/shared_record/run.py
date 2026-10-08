@@ -20,6 +20,8 @@ HERE = Path(__file__).resolve().parent
 
 CONFIG = dict(
     study_seed='shared-record-2026-10-08',
+    amendment='A1: instance sizes raised about tenfold and instances delivered through run_python rather than the prompt, '
+              'after the first calibration saturated (README, Amendment A1)',
     model=MODEL, effort='high', rates=RATES,
     k=3, task_arm_allowance_usd=0.42,
     arms={'solo': 1, 'independent': 3, 'shared': 3},
@@ -35,7 +37,7 @@ CONFIG = dict(
 
 SYSTEM = '''You are designing a heuristic for a combinatorial optimization problem. Write Python 3 using only the standard library, defining solve(instance) that returns a solution in the stated format. Lower cost is better.
 
-Scoring: a fixed evaluator runs your solve on instances drawn from the stated generator. You see 5 public instances. Hidden instances from the same distribution, which you never see, decide your real score. Score = your total cost / the reference heuristic's total cost on the same instances; 1.0 equals the reference, lower is better. An instance where solve raises, returns an invalid solution, or exceeds the CPU budget counts as the trivial fallback's cost, which is much worse than the reference. Do not overfit the public instances.
+Scoring: a fixed evaluator runs your solve on instances drawn from the stated generator. You have 5 public instances, available inside run_python. Hidden instances from the same distribution, which you never see, decide your real score. Score = your total cost / the reference heuristic's total cost on the same instances; 1.0 equals the reference, lower is better. An instance where solve raises, returns an invalid solution, or exceeds the CPU budget counts as the trivial fallback's cost, which is much worse than the reference. Do not overfit the public instances.
 
 Compute budget per instance: 2 CPU seconds, enforced by the evaluator. Design solve to stop its own search after about 1.5 s of time.process_time(). Seed any randomness deterministically.
 
@@ -87,12 +89,15 @@ def save(path, value):
 def task_prompt(task, arm, allowance, public, public_reference):
     problem = FAMILIES[task]
     fallback = [problem.cost(i, problem.fallback(i)) for i in public]
-    return (f'Problem: {problem.title}\n{problem.description}\n\n'
+    return (f'Problem: {problem.title}\n{problem.description}\n'
+            f'Instance generator: {problem.shape}\n\n'
             f'{ARM_NOTES[arm]}\n\n'
             f'Your API allowance for this task: ${allowance:.2f}.\n\n'
+            f'The {len(public)} public instances are not printed here. They are the global list INSTANCES inside '
+            f'run_python, and evaluate scores exactly these {len(public)} plus hidden instances from the same generator. '
+            f'Inspect them with run_python before designing.\n\n'
             f'Reference heuristic cost on each public instance: {[round(c, 3) for c in public_reference]}\n'
-            f'Trivial fallback cost on each public instance: {[round(c, 3) for c in fallback]}\n\n'
-            f'Public instances (JSON list):\n{json.dumps(public, separators=(",", ":"))}')
+            f'Trivial fallback cost on each public instance: {[round(c, 3) for c in fallback]}')
 
 
 class Agent:
@@ -323,6 +328,10 @@ def source_hashes():
     return {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(HERE.glob('*.py'))}
 
 
+def instances_digest(items):
+    return hashlib.sha256(json.dumps(items, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', type=Path, required=True)
@@ -333,12 +342,15 @@ def main():
     output.mkdir(parents=True, exist_ok=True)
     ledger = Ledger(output / 'ledger.json', CONFIG['study_ceiling_usd'])
     binary = copy_binary(args.binary, output / 'bin' / 'locust')
+    # Instances regenerate exactly from the study seed and problems.py (its hash is in source_sha256),
+    # so the manifest records their digests and reference costs rather than the instances themselves.
+    frozen = {t: {split: instances(CONFIG['study_seed'], t, split) for split in ('public', 'hidden')}
+              for t in DEVELOPMENT + HELD_OUT}
     manifest = dict(config=CONFIG, source_sha256=source_hashes(), python=sys.version, started=time.time(),
-                    instances={t: dict(public=instances(CONFIG['study_seed'], t, 'public'),
-                                       hidden=instances(CONFIG['study_seed'], t, 'hidden'))
-                               for t in DEVELOPMENT + HELD_OUT})
-    manifest['reference_costs'] = {t: dict(public=reference_costs(t, v['public']), hidden=reference_costs(t, v['hidden']))
-                                   for t, v in manifest['instances'].items()}
+                    instances={t: {split: dict(count=len(items), sha256=instances_digest(items))
+                                   for split, items in splits.items()} for t, splits in frozen.items()},
+                    reference_costs={t: {split: reference_costs(t, items) for split, items in splits.items()}
+                                     for t, splits in frozen.items()})
     save(output / 'manifest.json', manifest)
 
     with Daemon(output, binary) as daemon:

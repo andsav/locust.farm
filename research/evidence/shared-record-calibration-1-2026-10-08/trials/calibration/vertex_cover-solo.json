@@ -1,0 +1,916 @@
+{
+ "agents": [
+  {
+   "allowance_usd": 0.42,
+   "candidates": [
+    {
+     "agent": "agent-0",
+     "agent_spent_usd": 0.014141125000000001,
+     "hidden": {
+      "costs": [
+       51.0,
+       49.0,
+       51.0,
+       55.0,
+       53.0,
+       47.0,
+       46.0,
+       49.0,
+       47.0,
+       50.0
+      ],
+      "errors": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ],
+      "normalized": 0.9595375722543352,
+      "valid_instances": 10
+     },
+     "index": 0,
+     "posts_before": 0,
+     "public": {
+      "costs": [
+       52.0,
+       51.0,
+       44.0,
+       44.0,
+       49.0
+      ],
+      "normalized": 0.9523809523809523,
+      "valid_instances": 5
+     },
+     "reads_before": 0,
+     "sha256": "33cab5fe72c42a5acc0be7e141e686a1dcf13a8d36c1cd67e8212d380161fea4",
+     "source": "import time\n\ndef solve(instance):\n    n = instance['n']\n    edges = instance['edges']\n    full = (1 << n) - 1\n    # In the complement, cliques are independent sets of the input graph.\n    forbidden = [0] * n\n    loops = 0\n    for u, v in edges:\n        if u == v:\n            loops |= 1 << u\n        else:\n            forbidden[u] |= 1 << v\n            forbidden[v] |= 1 << u\n    allowed = full & ~loops\n    comp = [0] * n\n    for v in range(n):\n        if allowed >> v & 1:\n            comp[v] = allowed & ~(1 << v) & ~forbidden[v]\n    best = []\n    # A quick greedy clique provides a useful incumbent if search is interrupted.\n    order = [v for v in range(n) if allowed >> v & 1]\n    order.sort(key=lambda v: comp[v].bit_count())\n    cur = 0\n    for v in order:\n        if comp[v] & cur == cur:\n            cur |= 1 << v\n    best = [v for v in order if cur >> v & 1]\n    start = time.process_time()\n    deadline = start + 1.35\n    nodes = 0\n    expired = False\n\n    def color_sort(P):\n        order = []\n        bounds = []\n        color = 0\n        remaining = P\n        while remaining:\n            color += 1\n            avail = remaining\n            while avail:\n                x = avail\n                v = -1\n                degree = -1\n                while x:\n                    bit = x & -x\n                    u = bit.bit_length() - 1\n                    x -= bit\n                    d = (comp[u] & avail).bit_count()\n                    if d > degree:\n                        degree = d\n                        v = u\n                bit = 1 << v\n                order.append(v)\n                bounds.append(color)\n                remaining &= ~bit\n                avail &= ~bit & ~comp[v]\n        return order, bounds\n\n    def expand(P, chosen):\n        nonlocal best, nodes, expired\n        nodes += 1\n        if nodes & 2047 == 0 and time.process_time() >= deadline:\n            expired = True\n            return\n        if not P:\n            if len(chosen) > len(best):\n                best = chosen\n            return\n        order, bounds = color_sort(P)\n        for i in range(len(order) - 1, -1, -1):\n            if len(chosen) + bounds[i] <= len(best):\n                return\n            v = order[i]\n            bit = 1 << v\n            if P & bit:\n                newP = P & comp[v]\n                if not newP:\n                    if len(chosen) + 1 > len(best):\n                        best = chosen + [v]\n                else:\n                    expand(newP, chosen + [v])\n                P &= ~bit\n            if expired:\n                return\n\n    expand(allowed, [])\n    in_cover = (full & ~sum(1 << v for v in best)) | loops\n    return [v for v in range(n) if in_cover >> v & 1]\n",
+     "time": 1791483065.020939,
+     "turn": 9
+    },
+    {
+     "agent": "agent-0",
+     "agent_spent_usd": 0.017057000000000003,
+     "hidden": {
+      "costs": [
+       51.0,
+       49.0,
+       51.0,
+       55.0,
+       53.0,
+       47.0,
+       46.0,
+       49.0,
+       47.0,
+       50.0
+      ],
+      "errors": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ],
+      "normalized": 0.9595375722543352,
+      "valid_instances": 10
+     },
+     "index": 1,
+     "posts_before": 0,
+     "public": {
+      "costs": [
+       52.0,
+       51.0,
+       44.0,
+       44.0,
+       49.0
+      ],
+      "normalized": 0.9523809523809523,
+      "valid_instances": 5
+     },
+     "reads_before": 0,
+     "sha256": "61641ef85f1e5cdb07bc644bef97f97c94712c4622e2a174dbd45864744e8215",
+     "source": "import time, random\n\ndef solve(instance):\n    n = instance['n']\n    edges = instance['edges']\n    full = (1 << n) - 1\n    forbidden = [0] * n\n    loops = 0\n    for u, v in edges:\n        if u == v:\n            loops |= 1 << u\n        else:\n            forbidden[u] |= 1 << v\n            forbidden[v] |= 1 << u\n    allowed = full & ~loops\n    comp = [0] * n\n    for v in range(n):\n        if allowed >> v & 1:\n            comp[v] = allowed & ~(1 << v) & ~forbidden[v]\n\n    # Randomized greedy independent sets make a useful incumbent if the exact\n    # clique search hits its time limit.\n    bestmask = 0\n    bestsize = -1\n    rng = random.Random(87123 + 97 * n + len(edges))\n    for run in range(24):\n        rem = allowed\n        cur = 0\n        while rem:\n            x = rem\n            chosen = -1\n            bestscore = 1e100\n            while x:\n                bit = x & -x\n                v = bit.bit_length() - 1\n                x -= bit\n                d = (forbidden[v] & rem).bit_count()\n                # Perturb residual degree to explore different maximal sets.\n                score = d * rng.uniform(0.68, 1.32)\n                if score < bestscore:\n                    bestscore = score\n                    chosen = v\n            bit = 1 << chosen\n            cur |= bit\n            rem &= ~bit & ~forbidden[chosen]\n        size = cur.bit_count()\n        if size > bestsize:\n            bestsize = size\n            bestmask = cur\n    best = [v for v in range(n) if bestmask >> v & 1]\n\n    start = time.process_time()\n    deadline = start + 1.35\n    nodes = 0\n    expired = False\n\n    def color_sort(P):\n        order = []\n        bounds = []\n        color = 0\n        remaining = P\n        while remaining:\n            color += 1\n            avail = remaining\n            while avail:\n                x = avail\n                v = -1\n                degree = -1\n                while x:\n                    bit = x & -x\n                    u = bit.bit_length() - 1\n                    x -= bit\n                    d = (comp[u] & avail).bit_count()\n                    if d > degree:\n                        degree = d\n                        v = u\n                bit = 1 << v\n                order.append(v)\n                bounds.append(color)\n                remaining &= ~bit\n                avail &= ~bit & ~comp[v]\n        return order, bounds\n\n    def expand(P, chosen):\n        nonlocal best, bestsize, nodes, expired\n        nodes += 1\n        if (nodes & 511) == 0 and time.process_time() >= deadline:\n            expired = True\n            return\n        if not P:\n            if len(chosen) > bestsize:\n                best = chosen\n                bestsize = len(chosen)\n            return\n        order, bounds = color_sort(P)\n        for i in range(len(order) - 1, -1, -1):\n            if len(chosen) + bounds[i] <= bestsize:\n                return\n            v = order[i]\n            bit = 1 << v\n            if P & bit:\n                newP = P & comp[v]\n                if not newP:\n                    if len(chosen) + 1 > bestsize:\n                        best = chosen + [v]\n                        bestsize = len(best)\n                else:\n                    expand(newP, chosen + [v])\n                P &= ~bit\n            if expired:\n                return\n\n    expand(allowed, [])\n    independent = 0\n    for v in best:\n        independent |= 1 << v\n    cover = (full & ~independent) | loops\n    return [v for v in range(n) if cover >> v & 1]\n",
+     "time": 1791483085.790833,
+     "turn": 10
+    }
+   ],
+   "elapsed_seconds": 127.84355115890503,
+   "failed": null,
+   "label": "calibration/vertex_cover/solo/agent-0",
+   "name": "agent-0",
+   "nudged": true,
+   "posts": [],
+   "reads": [],
+   "requests": [
+    {
+     "cost": 0.000998875,
+     "elapsed": 7.640697002410889,
+     "incomplete": null,
+     "response_id": "resp_0e30d860de1ed830016ac7dc60097c87d08ae65063af30b188",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 5355,
+      "input_tokens_details": {
+       "cache_write_tokens": 5352,
+       "cached_tokens": 0
+      },
+      "output_tokens": 659,
+      "output_tokens_details": {
+       "reasoning_tokens": 356
+      },
+      "total_tokens": 6014
+     }
+    },
+    {
+     "cost": 0.001039375,
+     "elapsed": 6.39708685874939,
+     "incomplete": null,
+     "response_id": "resp_0e30d860de1ed830016ac7dc67d33c87d0ba429d06279f19e3",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 6127,
+      "input_tokens_details": {
+       "cache_write_tokens": 772,
+       "cached_tokens": 5352
+      },
+      "output_tokens": 547,
+      "output_tokens_details": {
+       "reasoning_tokens": 181
+      },
+      "total_tokens": 6674
+     }
+    },
+    {
+     "cost": 0.00105475,
+     "elapsed": 2.9388070106506348,
+     "incomplete": null,
+     "response_id": "resp_0e30d860de1ed830016ac7dc6e2d9887d0bf783dc8fd5edbd2",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 6858,
+      "input_tokens_details": {
+       "cache_write_tokens": 731,
+       "cached_tokens": 6124
+      },
+      "output_tokens": 395,
+      "output_tokens_details": {
+       "reasoning_tokens": 8
+      },
+      "total_tokens": 7253
+     }
+    },
+    {
+     "cost": 0.00185275,
+     "elapsed": 19.562245845794678,
+     "incomplete": null,
+     "response_id": "resp_0e30d860de1ed830016ac7dc71dbc887d0aeca6fb803804679",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 7378,
+      "input_tokens_details": {
+       "cache_write_tokens": 520,
+       "cached_tokens": 6855
+      },
+      "output_tokens": 1861,
+      "output_tokens_details": {
+       "reasoning_tokens": 1082
+      },
+      "total_tokens": 9239
+     }
+    },
+    {
+     "cost": 0.001506,
+     "elapsed": 4.700098991394043,
+     "incomplete": null,
+     "response_id": "resp_0e30d860de1ed830016ac7dc8572fc87d0aa46301e069d126a",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 9428,
+      "input_tokens_details": {
+       "cache_write_tokens": 2050,
+       "cached_tokens": 7375
+      },
+      "output_tokens": 655,
+      "output_tokens_details": {
+       "reasoning_tokens": 31
+      },
+      "total_tokens": 10083
+     }
+    },
+    {
+     "cost": 0.001572875,
+     "elapsed": 6.0961809158325195,
+     "incomplete": null,
+     "response_id": "resp_0e30d860de1ed830016ac7dc8da87487d0afdc7ca40c209b01",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 10203,
+      "input_tokens_details": {
+       "cache_write_tokens": 775,
+       "cached_tokens": 9425
+      },
+      "output_tokens": 595,
+      "output_tokens_details": {
+       "reasoning_tokens": 182
+      },
+      "total_tokens": 10798
+     }
+    },
+    {
+     "cost": 0.001915875,
+     "elapsed": 10.18199896812439,
+     "incomplete": null,
+     "response_id": "resp_0e30d860de1ed830016ac7dc99d0b887d0b42f842a72e7ea45",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 10951,
+      "input_tokens_details": {
+       "cache_write_tokens": 748,
+       "cached_tokens": 10200
+      },
+      "output_tokens": 1094,
+      "output_tokens_details": {
+       "reasoning_tokens": 516
+      },
+      "total_tokens": 12045
+     }
+    },
+    {
+     "cost": 0.001902625,
+     "elapsed": 7.045420169830322,
+     "incomplete": null,
+     "response_id": "resp_0e30d860de1ed830016ac7dca4fc0887d0ba80bb45bad88604",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 12161,
+      "input_tokens_details": {
+       "cache_write_tokens": 1210,
+       "cached_tokens": 10948
+      },
+      "output_tokens": 765,
+      "output_tokens_details": {
+       "reasoning_tokens": 280
+      },
+      "total_tokens": 12926
+     }
+    },
+    {
+     "cost": 0.002298,
+     "elapsed": 11.558461904525757,
+     "incomplete": null,
+     "response_id": "resp_0e30d860de1ed830016ac7dcac4ff087d0bf2fb9872ce1c60d",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 13084,
+      "input_tokens_details": {
+       "cache_write_tokens": 923,
+       "cached_tokens": 12158
+      },
+      "output_tokens": 1325,
+      "output_tokens_details": {
+       "reasoning_tokens": 553
+      },
+      "total_tokens": 14409
+     }
+    },
+    {
+     "cost": 0.002915875,
+     "elapsed": 19.321749925613403,
+     "incomplete": null,
+     "response_id": "resp_0e30d860de1ed830016ac7dcb9538087d091a6864cabe7e03c",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 14615,
+      "input_tokens_details": {
+       "cache_write_tokens": 1531,
+       "cached_tokens": 13081
+      },
+      "output_tokens": 2178,
+      "output_tokens_details": {
+       "reasoning_tokens": 1223
+      },
+      "total_tokens": 16793
+     }
+    },
+    {
+     "cost": 0.003077375,
+     "elapsed": 16.136250019073486,
+     "incomplete": null,
+     "response_id": "resp_0e30d860de1ed830016ac7dcce166487d08da4e29b96869c88",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 16999,
+      "input_tokens_details": {
+       "cache_write_tokens": 2384,
+       "cached_tokens": 14612
+      },
+      "output_tokens": 1905,
+      "output_tokens_details": {
+       "reasoning_tokens": 1034
+      },
+      "total_tokens": 18904
+     }
+    },
+    {
+     "cost": 0.002417,
+     "elapsed": 1.679089069366455,
+     "incomplete": null,
+     "response_id": "resp_0e30d860de1ed830016ac7dcde4d9087d09e4fb754bc130ace",
+     "status": "completed",
+     "usage": {
+      "input_tokens": 18940,
+      "input_tokens_details": {
+       "cache_write_tokens": 1941,
+       "cached_tokens": 16996
+      },
+      "output_tokens": 99,
+      "output_tokens_details": {
+       "reasoning_tokens": 92
+      },
+      "total_tokens": 19039
+     }
+    }
+   ],
+   "spent_usd": 0.022551375000000002,
+   "trace": [
+    {
+     "calls": [
+      {
+       "arguments": {
+        "source": "import time, random\n\ndef greedy_mis(n, edges, seed=0, mode=0, iterations=1000):\n adj=[set() for _ in range(n)]\n for u,v in edges: adj[u].add(v);adj[v].add(u)\n best=[]; rng=random.Random(seed)\n for _ in range(iterations):\n  alive=set(range(n)); S=[]\n  while alive:\n   if mode==0:\n    v=min(alive,key=lambda x:(len(adj[x]&alive),rng.random()))\n   elif mode==1:\n    v=max(alive,key=lambda x:(rng.random()/(len(adj[x]&alive)+.1)))\n   elif mode==2:\n    # randomized degree rank\n    v=min(alive,key=lambda x:(len(adj[x]&alive)*rng.uniform(.65,1.35),rng.random()))\n   S.append(v); alive.difference_update(adj[v]); alive.remove(v)\n  if len(S)>len(best):best=S\n return best\nfor ii,I in enumerate(INSTANCES):\n print(ii, [len(greedy_mis(I['n'],I['edges'],seed=ii*1000+j,mode=m,iterations=1)) for m in range(3) for j in range(1)])\n"
+       },
+       "name": "run_python"
+      }
+     ],
+     "cost": 0.000998875,
+     "event": "response",
+     "status": "completed",
+     "text": [],
+     "time": 1791482983.422215,
+     "turn": 1,
+     "usage": {
+      "input_tokens": 5355,
+      "input_tokens_details": {
+       "cache_write_tokens": 5352,
+       "cached_tokens": 0
+      },
+      "output_tokens": 659,
+      "output_tokens_details": {
+       "reasoning_tokens": 356
+      },
+      "total_tokens": 6014
+     }
+    },
+    {
+     "event": "tool_results",
+     "results": [
+      {
+       "exit_code": 0,
+       "spend": {
+        "allowance_usd": 0.42,
+        "spent_usd": 0.001
+       },
+       "stderr": "",
+       "stdout": "0 [29, 29, 31]\n1 [27, 26, 27]\n2 [29, 31, 30]\n3 [31, 31, 31]\n4 [27, 26, 28]\n",
+       "truncated": false
+      }
+     ],
+     "time": 1791482983.475602
+    },
+    {
+     "calls": [
+      {
+       "arguments": {
+        "source": "import random,time\n\ndef improve1(n,adj,S):\n S=set(S)\n while 1:\n  outs=[]\n  for v in range(n):\n   if v not in S:\n    ns=adj[v]&S\n    if len(ns)==1: outs.append((v,next(iter(ns))))\n  # group by removed u, candidates pair nonadjacent\n  groups={}\n  for v,u in outs:groups.setdefault(u,[]).append(v)\n  change=None\n  for u,vs in groups.items():\n   for i,v in enumerate(vs):\n    for w in vs[i+1:]:\n     if w not in adj[v]:change=(u,v,w);break\n    if change:break\n   if change:break\n  if not change:break\n  u,v,w=change;S.remove(u);S.add(v);S.add(w)\n return list(S)\n\ndef test():\n for ii,I in enumerate(INSTANCES):\n  n=I['n']; adj=[set() for _ in range(n)]\n  for u,v in I['edges']:adj[u].add(v);adj[v].add(u)\n  best=0; t=time.process_time()\n  for seed in range(500):\n   S=greedy_mis(n,I['edges'],seed=seed,mode=2,iterations=1)\n   S=improve1(n,adj,S)\n   best=max(best,len(S))\n  print(ii,best,'time',time.process_time()-t)\ntest()"
+       },
+       "name": "run_python"
+      }
+     ],
+     "cost": 0.001039375,
+     "event": "response",
+     "status": "completed",
+     "text": [],
+     "time": 1791482989.8760478,
+     "turn": 2,
+     "usage": {
+      "input_tokens": 6127,
+      "input_tokens_details": {
+       "cache_write_tokens": 772,
+       "cached_tokens": 5352
+      },
+      "output_tokens": 547,
+      "output_tokens_details": {
+       "reasoning_tokens": 181
+      },
+      "total_tokens": 6674
+     }
+    },
+    {
+     "event": "tool_results",
+     "results": [
+      {
+       "exit_code": 1,
+       "spend": {
+        "allowance_usd": 0.42,
+        "spent_usd": 0.002
+       },
+       "stderr": "Traceback (most recent call last):\n  File \"/private/var/folders/22/61v9z9kd34x959r1k7tbdw480000gn/T/lsr-mtdguatj/runner.py\", line 6, in <module>\n    exec(compile(data[\"source\"], \"probe.py\", \"exec\"), namespace)\n  File \"probe.py\", line 35, in <module>\n  File \"probe.py\", line 31, in test\nNameError: name 'greedy_mis' is not defined\n",
+       "stdout": "",
+       "truncated": false
+      }
+     ],
+     "time": 1791482989.906501
+    },
+    {
+     "calls": [
+      {
+       "arguments": {
+        "source": "import random,time\n\ndef greedy_mis(n, adj, seed=0):\n rng=random.Random(seed); alive=set(range(n)); S=[]\n while alive:\n  v=min(alive,key=lambda x:(len(adj[x]&alive)*rng.uniform(.65,1.35),rng.random()))\n  S.append(v); alive.difference_update(adj[v]); alive.remove(v)\n return S\n\ndef improve1(n,adj,S):\n S=set(S)\n while 1:\n  groups={}\n  for v in range(n):\n   if v not in S:\n    ns=adj[v]&S\n    if len(ns)==1: groups.setdefault(next(iter(ns)),[]).append(v)\n  change=None\n  for u,vs in groups.items():\n   for i,v in enumerate(vs):\n    for w in vs[i+1:]:\n     if w not in adj[v]:change=(u,v,w);break\n    if change:break\n   if change:break\n  if not change:break\n  u,v,w=change;S.remove(u);S.add(v);S.add(w)\n return list(S)\nfor ii,I in enumerate(INSTANCES):\n n=I['n']; adj=[set() for _ in range(n)]\n for u,v in I['edges']:adj[u].add(v);adj[v].add(u)\n best=0; t=time.process_time()\n for seed in range(500):\n  S=improve1(n,adj,greedy_mis(n,adj,seed))\n  best=max(best,len(S))\n print(ii,best,'time',time.process_time()-t)\n"
+       },
+       "name": "run_python"
+      }
+     ],
+     "cost": 0.00105475,
+     "event": "response",
+     "status": "completed",
+     "text": [],
+     "time": 1791482992.8482308,
+     "turn": 3,
+     "usage": {
+      "input_tokens": 6858,
+      "input_tokens_details": {
+       "cache_write_tokens": 731,
+       "cached_tokens": 6124
+      },
+      "output_tokens": 395,
+      "output_tokens_details": {
+       "reasoning_tokens": 8
+      },
+      "total_tokens": 7253
+     }
+    },
+    {
+     "event": "tool_results",
+     "results": [
+      {
+       "exit_code": 0,
+       "spend": {
+        "allowance_usd": 0.42,
+        "spent_usd": 0.0031
+       },
+       "stderr": "",
+       "stdout": "0 31 time 0.15202300000000002\n1 28 time 0.12375899999999998\n2 31 time 0.12912099999999999\n3 31 time 0.132814\n4 28 time 0.12469999999999992\n",
+       "truncated": false
+      }
+     ],
+     "time": 1791482993.5591638
+    },
+    {
+     "calls": [
+      {
+       "arguments": {
+        "source": "import random,time,itertools\n\ndef greedy(n,adj,rng):\n alive=(1<<n)-1; S=[]\n while alive:\n  vs=[]; x=alive\n  while x:\n   b=x&-x;v=b.bit_length()-1; x-=b\n   # score random perturbed degree in current alive\n   d=(adj[v]&alive).bit_count(); vs.append((d*rng.uniform(.65,1.35),rng.random(),v))\n  v=min(vs)[2]; S.append(v); alive &= ~((1<<v)|adj[v])\n return S\n\ndef improve_k(n, adj,S,maxk=3):\n S=set(S)\n while True:\n  # mask of neighbors in S for outside; active set list\n  sl=list(S); idx={v:i for i,v in enumerate(sl)}\n  out=[]; masks={}\n  for v in range(n):\n   if v not in S:\n    m=0\n    for u in adj[v]&S:m|=1<<idx[u]\n    out.append(v);masks[v]=m\n  change=None\n  # k removal from 1 to maxk; only outside with mask subset removed set\n  for k in range(1,min(maxk,len(S))+1):\n   for remidx in itertools.combinations(range(len(sl)),k):\n    rm=0\n    for i in remidx:rm|=1<<i\n    cands=[v for v in out if masks[v]&~rm==0]\n    need=k+1\n    if len(cands)<need:continue\n    # DFS independent set of need\n    chosen=[]\n    def dfs(pos, avail):\n     nonlocal chosen\n     if len(chosen)>=need:return True\n     if len(chosen)+len(avail)<need:return False\n     while avail:\n      v=avail[0]\n      if dfs(0,[w for w in avail[1:] if w not in adj[v]]):\n       chosen.append(v);return True\n      avail=avail[1:]\n      if len(chosen)+len(avail)<need:return False\n     return False\n    # implement combinations via recursive\n    def find(start,cur):\n     if len(cur)==need:return cur.copy()\n     if len(cands)-start < need-len(cur):return None\n     for j in range(start,len(cands)):\n      v=cands[j]\n      if all(w not in adj[v] for w in cur):\n       z=find(j+1,cur+[v])\n       if z:return z\n     return None\n    z=find(0,[])\n    if z:\n     change=(remidx,z);break\n   if change:break\n  if not change:break\n  remidx,z=change\n  for i in remidx:S.remove(sl[i])\n  S.update(z)\n return list(S)\n\nfor ii,I in enumerate(INSTANCES):\n n=I['n'];adj=[set() for _ in range(n)]\n for u,v in I['edges']:adj[u].add(v);adj[v].add(u)\n t=time.process_time();best=0\n for seed in range(200):\n  S=improve_k(n,adj,greedy(n,adj,random.Random(seed)),3);best=max(best,len(S))\n print(ii,best,time.process_time()-t)\n"
+       },
+       "name": "run_python"
+      }
+     ],
+     "cost": 0.00185275,
+     "event": "response",
+     "status": "completed",
+     "text": [],
+     "time": 1791483013.124485,
+     "turn": 4,
+     "usage": {
+      "input_tokens": 7378,
+      "input_tokens_details": {
+       "cache_write_tokens": 520,
+       "cached_tokens": 6855
+      },
+      "output_tokens": 1861,
+      "output_tokens_details": {
+       "reasoning_tokens": 1082
+      },
+      "total_tokens": 9239
+     }
+    },
+    {
+     "event": "tool_results",
+     "results": [
+      {
+       "exit_code": 1,
+       "spend": {
+        "allowance_usd": 0.42,
+        "spent_usd": 0.0049
+       },
+       "stderr": "Traceback (most recent call last):\n  File \"/private/var/folders/22/61v9z9kd34x959r1k7tbdw480000gn/T/lsr-8t171adv/runner.py\", line 6, in <module>\n    exec(compile(data[\"source\"], \"probe.py\", \"exec\"), namespace)\n  File \"probe.py\", line 72, in <module>\n  File \"probe.py\", line 10, in greedy\nTypeError: unsupported operand type(s) for &: 'set' and 'int'\n",
+       "stdout": "",
+       "truncated": false
+      }
+     ],
+     "time": 1791483013.1526139
+    },
+    {
+     "calls": [
+      {
+       "arguments": {
+        "source": "import random,time,itertools\n\ndef greedy(n,adj,rng):\n alive=(1<<n)-1; S=[]\n while alive:\n  vs=[]; x=alive\n  while x:\n   b=x&-x;v=b.bit_length()-1; x-=b\n   d=(adj[v]&alive).bit_count(); vs.append((d*rng.uniform(.65,1.35),rng.random(),v))\n  v=min(vs)[2]; S.append(v); alive &= ~((1<<v)|adj[v])\n return S\n\ndef improve_k(n, adj,S,maxk=3):\n S=set(S)\n while True:\n  sl=list(S); idx={v:i for i,v in enumerate(sl)}\n  out=[]; masks={}\n  for v in range(n):\n   if v not in S:\n    m=0; x=adj[v]\n    while x:\n     b=x&-x;u=b.bit_length()-1;x-=b\n     if u in S:m|=1<<idx[u]\n    out.append(v);masks[v]=m\n  change=None\n  for k in range(1,min(maxk,len(S))+1):\n   for remidx in itertools.combinations(range(len(sl)),k):\n    rm=sum(1<<i for i in remidx)\n    cands=[v for v in out if masks[v]&~rm==0]\n    need=k+1\n    if len(cands)<need:continue\n    def find(start,cur):\n     if len(cur)==need:return cur.copy()\n     if len(cands)-start < need-len(cur):return None\n     for j in range(start,len(cands)):\n      v=cands[j]\n      if all(not (adj[v]>>w&1) for w in cur):\n       z=find(j+1,cur+[v])\n       if z:return z\n     return None\n    z=find(0,[])\n    if z:change=(remidx,z);break\n   if change:break\n  if not change:break\n  remidx,z=change\n  for i in remidx:S.remove(sl[i])\n  S.update(z)\n return list(S)\n\nfor ii,I in enumerate(INSTANCES):\n n=I['n']; adj=[0]*n\n for u,v in I['edges']:adj[u]|=1<<v;adj[v]|=1<<u\n t=time.process_time();best=0\n for seed in range(100):\n  S=improve_k(n,adj,greedy(n,adj,random.Random(seed)),3);best=max(best,len(S))\n print(ii,best,time.process_time()-t)\n"
+       },
+       "name": "run_python"
+      }
+     ],
+     "cost": 0.001506,
+     "event": "response",
+     "status": "completed",
+     "text": [],
+     "time": 1791483017.855853,
+     "turn": 5,
+     "usage": {
+      "input_tokens": 9428,
+      "input_tokens_details": {
+       "cache_write_tokens": 2050,
+       "cached_tokens": 7375
+      },
+      "output_tokens": 655,
+      "output_tokens_details": {
+       "reasoning_tokens": 31
+      },
+      "total_tokens": 10083
+     }
+    },
+    {
+     "event": "tool_results",
+     "results": [
+      {
+       "exit_code": 0,
+       "spend": {
+        "allowance_usd": 0.42,
+        "spent_usd": 0.0065
+       },
+       "stderr": "",
+       "stdout": "0 31 0.882355\n1 28 0.5839910000000001\n2 31 0.7124489999999999\n3 31 0.7208970000000003\n4 28 0.5695610000000002\n",
+       "truncated": false
+      }
+     ],
+     "time": 1791483021.356467
+    },
+    {
+     "calls": [
+      {
+       "arguments": {
+        "source": "import random,time,math\n\ndef trial(n,adj,rng,mode):\n alive=(1<<n)-1; S=[]\n while alive:\n  vs=[];x=alive\n  while x:\n   b=x&-x;v=b.bit_length()-1;x-=b;d=(adj[v]&alive).bit_count()\n   if mode==0: score=d+rng.random()*2\n   elif mode==1: score=d*rng.uniform(.4,1.6)\n   elif mode==2: score=(d+0.1)**rng.uniform(.5,1.5)\n   elif mode==3: score=d+ rng.expovariate(1)\n   elif mode==4: score=rng.random()*(d+1)\n   elif mode==5: score=d + (rng.random()-.5)*5\n   elif mode==6: score=d*d*rng.uniform(.5,1.5)\n   elif mode==7: score=d + 2*rng.random() + .15*len(adj[v].to_bytes((n+7)//8,'little'))\n   vs.append((score,v))\n  v=min(vs)[1];S.append(v);alive &= ~((1<<v)|adj[v])\n return S\nfor ii,I in enumerate(INSTANCES):\n n=I['n'];adj=[0]*n\n for u,v in I['edges']:adj[u]|=1<<v;adj[v]|=1<<u\n print('graph',ii,end=' ')\n for mode in range(7):\n  best=0; rng=random.Random(2023)\n  for j in range(1000):best=max(best,len(trial(n,adj,rng,mode)))\n  print(best,end=' ')\n print()\n"
+       },
+       "name": "run_python"
+      }
+     ],
+     "cost": 0.001572875,
+     "event": "response",
+     "status": "completed",
+     "text": [],
+     "time": 1791483027.455571,
+     "turn": 6,
+     "usage": {
+      "input_tokens": 10203,
+      "input_tokens_details": {
+       "cache_write_tokens": 775,
+       "cached_tokens": 9425
+      },
+      "output_tokens": 595,
+      "output_tokens_details": {
+       "reasoning_tokens": 182
+      },
+      "total_tokens": 10798
+     }
+    },
+    {
+     "event": "tool_results",
+     "results": [
+      {
+       "exit_code": 0,
+       "spend": {
+        "allowance_usd": 0.42,
+        "spent_usd": 0.008
+       },
+       "stderr": "",
+       "stdout": "graph 0 31 31 31 31 31 31 31 \ngraph 1 28 28 28 28 28 28 28 \ngraph 2 31 31 31 31 30 31 31 \ngraph 3 31 31 31 31 31 31 31 \ngraph 4 28 28 28 28 28 28 28 \n",
+       "truncated": false
+      }
+     ],
+     "time": 1791483033.5350971
+    },
+    {
+     "calls": [
+      {
+       "arguments": {
+        "source": "import random,time\n\ndef greedy(n,adj,rng):\n alive=(1<<n)-1; S=[]\n while alive:\n  vals=[];x=alive\n  while x:\n   b=x&-x;v=b.bit_length()-1;x-=b;d=(adj[v]&alive).bit_count();vals.append((d*rng.uniform(.65,1.35),rng.random(),v))\n  v=min(vals)[2];S.append(v);alive &= ~((1<<v)|adj[v])\n return set(S)\ndef walk(n,adj,S,rng,steps=500):\n S=set(S); best=set(S); taboo={}\n for it in range(steps):\n  groups={};\n  for v in range(n):\n   if v not in S:\n    x=adj[v]; ns=[]\n    while x:\n     b=x&-x;u=b.bit_length()-1;x-=b\n     if u in S:ns.append(u)\n     if len(ns)>1:break\n    if len(ns)==1:groups.setdefault(ns[0],[]).append(v)\n  # randomly choose improvement pair\n  moves=[]\n  for u,vs in groups.items():\n   for i,v in enumerate(vs):\n    for w in vs[i+1:]:\n     if not (adj[v]>>w&1):moves.append((u,v,w))\n  if moves:\n   u,v,w=rng.choice(moves);S.remove(u);S.add(v);S.add(w)\n   if len(S)>len(best):best=set(S)\n   continue\n  # neutral swap\n  neutral=[(u,v) for u,vs in groups.items() for v in vs if taboo.get(v,-1)<=it and taboo.get(u,-1)<=it]\n  if not neutral:break\n  u,v=rng.choice(neutral)\n  S.remove(u);S.add(v);taboo[u]=it+5;taboo[v]=it+5\n return best\nfor ii,I in enumerate(INSTANCES):\n n=I['n'];adj=[0]*n\n for u,v in I['edges']:adj[u]|=1<<v;adj[v]|=1<<u\n best=0; t=time.process_time();rng=random.Random(90)\n for j in range(200):\n  S=walk(n,adj,greedy(n,adj,rng),rng,500);best=max(best,len(S))\n print(ii,best,time.process_time()-t)\n"
+       },
+       "name": "run_python"
+      }
+     ],
+     "cost": 0.001915875,
+     "event": "response",
+     "status": "completed",
+     "text": [],
+     "time": 1791483043.720156,
+     "turn": 7,
+     "usage": {
+      "input_tokens": 10951,
+      "input_tokens_details": {
+       "cache_write_tokens": 748,
+       "cached_tokens": 10200
+      },
+      "output_tokens": 1094,
+      "output_tokens_details": {
+       "reasoning_tokens": 516
+      },
+      "total_tokens": 12045
+     }
+    },
+    {
+     "event": "tool_results",
+     "results": [
+      {
+       "exit_code": 0,
+       "spend": {
+        "allowance_usd": 0.42,
+        "spent_usd": 0.0099
+       },
+       "stderr": "",
+       "stdout": "0 31 0.247446\n1 28 0.197114\n2 31 0.06884200000000001\n3 31 0.21856699999999996\n4 28 0.13949299999999998\n",
+       "truncated": false
+      }
+     ],
+     "time": 1791483044.66299
+    },
+    {
+     "calls": [
+      {
+       "arguments": {
+        "source": "import time\n\ndef maxclique(n,edges,limit=1.0):\n G=[(1<<n)-1 ^ (1<<i) for i in range(n)]\n for u,v in edges:G[u]&=~(1<<v);G[v]&=~(1<<u) # complement excludes graph edges\n best=[]; nodes=0;start=time.process_time(); expired=False\n def color_sort(P):\n  order=[]; bounds=[]; color=0; rem=P\n  while rem:\n   color+=1; avail=rem\n   while avail:\n    # choose max degree in current avail? \n    x=avail;v=-1;bd=-1\n    while x:\n     b=x&-x;u=b.bit_length()-1;x-=b\n     d=(G[u]&avail).bit_count()\n     if d>bd:bd=d;v=u\n    bit=1<<v;order.append(v);bounds.append(color)\n    rem &= ~bit;avail &= ~bit & ~G[v]\n  return order,bounds\n def expand(P,R):\n  nonlocal best,nodes,expired\n  nodes+=1\n  if nodes%10000==0 and time.process_time()-start>limit:expired=True;return\n  if not P:\n   if len(R)>len(best):best=R[:]\n   return\n  order,bounds=color_sort(P)\n  for i in range(len(order)-1,-1,-1):\n   if len(R)+bounds[i] <= len(best):return\n   v=order[i];b=1<<v\n   if P&b:\n    Pn=P&G[v]\n    if not Pn:\n     if len(R)+1>len(best):best=R+[v]\n    else:expand(Pn,R+[v])\n    P &= ~b\n   if expired:return\n expand((1<<n)-1,[])\n return len(best),nodes,time.process_time()-start,expired\nfor i,I in enumerate(INSTANCES): print(i,maxclique(I['n'],I['edges'],.6))\n"
+       },
+       "name": "run_python"
+      }
+     ],
+     "cost": 0.001902625,
+     "event": "response",
+     "status": "completed",
+     "text": [],
+     "time": 1791483051.711776,
+     "turn": 8,
+     "usage": {
+      "input_tokens": 12161,
+      "input_tokens_details": {
+       "cache_write_tokens": 1210,
+       "cached_tokens": 10948
+      },
+      "output_tokens": 765,
+      "output_tokens_details": {
+       "reasoning_tokens": 280
+      },
+      "total_tokens": 12926
+     }
+    },
+    {
+     "event": "tool_results",
+     "results": [
+      {
+       "exit_code": 0,
+       "spend": {
+        "allowance_usd": 0.42,
+        "spent_usd": 0.0118
+       },
+       "stderr": "",
+       "stdout": "0 (31, 1093, 0.07864199999999999, False)\n1 (28, 1508, 0.086387, False)\n2 (31, 242, 0.012226000000000015, False)\n3 (31, 421, 0.028534000000000004, False)\n4 (28, 1377, 0.08637499999999998, False)\n",
+       "truncated": false
+      }
+     ],
+     "time": 1791483052.030787
+    },
+    {
+     "calls": [
+      {
+       "arguments": {
+        "source": "import time\n\ndef solve(instance):\n    n = instance['n']\n    edges = instance['edges']\n    full = (1 << n) - 1\n    # In the complement, cliques are independent sets of the input graph.\n    forbidden = [0] * n\n    loops = 0\n    for u, v in edges:\n        if u == v:\n            loops |= 1 << u\n        else:\n            forbidden[u] |= 1 << v\n            forbidden[v] |= 1 << u\n    allowed = full & ~loops\n    comp = [0] * n\n    for v in range(n):\n        if allowed >> v & 1:\n            comp[v] = allowed & ~(1 << v) & ~forbidden[v]\n    best = []\n    # A quick greedy clique provides a useful incumbent if search is interrupted.\n    order = [v for v in range(n) if allowed >> v & 1]\n    order.sort(key=lambda v: comp[v].bit_count())\n    cur = 0\n    for v in order:\n        if comp[v] & cur == cur:\n            cur |= 1 << v\n    best = [v for v in order if cur >> v & 1]\n    start = time.process_time()\n    deadline = start + 1.35\n    nodes = 0\n    expired = False\n\n    def color_sort(P):\n        order = []\n        bounds = []\n        color = 0\n        remaining = P\n        while remaining:\n            color += 1\n            avail = remaining\n            while avail:\n                x = avail\n                v = -1\n                degree = -1\n                while x:\n                    bit = x & -x\n                    u = bit.bit_length() - 1\n                    x -= bit\n                    d = (comp[u] & avail).bit_count()\n                    if d > degree:\n                        degree = d\n                        v = u\n                bit = 1 << v\n                order.append(v)\n                bounds.append(color)\n                remaining &= ~bit\n                avail &= ~bit & ~comp[v]\n        return order, bounds\n\n    def expand(P, chosen):\n        nonlocal best, nodes, expired\n        nodes += 1\n        if nodes & 2047 == 0 and time.process_time() >= deadline:\n            expired = True\n            return\n        if not P:\n            if len(chosen) > len(best):\n                best = chosen\n            return\n        order, bounds = color_sort(P)\n        for i in range(len(order) - 1, -1, -1):\n            if len(chosen) + bounds[i] <= len(best):\n                return\n            v = order[i]\n            bit = 1 << v\n            if P & bit:\n                newP = P & comp[v]\n                if not newP:\n                    if len(chosen) + 1 > len(best):\n                        best = chosen + [v]\n                else:\n                    expand(newP, chosen + [v])\n                P &= ~bit\n            if expired:\n                return\n\n    expand(allowed, [])\n    in_cover = (full & ~sum(1 << v for v in best)) | loops\n    return [v for v in range(n) if in_cover >> v & 1]\n"
+       },
+       "name": "evaluate"
+      }
+     ],
+     "cost": 0.002298,
+     "event": "response",
+     "status": "completed",
+     "text": [],
+     "time": 1791483063.593434,
+     "turn": 9,
+     "usage": {
+      "input_tokens": 13084,
+      "input_tokens_details": {
+       "cache_write_tokens": 923,
+       "cached_tokens": 12158
+      },
+      "output_tokens": 1325,
+      "output_tokens_details": {
+       "reasoning_tokens": 553
+      },
+      "total_tokens": 14409
+     }
+    },
+    {
+     "event": "tool_results",
+     "results": [
+      {
+       "instances": [
+        {
+         "cost": 52.0,
+         "cpu_seconds": 0.083,
+         "reference_cost": 56.0,
+         "valid": true
+        },
+        {
+         "cost": 51.0,
+         "cpu_seconds": 0.086,
+         "reference_cost": 53.0,
+         "valid": true
+        },
+        {
+         "cost": 44.0,
+         "cpu_seconds": 0.012,
+         "reference_cost": 46.0,
+         "valid": true
+        },
+        {
+         "cost": 44.0,
+         "cpu_seconds": 0.027,
+         "reference_cost": 46.0,
+         "valid": true
+        },
+        {
+         "cost": 49.0,
+         "cpu_seconds": 0.079,
+         "reference_cost": 51.0,
+         "valid": true
+        }
+       ],
+       "public_normalized_score": 0.952381,
+       "spend": {
+        "allowance_usd": 0.42,
+        "spent_usd": 0.0141
+       }
+      }
+     ],
+     "time": 1791483065.0210161
+    },
+    {
+     "calls": [
+      {
+       "arguments": {
+        "source": "import time, random\n\ndef solve(instance):\n    n = instance['n']\n    edges = instance['edges']\n    full = (1 << n) - 1\n    forbidden = [0] * n\n    loops = 0\n    for u, v in edges:\n        if u == v:\n            loops |= 1 << u\n        else:\n            forbidden[u] |= 1 << v\n            forbidden[v] |= 1 << u\n    allowed = full & ~loops\n    comp = [0] * n\n    for v in range(n):\n        if allowed >> v & 1:\n            comp[v] = allowed & ~(1 << v) & ~forbidden[v]\n\n    # Randomized greedy independent sets make a useful incumbent if the exact\n    # clique search hits its time limit.\n    bestmask = 0\n    bestsize = -1\n    rng = random.Random(87123 + 97 * n + len(edges))\n    for run in range(24):\n        rem = allowed\n        cur = 0\n        while rem:\n            x = rem\n            chosen = -1\n            bestscore = 1e100\n            while x:\n                bit = x & -x\n                v = bit.bit_length() - 1\n                x -= bit\n                d = (forbidden[v] & rem).bit_count()\n                # Perturb residual degree to explore different maximal sets.\n                score = d * rng.uniform(0.68, 1.32)\n                if score < bestscore:\n                    bestscore = score\n                    chosen = v\n            bit = 1 << chosen\n            cur |= bit\n            rem &= ~bit & ~forbidden[chosen]\n        size = cur.bit_count()\n        if size > bestsize:\n            bestsize = size\n            bestmask = cur\n    best = [v for v in range(n) if bestmask >> v & 1]\n\n    start = time.process_time()\n    deadline = start + 1.35\n    nodes = 0\n    expired = False\n\n    def color_sort(P):\n        order = []\n        bounds = []\n        color = 0\n        remaining = P\n        while remaining:\n            color += 1\n            avail = remaining\n            while avail:\n                x = avail\n                v = -1\n                degree = -1\n                while x:\n                    bit = x & -x\n                    u = bit.bit_length() - 1\n                    x -= bit\n                    d = (comp[u] & avail).bit_count()\n                    if d > degree:\n                        degree = d\n                        v = u\n                bit = 1 << v\n                order.append(v)\n                bounds.append(color)\n                remaining &= ~bit\n                avail &= ~bit & ~comp[v]\n        return order, bounds\n\n    def expand(P, chosen):\n        nonlocal best, bestsize, nodes, expired\n        nodes += 1\n        if (nodes & 511) == 0 and time.process_time() >= deadline:\n            expired = True\n            return\n        if not P:\n            if len(chosen) > bestsize:\n                best = chosen\n                bestsize = len(chosen)\n            return\n        order, bounds = color_sort(P)\n        for i in range(len(order) - 1, -1, -1):\n            if len(chosen) + bounds[i] <= bestsize:\n                return\n            v = order[i]\n            bit = 1 << v\n            if P & bit:\n                newP = P & comp[v]\n                if not newP:\n                    if len(chosen) + 1 > bestsize:\n                        best = chosen + [v]\n                        bestsize = len(best)\n                else:\n                    expand(newP, chosen + [v])\n                P &= ~bit\n            if expired:\n                return\n\n    expand(allowed, [])\n    independent = 0\n    for v in best:\n        independent |= 1 << v\n    cover = (full & ~independent) | loops\n    return [v for v in range(n) if cover >> v & 1]\n"
+       },
+       "name": "evaluate"
+      }
+     ],
+     "cost": 0.002915875,
+     "event": "response",
+     "status": "completed",
+     "text": [],
+     "time": 1791483084.347133,
+     "turn": 10,
+     "usage": {
+      "input_tokens": 14615,
+      "input_tokens_details": {
+       "cache_write_tokens": 1531,
+       "cached_tokens": 13081
+      },
+      "output_tokens": 2178,
+      "output_tokens_details": {
+       "reasoning_tokens": 1223
+      },
+      "total_tokens": 16793
+     }
+    },
+    {
+     "event": "tool_results",
+     "results": [
+      {
+       "instances": [
+        {
+         "cost": 52.0,
+         "cpu_seconds": 0.086,
+         "reference_cost": 56.0,
+         "valid": true
+        },
+        {
+         "cost": 51.0,
+         "cpu_seconds": 0.087,
+         "reference_cost": 53.0,
+         "valid": true
+        },
+        {
+         "cost": 44.0,
+         "cpu_seconds": 0.01,
+         "reference_cost": 46.0,
+         "valid": true
+        },
+        {
+         "cost": 44.0,
+         "cpu_seconds": 0.028,
+         "reference_cost": 46.0,
+         "valid": true
+        },
+        {
+         "cost": 49.0,
+         "cpu_seconds": 0.083,
+         "reference_cost": 51.0,
+         "valid": true
+        }
+       ],
+       "public_normalized_score": 0.952381,
+       "spend": {
+        "allowance_usd": 0.42,
+        "spent_usd": 0.0171
+       }
+      }
+     ],
+     "time": 1791483085.7909079
+    },
+    {
+     "calls": [],
+     "cost": 0.003077375,
+     "event": "response",
+     "status": "completed",
+     "text": [
+      "```python\nimport random\nimport time\n\n\ndef solve(instance):\n    n = instance[\"n\"]\n    edges = instance[\"edges\"]\n    full = (1 << n) - 1\n\n    # Cliques in the complement graph are independent sets in the input graph.\n    forbidden = [0] * n\n    loops = 0\n    for u, v in edges:\n        if u == v:\n            loops |= 1 << u\n        else:\n            forbidden[u] |= 1 << v\n            forbidden[v] |= 1 << u\n\n    allowed = full & ~loops\n    comp = [0] * n\n    for v in range(n):\n        if (allowed >> v) & 1:\n            comp[v] = allowed & ~(1 << v) & ~forbidden[v]\n\n    # Find a good incumbent in case the exact search reaches its time limit.\n    bestmask = 0\n    bestsize = -1\n    rng = random.Random(87123 + 97 * n + len(edges))\n    for _ in range(24):\n        rem = allowed\n        cur = 0\n        while rem:\n            x = rem\n            chosen = -1\n            bestscore = float(\"inf\")\n            while x:\n                bit = x & -x\n                v = bit.bit_length() - 1\n                x -= bit\n                degree = (forbidden[v] & rem).bit_count()\n                score = degree * rng.uniform(0.68, 1.32)\n                if score < bestscore:\n                    bestscore = score\n                    chosen = v\n            bit = 1 << chosen\n            cur |= bit\n            rem &= ~bit & ~forbidden[chosen]\n        size = cur.bit_count()\n        if size > bestsize:\n            bestsize = size\n            bestmask = cur\n\n    best = [v for v in range(n) if (bestmask >> v) & 1]\n    deadline = time.process_time() + 1.35\n    nodes = 0\n    expired = False\n\n    def color_sort(P):\n        order = []\n        bounds = []\n        color = 0\n        remaining = P\n        while remaining:\n            color += 1\n            avail = remaining\n            while avail:\n                x = avail\n                v = -1\n                degree = -1\n                while x:\n                    bit = x & -x\n                    u = bit.bit_length() - 1\n                    x -= bit\n                    d = (comp[u] & avail).bit_count()\n                    if d > degree:\n                        degree = d\n                        v = u\n                bit = 1 << v\n                order.append(v)\n                bounds.append(color)\n                remaining &= ~bit\n                avail &= ~bit & ~comp[v]\n        return order, bounds\n\n    def expand(P, chosen):\n        nonlocal best, bestsize, nodes, expired\n        nodes += 1\n        if (nodes & 511) == 0 and time.process_time() >= deadline:\n            expired = True\n            return\n\n        if not P:\n            if len(chosen) > bestsize:\n                best = chosen\n                bestsize = len(chosen)\n            return\n\n        order, bounds = color_sort(P)\n        for i in range(len(order) - 1, -1, -1):\n            if len(chosen) + bounds[i] <= bestsize:\n                return\n            v = order[i]\n            bit = 1 << v\n            if P & bit:\n                newP = P & comp[v]\n                if not newP:\n                    if len(chosen) + 1 > bestsize:\n                        best = chosen + [v]\n                        bestsize = len(best)\n                else:\n                    expand(newP, chosen + [v])\n                P &= ~bit\n            if expired:\n                return\n\n    expand(allowed, [])\n\n    independent = 0\n    for v in best:\n        independent |= 1 << v\n    cover = (full & ~independent) | loops\n    return [v for v in range(n) if (cover >> v) & 1]\n```"
+     ],
+     "time": 1791483101.931255,
+     "turn": 11,
+     "usage": {
+      "input_tokens": 16999,
+      "input_tokens_details": {
+       "cache_write_tokens": 2384,
+       "cached_tokens": 14612
+      },
+      "output_tokens": 1905,
+      "output_tokens_details": {
+       "reasoning_tokens": 1034
+      },
+      "total_tokens": 18904
+     }
+    },
+    {
+     "event": "nudge",
+     "remaining": 0.399865625,
+     "time": 1791483101.931303
+    },
+    {
+     "calls": [],
+     "cost": 0.002417,
+     "event": "response",
+     "status": "completed",
+     "text": [
+      "done"
+     ],
+     "time": 1791483103.618026,
+     "turn": 12,
+     "usage": {
+      "input_tokens": 18940,
+      "input_tokens_details": {
+       "cache_write_tokens": 1941,
+       "cached_tokens": 16996
+      },
+      "output_tokens": 99,
+      "output_tokens_details": {
+       "reasoning_tokens": 92
+      },
+      "total_tokens": 19039
+     }
+    }
+   ],
+   "turns": 12
+  }
+ ],
+ "allowance_per_agent_usd": 0.42,
+ "arm": "solo",
+ "final": true,
+ "finished": 1791483103.6182961,
+ "goal": null,
+ "k": 1,
+ "oracle_hidden": 0.9595375722543352,
+ "phase": "calibration",
+ "selected": {
+  "agent": "agent-0",
+  "hidden": 0.9595375722543352,
+  "index": 0,
+  "public": 0.9523809523809523
+ },
+ "spent_usd": 0.022551375000000002,
+ "started": 1791482975.7726378,
+ "task": "vertex_cover"
+}

@@ -1,0 +1,355 @@
+{
+ "config": {
+  "arms": {
+   "independent": 3,
+   "shared": 3,
+   "solo": 1
+  },
+  "calibration": {
+   "ceiling_usd": 2.0,
+   "tasks": [
+    [
+     "maxcut",
+     [
+      "independent",
+      "shared"
+     ]
+    ],
+    [
+     "vertex_cover",
+     [
+      "independent",
+      "solo"
+     ]
+    ]
+   ]
+  },
+  "cpu_seconds_per_instance": 2,
+  "effort": "high",
+  "gate": {
+   "max_transport_failures": 1,
+   "min_agents_with_valid_candidate": 2,
+   "min_hidden_range": 0.005
+  },
+  "hidden_instances": 10,
+  "history_token_soft_limit": 150000,
+  "k": 3,
+  "max_turns": 150,
+  "model": "gpt-6-luna",
+  "nudge_fraction": 0.4,
+  "public_instances": 5,
+  "rates": {
+   "input": 0.125,
+   "output": 0.5
+  },
+  "scored": {
+   "arms": [
+    "solo",
+    "independent",
+    "shared"
+   ],
+   "ceiling_usd": 8.5,
+   "concurrent_tasks": 2,
+   "tasks": [
+    "tsp",
+    "coloring",
+    "unrelated_machines",
+    "mkp",
+    "setcover",
+    "qap"
+   ]
+  },
+  "study_ceiling_usd": 15.0,
+  "study_seed": "shared-record-2026-10-08",
+  "task_arm_allowance_usd": 0.42
+ },
+ "gate": {
+  "facts": {
+   "best_hidden_any": 0.9351779429018381,
+   "maxcut/independent/agents_with_valid_candidate": 3,
+   "maxcut/independent/final_hidden_scores": [
+    0.9351779429018381,
+    0.9351779429018381,
+    0.9351779429018381
+   ],
+   "maxcut/independent/hidden_range": 0.0,
+   "maxcut/shared/agents_with_valid_candidate": 3,
+   "maxcut/shared/findings_posted": 13,
+   "maxcut/shared/reads_returning_peer_findings": 7,
+   "transport_failures": 0,
+   "vertex_cover/independent/agents_with_valid_candidate": 3,
+   "vertex_cover/independent/final_hidden_scores": [
+    0.9595375722543352,
+    0.9653179190751445,
+    0.9595375722543352
+   ],
+   "vertex_cover/independent/hidden_range": 0.005780346820809301,
+   "vertex_cover/solo/agents_with_valid_candidate": 1
+  },
+  "passed": false,
+  "reasons": [
+   "maxcut/independent: hidden range 0.0000 below 0.005"
+  ],
+  "spent_usd": 0.6967031250000006,
+  "time": 1791483565.0381382
+ },
+ "ledger": {
+  "by_phase": {
+   "calibration": 0.696703125,
+   "scored": 0
+  },
+  "entries": 180,
+  "failed": 0,
+  "total_usd": 0.696703125
+ },
+ "phases": {
+  "calibration": {
+   "tasks": {
+    "maxcut": {
+     "independent": {
+      "agent_final_hidden": {
+       "agent-0": 0.9351779429018381,
+       "agent-1": 0.9351779429018381,
+       "agent-2": 0.9351779429018381
+      },
+      "agent_initial_hidden": {
+       "agent-0": 0.9351779429018381,
+       "agent-1": 0.9351779429018381,
+       "agent-2": 0.9351779429018381
+      },
+      "allowance_usd": 0.42,
+      "arm": "independent",
+      "best_final_agent": "agent-0",
+      "best_initial_agent": "agent-0",
+      "budget_stops": 0,
+      "candidates": 36,
+      "complementarity_range": 0.0,
+      "elapsed_seconds": 618.7115859985352,
+      "fully_valid_candidates": 31,
+      "hidden": 0.9351779429018381,
+      "integration_regret": 0.0,
+      "k": 3,
+      "matched": {
+       "0.14": {
+        "agent": "agent-2",
+        "candidates": 18,
+        "hidden": 0.9351779429018381,
+        "public": 0.9362965997541991
+       },
+       "0.28": {
+        "agent": "agent-2",
+        "candidates": 36,
+        "hidden": 0.9351779429018381,
+        "public": 0.9362965997541991
+       },
+       "0.42": {
+        "agent": "agent-2",
+        "candidates": 36,
+        "hidden": 0.9351779429018381,
+        "public": 0.9362965997541991
+       }
+      },
+      "nudged": 1,
+      "oracle_hidden": 0.9351779429018381,
+      "public": 0.9362965997541991,
+      "spent_usd": 0.25783575,
+      "transport_failures": 0,
+      "turns": 58
+     },
+     "shared": {
+      "agent_final_hidden": {
+       "agent-0": 0.9351779429018381,
+       "agent-1": 0.9351779429018381,
+       "agent-2": 0.9351779429018381
+      },
+      "agent_initial_hidden": {
+       "agent-0": 0.9502346499804458,
+       "agent-1": 0.9351779429018381,
+       "agent-2": 0.9351779429018381
+      },
+      "allowance_usd": 0.42,
+      "arm": "shared",
+      "best_final_agent": "agent-0",
+      "best_initial_agent": "agent-1",
+      "budget_stops": 0,
+      "candidates": 23,
+      "complementarity_range": 0.0,
+      "elapsed_seconds": 457.1577401161194,
+      "fully_valid_candidates": 23,
+      "hidden": 0.9351779429018381,
+      "integration_regret": 0.0,
+      "k": 3,
+      "matched": {
+       "0.14": {
+        "agent": "agent-2",
+        "candidates": 18,
+        "hidden": 0.9351779429018381,
+        "public": 0.9362965997541991
+       },
+       "0.28": {
+        "agent": "agent-2",
+        "candidates": 23,
+        "hidden": 0.9351779429018381,
+        "public": 0.9362965997541991
+       },
+       "0.42": {
+        "agent": "agent-2",
+        "candidates": 23,
+        "hidden": 0.9351779429018381,
+        "public": 0.9362965997541991
+       }
+      },
+      "nudged": 2,
+      "oracle_hidden": 0.9351779429018381,
+      "public": 0.9362965997541991,
+      "record": {
+       "agents": [
+        {
+         "best_hidden_after": 0.9351779429018381,
+         "best_hidden_before": 0.9351779429018381,
+         "candidates_after": 9,
+         "candidates_after_improving_own_public_best": 0,
+         "candidates_before_first_peer_finding": 2,
+         "name": "agent-0",
+         "posted": 4,
+         "reads": 4,
+         "refused": 0
+        },
+        {
+         "best_hidden_after": 0.9351779429018381,
+         "best_hidden_before": 0.9351779429018381,
+         "candidates_after": 2,
+         "candidates_after_improving_own_public_best": 0,
+         "candidates_before_first_peer_finding": 3,
+         "name": "agent-1",
+         "posted": 4,
+         "reads": 3,
+         "refused": 0
+        },
+        {
+         "best_hidden_after": 0.9351779429018381,
+         "best_hidden_before": 0.9351779429018381,
+         "candidates_after": 5,
+         "candidates_after_improving_own_public_best": 0,
+         "candidates_before_first_peer_finding": 2,
+         "name": "agent-2",
+         "posted": 5,
+         "reads": 4,
+         "refused": 0
+        }
+       ],
+       "findings_delivered": 20,
+       "findings_posted": 13,
+       "reads": 11,
+       "reads_refused": 0,
+       "reads_with_new_findings": 7,
+       "receipts": 13
+      },
+      "spent_usd": 0.232282625,
+      "transport_failures": 0,
+      "turns": 56
+     }
+    },
+    "vertex_cover": {
+     "independent": {
+      "agent_final_hidden": {
+       "agent-0": 0.9595375722543352,
+       "agent-1": 0.9653179190751445,
+       "agent-2": 0.9595375722543352
+      },
+      "agent_initial_hidden": {
+       "agent-0": 0.9595375722543352,
+       "agent-1": 0.9653179190751445,
+       "agent-2": 1.5472061657032756
+      },
+      "allowance_usd": 0.42,
+      "arm": "independent",
+      "best_final_agent": "agent-0",
+      "best_initial_agent": "agent-0",
+      "budget_stops": 0,
+      "candidates": 14,
+      "complementarity_range": 0.005780346820809301,
+      "elapsed_seconds": 589.2622179985046,
+      "fully_valid_candidates": 13,
+      "hidden": 0.9595375722543352,
+      "integration_regret": 0.0,
+      "k": 3,
+      "matched": {
+       "0.14": {
+        "agent": "agent-0",
+        "candidates": 11,
+        "hidden": 0.9595375722543352,
+        "public": 0.9523809523809523
+       },
+       "0.28": {
+        "agent": "agent-0",
+        "candidates": 14,
+        "hidden": 0.9595375722543352,
+        "public": 0.9523809523809523
+       },
+       "0.42": {
+        "agent": "agent-0",
+        "candidates": 14,
+        "hidden": 0.9595375722543352,
+        "public": 0.9523809523809523
+       }
+      },
+      "nudged": 2,
+      "oracle_hidden": 0.9595375722543352,
+      "public": 0.9523809523809523,
+      "spent_usd": 0.18403337499999997,
+      "transport_failures": 0,
+      "turns": 54
+     },
+     "solo": {
+      "agent_final_hidden": {
+       "agent-0": 0.9595375722543352
+      },
+      "agent_initial_hidden": {
+       "agent-0": 0.9595375722543352
+      },
+      "allowance_usd": 0.42,
+      "arm": "solo",
+      "best_final_agent": "agent-0",
+      "best_initial_agent": "agent-0",
+      "budget_stops": 0,
+      "candidates": 2,
+      "complementarity_range": null,
+      "elapsed_seconds": 127.84355115890503,
+      "fully_valid_candidates": 2,
+      "hidden": 0.9595375722543352,
+      "integration_regret": 0.0,
+      "k": 1,
+      "matched": {
+       "0.14": {
+        "agent": "agent-0",
+        "candidates": 2,
+        "hidden": 0.9595375722543352,
+        "public": 0.9523809523809523
+       },
+       "0.28": {
+        "agent": "agent-0",
+        "candidates": 2,
+        "hidden": 0.9595375722543352,
+        "public": 0.9523809523809523
+       },
+       "0.42": {
+        "agent": "agent-0",
+        "candidates": 2,
+        "hidden": 0.9595375722543352,
+        "public": 0.9523809523809523
+       }
+      },
+      "nudged": 1,
+      "oracle_hidden": 0.9595375722543352,
+      "public": 0.9523809523809523,
+      "spent_usd": 0.022551375000000002,
+      "transport_failures": 0,
+      "turns": 12
+     }
+    }
+   }
+  }
+ },
+ "spent_usd": 0.6967031250000006
+}

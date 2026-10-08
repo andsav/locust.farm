@@ -4,6 +4,11 @@ Each family defines a seeded instance generator, a fixed reference heuristic,
 a validator, a cost function and a trivial fallback. A candidate's normalized
 score on an instance set is its total cost divided by the reference's total
 cost; an invalid or timed-out instance counts as the fallback's cost.
+
+Instance sizes are chosen so that 1.5 CPU seconds of plain Python cannot
+converge: at the first calibration's sizes (about a tenth of these) every
+agent reached the same hidden score. `shape` states the generator so agents
+can target the distribution rather than the five public instances.
 """
 import hashlib
 import math
@@ -58,10 +63,11 @@ class MaxCut:
         'Return a list of n integers in {0, 1} assigning each vertex to a side. '
         'Cost = total edge weight minus the weight of edges crossing the cut (uncut weight). '
         'Reference: greedy assignment then single-flip local search.')
+    shape = 'n uniform in [580, 620]; each pair is an edge with probability 0.05; integer weights uniform in [1, 10].'
 
     def generate(self, rng):
-        n = rng.randint(55, 65)
-        return {'n': n, 'edges': _graph(rng, n, 0.3, True)}
+        n = rng.randint(580, 620)
+        return {'n': n, 'edges': _graph(rng, n, 0.05, True)}
 
     def validate(self, instance, solution):
         _check_int_list(solution, instance['n'], 2)
@@ -101,10 +107,11 @@ class VertexCover:
         'instance = {"n": int, "edges": [[u, v], ...]} undirected. '
         'Return a list of distinct vertex indices such that every edge has at least one endpoint in the list. '
         'Cost = number of vertices in the cover. Reference: greedy by current degree.')
+    shape = 'n uniform in [780, 820]; each pair is an edge with probability 0.01.'
 
     def generate(self, rng):
-        n = rng.randint(75, 85)
-        return {'n': n, 'edges': _graph(rng, n, 0.08, False)}
+        n = rng.randint(780, 820)
+        return {'n': n, 'edges': _graph(rng, n, 0.01, False)}
 
     def validate(self, instance, solution):
         _check_index_set(solution, instance['n'])
@@ -142,9 +149,10 @@ class TSP:
         'instance = {"points": [[x, y], ...]} with integer coordinates in [0, 1000]. '
         'Return a permutation of range(len(points)) visiting every point once; the tour is closed. '
         'Cost = Euclidean length of the closed tour. Reference: nearest neighbour from point 0, then 2-opt to convergence.')
+    shape = 'number of points uniform in [580, 620]; coordinates independent integers uniform in [0, 1000].'
 
     def generate(self, rng):
-        n = rng.randint(95, 105)
+        n = rng.randint(580, 620)
         return {'points': [[rng.randint(0, 1000), rng.randint(0, 1000)] for _ in range(n)]}
 
     def validate(self, instance, solution):
@@ -192,10 +200,11 @@ class Coloring:
         'instance = {"n": int, "edges": [[u, v], ...]} undirected. '
         'Return a list of n non-negative integer colours such that no edge joins two vertices of the same colour. '
         'Cost = number of distinct colours used. Reference: DSATUR.')
+    shape = 'n uniform in [280, 320]; each pair is an edge with probability 0.1.'
 
     def generate(self, rng):
-        n = rng.randint(65, 75)
-        return {'n': n, 'edges': _graph(rng, n, 0.25, False)}
+        n = rng.randint(280, 320)
+        return {'n': n, 'edges': _graph(rng, n, 0.1, False)}
 
     def validate(self, instance, solution):
         _check_int_list(solution, instance['n'], instance['n'])
@@ -241,9 +250,10 @@ class UnrelatedMachines:
         'time of job j on machine m. Return a list assigning each job an integer machine index. '
         'Cost = makespan, the largest total load on any machine. '
         'Reference: list scheduling in job order, each job to the machine with the least resulting load.')
+    shape = 'jobs uniform in [290, 310]; 12 machines; processing times independent integers uniform in [1, 100].'
 
     def generate(self, rng):
-        jobs, machines = rng.randint(38, 42), 5
+        jobs, machines = rng.randint(290, 310), 12
         time = [[rng.randint(1, 100) for _ in range(machines)] for _ in range(jobs)]
         return {'jobs': jobs, 'machines': machines, 'time': time}
 
@@ -277,12 +287,14 @@ class MKP:
         'weight of item i in dimension d. Return a list of distinct chosen item indices whose total weight in every '
         'dimension is at most that dimension\'s capacity. Cost = total value of all items minus the value chosen '
         '(unselected value; lower is better). Reference: greedy by value over the sum of weight/capacity ratios, skipping infeasible items.')
+    shape = ('items uniform in [290, 310]; 10 dimensions; weights integers uniform in [1, 50]; values integers uniform in [10, 100]; '
+             'each capacity is 0.3 times that dimension\'s total weight.')
 
     def generate(self, rng):
-        n, d = rng.randint(38, 42), 4
+        n, d = rng.randint(290, 310), 10
         weights = [[rng.randint(1, 50) for _ in range(d)] for _ in range(n)]
         values = [rng.randint(10, 100) for _ in range(n)]
-        capacity = [int(0.4 * sum(weights[i][k] for i in range(n))) for k in range(d)]
+        capacity = [int(0.3 * sum(weights[i][k] for i in range(n))) for k in range(d)]
         return {'values': values, 'weights': weights, 'capacity': capacity}
 
     def validate(self, instance, solution):
@@ -318,10 +330,12 @@ class SetCover:
         'instance = {"universe": int, "sets": [[elements...], ...], "cost": [c_s, ...]} where elements are integers in '
         'range(universe). Return a list of distinct set indices whose union is the whole universe. '
         'Cost = sum of the chosen sets\' costs. Reference: greedy by cost per newly covered element.')
+    shape = ('universe size uniform in [580, 620]; 450 sets, each a uniform sample of between 4 and 30 elements, '
+             'with any uncovered element added to a random set; set costs integers uniform in [1, 20].')
 
     def generate(self, rng):
-        universe, count = rng.randint(75, 85), 50
-        sets = [sorted(rng.sample(range(universe), rng.randint(2, 10))) for _ in range(count)]
+        universe, count = rng.randint(580, 620), 450
+        sets = [sorted(rng.sample(range(universe), rng.randint(4, 30))) for _ in range(count)]
         covered = set().union(*map(set, sets))
         for element in range(universe):
             if element not in covered:
@@ -363,9 +377,10 @@ class QAP:
         'Return a permutation p of range(n) assigning facility i to location p[i]. '
         'Cost = sum over all i, j of flow[i][j] * distance[p[i]][p[j]]. '
         'Reference: identity assignment, then pairwise-swap first-improvement local search to a local optimum.')
+    shape = 'n uniform in [68, 72]; flow and distance are symmetric with zero diagonal and off-diagonal integers uniform in [0, 20].'
 
     def generate(self, rng):
-        n = rng.randint(18, 22)
+        n = rng.randint(68, 72)
 
         def symmetric():
             m = [[0] * n for _ in range(n)]
@@ -387,21 +402,26 @@ class QAP:
         return list(range(len(instance['flow'])))
 
     def reference(self, instance):
-        n = len(instance['flow'])
+        flow, dist = instance['flow'], instance['distance']
+        n = len(flow)
         p = list(range(n))
-        current = self.cost(instance, p)
         improved = True
         while improved:
             improved = False
             for i in range(n):
                 for j in range(i + 1, n):
-                    p[i], p[j] = p[j], p[i]
-                    candidate = self.cost(instance, p)
-                    if candidate < current:
-                        current = candidate
+                    # Exact cost change of swapping p[i] and p[j]; symmetric matrices with zero diagonals,
+                    # so only the cross terms with the other n-2 facilities move.
+                    pi, pj, fi, fj = p[i], p[j], flow[i], flow[j]
+                    di, dj = dist[pi], dist[pj]
+                    delta = 0
+                    for k in range(n):
+                        if k != i and k != j:
+                            pk = p[k]
+                            delta += (fi[k] - fj[k]) * (dj[pk] - di[pk])
+                    if delta < 0:
+                        p[i], p[j] = pj, pi
                         improved = True
-                    else:
-                        p[i], p[j] = p[j], p[i]
         return p
 
 
