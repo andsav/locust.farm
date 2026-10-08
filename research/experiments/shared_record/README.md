@@ -292,6 +292,23 @@ whether the independent agents spread by at least the smallest effect of
 interest before any shared-versus-independent difference on that task is
 read as informative.
 
+### Scored phase: `unrelated_machines/shared` ran after the others
+
+When the scored phase started, the shared arm of `unrelated_machines` failed
+before any agent ran: the daemon rejects principal names outside 1–32
+characters of `a-z`, `0-9` and `-`, and the harness derived
+`scored-unrelated_machines-agent-0` from the task name. The other five tasks'
+shared arms had valid names and ran as scheduled; the task's solo and
+independent arms ran as scheduled. The harness now derives valid names and a
+test covers every phase, task and agent the study can produce (commits
+`0de79bf`, `5a0504d`). The missing trial was run on its own after the
+scheduled scored phase finished, with the same protocol, allowance and tools.
+The only differences are that it ran later in the day and alone on the host;
+CPU-time limits make host load irrelevant to scoring, and API conditions are
+not controlled in any trial. The run-level `manifest.json` records the source
+hashes of the last launch; the git history above gives the sources each
+trial ran under.
+
 Two development-family observations from calibration 2 are recorded here so
 that they are not mistaken for scored results later: on maxcut, shared
 (0.9558) finished 0.004 behind independent (0.9516), with its three agents
