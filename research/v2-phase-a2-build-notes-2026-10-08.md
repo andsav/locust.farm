@@ -75,8 +75,10 @@ not edited. The predicate it reuses came from H1a and is described in
 5. **The pending answer and the stop rule.** The plan names no hook change.
    A start answered with pending work signs nothing, but the hook core counted
    every `attempt.start` as a write, so it re-armed a block already ignored.
-   It is now neutral, like a context acknowledgment; a start that answers a
-   claim still counts. The chat still becomes a worker chat. Tested by
+   It is now neutral, like a context acknowledgment. As built, a start that
+   answered a claim still counted; after the review, a claim the chat
+   already knows at the same generation is neutral too (below). The chat
+   still becomes a worker chat. Tested by
    `a_start_that_found_nothing_to_take_does_not_block_its_turn_end_again`.
    The stop line's text was not changed: it names `locust_attempt_start` and
    a task ID, which works with either shape.
@@ -178,3 +180,29 @@ On `47379f9`, Python 3.13:
   history), in `host-safety-and-ending-plan.md` 1198 and
   `roles-and-permissions-plan.md` 828, 961, 988 and 1092. Nothing else.
 - The exit drill above passed.
+
+## After the review
+
+The [review of A2 and S1b](v2-side-a2-s1b-review-2026-10-08.md) found three
+A2 defects, none blocking. All three are fixed on `side/a2`, after S1b's two
+commits were cherry-picked onto it (`f015564`, `e82cd8c`; the master plan's
+pieces table now reads "A1, A2, A3 and S1"). Review numbers are its headings.
+
+| # | Finding | Disposition | Commit | Test or text | Note |
+| --- | --- | --- | --- | --- | --- |
+| 1 | A start without a task that returns the held claim re-arms the stop block | Fixed | `01bbf6e` | `a_start_that_returns_the_held_claim_does_not_block_its_turn_end_again` ([core.rs](../crates/locust-adapter/src/hooks/core.rs)); the Hooks section of the [agents guide](../docs/guide/agents.md) | `observe` treats an `attempt.start` or `attempt.takeover` answered with a claim already in the chat's baseline at the same generation as no write, beside the pending answer. The test obeys the free-task line twice with no task and once by a takeover at the same generation, in a person's chat; it fails without the fix. A new generation still counts. The review's optional change to the free-task line was not made: the skill says to finish a held claim first, and a line naming the task would start a second attempt beside it. |
+| 2 | The skill tells an agent to "finish" a returned claim whose cancellation is waiting | Fixed | `a079e67` | `a_claim_returned_with_its_cancellation_waiting_is_acknowledged_first` ([mcp tests](../crates/locust/src/mcp/tests.rs)); [SKILL.md](../skills/locust/SKILL.md) | The review's sentence: "finish and report it first, or, when `locust_pending` lists a cancellation for it, acknowledge that first." |
+| 3 | An older skill sentence says an agent need not request the next task | Fixed | `a079e67` | `the_skill_never_says_an_agent_need_not_ask_for_its_next_task` | Now "an agent need not open a flow's next task itself", the review's words. |
+
+Finding 4 is S1b's, recorded in its
+[build notes](v2-phase-s1b-build-notes-2026-10-08.md); finding 5 waits for G2.
+
+Verification, on the tree of `32ec5a5` (all three fix commits and S1b's
+finding 4): `cargo fmt --all --check` clean; workspace clippy with
+`-D warnings` clean; `cargo test --locked --workspace` 39 suites, 1,365
+passed, 0 failed, 12 ignored; `cargo build --locked -p locust`, then
+`check_formations.py` verifies with the contract unchanged;
+`check_documentation.py` passes all four recipes; the Python helper tests ran
+335 with 10 skipped, OK; `check_docs.py` prints only the five baseline lines.
+The full set ran once on that final tree; each fix commit ran its own new
+tests, and each new test was seen to fail without its fix.

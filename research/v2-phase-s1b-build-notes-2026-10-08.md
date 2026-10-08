@@ -173,3 +173,18 @@ Linux 6.18 on ext4, rustc 1.96.1, Python 3.13.
   sentences, `MarksNotPrivate`, the guide section and the tests.
 - The commit containing these notes adds their index entry and marks S1
   built in the master plan; its hash is reported with the handoff.
+
+## After the review
+
+The [review of A2 and S1b](v2-side-a2-s1b-review-2026-10-08.md) found two S1b
+defects, none blocking. S1b's commits were cherry-picked onto `side/a2`
+(`f015564`, `e82cd8c`), where finding 4 is fixed. Review numbers are its
+headings.
+
+| # | Finding | Disposition | Commit | Test or text | Note |
+| --- | --- | --- | --- | --- | --- |
+| 4 | A program holding the database is reported as a storage failure, not as in use | Fixed | `32ec5a5` | `a_database_another_program_has_open_is_in_use` ([store tests](../crates/locust-store/src/tests.rs)), `a_database_another_program_has_open_says_to_close_it` ([open tests](../crates/locust/src/daemon/open_tests.rs)) | Under the exclusive lock the first access was `schema::check`, whose error became `Failed`. [connection.rs](../crates/locust-store/src/connection.rs) now reads once with the preflight's lock-aware mapping (`first_read`, `in_use`) before it. Both tests hold `locust.db` with an ordinary rusqlite connection that read `user_version`, as an `sqlite3` shell does, and fail without the fix; the daemon test checks the whole message and exit 8. `rusqlite` is a dev-dependency of `locust` for it. By hand, a daemon started while Python's `sqlite3` held the database printed "… open. Close it, then start again." and exited 8. |
+| 5 | `Node::open` still turns guard, settle and flow errors into `Failed` | Deferred | | | Left until G2 has landed, as under "Not done, and why"; the orchestrator will ask for it then. |
+
+Verification is that of the A2 fixes, on the same tree, in the A2
+[build notes](v2-phase-a2-build-notes-2026-10-08.md#after-the-review).
