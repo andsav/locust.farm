@@ -4497,3 +4497,146 @@ fn a_signing_command_in_a_goal_that_is_catching_up_shows_no_plan() {
     );
     handle.join().unwrap();
 }
+
+#[test]
+fn an_agent_held_with_the_goals_key_reads_that_the_person_ends_the_wait() {
+    // G2 review 1: Juniper lost a record of its own, and every other
+    // computer answered without the goal's own records, so only the person
+    // ends the wait. The refusal says so, not that it catches up by itself.
+    use locust_proto::api::{GuardReason, GuardView, MemberView};
+    use locust_proto::id::EndpointId;
+    let home = scratch();
+    write_secret(&home.path().join("owner.credential"), &[1; 32]);
+    let goal = GoalId([4; 32]);
+    let juniper = PublicKey([3; 32]);
+    let cedar = EndpointId([0xce; 32]);
+    let mut view = held_goal_status(goal, true);
+    view.guard[0].heard = vec![cedar];
+    view.guard[0].waiting = vec![];
+    view.members.push(MemberView {
+        name: "Juniper".into(),
+        member: juniper,
+        endpoint: EndpointId([3; 32]),
+        local: true,
+        admitted: 2,
+    });
+    view.abilities.push(Abilities {
+        name: "juniper".into(),
+        ..abilities(goal, juniper)
+    });
+    view.guard.push(GuardView {
+        key: juniper,
+        by_host: false,
+        reason: GuardReason::Behind { held: 0, signed: 1 },
+        heard: vec![cedar],
+        waiting: vec![],
+    });
+    let handle = server(home.path(), 1, move |frame| match frame.request {
+        Request::GoalStatus { .. } => Ok(Response::GoalStatus(view.clone())),
+        other => panic!("a held goal was sent {other:?}"),
+    });
+    let (code, out, error) = person(
+        home.path(),
+        &[
+            "--agent",
+            &juniper.to_string(),
+            "goal",
+            "leave",
+            "--goal",
+            &goal.to_string(),
+            "--plan",
+        ],
+    );
+    assert_eq!(code, Some(9), "{out}{error}");
+    assert_eq!(
+        error.trim_end(),
+        "locust: read_only: Juniper can't leave \"Parser cleanup\": the Locust data here is older than what this computer signed in the goal (this computer). It waits for you. To continue: locust --owner goal continue --goal 04040404"
+    );
+    handle.join().unwrap();
+}
+
+#[test]
+fn goal_add_and_farm_off_that_sign_nothing_go_on_while_the_host_is_catching_up() {
+    // G2 review 2: an agent already in the goal is told so, and turning off
+    // a page that is already off shows its plan; neither signs.
+    use locust_proto::farm::{FarmId, FarmPreview, FarmStatus, FarmVisibility};
+    use std::sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    };
+    let home = scratch();
+    write_secret(&home.path().join("owner.credential"), &[1; 32]);
+    let goal = GoalId([4; 32]);
+    let maple = PublicKey([2; 32]);
+    let on = Arc::new(AtomicBool::new(false));
+    let on_at_server = Arc::clone(&on);
+    let handle = server(home.path(), 3, move |frame| match frame.request {
+        Request::Status => Ok(Response::Status(DaemonStatus {
+            agents: vec![AgentView {
+                agent: maple,
+                name: "maple".into(),
+                author_only: false,
+                revoked: false,
+            }],
+            goals: vec![summary_fixture(goal)],
+            lost_goals: 0,
+            daemon_version: "stub".into(),
+            endpoint: None,
+            waiting: vec![],
+        })),
+        Request::GoalStatus { goal: selected } => {
+            Ok(Response::GoalStatus(held_goal_status(selected, true)))
+        }
+        Request::FarmShow { goal: selected } => Ok(Response::FarmPreview(FarmPreview {
+            snapshot: None,
+            policy: None,
+            status: Some(FarmStatus {
+                goal: selected,
+                farm_id: FarmId("00".repeat(16)),
+                desired: on_at_server
+                    .load(Ordering::SeqCst)
+                    .then_some(FarmVisibility::Link),
+                eligible: false,
+                reason: None,
+                pending: None,
+                receipt: None,
+                last_error: None,
+            }),
+        })),
+        other => panic!("a held goal was sent {other:?}"),
+    });
+    let (code, out, error) = person(
+        home.path(),
+        &[
+            "--agent",
+            "maple",
+            "goal",
+            "add",
+            "--goal",
+            &goal.to_string(),
+        ],
+    );
+    assert_eq!(code, Some(0), "{error}");
+    assert_eq!(
+        out.trim_end(),
+        "maple is already in \"Parser cleanup\" as Member · auto."
+    );
+    let off = |home: &std::path::Path| {
+        person(
+            home,
+            &["farm", "off", "--goal", &goal.to_string(), "--plan"],
+        )
+    };
+    let (code, out, error) = off(home.path());
+    assert_eq!(code, Some(0), "{error}");
+    assert!(out.contains("Plan id: plan-"), "{out}");
+    // A page that is on is taken down with a record the goal's key signs.
+    on.store(true, Ordering::SeqCst);
+    let (code, _, error) = off(home.path());
+    assert_eq!(code, Some(9), "{error}");
+    assert!(
+        error.starts_with("locust: read_only: You can't publish \"Parser cleanup\": "),
+        "{error}"
+    );
+    handle.join().unwrap();
+}

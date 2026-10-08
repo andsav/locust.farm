@@ -76,7 +76,8 @@ fn private_home(home: &Path) -> Result<String, Failure> {
     }
 }
 /// The marks directory beside the home: private and writable, or one the
-/// daemon can create at its start. Doctor creates nothing.
+/// daemon can create at its start. It is read as the store reads it, through
+/// a link. Doctor creates nothing.
 fn marks(home: &Path) -> Result<String, Failure> {
     let marks = local::marks_dir(home)?;
     let shown = marks.display().to_string();
@@ -87,7 +88,7 @@ fn marks(home: &Path) -> Result<String, Failure> {
         )
         .is_ok()
     };
-    match fs::symlink_metadata(&marks) {
+    match fs::metadata(&marks) {
         Ok(metadata) => {
             let mode = metadata.permissions().mode() & 0o7777;
             if !metadata.is_dir() {
@@ -101,6 +102,15 @@ fn marks(home: &Path) -> Result<String, Failure> {
             } else {
                 Ok(shown)
             }
+        }
+        // A link that points at nothing cannot be created over.
+        Err(error)
+            if error.kind() == std::io::ErrorKind::NotFound
+                && fs::symlink_metadata(&marks).is_ok() =>
+        {
+            Err(Failure::invalid(format!(
+                "{shown} is a link to something that does not exist"
+            )))
         }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
             match marks.parent().filter(|parent| writable(parent)) {

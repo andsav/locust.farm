@@ -158,22 +158,25 @@ impl<S: Store, E: Entropy> Node<S, E> {
         self.hold(entry, &governance)
     }
 
-    /// The view a refusal of `key` carries: the key's own hold, or, where
-    /// the key is held only because this daemon hosts the goal and the
-    /// goal's own key is held, that key's. `None` exactly when
-    /// [`Node::hold`] answers none.
+    /// The view a refusal of `key` carries. Where this daemon hosts the goal
+    /// and the goal's own key is held, that key's: every agent there is held
+    /// with it, and its view says when only the person can end the wait.
+    /// An agent's own missing records are named only while the goal's key
+    /// waits for another computer too. Otherwise the key's own hold. `None`
+    /// exactly when [`Node::hold`] answers none.
     pub(super) fn hold_view(&self, entry: &Entry, key: &PublicKey) -> Option<GuardView> {
         self.hold(entry, key)?;
-        let source = match (self.own_hold(entry, key), self.hosted_governance(entry)) {
-            (Some(Hold::Behind { .. }), _) | (_, None) => *key,
-            (_, Some(governance))
-                if governance != *key && self.hold(entry, &governance).is_some() =>
-            {
-                governance
+        let governance = self
+            .hosted_governance(entry)
+            .filter(|governance| governance != key)
+            .and_then(|governance| self.guard_view(entry, &governance));
+        match (self.own_hold(entry, key), governance) {
+            (Some(Hold::Behind { .. }), Some(governance)) if !governance.waits_for_you() => {
+                self.guard_view(entry, key)
             }
-            _ => *key,
-        };
-        self.guard_view(entry, &source)
+            (_, Some(governance)) => Some(governance),
+            (_, None) => self.guard_view(entry, key),
+        }
     }
 
     fn hold_with(

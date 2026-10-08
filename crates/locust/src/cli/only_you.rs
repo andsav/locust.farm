@@ -526,18 +526,25 @@ struct Signing<'a> {
 }
 
 /// The hold that keeps `signer` from signing in the goal `observed`
-/// describes: the key's own, or, in a goal this computer hosts, the goal's
-/// own key's, with which every agent's key there is held.
+/// describes, as the daemon's refusal names it: in a goal this computer
+/// hosts whose own key is held, that key's, with which every agent's key
+/// there is held; the agent's own missing records only while the goal's key
+/// waits for another computer too. Otherwise the key's own.
 fn holding(observed: &GoalStatus, signer: PublicKey) -> Option<&GuardView> {
     let own = observed.guard.iter().find(|hold| hold.key == signer);
-    if own.is_some_and(|hold| matches!(hold.reason, GuardReason::Behind { .. })) {
-        return own;
-    }
-    observed
+    let host = observed
         .guard
         .iter()
-        .find(|hold| observed.hosted_here && hold.by_host && hold.key != signer)
-        .or(own)
+        .find(|hold| observed.hosted_here && hold.by_host && hold.key != signer);
+    match (own, host) {
+        (Some(own), Some(host))
+            if matches!(own.reason, GuardReason::Behind { .. }) && !host.waits_for_you() =>
+        {
+            Some(own)
+        }
+        (_, Some(host)) => Some(host),
+        (own, None) => own,
+    }
 }
 
 /// A command that would sign with a key this computer holds while it
@@ -968,23 +975,26 @@ fn add_plan(
             "this goal is hosted on another computer; request an invitation from its host",
         ));
     }
-    // The goal's own key signs the admission.
-    refuse_if_held(
-        &goal_status,
-        Signing {
-            who: agent,
-            name: &selected.name,
-            signer: goal_status.governance,
-            act: Act::Join,
-            task: None,
-        },
-    )?;
     let standing = known
         .goals
         .iter()
         .find(|entry| entry.goal == goal && entry.member == agent)
         .map(|entry| entry.membership);
     let joined = standing == Some(Membership::Member);
+    // The goal's own key signs the admission; an agent already in signs
+    // nothing more, and is told so as always.
+    if !joined {
+        refuse_if_held(
+            &goal_status,
+            Signing {
+                who: agent,
+                name: &selected.name,
+                signer: goal_status.governance,
+                act: Act::Join,
+                task: None,
+            },
+        )?;
+    }
     let current_level = goal_status
         .abilities
         .iter()
@@ -1395,48 +1405,70 @@ fn continue_block(observed: &GoalStatus, known: &DaemonStatus, now_ms: u64) -> S
             None => "host: on another computer".to_owned(),
         }
     };
+    let name = |key: PublicKey| {
+        observed
+            .members
+            .iter()
+            .find(|member| member.member == key)
+            .map(|member| presentation::chosen_name(&member.name))
+            .unwrap_or_else(|| presentation::safe(&local_name(known, key)))
+    };
+    let records = |held: u64, signed: u64| {
+        let count = signed.saturating_sub(held);
+        format!("{count} record{}", if count == 1 { "" } else { "s" })
+    };
+    let host_hold = observed.guard.iter().find(|hold| hold.by_host);
+    // The agents' holds that come from the copy, and those of keys only
+    // just admitted, which no copy explains.
+    let (admitted, copied): (Vec<&GuardView>, Vec<&GuardView>) = observed
+        .guard
+        .iter()
+        .filter(|hold| !hold.by_host)
+        .partition(|hold| hold.reason == GuardReason::Admitted);
+    let from_a_copy = host_hold.is_some() || !copied.is_empty();
+    let unheard = |hold: &GuardView| hold.reason == GuardReason::Unheard;
+    let older = "  This copy may be older than what this computer signed here, and nothing on this computer can tell.";
     let mut lines = vec![
         format!("Goal: {title} ({goal_id}) · {host}"),
-        "Continue: sign in this goal from this computer's copy of the data.".to_owned(),
-    ];
-    let host_held = observed.guard.iter().any(|hold| hold.by_host);
-    let mut unheard = false;
-    for hold in &observed.guard {
-        let name = || {
-            observed
-                .members
-                .iter()
-                .find(|member| member.member == hold.key)
-                .map(|member| presentation::chosen_name(&member.name))
-                .unwrap_or_else(|| presentation::safe(&local_name(known, hold.key)))
-        };
-        match hold.reason {
-            GuardReason::Behind { held, signed } => {
-                let count = signed.saturating_sub(held);
-                let records = format!("{count} record{}", if count == 1 { "" } else { "s" });
-                lines.push(if hold.by_host {
-                    format!("  This copy is missing {records} that this computer signed as host.")
-                } else {
-                    format!("  This copy is missing {records} that {} signed.", name())
-                });
-            }
-            GuardReason::Unheard if !unheard => {
-                unheard = true;
-                lines.push(
-                    "  This copy may be older than what this computer signed here, and nothing on this computer can tell."
-                        .to_owned(),
-                );
-            }
-            GuardReason::Unheard => {}
-            GuardReason::Admitted => lines.push(format!(
-                "  {} was just admitted, and this computer has not heard from the host's computer since.",
-                name()
-            )),
+        if from_a_copy {
+            "Continue: sign in this goal from this computer's copy of the data."
+        } else {
+            "Continue: sign in this goal before this computer has heard from the host's computer."
         }
-    }
-    if host_held {
+        .to_owned(),
+    ];
+    // The host's records first: what they may hold follows them.
+    if let Some(hold) = host_hold {
+        lines.push(match hold.reason {
+            GuardReason::Behind { held, signed } => format!(
+                "  This copy is missing {} that this computer signed as host.",
+                records(held, signed)
+            ),
+            GuardReason::Unheard | GuardReason::Admitted => older.to_owned(),
+        });
         lines
             .push("  They may include a removal, a rule change or the end of the goal.".to_owned());
+    }
+    for hold in &copied {
+        if let GuardReason::Behind { held, signed } = hold.reason {
+            lines.push(format!(
+                "  This copy is missing {} that {} signed.",
+                records(held, signed),
+                name(hold.key)
+            ));
+        }
+    }
+    if !host_hold.is_some_and(unheard) && copied.iter().any(|hold| unheard(hold)) {
+        lines.push(older.to_owned());
+    }
+    for hold in &admitted {
+        lines.push(format!(
+            "  {} was just admitted, and this computer has not heard from the host's computer since. Continuing skips that check.",
+            name(hold.key)
+        ));
+    }
+    if !from_a_copy {
+        return lines.join("\n");
     }
     // Every hold in a goal waits on the same computers.
     if let Some(hold) = observed.guard.first() {
@@ -1460,11 +1492,25 @@ fn continue_block(observed: &GoalStatus, known: &DaemonStatus, now_ms: u64) -> S
             ));
         }
     }
-    if host_held {
+    if host_hold.is_some() {
         lines.push("  Wait until the computers of the members you added most recently have been on. A member added after this copy was made is not listed here, and its computer may hold them.".to_owned());
         lines.push("  If another computer holds one of those records, the next record signed here conflicts with it. If these are the host's records, that stops joining, removing and rule changes in this goal for everyone, for good.".to_owned());
     } else {
-        lines.push("  If another computer holds one of those records, the next record signed here conflicts with it, and that agent signs nothing more in this goal.".to_owned());
+        // Only agents' keys are held: a conflict costs those agents.
+        let names: Vec<String> = copied.iter().map(|hold| name(hold.key)).collect();
+        let sign = if names.len() == 1 { "signs" } else { "sign" };
+        lines.push(if copied.iter().any(|hold| unheard(hold)) {
+            format!(
+                "  If another computer holds a record that {} signed after this copy was made, the next record signed here conflicts with it, and {} then {sign} nothing more in this goal.",
+                names.join(" or "),
+                names.join(" and ")
+            )
+        } else {
+            format!(
+                "  If another computer holds one of those records, the next record signed here conflicts with it, and {} then {sign} nothing more in this goal.",
+                names.join(" and ")
+            )
+        });
     }
     lines.push(
         "  Safe when this is the newest copy of this computer's Locust data and no other copy is running."
@@ -2302,6 +2348,116 @@ fn invitation_revoke(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// "Parser cleanup", held on this computer as `guard` says: Maple is the
+    /// host's agent, Juniper another member here, Cedar a member elsewhere.
+    fn held(guard: Vec<GuardView>, hosted_here: bool) -> GoalStatus {
+        use locust_proto::api::MemberView;
+        use locust_proto::id::EndpointId;
+        let member = |name: &str, key: u8, endpoint: u8| MemberView {
+            name: name.into(),
+            member: PublicKey([key; 32]),
+            endpoint: EndpointId([endpoint; 32]),
+            local: endpoint == 1,
+            admitted: 0,
+        };
+        GoalStatus {
+            goal: GoalId([4; 32]),
+            title: Some("Parser cleanup".into()),
+            governance: PublicKey([9; 32]),
+            hosted_here,
+            host: Some(PublicKey([2; 32])),
+            host_name: Some("Maple".into()),
+            roles: Default::default(),
+            deciding: Default::default(),
+            acting_alone: Default::default(),
+            governance_head: None,
+            current_rules: None,
+            scope_halts: vec![],
+            members: vec![
+                member("Maple", 2, 1),
+                member("Juniper", 0xa0, 1),
+                member("Cedar", 0x2f, 0xce),
+            ],
+            halted: None,
+            workspace: None,
+            abilities: vec![],
+            stalled: vec![],
+            peers: vec![],
+            guard,
+            restored: None,
+        }
+    }
+
+    fn hold(key: u8, by_host: bool, reason: GuardReason) -> GuardView {
+        GuardView {
+            key: PublicKey([key; 32]),
+            by_host,
+            reason,
+            heard: vec![],
+            waiting: vec![locust_proto::id::EndpointId([0xce; 32])],
+        }
+    }
+
+    #[test]
+    fn the_continue_plan_puts_the_hosts_records_first_and_names_what_each_hold_risks() {
+        let known = DaemonStatus {
+            daemon_version: "test".into(),
+            endpoint: None,
+            agents: vec![],
+            waiting: vec![],
+            goals: vec![],
+            lost_goals: 0,
+        };
+        // G2 review 3. Juniper's key sorts after the goal's own key: what
+        // the host's records may hold still follows the host's line.
+        let block = continue_block(
+            &held(
+                vec![
+                    hold(9, true, GuardReason::Behind { held: 4, signed: 6 }),
+                    hold(0xa0, false, GuardReason::Behind { held: 0, signed: 1 }),
+                ],
+                true,
+            ),
+            &known,
+            0,
+        );
+        assert!(
+            block.contains("\n  This copy is missing 2 records that this computer signed as host.\n  They may include a removal, a rule change or the end of the goal.\n  This copy is missing 1 record that Juniper signed.\n"),
+            "{block}"
+        );
+        assert!(block.contains("If these are the host's records"), "{block}");
+        // On a member's computer of unknown age, the closing line names the
+        // agent a conflict would cost.
+        let block = continue_block(
+            &held(vec![hold(0xa0, false, GuardReason::Unheard)], false),
+            &known,
+            0,
+        );
+        assert!(
+            block.contains("\n  This copy may be older than what this computer signed here, and nothing on this computer can tell.\n"),
+            "{block}"
+        );
+        assert!(
+            block.contains("\n  If another computer holds a record that Juniper signed after this copy was made, the next record signed here conflicts with it, and Juniper then signs nothing more in this goal.\n  Safe when"),
+            "{block}"
+        );
+        assert!(
+            !block.contains("that agent") && !block.contains("They may"),
+            "{block}"
+        );
+        // A key only just admitted involves no copy: one line says what
+        // continuing skips, and no line speaks of copies or conflicts.
+        let block = continue_block(
+            &held(vec![hold(0xa0, false, GuardReason::Admitted)], false),
+            &known,
+            0,
+        );
+        assert_eq!(
+            block,
+            "Goal: Parser cleanup (04040404) · host: Maple's owner, on another computer\nContinue: sign in this goal before this computer has heard from the host's computer.\n  Juniper was just admitted, and this computer has not heard from the host's computer since. Continuing skips that check."
+        );
+    }
 
     #[test]
     fn add_retry_keys_distinguish_the_invited_role() {

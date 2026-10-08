@@ -2373,6 +2373,48 @@ fn only_a_hold_no_other_computer_can_end_waits_for_the_person() {
     assert_eq!(continued(&mut net.nodes[0], goal), 2);
     assert_eq!(listed(&mut net.nodes[0], goal), None);
 
+    // The host's agent lost a record of its own too. Its refusal names that
+    // hold while the goal's key still waits for another computer, and says
+    // the person ends the wait once only the person can (G2 review 1).
+    let mut net = Network::with(2);
+    let (goal, host, _) = shared_goal(&mut net, &[1]);
+    let governance = governance_of(&net.nodes[0], goal);
+    let copy = snapshot(&net.nodes[0].store);
+    net.down.insert(1);
+    let owner = net.nodes[0].owner();
+    join_local(&mut net.nodes[0], owner, goal, 3);
+    posted(&mut net, 0, HOST, goal);
+    net.start_over(0, copy);
+    let error = post(&mut net, 0, HOST, goal).unwrap_err();
+    let (_, hold) = this_computer(&error);
+    assert!(matches!(hold.reason, GuardReason::Behind { .. }));
+    assert_eq!(hold.key, host);
+    assert!(
+        error
+            .message
+            .ends_with("It catches up by itself, or host's owner can continue without waiting."),
+        "{error}"
+    );
+    net.down.clear();
+    settle(&mut net);
+    let holds = listed(&mut net.nodes[0], goal).expect("listed for the person");
+    assert!(
+        holds
+            .iter()
+            .any(|view| view.key == host && matches!(view.reason, GuardReason::Behind { .. })),
+        "{holds:?}"
+    );
+    let error = post(&mut net, 0, HOST, goal).unwrap_err();
+    let (_, hold) = this_computer(&error);
+    assert_eq!(hold.key, governance);
+    assert!(
+        error
+            .message
+            .ends_with("It waits for host's owner, who can continue with one command."),
+        "{error}"
+    );
+    assert_eq!(continued(&mut net.nodes[0], goal), 2);
+
     // A copy of unknown age of a goal this computer hosts waits for the
     // person from the start, and still after every other computer answered.
     let mut net = Network::with(2);

@@ -115,22 +115,37 @@ pub(super) fn run(
         && client.caller() == Caller::Owner
     {
         // Each signs a publication record: none shows a plan it could not
-        // carry out while this computer is catching up in the goal.
-        let observed = match client
-            .call(locust_proto::api::Request::GoalStatus {
-                goal: goal.expect("write goal"),
-            })
-            .map_err(|error| connection::client_error(error, &socket))?
-        {
-            locust_proto::api::Response::GoalStatus(observed) => observed,
-            _ => unreachable!("typed response"),
-        };
-        match &fields["agent"] {
-            Value::Null => super::only_you::refuse_if_host_held(&observed, Act::Publish, None)?,
-            agent => {
-                let agent: PublicKey = serde_json::from_value(agent.clone())
-                    .map_err(|error| Failure::internal(error.to_string()))?;
-                super::only_you::refuse_if_agent_held(&observed, agent, Act::Publish)?;
+        // carry out while this computer is catching up in the goal. Turning
+        // off a page that is already off signs nothing, and goes on.
+        let signs = operation != "farm.off"
+            || match client
+                .call(locust_proto::api::Request::FarmShow {
+                    goal: goal.expect("write goal"),
+                })
+                .map_err(|error| connection::client_error(error, &socket))?
+            {
+                locust_proto::api::Response::FarmPreview(preview) => preview
+                    .status
+                    .is_some_and(|status| status.desired.is_some()),
+                _ => unreachable!("typed response"),
+            };
+        if signs {
+            let observed = match client
+                .call(locust_proto::api::Request::GoalStatus {
+                    goal: goal.expect("write goal"),
+                })
+                .map_err(|error| connection::client_error(error, &socket))?
+            {
+                locust_proto::api::Response::GoalStatus(observed) => observed,
+                _ => unreachable!("typed response"),
+            };
+            match &fields["agent"] {
+                Value::Null => super::only_you::refuse_if_host_held(&observed, Act::Publish, None)?,
+                agent => {
+                    let agent: PublicKey = serde_json::from_value(agent.clone())
+                        .map_err(|error| Failure::internal(error.to_string()))?;
+                    super::only_you::refuse_if_agent_held(&observed, agent, Act::Publish)?;
+                }
             }
         }
         let plan = publication_plan(

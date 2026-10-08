@@ -127,8 +127,27 @@ fn doctor_names_the_marks_directory() {
         "{check}"
     );
     assert!(human.contains("failed marks:"), "{human}");
-    // A file in its place.
+    // A link to a private directory, which the daemon opens through the
+    // link, as doctor's home check does (G2 review 4); a link to nothing.
     fs::remove_dir(&marks).unwrap();
+    let real = root.path().join("real");
+    fs::DirBuilder::new().mode(0o700).create(&real).unwrap();
+    std::os::unix::fs::symlink(&real, &marks).unwrap();
+    let (check, _) = found(&home);
+    assert_eq!(check["ok"], true, "{check}");
+    assert_eq!(check["detail"], marks.display().to_string());
+    fs::remove_dir(&real).unwrap();
+    let (check, _) = found(&home);
+    assert_eq!(check["ok"], false, "{check}");
+    assert!(
+        check["detail"]
+            .as_str()
+            .unwrap()
+            .ends_with("is a link to something that does not exist"),
+        "{check}"
+    );
+    // A file in its place.
+    fs::remove_file(&marks).unwrap();
     fs::write(&marks, b"").unwrap();
     let (check, _) = found(&home);
     assert_eq!(check["ok"], false, "{check}");
