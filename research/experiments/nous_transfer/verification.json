@@ -1,0 +1,47 @@
+{
+  "scope": "Offline verification only; no real-model experimental results",
+  "date": "2026-10-08",
+  "upstream_commit": "3ff0b996784cdc8f4db40210c0505371e667ee1e",
+  "runner_hashes": {
+    "nous_transfer/protocol.py": "f021ac70426e7fde859dc4fdcdfa6d1c79cef724e30d6e1264de78b60b457126",
+    "nous_transfer/experiment.py": "6ad9bed94a1b625e3b7de29cb52b3e671c2bde3afa3e1967cc84b5bebffd340b",
+    "luna_decision_pilot/run.py": "62261655c0918aee8be480de54bc15d8f448d0d4c1061129ef05404a9a46f2e2",
+    "luna_decision_pilot/study.py": "3fe0076f86db2e8f871cf5d7acc30076bc3db82049cf3baac1dd83101c0881bf"
+  },
+  "smoke_manifest_sha256": "e228095256833f1118994122d1344f953542a78dfa67bdb1fe0297a1b6f29982",
+  "replay_manifest_sha256": "e1efd23f67be8caa7a923bd3517717ece98504dccf7a9f9fe963e68500262d57",
+  "historical_smoke": {
+    "questions": 10,
+    "clusters": 2
+  },
+  "historical_replay": {
+    "questions": 10,
+    "clusters": 3
+  },
+  "cohorts_disjoint_by_id_and_cluster": true,
+  "excluded_source_cases": 30,
+  "simulated_requests": 900,
+  "paid_requests": 0,
+  "unit_tests_passed": 13,
+  "verified_boundaries": [
+    "wire excludes outcome and cluster labels",
+    "identical initial records shared between private and exchange",
+    "nine peers excluding self",
+    "missing initial blocks both branches",
+    "strict probability parsing",
+    "Brier identity",
+    "manifest/request tamper rejection",
+    "no simulated/live record mixing",
+    "prospective source-date/label validation",
+    "unresolved cohort not scored",
+    "equal weight for related-event clusters",
+    "large input rejected before transport"
+  ],
+  "not_verified": [
+    "live model performance",
+    "behavioral profile compliance",
+    "historical brief leakage absence",
+    "independent outcome truth",
+    "prospective cohort effectiveness"
+  ]
+}
