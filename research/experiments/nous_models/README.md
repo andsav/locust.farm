@@ -150,3 +150,15 @@ request/source/code hashes and minimal scoring labels instead.
 The implementation uses [study.py](study.py) for the frozen design and scoring,
 [runner.py](runner.py) for bounded calls, and [test_study.py](test_study.py) for
 request-identity, mixed-peer routing, response-sharing, accounting and retry tests.
+
+[evidence.py](evidence.py) exports original outputs without upstream prompt bodies
+and recomputes scores, diagnostics and provider accounting. With the upstream
+checkout and baseline, it reconstructs both the historical and amended requests.
+The historical audit temporarily loads the exact committed generation code and
+makes no API calls. [Evidence tests](test_evidence.py) check removal of upstream
+text and rejection of changed scores, diagnostics and costs.
+
+```sh
+python3 research/experiments/nous_models/evidence.py export output/nous-models-formatted-2026-10-08 path/to/evidence.json --code-revision e69f50f
+python3 research/experiments/nous_models/evidence.py verify path/to/evidence.json --upstream output/nous-paper-review-2026-10-07 --baseline research/experiments/nous_transfer/completed-evidence-2026-10-08.json
+```
