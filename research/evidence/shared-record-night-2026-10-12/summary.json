@@ -1,0 +1,388 @@
+{
+  "calibration": {
+    "frontier_private_stage_executed": false,
+    "selected_model_ids": [
+      "gpt-6-luna",
+      "gpt-6-astra"
+    ],
+    "selections": {
+      "frontier": {
+        "family_balanced_hidden": 0.9482588020905659,
+        "quality_tied_procedures": [
+          "verify"
+        ],
+        "reason": "strictly lowest family-balanced hidden score",
+        "selected": "verify"
+      },
+      "luna": {
+        "family_balanced_hidden": 0.9515844673368692,
+        "quality_tied_procedures": [
+          "verify"
+        ],
+        "reason": "strictly lowest family-balanced hidden score",
+        "selected": "verify"
+      }
+    }
+  },
+  "campaign": {
+    "calibration_trials": 12,
+    "ceiling_usd": "30.00",
+    "committed_usd": "3.70571304",
+    "completed_responses": 559,
+    "development_trials": 14,
+    "generation_dispatches": 564,
+    "http_400_unknown_charge": 1,
+    "incomplete_responses_with_usage": 4,
+    "known_usage_usd": "3.61628804",
+    "monetary_basis": "Provider usage calculation, not an independently reconciled invoice.",
+    "unallocated_usd": "26.29428696",
+    "uncertain_reserved_usd": "0.089425"
+  },
+  "claim_limit": "Exploratory development on one pack per known family; no confirmatory, strong-solo scored, diversity-mediation, model-learning, or general collaboration-benefit result.",
+  "development": {
+    "accounting_status": "pass",
+    "attribution_note": "Shared prefix generations billed once; full prefix cost attributed to every consuming branch.",
+    "billing": {
+      "entries": 447,
+      "known_usage_cost": 1.40213939,
+      "synthetic": false,
+      "total": 1.40213939,
+      "uncertain_reservations": 0.0
+    },
+    "branch_attributed_cost_usd": "1.98704157",
+    "contrasts": {
+      "G_info:D": {
+        "descriptive": true,
+        "first": "C_D",
+        "mean": -0.17808781413374292,
+        "second": "P_D"
+      },
+      "G_info:E": {
+        "descriptive": true,
+        "first": "C_E",
+        "mean": -0.0013682023517915254,
+        "second": "P_E"
+      },
+      "G_info:F": {
+        "descriptive": true,
+        "first": "C_F",
+        "mean": -7.600846951516527e-05,
+        "second": "P_F"
+      },
+      "G_net:D": {
+        "descriptive": true,
+        "first": "I",
+        "mean": -0.17467281228143566,
+        "second": "P_D"
+      },
+      "G_net:E": {
+        "descriptive": true,
+        "first": "I",
+        "mean": 0.003115578782139916,
+        "second": "P_E"
+      },
+      "G_net:F": {
+        "descriptive": true,
+        "first": "I",
+        "mean": 0.004407772664416276,
+        "second": "P_F"
+      },
+      "private_review:D": {
+        "descriptive": true,
+        "first": "I",
+        "mean": 0.0034150018523072534,
+        "second": "C_D"
+      },
+      "private_review:E": {
+        "descriptive": true,
+        "first": "I",
+        "mean": 0.0044837811339314415,
+        "second": "C_E"
+      },
+      "private_review:F": {
+        "descriptive": true,
+        "first": "I",
+        "mean": 0.0044837811339314415,
+        "second": "C_F"
+      }
+    },
+    "delivery": {
+      "empty_deliveries": 2,
+      "isolated_goals": 12,
+      "peer_eligible_recipients": 18,
+      "publication_receipts": 336,
+      "recipients": 36,
+      "recipients_with_peer_metadata": 17,
+      "recipients_with_peer_metadata_dispatched": 17,
+      "recipients_with_peer_source_returns": 12,
+      "recipients_with_peer_source_submitted": 11,
+      "record_trials": 12
+    },
+    "delivery_status": "pass",
+    "evaluator_repetitions": 2,
+    "execution_labels_exposed": {
+      "confirmed_model_payloads": 447,
+      "model_payloads": 371,
+      "payload_occurrences": 12664,
+      "retained_in_paid_data": true
+    },
+    "families": [
+      "maxcut",
+      "vertex_cover"
+    ],
+    "noise_summary": {
+      "hidden": {
+        "evaluation_records": 236,
+        "evaluation_rows": 2360,
+        "instances_with_cost_variation": 7,
+        "instances_with_validity_flips": 7,
+        "invalid_evaluation_rows": 65,
+        "max_normalized_repeat_range": 0.3741136869536892,
+        "records_with_range_above_0_01": 5,
+        "repeated_evaluation_available": true
+      },
+      "public": {
+        "evaluation_records": 241,
+        "evaluation_rows": 1446,
+        "instances_with_cost_variation": 2,
+        "instances_with_validity_flips": 2,
+        "invalid_evaluation_rows": 34,
+        "max_normalized_repeat_range": 0.6388786015850677,
+        "records_with_range_above_0_01": 2,
+        "repeated_evaluation_available": true
+      }
+    },
+    "packs_per_family": 1,
+    "prefix_summary": {
+      "delayed": {
+        "all_observed_workers_valid": true,
+        "assigned_prefixes": 2,
+        "first_valid_known_actual_cost_range": [
+          0.0018349249999999998,
+          0.031676575
+        ],
+        "incomplete_prefixes": 0,
+        "missing_archives": 0,
+        "observed_workers": 6,
+        "prefixes_with_no_valid_worker": 0,
+        "workers_with_valid_candidate": 6
+      },
+      "early": {
+        "all_observed_workers_valid": true,
+        "assigned_prefixes": 2,
+        "first_valid_known_actual_cost_range": [
+          0.0009706000000000001,
+          0.031643700000000004
+        ],
+        "incomplete_prefixes": 0,
+        "missing_archives": 0,
+        "observed_workers": 6,
+        "prefixes_with_no_valid_worker": 0,
+        "workers_with_valid_candidate": 6
+      }
+    },
+    "selection": {
+      "D_minus_F_gain": -0.17908058494585194,
+      "arms": {
+        "C_D": {
+          "family_balanced_gain_over_I": 0.0034150018523072534,
+          "family_balanced_hidden": 0.9528877829159788,
+          "kind": "C",
+          "mean_actual_cost": 0.162572435,
+          "mean_known_usage_cost": 0.162572435,
+          "policy": "D",
+          "unknown_cost_requests": 0
+        },
+        "C_E": {
+          "family_balanced_gain_over_I": 0.0044837811339314415,
+          "family_balanced_hidden": 0.9518190036343546,
+          "kind": "C",
+          "mean_actual_cost": 0.14215761,
+          "mean_known_usage_cost": 0.14215761,
+          "policy": "E",
+          "unknown_cost_requests": 0
+        },
+        "C_F": {
+          "family_balanced_gain_over_I": 0.0044837811339314415,
+          "family_balanced_hidden": 0.9518190036343546,
+          "kind": "C",
+          "mean_actual_cost": 0.131489835,
+          "mean_known_usage_cost": 0.131489835,
+          "policy": "F",
+          "unknown_cost_requests": 0
+        },
+        "I": {
+          "family_balanced_gain_over_I": 0.0,
+          "family_balanced_hidden": 0.9563027847682859,
+          "kind": "I",
+          "mean_actual_cost": 0.0828911575,
+          "mean_known_usage_cost": 0.0828911575,
+          "unknown_cost_requests": 0
+        },
+        "P_D": {
+          "family_balanced_gain_over_I": -0.17467281228143566,
+          "family_balanced_hidden": 1.1309755970497215,
+          "kind": "P",
+          "mean_actual_cost": 0.179540695,
+          "mean_known_usage_cost": 0.179540695,
+          "policy": "D",
+          "unknown_cost_requests": 0
+        },
+        "P_E": {
+          "family_balanced_gain_over_I": 0.003115578782139916,
+          "family_balanced_hidden": 0.953187205986146,
+          "kind": "P",
+          "mean_actual_cost": 0.1538392375,
+          "mean_known_usage_cost": 0.1538392375,
+          "policy": "E",
+          "unknown_cost_requests": 0
+        },
+        "P_F": {
+          "family_balanced_gain_over_I": 0.004407772664416276,
+          "family_balanced_hidden": 0.9518950121038696,
+          "kind": "P",
+          "mean_actual_cost": 0.141029815,
+          "mean_known_usage_cost": 0.141029815,
+          "policy": "F",
+          "unknown_cost_requests": 0
+        }
+      },
+      "gain_tie_threshold": 0.0025,
+      "reason": "larger family-balanced improvement over I",
+      "rule": "Larger family-balanced gain over I; below 0.0025 difference use mean actual charged cost; exact cost tie D.",
+      "selected_arm": "P_F",
+      "selected_policy": "F",
+      "status": "selected"
+    },
+    "selector_summary": {
+      "fallback_trials": 0,
+      "max_selector_regret": 0.35772058823529407,
+      "mean_selector_regret": 0.025903598585859222,
+      "public_tied_distinct_source_pairs": 268,
+      "public_valid_hidden_invalid_candidates": 9,
+      "selected_public_valid_hidden_invalid": 1,
+      "trials": 14
+    },
+    "task_arm_ceiling_usd": "0.42"
+  },
+  "local_evidence_identities": [
+    {
+      "bytes": 4325252,
+      "file": "calibration-continue-sealed.tar.gz",
+      "sha256": "86dd049f174fe636fdaa3eefd1171abc6af7ea5e4ff9a2edfbd6346c028f6dc2"
+    },
+    {
+      "bytes": 8478325,
+      "file": "calibration-verify-min16-sealed.tar.gz",
+      "sha256": "754655e9a1ce37df0f2904603c6674dea2dc5b432e3d13b412c437dff92c02bb"
+    },
+    {
+      "bytes": 769576,
+      "file": "calibration-restart-min16-sealed.tar.xz",
+      "sha256": "260647166caff92872f0315689b337bf5ec34f4b42db6291106feff7a37723bd"
+    },
+    {
+      "bytes": 24245692,
+      "file": "policy-development-sealed.tar.xz",
+      "sha256": "fad77076fa75e278d14492ddbca6a8c7594fde7e5bb6a6c205f4748b2ab3974a"
+    },
+    {
+      "bytes": 194916,
+      "file": "opaque-id-replay-sealed.tar.xz",
+      "sha256": "df51584153436e7424fda8287b8dd5dd3a1d75e2f0e1336dc8aeb595e43aabc9"
+    },
+    {
+      "bytes": 98702,
+      "file": "analysis-development.json",
+      "sha256": "60d0021d48c5f0651b3241ab1faf112fdcc17d0464df019e23bda28bc7724fb9"
+    },
+    {
+      "bytes": 398122,
+      "file": "qualification-development.json",
+      "sha256": "c6c714020b3fbbf6fdbfb9e96fac2efbc3c3747f08057b7943467ae5aa86f88a"
+    },
+    {
+      "bytes": 61342,
+      "file": "qualification-development-readiness.json",
+      "sha256": "1a896e28d753a90b5fc7eb58c1d51fdc9921e633e2e4d721b61e5ce087afddee"
+    },
+    {
+      "bytes": 51592,
+      "file": "accounting-development.json",
+      "sha256": "84c82919f9f5bd281d702e02dd28441426055b69d8adf0d4b185edbe89bdaf0d"
+    },
+    {
+      "bytes": 233425,
+      "file": "delivery-development.json",
+      "sha256": "d7dd56feba4d69a11b31d02de2d67030ee938c5dcd68928671789dc8c6aae0a6"
+    },
+    {
+      "bytes": 63969,
+      "file": "calibration-selection.json",
+      "sha256": "1d5c90d9124abb00a1008cb79d94bc23efa2c42124fbaec5b74ba1a3fde20991"
+    },
+    {
+      "bytes": 105835,
+      "file": "campaign-after-development.json",
+      "sha256": "c34517202a8632ea2e3d379f3d197ffd7e99a1e42fd31c75b7637afb3e35a80a"
+    }
+  ],
+  "opaque_id_repair": {
+    "binary_sha256": "74e8a05a061489dda54ac931dd95704ee99b9577d0a24fed4e107dea9babf01c",
+    "blocks": 4,
+    "empty_filtered_deliveries": 4,
+    "expected_transport_failures": 2,
+    "hidden_sha256": "0c332b2df0130c03f63d2b8263ad2e34b6b415a0ca3b4811550ab1060e37058a",
+    "invalid_peer_recipients": 12,
+    "isolated_goals": 24,
+    "label_free_model_requests": 306,
+    "manifest_sha256": "d00a19905b2a913542efdf8cc69b82a66eb0a7834e7730a047b647283879a4f6",
+    "opaque_candidate_ids": 148,
+    "paid_model_calls": 0,
+    "scripted_requests": 306,
+    "seal_sha256": "631e222b004ba91a5120de9287fc4b93515d2222116a6d3c940d61b87e80a12a",
+    "signed_receipts": 208,
+    "status": "passed",
+    "trials": 36
+  },
+  "original_history": {
+    "base_commit": "62981771a6704e2830aee323a130a5ffb2e9b0b1",
+    "bundle": {
+      "advertised_heads": {
+        "refs/heads/codex/opaque-candidate-ids": "1eb43fc60cdc09ba2ee0df38177284045ceed708",
+        "refs/heads/main": "5e4f40fbe9f5e59e6c19037b334021f78b0af816"
+      },
+      "bytes": 40462578,
+      "format_header": "# v2 git bundle",
+      "path": "output/shared-record-squash-2026-10-12/original-experiment-history.bundle",
+      "prerequisite_commits": [
+        "62981771a6704e2830aee323a130a5ffb2e9b0b1"
+      ],
+      "sha256": "8d868a9250bd35dcafcc58018d46937efdde10515ec7dbb4df25ba91fd4c4911"
+    },
+    "fresh_restore_verified": true,
+    "frozen_identities_unchanged": true,
+    "frozen_source_checks": 385,
+    "original_main_commits": 18,
+    "original_main_tip": "5e4f40fbe9f5e59e6c19037b334021f78b0af816",
+    "preserved_commits_including_isolated_repair": 19,
+    "receipt_sha256": "a6ae7a7a0c4535616d74e80d573cd6030b88985860f27b9b8494f9f1a4e6f3dd",
+    "storage": "Local ignored output/shared-record-squash-2026-10-12/; absent from a fresh clone.",
+    "unique_frozen_source_commit_paths": 140
+  },
+  "schema": "shared-record-curated-campaign-summary.v1",
+  "scope": "Aggregate observations copied from sealed local records; raw data and original history remain local and ignored. No new model calls or evaluations.",
+  "scored_phase": {
+    "allocation_created": false,
+    "generation_dispatches": 0,
+    "manifest_frozen": false,
+    "reason": "Evaluator repeat noise was not small relative to the 0.01 useful-effect scale; selector readiness remained unestablished.",
+    "status": "not_launched"
+  },
+  "verification": {
+    "docs_check_at_results_commit": "passed",
+    "offline_tests_passed": 128,
+    "raw_archive_roundtrips_and_seals": "passed",
+    "repair_source_files_matched": 35
+  }
+}

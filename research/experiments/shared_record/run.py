@@ -1,66 +1,30 @@
 #!/usr/bin/env python3
-"""Run the preregistered shared-record study. See README.md for the protocol."""
+"""Frozen information-policy runner. Defaults to zero-network scripted verification."""
 import argparse
 from concurrent.futures import ThreadPoolExecutor
-import hashlib
+import copy
 import json
 from pathlib import Path
-import random
+import re
 import shutil
 import sys
 import threading
 import time
+import uuid
 
-from luna import Session, Ledger, BudgetStop, TransportFailure, MODEL, RATES
-from problems import FAMILIES, DEVELOPMENT, HELD_OUT, PUBLIC_INSTANCES, HIDDEN_INSTANCES, instances, reference_costs
-from record import Daemon, copy_binary
+from luna import Session, Ledger, BudgetStop, TransportFailure
+from protocol import (ROOT, SCHEMA, build_manifest, digest, file_digest, freeze,
+                      load_manifest, save, seal, trial_paths, verify_seal)
+from record import Daemon, FrozenRecord
 import scoring
 
-HERE = Path(__file__).resolve().parent
-
-CONFIG = dict(
-    study_seed='shared-record-2026-10-08',
-    amendment='A1: instance sizes raised about tenfold and instances delivered through run_python rather than the prompt, '
-              'after the first calibration saturated (README, Amendment A1). '
-              'A2 (post hoc): gate criterion 3 requires the hidden range in at least one independent calibration trial, '
-              'not each, after calibration 2 failed only on vertex cover at 0.0024 (README, Amendment A2)',
-    model=MODEL, effort='high', rates=RATES,
-    k=3, task_arm_allowance_usd=0.42,
-    arms={'solo': 1, 'independent': 3, 'shared': 3},
-    max_turns=150, nudge_fraction=0.4, history_token_soft_limit=150000,
-    public_instances=PUBLIC_INSTANCES, hidden_instances=HIDDEN_INSTANCES,
-    cpu_seconds_per_instance=scoring.CPU_SECONDS_PER_INSTANCE,
-    calibration=dict(tasks=[['maxcut', ['independent', 'shared']], ['vertex_cover', ['independent', 'solo']]],
-                     ceiling_usd=2.00),
-    scored=dict(tasks=list(HELD_OUT), arms=['solo', 'independent', 'shared'], ceiling_usd=8.50, concurrent_tasks=2),
-    study_ceiling_usd=15.00,
-    gate=dict(max_transport_failures=1, min_hidden_range=0.005, min_agents_with_valid_candidate=2,
-              independent_trials_with_range='at least one (A2); the preregistered rule was each'),
-)
-
-SYSTEM = '''You are designing a heuristic for a combinatorial optimization problem. Write Python 3 using only the standard library, defining solve(instance) that returns a solution in the stated format. Lower cost is better.
-
-Scoring: a fixed evaluator runs your solve on instances drawn from the stated generator. You have 5 public instances, available inside run_python. Hidden instances from the same distribution, which you never see, decide your real score. Score = your total cost / the reference heuristic's total cost on the same instances; 1.0 equals the reference, lower is better. An instance where solve raises, returns an invalid solution, or exceeds the CPU budget counts as the trivial fallback's cost, which is much worse than the reference. Do not overfit the public instances.
-
-Compute budget per instance: 2 CPU seconds, enforced by the evaluator. Design solve to stop its own search after about 1.5 s of time.process_time(). Seed any randomness deterministically.
-
-Tools:
-- run_python(source): free experimentation. Runs your source with the public instances in a global INSTANCES list and returns stdout/stderr. Nothing is recorded.
-- evaluate(source): scores complete candidate source on the public instances and records it as a candidate. Your result is your best-public-score candidate, so evaluate every candidate you consider an improvement.
-
-You have an API-dollar allowance for this task; every tool result reports your spend so far. Produce a valid candidate early. Then keep improving until the allowance is nearly used; stop earlier only if you are confident more work will not help. Tool execution is free. Do not inspect files, environments or credentials. Keep explanations brief; spend effort on the heuristic.'''
-
-ARM_NOTES = {
-    'solo': 'You work alone on this task.',
-    'independent': 'Two other agents (the same model) work independently on this same task with the same tools and allowance. You cannot communicate. The task result is the best-public-score candidate among all three agents.',
-    'shared': '''Two other agents (the same model) work on this same task with the same tools and allowance. The task result is the best-public-score candidate among all three agents.
-
-A shared record (a Locust goal) holds findings posted by all three agents. Two extra tools:
-- read_record(): returns findings posted by the other agents since your last read, oldest first. It is refused until you have evaluated your own first candidate, so initial attempts stay independent.
-- post_finding(summary, include_source): publishes a finding attached to your latest evaluated candidate (its public score and source hash; its full source if include_source is true).
-
-Use the record. After your first candidate, read it before deciding what to try next, and read again before major changes of approach. Post a finding after each meaningful result, including approaches that did not help: what you tried, the public score, and why it did or did not work. Include your source when a peer could build on it. Peer findings are claims scored by the same public evaluator; verify before relying on them.''',
-}
+SYSTEM = '''Design a Python 3 standard-library heuristic defining solve(instance). Lower cost is better. The public evaluator records complete candidates. The result selector first requires validity on every public evaluation, then minimizes unrounded normalized public cost, then source hash. If no candidate is fully valid the fixed task fallback is used. Hidden evaluation happens only after the entire study's outputs are sealed, and is never available to you.
+Public instances are available as INSTANCES inside run_python. Use deterministic randomness. The task prompt states the evaluator CPU budget. Candidate errors and overruns receive fallback cost. Produce a valid candidate early, verify changes, and stop when additional work is not useful. Every request, including review and source retrieval, uses your API allowance. Do not inspect files, environments or credentials.'''
+REVIEW = ('Review the supplied evaluated attempts. Use the public evidence to decide whether to retain your '
+          'approach, test a specific alternative, or reject a suggested change. Verify changes with the public '
+          'evaluator. You may ignore unhelpful evidence. Continue using your remaining allowance.')
+PRIVATE = ('Privately verify your own evaluated attempts and, if useful, try a materially different approach. '
+           'You may retain your best candidate and stop when further work is not useful.')
 
 
 def schema(properties):
@@ -68,348 +32,485 @@ def schema(properties):
 
 
 BASE_TOOLS = [
-    dict(name='run_python', description='Run Python source for experimentation with the public instances available as INSTANCES. Returns stdout and stderr. Records nothing.',
+    dict(name='run_python', description='Run standard-library Python with public INSTANCES; no candidate is recorded.',
          input_schema=schema({'source': {'type': 'string'}})),
-    dict(name='evaluate', description='Score complete candidate source (defining solve) on the public instances and record it as a candidate.',
-         input_schema=schema({'source': {'type': 'string'}})),
+    dict(name='evaluate', description='Evaluate and record a complete solve(instance) candidate on public instances only.',
+         input_schema=schema({'source': {'type': 'string'}, 'parent_id': {'type': ['string', 'null']}})),
 ]
-RECORD_TOOLS = [
-    dict(name='read_record', description='Return findings posted by the other agents since your last read, oldest first. Refused before your first evaluated candidate.',
-         input_schema=schema({})),
-    dict(name='post_finding', description='Publish a finding to the shared record, attached to your latest evaluated candidate.',
-         input_schema=schema({'summary': {'type': 'string'}, 'include_source': {'type': 'boolean'}})),
-]
+SOURCE_TOOL = dict(name='get_source', description='Retrieve complete source of an explicitly eligible candidate from the frozen record.',
+                   input_schema=schema({'candidate_id': {'type': 'string'}}))
+PROMPTS = dict(system=SYSTEM, review=REVIEW, private=PRIVATE, tools=BASE_TOOLS, source_tool=SOURCE_TOOL)
 
-
-def save(path, value):
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temp = path.with_suffix('.tmp')
-    temp.write_text(json.dumps(value, indent=1, sort_keys=True) + '\n')
-    temp.replace(path)
-
-
-def task_prompt(task, arm, allowance, public, public_reference):
-    problem = FAMILIES[task]
-    fallback = [problem.cost(i, problem.fallback(i)) for i in public]
-    return (f'Problem: {problem.title}\n{problem.description}\n'
-            f'Instance generator: {problem.shape}\n\n'
-            f'{ARM_NOTES[arm]}\n\n'
-            f'Your API allowance for this task: ${allowance:.2f}.\n\n'
-            f'The {len(public)} public instances are not printed here. They are the global list INSTANCES inside '
-            f'run_python, and evaluate scores exactly these {len(public)} plus hidden instances from the same generator. '
-            f'Inspect them with run_python before designing.\n\n'
-            f'Reference heuristic cost on each public instance: {[round(c, 3) for c in public_reference]}\n'
-            f'Trivial fallback cost on each public instance: {[round(c, 3) for c in fallback]}')
 
 
 class Agent:
-    def __init__(self, trial, name, allowance, goal=None):
-        self.trial, self.name, self.allowance, self.goal = trial, name, allowance, goal
-        tools = BASE_TOOLS + (RECORD_TOOLS if trial.arm == 'shared' else [])
-        self.label = f'{trial.phase}/{trial.task}/{trial.arm}/{name}'
-        self.session = Session(SYSTEM, tools, trial.ledger, self.label, trial.phase,
-                               trial.phase_ceiling, allowance, effort=CONFIG['effort'])
-        self.session.user(task_prompt(trial.task, trial.arm, allowance, trial.public, trial.public_reference))
-        self.candidates, self.trace, self.reads, self.posts = [], [], [], []
-        self.seen = set()
+    def __init__(self, trial, name, allowance, model_key='luna', prefix=None):
+        self.trial, self.name = trial, name
+        self.id = f'{trial.block["id"]}/{trial.arm}/{name}'
+        self.record = None
+        self.review_at = None
+        self.prefix_candidate_ids = []
         self.failed = None
-        self.nudged = False
-        self.turns = 0
+        self.candidates, self.trace = [], []
+        self.private_review_done = False
+        self.model_key = model_key
+        transport = trial.transport_factory(trial, name) if trial.transport_factory else None
+        if prefix is None:
+            self.session = Session(trial.manifest['prompts']['system'], copy.deepcopy(BASE_TOOLS),
+                                   trial.ledger, self.id, trial.block['phase'],
+                                   trial.manifest['budget']['phase_usd'], allowance,
+                                   effort=trial.manifest.get('effort', 'high'),
+                                   model_config=trial.manifest['models'][model_key], transport=transport,
+                                   paid_opt_in=trial.paid,
+                                   live_manifest={'path': str(trial.output / 'manifest.json'),
+                                                  'sha256': trial.manifest_hash, 'model_key': model_key})
+            self.session.user(trial.block['prompts']['solo' if trial.kind in ('S', 'R') else 'group'])
+        else:
+            self.session = prefix.session.fork(self.id, allowance=allowance)
+            self.session.transport = transport
+            self.candidates = copy.deepcopy(prefix.candidates)
+            self.prefix_candidate_ids = [c['id'] for c in self.candidates]
+            self.trace = copy.deepcopy(prefix.trace)
+            self.failed = prefix.failed
+            self.private_review_done = prefix.private_review_done
+        self.initial_prompt = self.session.history[0]
 
     def tool(self, name, args):
-        trial = self.trial
         if name == 'run_python':
-            return scoring.probe(args['source'], trial.public)
+            return scoring.probe(args['source'], self.trial.block['public']['instances'])
         if name == 'evaluate':
-            source = args['source']
-            public = scoring.score(trial.task, source, trial.public, trial.public_reference)
-            hidden = scoring.score(trial.task, source, trial.hidden, trial.hidden_reference)
-            self.candidates.append(dict(
-                index=len(self.candidates), agent=self.name, source=source, sha256=public['source_sha256'],
-                time=time.time(), turn=self.turns, agent_spent_usd=self.session.spent(),
-                public=dict(normalized=public['normalized'], valid_instances=public['valid_instances'],
-                            costs=[r['cost'] for r in public['instances']]),
-                hidden=dict(normalized=hidden['normalized'], valid_instances=hidden['valid_instances'],
-                            costs=[r['cost'] for r in hidden['instances']],
-                            errors=[r.get('error') for r in hidden['instances']]),
-                reads_before=len(self.reads), posts_before=len(self.posts)))
-            return scoring.public_view(public, trial.public_reference)
-        if name == 'read_record' and self.goal is not None:
-            if not self.candidates:
-                self.reads.append(dict(time=time.time(), refused=True, returned=[]))
-                return {'error': 'Refused: evaluate your own first candidate before reading the record.'}
-            own = self.goal.principal(self.name)
-            found = [item for item in self.goal.read(self.name)
-                     if item['author'] != own and item['contribution'] not in self.seen]
-            found.sort(key=lambda item: item['finding'].get('posted_at', 0))
-            out = []
-            for item in found:
-                self.seen.add(item['contribution'])
-                finding = dict(item['finding'])
-                finding['posted_at'] = round(finding.get('posted_at', 0) - trial.started, 1)
-                out.append(finding)
-            self.reads.append(dict(time=time.time(), refused=False, returned=[i['contribution'] for i in found],
-                                   candidates_before=len(self.candidates)))
-            return {'new_findings': out, 'count': len(out)}
-        if name == 'post_finding' and self.goal is not None:
-            latest = self.candidates[-1] if self.candidates else None
-            finding = dict(agent=self.name, seq=len(self.posts), posted_at=time.time(),
-                           summary=str(args.get('summary', ''))[:3000],
-                           public_score=round(latest['public']['normalized'], 6) if latest else None,
-                           source_sha256=latest['sha256'] if latest else None)
-            if args.get('include_source') and latest is not None:
-                finding['source'] = latest['source'][:8000]
-                finding['source_truncated'] = len(latest['source']) > 8000
-            try:
-                receipt = self.goal.publish(self.name, finding)
-            except (ValueError, RuntimeError) as error:
-                return {'error': 'publish failed: ' + str(error)[:200]}
-            event = receipt.get('recorded', {}).get('event')
-            self.posts.append(dict(time=time.time(), event=event, finding=finding))
-            return {'posted': event}
-        return {'error': 'unknown tool'}
+            parent = args.get('parent_id')
+            eligible = {c['id'] for c in self.candidates}
+            if parent is not None and parent not in eligible:
+                if self.record is None:
+                    raise ValueError('parent_id is not an available candidate')
+                self.record.source(self.name, parent)  # Enforce the same authority as source retrieval.
+            ev = self.trial.manifest['evaluation']
+            result = scoring.score(self.trial.block['family'], args['source'],
+                                   self.trial.block['public']['instances'],
+                                   self.trial.block['public']['reference'],
+                                   repetitions=ev['repetitions'], seed=ev['seed'],
+                                   cpu_seconds=ev['cpu_seconds'], wall_seconds=ev['wall_seconds'])
+            # Generate once and retain through forks, parent links and source retrieval.
+            # Internal accounting labels must not become model-visible arm cues.
+            item = dict(id='candidate-' + uuid.uuid4().hex, parent_id=parent, agent=self.name,
+                        sequence=len(self.candidates), source=args['source'], sha256=result['source_sha256'],
+                        time=time.time(), public=result)
+            self.candidates.append(item)
+            return dict(candidate_id=item['id'], **scoring.public_view(result, self.trial.block['public']['reference']))
+        if name == 'get_source' and self.record is not None:
+            return self.record.source(self.name, args['candidate_id'])
+        return {'error': 'tool is not available'}
 
-    def compact_history(self):
-        """Replace the oldest tool outputs once the conversation is very long; same rule in every arm."""
-        from luna import input_token_bound
-        history = self.session.history
-        while input_token_bound(self.session.payload()) > CONFIG['history_token_soft_limit']:
-            outputs = [i for i, item in enumerate(history) if item.get('type') == 'function_call_output'
-                       and not item['output'].startswith('"[earlier tool output omitted')]
-            if len(outputs) <= 8:
-                break
-            history[outputs[0]]['output'] = json.dumps('[earlier tool output omitted to bound context]')
-            self.trace.append(dict(event='compacted', index=outputs[0]))
+    def private_review(self):
+        strategy = self.trial.manifest['continuation'][self.model_key]
+        if self.private_review_done or strategy == 'continue':
+            return False
+        self.private_review_done = True
+        if strategy == 'restart':
+            self.session.history = [copy.deepcopy(self.initial_prompt)]
+        self.session.user(self.trial.manifest['prompts']['private'] + '\nOwn evaluated artifacts:\n' +
+                          json.dumps(self.candidates, sort_keys=True))
+        return True
 
-    def run(self):
+    def run(self, stage_allowance=None):
+        total = self.session.allowance
+        if stage_allowance is not None:
+            self.session.allowance = stage_allowance
         started = time.time()
-        while self.turns < CONFIG['max_turns']:
-            self.compact_history()
-            try:
-                calls, visible, status = self.session.request()
-            except BudgetStop as error:
-                self.trace.append(dict(event='budget_stop', reason=str(error), time=time.time()))
-                break
-            except TransportFailure as error:
-                self.failed = str(error)
-                self.trace.append(dict(event='transport_failure', error=str(error), time=time.time()))
-                break
-            self.turns += 1
-            self.trace.append(dict(event='response', turn=self.turns, text=visible, status=status, time=time.time(),
-                                   calls=[dict(name=n, arguments=a) for _, n, a in calls],
-                                   cost=self.session.requests[-1]['cost'], usage=self.session.requests[-1]['usage']))
-            if not calls:
-                if status == 'incomplete':
-                    self.session.user('Your response was cut off at the output limit. Continue, using a tool call.')
-                    continue
-                remaining = self.allowance - self.session.spent()
-                if not self.nudged and remaining > CONFIG['nudge_fraction'] * self.allowance:
-                    self.nudged = True
-                    self.session.user(f'You still have ${remaining:.2f} of your ${self.allowance:.2f} allowance. '
-                                      'You may continue improving your candidate, or reply "done" to stop.')
-                    self.trace.append(dict(event='nudge', remaining=remaining, time=time.time()))
-                    continue
-                break
-            results = []
-            for ident, name, args in calls:
+        try:
+            while self.failed is None:
+                self.trial.checkpoint()
                 try:
-                    value = self.tool(name, args)
-                except (ValueError, KeyError, TypeError) as error:
-                    value = {'error': str(error)[:300]}
-                value['spend'] = {'spent_usd': round(self.session.spent(), 4), 'allowance_usd': self.allowance}
-                results.append((ident, value))
-            self.session.results(results)
-            self.trace.append(dict(event='tool_results', results=[v for _, v in results], time=time.time()))
-            self.trial.checkpoint()
-        self.elapsed = time.time() - started
+                    calls, visible, status = self.session.request()
+                except BudgetStop as error:
+                    self.trace.append(dict(event='budget_stop', reason=str(error), time=time.time()))
+                    break
+                except (TransportFailure, RuntimeError, ValueError) as error:
+                    self.failed = type(error).__name__ + ': ' + str(error)
+                    self.trace.append(dict(event='request_failure', error=self.failed, time=time.time()))
+                    break
+                self.trace.append(dict(event='response', text=visible, status=status, time=time.time()))
+                if not calls:
+                    if status == 'incomplete':
+                        # An incomplete output is an observed provider/resource stop, not an instruction to spin.
+                        self.trace.append(dict(event='incomplete_stop', time=time.time()))
+                        break
+                    if self.private_review():
+                        continue
+                    break
+                results = []
+                for ident, tool, args in calls:
+                    try:
+                        value = self.tool(tool, args)
+                    except (KeyError, TypeError, ValueError, PermissionError) as error:
+                        value = {'error': type(error).__name__ + ': ' + str(error)}
+                    value['spend'] = dict(committed_usd=self.session.spent(), allowance_usd=total)
+                    results.append((ident, value))
+                self.session.results(results)
+                self.trace.append(dict(event='tool_results', results=results, time=time.time()))
+                self.trial.checkpoint()
+        finally:
+            self.session.allowance = total
+            self.elapsed = time.time() - started
         return self
 
     def summary(self):
-        return dict(name=self.name, label=self.label, allowance_usd=self.allowance, spent_usd=self.session.spent(),
-                    turns=self.turns, elapsed_seconds=getattr(self, 'elapsed', None), failed=self.failed,
-                    nudged=self.nudged, requests=self.session.requests, candidates=self.candidates,
-                    reads=self.reads, posts=self.posts, trace=self.trace)
-
-
-def select(candidates):
-    """The frozen selector: best public score, earliest on ties. Hidden scores never enter."""
-    if not candidates:
-        return None
-    return min(candidates, key=lambda c: (c['public']['normalized'], c['time']))
+        return dict(name=self.name, id=self.id, request_ids=self.session.request_ids,
+                    allowance_usd=self.session.allowance, spent_usd=self.session.spent(),
+                    failed=self.failed, candidates=self.candidates, history=self.session.history,
+                    requests=self.session.requests, trace=self.trace,
+                    private_review_done=self.private_review_done,
+                    review_at=self.review_at, prefix_candidate_ids=self.prefix_candidate_ids,
+                    elapsed_seconds=getattr(self, 'elapsed', 0))
 
 
 class Trial:
-    def __init__(self, phase, task, arm, ledger, output, daemon=None):
-        self.phase, self.task, self.arm, self.ledger, self.daemon = phase, task, arm, ledger, daemon
-        self.phase_ceiling = CONFIG[phase]['ceiling_usd']
-        self.path = output / 'trials' / phase / f'{task}-{arm}.json'
-        seed = CONFIG['study_seed']
-        self.public, self.hidden = instances(seed, task, 'public'), instances(seed, task, 'hidden')
-        self.public_reference, self.hidden_reference = reference_costs(task, self.public), reference_costs(task, self.hidden)
+    def __init__(self, manifest, block, arm, output, ledger, daemon,
+                 transport_factory=None, paid=False, prefix_kind=None):
+        self.manifest, self.block, self.arm = manifest, block, arm
+        self.output, self.ledger, self.daemon = Path(output), ledger, daemon
+        self.transport_factory, self.paid = transport_factory, paid
+        self.kind = manifest['arms'][arm]['kind'] if prefix_kind is None else 'prefix'
+        self.manifest_hash = file_digest(self.output / 'manifest.json')
+        self.path = (self.output / f'prefixes/{block["id"]}-{arm}.json' if prefix_kind else
+                     self.output / f'trials/{block["id"]}/{arm}.json')
         self.agents = []
-        self.lock = threading.Lock()
-        self.goal = None
-        self.started = None
+        self.record = None
+        self.error = None
+        self.started = time.time()
+        self.finished = None
+        self.prefix_elapsed_seconds = 0
+        self.lock = threading.RLock()
+
+    def result(self, final=False):
+        agents = [a.summary() for a in self.agents]
+        candidates = [c for a in agents for c in a['candidates']]
+        selected = scoring.select_public(candidates)
+        ids = list(dict.fromkeys(rid for agent in agents for rid in agent['request_ids']))
+        return dict(schema=SCHEMA, manifest_sha256=self.manifest_hash,
+                    block_id=self.block['id'], family=self.block['family'], pack=self.block['pack'],
+                    repetition=self.block['repetition'], attempt=self.block['attempt'], phase=self.block['phase'],
+                    arm=self.arm, kind=self.kind, final=final, started=self.started,
+                    finished=self.finished if final else None, prefix_elapsed_seconds=self.prefix_elapsed_seconds,
+                    error=self.error, agents=agents,
+                    request_ids=ids, candidates=candidates, selected=None if selected is None else selected['id'],
+                    prefix_candidate_ids=[c for a in self.agents for c in a.prefix_candidate_ids],
+                    record=None if self.record is None else self.record.archive())
 
     def checkpoint(self):
         with self.lock:
-            save(self.path, self.result(final=False))
+            save(self.path, self.result())
 
-    def result(self, final):
-        agents = [a.summary() for a in self.agents]
-        candidates = [c for a in self.agents for c in a.candidates]
-        selected = select(candidates)
-        oracle = min(candidates, key=lambda c: (c['hidden']['normalized'], c['time'])) if candidates else None
-        return dict(phase=self.phase, task=self.task, arm=self.arm, final=final, started=self.started,
-                    finished=time.time() if final else None, k=len(self.agents),
-                    allowance_per_agent_usd=self.agents[0].allowance if self.agents else None,
-                    spent_usd=sum(a.session.spent() for a in self.agents),
-                    selected=None if selected is None else dict(agent=selected['agent'], index=selected['index'],
-                                                                 public=selected['public']['normalized'],
-                                                                 hidden=selected['hidden']['normalized']),
-                    oracle_hidden=None if oracle is None else oracle['hidden']['normalized'],
-                    goal=None if self.goal is None else dict(id=self.goal.id, principals=
-                                                            {n: self.goal.principal(n) for n in self.goal.roles},
-                                                            receipts=self.goal.receipts),
-                    agents=agents)
-
-    def run(self):
-        count = CONFIG['arms'][self.arm]
-        allowance = CONFIG['task_arm_allowance_usd'] / count
-        names = [f'agent-{i}' for i in range(count)]
-        if self.arm == 'shared':
-            self.goal = self.daemon.goal(f'{self.phase}-{self.task}', names)
-        self.started = time.time()
-        self.agents = [Agent(self, name, allowance, self.goal) for name in names]
-        print(json.dumps(dict(started=f'{self.phase}/{self.task}/{self.arm}', agents=count, allowance=allowance)), flush=True)
-        with ThreadPoolExecutor(max_workers=count) as pool:
-            list(pool.map(lambda a: a.run(), self.agents))
-        value = self.result(final=True)
-        save(self.path, value)
-        print(json.dumps(dict(finished=f'{self.phase}/{self.task}/{self.arm}', spent=round(value['spent_usd'], 4),
-                              selected=value['selected'], oracle=value['oracle_hidden'])), flush=True)
-        return value
-
-
-def gate(trials):
-    """Calibration gate, as relaxed post hoc by Amendment A2. Returns (passed, reasons, facts)."""
-    reasons, facts = [], {}
-    failures = sum(1 for t in trials for a in t['agents'] if a['failed'])
-    facts['transport_failures'] = failures
-    if failures > CONFIG['gate']['max_transport_failures']:
-        reasons.append(f'{failures} transport failures')
-    spreads = {}
-    for t in trials:
-        key = f"{t['task']}/{t['arm']}"
-        valid = sum(1 for a in t['agents'] if any(c['public']['valid_instances'] == PUBLIC_INSTANCES for c in a['candidates']))
-        facts[key + '/agents_with_valid_candidate'] = valid
-        needed = 1 if t['arm'] == 'solo' else CONFIG['gate']['min_agents_with_valid_candidate']
-        if valid < needed:
-            reasons.append(f'{key}: only {valid} agents produced a fully valid candidate')
-        if t['arm'] == 'independent':
-            finals = [select(a['candidates'])['hidden']['normalized'] for a in t['agents'] if a['candidates']]
-            spread = (max(finals) - min(finals)) if len(finals) >= 2 else 0.0
-            facts[key + '/final_hidden_scores'] = finals
-            facts[key + '/hidden_range'] = spread
-            spreads[key] = spread
-        if t['arm'] == 'shared':
-            posts = sum(len(a['posts']) for a in t['agents'])
-            delivered = sum(1 for a in t['agents'] for r in a['reads'] if not r['refused'] and r['returned'])
-            facts[key + '/findings_posted'] = posts
-            facts[key + '/reads_returning_peer_findings'] = delivered
-            if posts < 1 or delivered < 1:
-                reasons.append(f'{key}: record delivery not demonstrated (posts={posts}, delivered reads={delivered})')
-    minimum = CONFIG['gate']['min_hidden_range']
-    facts['independent_trials_with_hidden_range'] = sorted(k for k, s in spreads.items() if s >= minimum)
-    facts['independent_trials_below_hidden_range'] = sorted(k for k, s in spreads.items() if s < minimum)
-    if spreads and not facts['independent_trials_with_hidden_range']:
-        reasons.append('no independent trial reached hidden range ' + str(minimum) + ': '
-                       + ', '.join(f'{k} {s:.4f}' for k, s in sorted(spreads.items())))
-    best = min((c['hidden']['normalized'] for t in trials for a in t['agents'] for c in a['candidates']), default=None)
-    facts['best_hidden_any'] = best
-    if best is None or best >= 1.0:
-        reasons.append('no calibration candidate beat the reference on hidden instances')
-    return not reasons, reasons, facts
-
-
-def source_hashes():
-    return {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(HERE.glob('*.py'))}
-
-
-def instances_digest(items):
-    return hashlib.sha256(json.dumps(items, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
-
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--binary', type=Path, default=HERE.parents[2] / 'target/debug/locust')
-    parser.add_argument('--phase', choices=['calibration', 'scored', 'all'], default='all')
-    args = parser.parse_args()
-    output = args.output
-    output.mkdir(parents=True, exist_ok=True)
-    ledger = Ledger(output / 'ledger.json', CONFIG['study_ceiling_usd'])
-    binary = copy_binary(args.binary, output / 'bin' / 'locust')
-    # Instances regenerate exactly from the study seed and problems.py (its hash is in source_sha256),
-    # so the manifest records their digests and reference costs rather than the instances themselves.
-    frozen = {t: {split: instances(CONFIG['study_seed'], t, split) for split in ('public', 'hidden')}
-              for t in DEVELOPMENT + HELD_OUT}
-    manifest = dict(config=CONFIG, source_sha256=source_hashes(), python=sys.version, started=time.time(),
-                    instances={t: {split: dict(count=len(items), sha256=instances_digest(items))
-                                   for split, items in splits.items()} for t, splits in frozen.items()},
-                    reference_costs={t: {split: reference_costs(t, items) for split, items in splits.items()}
-                                     for t, splits in frozen.items()})
-    save(output / 'manifest.json', manifest)
-
-    with Daemon(output, binary) as daemon:
-        manifest['binary'] = daemon.binary_metadata()
-        save(output / 'manifest.json', manifest)
+    def run(self, prefix=None, fraction=None):
+        if prefix is not None:
+            self.prefix_elapsed_seconds = prefix.finished - prefix.started
+        count = 1 if self.kind in ('S', 'R') else 3
+        allowance = self.manifest['budget']['task_arm_usd'] / count
+        model = 'frontier' if self.kind == 'R' else 'luna'
+        self.agents = [Agent(self, f'agent-{i}', allowance, model,
+                             prefix=prefix.agents[i] if prefix is not None else None) for i in range(count)]
+        self.checkpoint()
         try:
-            if args.phase in ('calibration', 'all'):
-                trials = []
-                for task, arms in CONFIG['calibration']['tasks']:
-                    with ThreadPoolExecutor(max_workers=len(arms)) as pool:
-                        trials.extend(pool.map(lambda arm: run_or_load('calibration', task, arm, ledger, output, daemon), arms))
-                passed, reasons, facts = gate(trials)
-                save(output / 'calibration-gate.json', dict(passed=passed, reasons=reasons, facts=facts,
-                                                            spent_usd=ledger.spent(prefix='calibration/'), time=time.time()))
-                print(json.dumps(dict(gate='passed' if passed else 'FAILED', reasons=reasons, facts=facts)), flush=True)
-                if not passed:
-                    return 1
-            if args.phase in ('scored', 'all'):
-                verdict = json.loads((output / 'calibration-gate.json').read_text())
-                if not verdict['passed']:
-                    print('calibration gate did not pass; refusing scored phase', flush=True)
-                    return 1
-                tasks = list(CONFIG['scored']['tasks'])
-                random.Random(CONFIG['study_seed']).shuffle(tasks)
-                arms = CONFIG['scored']['arms']
+            if self.kind in ('C', 'P'):
+                policy = self.manifest['arms'][self.arm]['policy']
+                goal = self.daemon.goal(f'{self.manifest["study_id"]}/{self.block["id"]}/{self.arm}',
+                                        [a.name for a in self.agents])
+                self.record = FrozenRecord(goal, f'{self.block["id"]}/{self.arm}', policy,
+                                           {a.name: a.candidates for a in self.agents})
+                self.record.freeze()
+                for agent in self.agents:
+                    try:
+                        packet = self.record.review(agent.name, peers=self.kind == 'P')
+                        agent.record = self.record
+                        agent.review_at = time.time()
+                        agent.session.tools = copy.deepcopy(BASE_TOOLS) + [copy.deepcopy(SOURCE_TOOL)]
+                        agent.session.user(self.manifest['prompts']['review'] + '\nFrozen evidence:\n' +
+                                           json.dumps(packet, sort_keys=True))
+                    except Exception as error:
+                        agent.failed = 'record delivery failed: ' + type(error).__name__ + ': ' + str(error)
+            with ThreadPoolExecutor(max_workers=count) as pool:
+                futures = [pool.submit(a.run, allowance * fraction if fraction else None) for a in self.agents]
+                # Each failed worker is retained; one exception cannot cancel its peers.
+                for agent, future in zip(self.agents, futures):
+                    try:
+                        future.result()
+                    except Exception as error:
+                        agent.failed = type(error).__name__ + ': ' + str(error)
+        except Exception as error:
+            self.error = type(error).__name__ + ': ' + str(error)
+        self.finished = time.time()
+        save(self.path, self.result(final=True))
+        return self
 
-                def run_task(task):
-                    with ThreadPoolExecutor(max_workers=len(arms)) as pool:
-                        return list(pool.map(lambda arm: run_or_load('scored', task, arm, ledger, output, daemon), arms))
-                with ThreadPoolExecutor(max_workers=CONFIG['scored']['concurrent_tasks']) as pool:
-                    list(pool.map(run_task, tasks))
+
+def run_study(output, *, transport_factory=None, paid=False):
+    output = Path(output)
+    manifest = load_manifest(output)
+    if manifest['prompts'] != PROMPTS:
+        raise ValueError('rendered prompt/tool configuration differs from current runner')
+    if (output / 'seal.json').exists():
+        verify_seal(output)
+        return {'already_complete': True}
+    if (output / 'execution.json').exists():
+        raise ValueError('interrupted execution: preserve it and use finalize-interrupted; never silently redispatch')
+    if manifest['stage'] == 'scripted' and (transport_factory is None or paid):
+        raise ValueError('scripted studies require an offline transport and prohibit paid calls')
+    if manifest['stage'] != 'scripted' and (not paid or transport_factory is not None):
+        raise ValueError('development/scored execution requires explicit paid authorization and live transport')
+    if paid:
+        from campaign import verify_allocation
+        verify_allocation(output, manifest)
+    save(output / 'execution.json', dict(status='running', manifest_sha256=file_digest(output / 'manifest.json')))
+    ledger = Ledger(output / 'ledger.json', manifest['budget']['study_usd'])
+    ledger.save()
+    with Daemon(output, output / 'bin/locust') as daemon:
+        try:
+            for block in manifest['blocks']:
+                prefixes = {}
+                policies = {arm['policy'] for arm in manifest['arms'].values() if arm['kind'] in ('C', 'P')}
+                for key, fraction in [('early', .25), ('delayed', .5)]:
+                    if (key == 'early' and policies & {'E', 'F'}) or (key == 'delayed' and 'D' in policies):
+                        prefixes[key] = Trial(manifest, block, key, output, ledger, daemon,
+                                              transport_factory, paid, prefix_kind=key).run(fraction=fraction)
+                for arm in block['launch_order']:
+                    settings = manifest['arms'][arm]
+                    policy = settings.get('policy')
+                    prefix = prefixes.get('delayed' if policy == 'D' else 'early') if policy else None
+                    trial = Trial(manifest, block, arm, output, ledger, daemon, transport_factory, paid)
+                    trial.run(prefix=prefix)
         finally:
-            manifest['finished'] = time.time()
-            manifest['spent_usd'] = ledger.spent()
-            save(output / 'manifest.json', manifest)
             events = Path(daemon.daemon.events)
             if events.exists():
                 shutil.copy2(events, output / 'daemon-events.jsonl')
-    print(json.dumps(dict(done=True, spent=round(ledger.spent(), 4))), flush=True)
+    value = seal(output)
+    save(output / 'execution.json', dict(status='sealed', seal_sha256=file_digest(output / 'seal.json')))
+    return value
+
+
+def finalize_interrupted(output):
+    """Explicitly retain partial work and failures; never retry or pay for missing work."""
+    output = Path(output)
+    manifest = load_manifest(output)
+    if (output / 'seal.json').exists():
+        return verify_seal(output)
+    if not (output / 'execution.json').exists():
+        raise ValueError('study never started')
+    ledger = json.loads((output / 'ledger.json').read_text())
+    for block in manifest['blocks']:
+        for arm in manifest['arms']:
+            setting = manifest['arms'][arm]
+            prefix_name = ('delayed' if setting.get('policy') == 'D' else 'early')
+            prefix_path = output / f'prefixes/{block["id"]}-{prefix_name}.json'
+            prefix = None
+            if setting['kind'] in ('C', 'P') and prefix_path.exists():
+                prefix = json.loads(prefix_path.read_text())
+            path = output / f'trials/{block["id"]}/{arm}.json'
+            if path.exists():
+                value = json.loads(path.read_text())
+                if value['final']:
+                    continue
+            else:
+                value = dict(schema=SCHEMA, manifest_sha256=file_digest(output / 'manifest.json'),
+                             block_id=block['id'], family=block['family'], pack=block['pack'],
+                             repetition=block['repetition'], attempt=block['attempt'], phase=block['phase'],
+                             arm=arm, kind=manifest['arms'][arm]['kind'], agents=[], candidates=[],
+                             selected=None, request_ids=[], started=None, record=None)
+                if prefix:
+                    value.update(agents=copy.deepcopy(prefix['agents']), candidates=prefix['candidates'],
+                                 selected=prefix['selected'], request_ids=prefix['request_ids'],
+                                 prefix_elapsed_seconds=(prefix['finished'] - prefix['started']
+                                                         if prefix.get('finished') is not None else None),
+                                 prefix_candidate_ids=[c['id'] for c in prefix['candidates']])
+            value.update(final=True, finished=time.time(), error='interrupted; no automatic replacement')
+            # Dispatches persisted after the last trial checkpoint must remain attributed.
+            labels = [f'{block["id"]}/{arm}/']
+            if prefix:
+                labels.append(f'{block["id"]}/{prefix_name}/')
+            value['request_ids'] = list(dict.fromkeys(value['request_ids'] +
+                [entry['id'] for entry in ledger if any(entry['label'].startswith(label) for label in labels)]))
+            save(path, value)
+    return seal(output)
+
+
+def scripted_spec(study_id='offline-information-policy-replay'):
+    model = dict(model='scripted-luna', rates=dict(input=1., cached_input=.5, cache_write=1., output=2.),
+                 context_tokens=4096, max_input_tokens=4096, max_output_tokens=1024, service_tier='default',
+                 input_accounting=dict(method='context_bound', qualification='script fixture; not a provider bound'),
+                 qualification=dict(model='script fixture', rates='synthetic dollars', limits='script fixture'))
+    arms = {'S': {'kind': 'S'}, 'I': {'kind': 'I'}, 'R': {'kind': 'R'}}
+    for policy in ('E', 'D', 'F'):
+        for kind in ('C', 'P'):
+            arms[f'{kind}_{policy}'] = dict(kind=kind, policy=policy)
+    return dict(study_id=study_id, seed='information-policy-offline-2026-10-12', stage='scripted',
+                models={'luna': model, 'frontier': dict(model, model='scripted-frontier')},
+                budget=dict(task_arm_usd=.6, phase_usd=100., study_usd=100.), effort='high',
+                arms=arms, continuation={'luna': 'continue', 'frontier': 'verify'},
+                blocks=[dict(family='vertex_cover', pack=f'pack-{pack}', repetition=rep,
+                             attempt='attempt-0', phase='scripted') for pack in range(2) for rep in range(2)],
+                public_instances=1, hidden_instances=1,
+                evaluation=dict(repetitions=1, seed='offline-evaluation', cpu_seconds=2, wall_seconds=40),
+                analysis=dict(bootstrap_samples=1000, seed='offline-bootstrap', useful_effect=.01))
+
+
+class ScriptedTransport:
+    """A finite test script, never an external model or a forecasting-quality result."""
+    def __init__(self, trial, name):
+        self.trial, self.name = trial, name
+        self.step = 0
+
+    def __call__(self, payload):
+        step = self.step
+        self.step += 1
+        # Verify failure preservation in an otherwise completed block.
+        if self.trial.arm == 'I' and self.name == 'agent-2' and self.trial.block['repetition'] == 1:
+            raise TransportFailure('scripted uncertain transport failure')
+        source = ('def solve(i):\n    return []\n' if self.name == 'agent-2' else
+                  f'# {self.name}\ndef solve(i):\n    return list(range(i["n"]))\n')
+        calls = []
+        if self.trial.kind in ('C', 'P'):
+            packet = json.loads(payload['input'][-1]['content'].split('Frozen evidence:\n', 1)[1]) if step == 0 else None
+            if step == 0 and packet['candidates']:
+                calls = [('get_source', {'candidate_id': packet['candidates'][-1]['candidate_id']})]
+            elif step <= 1:
+                calls = [('evaluate', {'source': source, 'parent_id': None})]
+        elif step == 0:
+            calls = [('evaluate', {'source': source, 'parent_id': None})]
+            if self.name != 'agent-1':
+                calls.append(('evaluate', {'source': source + '# repeated attempt\n', 'parent_id': None}))
+        output = [dict(type='function_call', call_id=f'call-{step}-{i}', name=name,
+                       arguments=json.dumps(args)) for i, (name, args) in enumerate(calls)]
+        if not output:
+            output = [dict(type='message', role='assistant', content=[dict(type='output_text', text='done')])]
+        return dict(id=f'script-{digest([self.trial.block["id"], self.trial.arm, self.name, step])}',
+                    model=payload['model'], status='completed',
+                    usage=dict(input_tokens=100, output_tokens=80,
+                               input_tokens_details={'cached_tokens': 0}), output=output)
+
+
+def replay(output, binary):
+    manifest = build_manifest(scripted_spec(), binary, PROMPTS)
+    freeze(output, manifest, binary)
+    run_study(output, transport_factory=ScriptedTransport)
+    from analyze import offline_hidden, analyze
+    offline_hidden(output)
+    report = analyze(output)
+    save(Path(output) / 'analysis.json', report)
+    save(Path(output) / 'replay-verification.json', verify_scripted_replay(output))
+    return report
+
+
+def verify_scripted_replay(output):
+    """Assert delivery, failure and attribution facts; synthetic scores prove no quality claim."""
+    output = Path(output)
+    manifest = verify_seal(output)
+    if manifest['stage'] != 'scripted':
+        raise ValueError('scripted verification cannot qualify a model study')
+    ledger = json.loads((output / 'ledger.json').read_text())
+    goals, receipts, empty_filtered, invalid_recipients, failures = set(), 0, 0, 0, 0
+    candidates_by_id = {}
+    for block in manifest['blocks']:
+        trials = {arm: json.loads((output / f'trials/{block["id"]}/{arm}.json').read_text())
+                  for arm in manifest['arms']}
+        for arm, trial in trials.items():
+            if trial['error']:
+                raise AssertionError(f'replay branch failed: {block["id"]}/{arm}: {trial["error"]}')
+            for agent in trial['agents']:
+                expected_failure = arm == 'I' and agent['name'] == 'agent-2' and block['repetition'] == 1
+                if bool(agent['failed']) != expected_failure:
+                    raise AssertionError(f'unexpected worker outcome: {block["id"]}/{arm}/{agent["name"]}')
+                failures += bool(agent['failed'])
+            if any('hidden' in candidate for candidate in trial['candidates']):
+                raise AssertionError('hidden result leaked into live candidate archive')
+            for candidate in trial['candidates']:
+                ident = candidate['id']
+                if not re.fullmatch(r'candidate-[0-9a-f]{32}', ident):
+                    raise AssertionError('candidate identity exposes execution labels')
+                if ident in candidates_by_id and candidates_by_id[ident] != candidate:
+                    raise AssertionError('candidate identity changed across archived copies')
+                candidates_by_id[ident] = candidate
+            record = trial['record']
+            if record:
+                if record['state'] != 'frozen' or record['goal'] in goals:
+                    raise AssertionError('unfrozen or reused branch goal')
+                goals.add(record['goal'])
+                receipts += len(record['receipts'])
+                for delivery in record['deliveries']:
+                    if delivery['status'] != 'delivered':
+                        raise AssertionError('scripted daemon delivery incomplete')
+                    if trial['kind'] == 'C' and delivery['peer_access']:
+                        raise AssertionError('private review received peer records')
+                    if trial['kind'] == 'P' and delivery['recipient'] == 'agent-2':
+                        if delivery['peer_access']:
+                            raise AssertionError('invalid recipient received peers')
+                        invalid_recipients += 1
+                    if record['policy'] == 'F' and not delivery['delivered_candidate_ids']:
+                        empty_filtered += 1
+        for policy in ('E', 'D', 'F'):
+            prefix_name = 'delayed' if policy == 'D' else 'early'
+            prefix = json.loads((output / f'prefixes/{block["id"]}-{prefix_name}.json').read_text())
+            for arm in (f'C_{policy}', f'P_{policy}'):
+                if not set(prefix['request_ids']).issubset(trials[arm]['request_ids']):
+                    raise AssertionError('common prefix was not fully attributed')
+            for control, peer, original in zip(trials[f'C_{policy}']['agents'], trials[f'P_{policy}']['agents'], prefix['agents']):
+                count = len(original['requests'])
+                left, right = control['requests'][count]['payload'], peer['requests'][count]['payload']
+                before = copy.deepcopy(left)
+                after = copy.deepcopy(right)
+                before['input'] = before['input'][:-1]
+                after['input'] = after['input'][:-1]
+                if before != after:
+                    raise AssertionError('C/P first continuations differ beyond review evidence')
+                if original['name'] == 'agent-2' and left != right:
+                    raise AssertionError('invalid P recipient differs from private control')
+        if set(trials['I']['request_ids']) & set(trials['C_E']['request_ids']):
+            raise AssertionError('independent arm reused staged requests')
+    if not (receipts and empty_filtered and invalid_recipients and failures):
+        raise AssertionError('scripted replay did not exercise all required cases')
+    if any(not item['model'].startswith('scripted-') for item in ledger):
+        raise AssertionError('replay contains a non-scripted model')
+    for item in ledger:
+        visible = json.dumps(item['payload'], sort_keys=True)
+        if any(block['id'] in visible for block in manifest['blocks']):
+            raise AssertionError('internal execution identity leaked into a model request')
+        if any(f'/{label}/' in visible for label in [*manifest['arms'], 'early', 'delayed']):
+            raise AssertionError('arm or prefix label leaked into a model request')
+    return dict(status='passed', paid_model_calls=0, blocks=len(manifest['blocks']),
+                trials=len(trial_paths(manifest)), isolated_goals=len(goals), signed_receipts=receipts,
+                empty_filtered_deliveries=empty_filtered, invalid_peer_recipients=invalid_recipients,
+                expected_transport_failures=failures, scripted_requests=len(ledger),
+                opaque_candidate_ids=len(candidates_by_id), label_free_model_requests=len(ledger),
+                binary_sha256=manifest['runtime']['binary_sha256'],
+                manifest_sha256=file_digest(output / 'manifest.json'),
+                seal_sha256=file_digest(output / 'seal.json'),
+                hidden_sha256=file_digest(output / 'hidden.json'),
+                source_sha256=manifest['runtime']['source_sha256'])
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    sub = parser.add_subparsers(dest='command', required=True)
+    for command in ('freeze', 'execute', 'replay', 'finalize-interrupted'):
+        part = sub.add_parser(command)
+        part.add_argument('--output', type=Path, required=True)
+        if command in ('freeze', 'replay'):
+            part.add_argument('--binary', type=Path, default=ROOT / 'target/debug/locust')
+        if command == 'freeze':
+            part.add_argument('--spec', type=Path, required=True)
+        if command == 'execute':
+            part.add_argument('--allow-paid', action='store_true', help='explicit authorization; never used by offline verification')
+    args = parser.parse_args()
+    if args.command == 'freeze':
+        spec = json.loads(args.spec.read_text())
+        freeze(args.output, build_manifest(spec, args.binary, PROMPTS), args.binary)
+    elif args.command == 'execute':
+        run_study(args.output, paid=args.allow_paid)
+    elif args.command == 'replay':
+        replay(args.output, args.binary)
+    else:
+        finalize_interrupted(args.output)
+    print(json.dumps({'command': args.command, 'output': str(args.output.resolve()), 'complete': True}))
     return 0
-
-
-def run_or_load(phase, task, arm, ledger, output, daemon):
-    trial = Trial(phase, task, arm, ledger, output, daemon)
-    if trial.path.exists():
-        existing = json.loads(trial.path.read_text())
-        if existing.get('final'):
-            print(json.dumps(dict(loaded=f'{phase}/{task}/{arm}')), flush=True)
-            return existing
-    return trial.run()
 
 
 if __name__ == '__main__':

@@ -2,7 +2,7 @@
 
 Status: verified run records, 8 October 2026, of the amended study
 (calibration 2 and the scored phase). Protocol, amendments and every
-deviation: [shared_record/README.md](../../experiments/shared_record/README.md).
+deviation: [shared_record/README.md](../../experiments/shared_record/historical-protocol-2026-10-08.md).
 Results and interpretation:
 [results note](../../shared-record-study-results-2026-10-08.md). The first,
 saturated calibration is in

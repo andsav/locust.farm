@@ -4,11 +4,22 @@ Status: decision recorded 8 October 2026 from the research linked below. The
 narrowed thesis is accepted as the claim Locust tests. The experiment direction
 below was a proposal; it has since been run once as the
 [shared-record study](../research/shared-record-study-results-2026-10-08.md)
-(protocol: [shared_record](../research/experiments/shared_record/README.md)).
+(protocol: [shared_record](../research/experiments/shared_record/historical-protocol-2026-10-08.md)).
 That exploratory run found no measurable advantage of the shared record over
 independent attempts at equal spend and a small, sub-threshold edge for
 independent attempts over one agent with the pooled budget; see the note for
 its limits. Nothing in this document changes runtime behavior.
+
+The [12 October information-policy plan](shared-record-information-policy-plan.md)
+specifies the follow-up: qualify delayed or filtered exposure against private
+review and independent search, with Luna and a separate frontier solo benchmark.
+Its harness passed offline verification, and calibration and development were
+completed. Filtered sharing did not improve the observed result beyond matched
+private review; evaluator timing instability stopped the scored phase. The
+[findings synthesis](../research/shared-record-information-policy-synthesis-2026-10-12.md)
+records the limits and recommends investigating actual information uptake in
+the existing traces before another paid study. This is a research recommendation,
+not a change to the accepted thesis.
 
 ## The thesis Locust tests
 
@@ -27,7 +38,9 @@ That hypothesis is replaced by a narrower one:
 
 The first sentence is supported by the published evidence reviewed in
 [groups of agents versus one](../research/swarm-evidence.md). The second is the
-claim specific to Locust's design, and nothing has measured it yet.
+claim specific to Locust's design. The completed shared-record study measured
+it once and found no actionable advantage for that protocol; it remains a
+hypothesis, not an established product benefit.
 
 What the narrowing drops as the primary mechanism: reciprocal exchange,
 negotiation and debate between agents; mixing model families as the source of
@@ -70,20 +83,30 @@ hypothesis: saturated tasks, treatments that were declared but not delivered,
 equal caps that produced unequal spend, and graders that disputed plausible
 answers. The next study must fix those first.
 
-## What has not been measured
+## What the first shared-record study leaves open
 
-Every experiment above tested exchange, mixture or personas through the direct
-API. None tested Locust's actual mechanism: a shared record of attempts,
-findings and failures that isolated agents read and cite. The only matched
-evidence for that design is external and thin: CORAL (three tasks, matched on
-wall clock, not tokens) and AlphaEvolve's archive ablation (two tasks). Both the
+The earlier experiments above tested exchange, mixture or personas through
+the direct API. The subsequent
+[shared-record study](../research/shared-record-study-results-2026-10-08.md)
+tested the real daemon and verified that findings were delivered. Early
+exposure made agents converge without an actionable quality gain beyond
+independent attempts in its small exploratory sample. Whether later or
+selective exposure improves that tradeoff is now the open question.
+
+External evidence remains limited: CORAL (three tasks, matched on wall clock,
+not tokens) and AlphaEvolve's archive ablation (two tasks). Both the
 [literature review](../research/swarm-evidence.md) and the
 [ecdsa.fail prior-art note](../research/ecdsa-fail-swarm-prior-art.md) name this
-as the open question. Locust itself has been qualified end to end with real
-agents ([live trials](../research/collaboration-followups.md)) but never measured
-for an outcome.
+as a question requiring direct measurement. The
+[live trials](../research/collaboration-followups.md) establish other execution
+properties; those checks and the outcome experiment support different claims.
 
-## The next experiment
+## The original three-arm experiment
+
+The design below motivated the completed October 8 study and is retained to
+explain the thesis. The [information-policy plan](shared-record-information-policy-plan.md)
+defines the successor; its extra private-review control prevents attributing
+a structured self-review gain to peer communication.
 
 Three arms, matched on resources actually used:
 

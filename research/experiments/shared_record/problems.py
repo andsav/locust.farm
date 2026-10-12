@@ -5,22 +5,21 @@ a validator, a cost function and a trivial fallback. A candidate's normalized
 score on an instance set is its total cost divided by the reference's total
 cost; an invalid or timed-out instance counts as the fallback's cost.
 
-Instance sizes are chosen so that 1.5 CPU seconds of plain Python cannot
-converge: at the first calibration's sizes (about a tenth of these) every
-agent reached the same hidden score. `shape` states the generator so agents
-can target the distribution rather than the five public instances.
+Instance sizes come from the earlier development calibration; that is not a
+guarantee of search difficulty for a new model or budget. `shape` states the
+generator so agents can target the distribution rather than a particular
+public instance pack.
 """
 import hashlib
 import math
 import random
 
 DEVELOPMENT = ('maxcut', 'vertex_cover')
-HELD_OUT = ('tsp', 'coloring', 'unrelated_machines', 'mkp', 'setcover', 'qap')
-PUBLIC_INSTANCES, HIDDEN_INSTANCES = 5, 10
+KNOWN_SCORED = ('tsp', 'coloring', 'unrelated_machines', 'mkp', 'setcover', 'qap')
 
 
-def seeded(study_seed, family, split, index):
-    text = f'{study_seed}/{family}/{split}/{index}'
+def seeded(study_seed, family, split, index, *, pack):
+    text = f'{study_seed}/{family}/{pack}/{split}/{index}'
     return int.from_bytes(hashlib.sha256(text.encode()).digest()[:8], 'big')
 
 
@@ -34,7 +33,9 @@ def _graph(rng, n, p, weighted):
 
 
 def _check_permutation(solution, n):
-    if not isinstance(solution, list) or len(solution) != n or sorted(solution) != list(range(n)):
+    if (not isinstance(solution, list) or len(solution) != n
+            or any(type(value) is not int for value in solution)
+            or sorted(solution) != list(range(n))):
         raise ValueError('solution must be a permutation of range(n)')
 
 
@@ -426,13 +427,24 @@ class QAP:
 
 
 FAMILIES = {cls.name: cls() for cls in (MaxCut, VertexCover, TSP, Coloring, UnrelatedMachines, MKP, SetCover, QAP)}
-assert set(FAMILIES) == set(DEVELOPMENT) | set(HELD_OUT)
+assert set(FAMILIES) == set(DEVELOPMENT) | set(KNOWN_SCORED)
 
 
-def instances(study_seed, family, split):
-    count = PUBLIC_INSTANCES if split == 'public' else HIDDEN_INSTANCES
+def instances(study_seed, family, split, *, pack, count):
+    """Generate one frozen pack; trajectory repetitions reuse this same pack.
+
+    Public and hidden packs are separated by their split seed. The caller
+    records the study seed, pack identity, count and generator source hash.
+    """
+    if split not in ('public', 'hidden'):
+        raise ValueError('split must be public or hidden')
+    if type(count) is not int or count < 1:
+        raise ValueError('instance count must be a positive integer')
+    if not isinstance(pack, str) or not pack:
+        raise ValueError('pack must be a nonempty string')
     problem = FAMILIES[family]
-    return [problem.generate(random.Random(seeded(study_seed, family, split, i))) for i in range(count)]
+    return [problem.generate(random.Random(seeded(study_seed, family, split, i, pack=pack)))
+            for i in range(count)]
 
 
 def reference_costs(family, items):

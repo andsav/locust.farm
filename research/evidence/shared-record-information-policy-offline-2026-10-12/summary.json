@@ -1,0 +1,63 @@
+{
+  "cross_goal_source_access_denied": true,
+  "initial_replay": {
+    "archive_analysis_identical": true,
+    "binary_sha256": "74e8a05a061489dda54ac931dd95704ee99b9577d0a24fed4e107dea9babf01c",
+    "blocks": 4,
+    "empty_filtered_deliveries": 4,
+    "expected_transport_failures": 2,
+    "hidden_sha256": "958a95a38e564610e3e4ce4c55f78944b5615bb1a7b45a6ee0d9aea989f65857",
+    "http_transport_blocked": true,
+    "invalid_peer_recipients": 12,
+    "isolated_goals": 24,
+    "manifest_sha256": "9be95b1af62ad89acf46bc9d88a38e18b2e22667b09e53326479006ebc2d718f",
+    "paid_model_calls": 0,
+    "scripted_requests": 306,
+    "seal_sha256": "68eedc5050cbb5d4516e1f9cc4840b7370195823c132ec588a7a4bade4731875",
+    "signed_receipts": 208,
+    "status": "passed",
+    "trials": 36,
+    "unit_tests": {
+      "command": "/opt/homebrew/bin/python3.12 -m unittest discover -p 'test_*.py'",
+      "cwd": "research/experiments/shared_record",
+      "elapsed_seconds": 8.559,
+      "passed": 88
+    }
+  },
+  "large_source_transport": {
+    "binary_sha256": "74e8a05a061489dda54ac931dd95704ee99b9577d0a24fed4e107dea9babf01c",
+    "paid_model_calls": 0,
+    "peer_receipts": 7,
+    "private_receipts": 7,
+    "scope": "focused real daemon transport smoke before the final runner replay",
+    "source_chunks": 2,
+    "source_sha256": "7fdb9b3d866d45282843ee1936b8a61248b37a1ac5ed51525eb27e375d1f8fc7",
+    "source_utf8_bytes": 1440000
+  },
+  "local_record_identities": [
+    {
+      "bytes": 4872,
+      "file": "verification.json",
+      "sha256": "52bc41bd2feccaec59a94e26d661edc1ae5ac34c87320f3b85ae1c15f8afa2ca"
+    },
+    {
+      "bytes": 7265,
+      "file": "coloring-selector-regression.json",
+      "sha256": "0e6d751c58ef09b095216df1c13290c6989ea7e1fba629dfbde79f1188e8dcf0"
+    },
+    {
+      "bytes": 542,
+      "file": "large-source-smoke.json",
+      "sha256": "c70d9bda05e4906f3add51afc6c099f546876d0e9c6a296c7727fdd54f0e3687"
+    }
+  ],
+  "schema": "shared-record-curated-offline-summary.v1",
+  "scope": "Historical initial offline/scripted qualification, not paid model results; later opaque-ID verification is in the campaign summary.",
+  "selector_regression": {
+    "cost_only_control_selected": "archived-defect",
+    "limitation": "Validity gating rejects the known defect only after a public fixture exposes it; this does not establish hidden-bug detection or benchmark performance.",
+    "scope": "public historical regression fixture; not held-out benchmark evidence",
+    "selected": "archived-repair",
+    "status": "passed"
+  }
+}

@@ -2,7 +2,7 @@
 
 Status: verified run records, 8 October 2026. Calibration phase only; no
 scored trial ran. Protocol and amendment:
-[shared_record/README.md](../../experiments/shared_record/README.md).
+[shared_record/README.md](../../experiments/shared_record/historical-protocol-2026-10-08.md).
 
 The gate failed on criterion 3: `maxcut/independent` hidden range 0.0000 (all
 three agents at 0.9352). Everything else passed: 0 transport failures, every

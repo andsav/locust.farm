@@ -7,8 +7,13 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 
 ## Investigations and experiments
 
+- [MASS and Locust: information handoffs, learning and validity](mass-self-supervision-assessment-2026-10-11.md)
+- [Shared-record information policy: implementation and offline verification](shared-record-information-policy-verification-2026-10-12.md), with [verification evidence](evidence/shared-record-information-policy-offline-2026-10-12/README.md)
+- [Shared-record information-policy harness](experiments/shared_record/README.md)
+- [Shared-record information policy: $30 exploratory run](shared-record-information-policy-nightly-2026-10-12.md), with [campaign evidence](evidence/shared-record-night-2026-10-12/README.md)
+- [Shared-record information policy: findings and research direction](shared-record-information-policy-synthesis-2026-10-12.md)
 - [Shared record versus independent attempts versus strong solo: results](shared-record-study-results-2026-10-08.md)
-- [Shared record versus independent attempts versus strong solo: protocol](experiments/shared_record/README.md)
+- [Shared record versus independent attempts versus strong solo: historical protocol](experiments/shared_record/historical-protocol-2026-10-08.md)
 - [Model mixtures and communication: evidence and research direction](model-mixtures-and-communication-synthesis-2026-10-08.md)
 - [Evidence collaboration: completed development and failed qualification](evidence-collaboration-development-results-2026-10-08.md)
 - [Luna evidence collaboration: implemented study and execution protocol](experiments/evidence_collaboration/README.md)
@@ -123,6 +128,9 @@ Current accepted behavior belongs in [the manual](../docs/guide/README.md).
 - [Luna evidence-study run records](evidence/evidence-study-2026-10-08/README.md)
 - [Shared-record study: run records](evidence/shared-record-study-2026-10-08/README.md)
 - [Shared-record study: first calibration (gate failed)](evidence/shared-record-calibration-1-2026-10-08/README.md)
+- [Shared-record opaque candidate IDs: isolated verification](evidence/shared-record-night-2026-10-12/opaque-id-test-results.md)
+- [Shared-record scored pilot: prospective readiness review](evidence/shared-record-night-2026-10-12/prospective-scored-readiness.md)
+- [Shared-record development qualification and scored-phase stop](evidence/shared-record-night-2026-10-12/qualification-development-readiness.md)
 
 - [Three-agent board trial evidence](evidence/role-free-board-2026-10-05/README.md)
 - [Evidence for the v2 complexity count](evidence/v2-complexity-count-2026-10-06/README.md)

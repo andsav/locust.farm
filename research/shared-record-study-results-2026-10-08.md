@@ -3,7 +3,7 @@
 **Status: executed and analyzed, 8 October 2026. Exploratory: six held-out
 tasks, one trial per task-arm, one model. No confirmatory claim.**
 
-The [protocol](experiments/shared_record/README.md) tests the second sentence
+The [protocol](experiments/shared_record/historical-protocol-2026-10-08.md) tests the second sentence
 of the [narrowed thesis](../docs/collaboration-thesis.md): that a shared record
 of findings lets k agents do better than k isolated agents for the same spend.
 Three arms on each task, all `gpt-6-luna` at high reasoning effort with the
@@ -56,7 +56,7 @@ designed point.
 Selected hidden score per task-arm (lower is better; 1.0 equals the reference
 heuristic). "Spent" is the arm's own spend in this run; "inherited" is what a
 voided earlier run had already charged against the same agents' allowances
-(see [Reruns inherited voided spend](experiments/shared_record/README.md#reruns-inherited-voided-spend-against-their-allowances-found-at-analysis)).
+(see [Reruns inherited voided spend](experiments/shared_record/historical-protocol-2026-10-08.md#reruns-inherited-voided-spend-against-their-allowances-found-at-analysis)).
 
 | Task | Arm | Selected hidden | Public | Oracle hidden | Spent $ | Inherited $ | Candidates |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -157,7 +157,7 @@ instances; integer objectives saturate at this scale.
 
 **`tsp`: unequal effective allowances.** The first `tsp` trials were voided
 by a network outage that removed different fractions of each arm (protocol,
-[second outage](experiments/shared_record/README.md#scored-phase-tsp-and-qap-voided-by-a-second-network-outage)).
+[second outage](experiments/shared_record/historical-protocol-2026-10-08.md#scored-phase-tsp-and-qap-voided-by-a-second-network-outage)).
 The rerun then inherited the voided run's charges against the same agents'
 allowances through a harness defect found at analysis: the group arms ran on
 $0.11 and $0.07 of their $0.42, the solo on $0.35 (and then lost one request

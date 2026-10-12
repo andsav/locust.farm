@@ -19,3 +19,12 @@ target/
 # Python tooling caches.
 __pycache__/
 *.pyc
+
+# Local raw information-policy experiment evidence; keep curated summaries.
+/research/evidence/shared-record-night-2026-10-12/*.json
+/research/evidence/shared-record-night-2026-10-12/*.gz
+/research/evidence/shared-record-night-2026-10-12/*.xz
+/research/evidence/shared-record-night-2026-10-12/*.bundle
+!/research/evidence/shared-record-night-2026-10-12/summary.json
+/research/evidence/shared-record-information-policy-offline-2026-10-12/*.json
+!/research/evidence/shared-record-information-policy-offline-2026-10-12/summary.json
